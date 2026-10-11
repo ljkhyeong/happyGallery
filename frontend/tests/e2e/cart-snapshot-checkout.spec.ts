@@ -126,8 +126,8 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
   await expect(page.locator(".store-purchase-card").getByRole("alert")).toContainText(
     "장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.",
   );
-  await expect(page.locator(".store-purchase-card")).toContainText("₩12,000");
-  await expect(page.locator(".store-purchase-card")).not.toContainText("₩19,000");
+  await expect(page.locator(".store-purchase-card")).toContainText("12,000원");
+  await expect(page.locator(".store-purchase-card")).not.toContainText("19,000원");
   expect(preparePayloads).toHaveLength(0);
 
   await page.getByRole("button", { name: "장바구니 다시 확인" }).click();
@@ -338,7 +338,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
 
   await page.locator("#cart-select-92").uncheck();
   await expect(warning).toHaveCount(0);
-  await expect(page.locator(".store-purchase-card")).toContainText("₩22,000");
+  await expect(page.locator(".store-purchase-card")).toContainText("22,000원");
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await expect(checkoutButton).toBeEnabled();
   await checkoutButton.click();

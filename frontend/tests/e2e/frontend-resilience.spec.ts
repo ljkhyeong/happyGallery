@@ -697,16 +697,16 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   await page.goto("/my/orders/75");
   const orderCard = page.locator(".card").filter({ hasText: "HG-BENEFIT-75" }).first();
   await expect(orderCard.getByText("카드·간편결제 금액", { exact: true }).first().locator("..")).toContainText(
-    "₩7,000",
+    "7,000원",
   );
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("₩12,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-₩2,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-₩3,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("₩7,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("12,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-2,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-3,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("7,000원");
 
   const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
-  await expect(refundAlert).toContainText("₩10,000 환불이 완료되었습니다.");
-  await expect(refundAlert.getByText(/결제사 환불 ₩7,000 · 완료/)).toBeVisible();
+  await expect(refundAlert).toContainText("10,000원 환불이 완료되었습니다.");
+  await expect(refundAlert.getByText(/결제사 환불 7,000원 · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/적립금 복원 3,000P · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/지급 적립금 회수 70P · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/쿠폰을 다시 사용할 수 있습니다./)).toBeVisible();

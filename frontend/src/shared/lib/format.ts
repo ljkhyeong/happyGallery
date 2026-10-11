@@ -1,7 +1,5 @@
-const krwFormatter = new Intl.NumberFormat("ko-KR", {
-  style: "currency",
-  currency: "KRW",
-});
+// 국내 상점 표기처럼 `30,000원`으로 쓴다(통화 기호 ₩는 명조 제목에서 줄이 겹쳐 보인다).
+const krwNumberFormatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
 
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_OFFSET_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
@@ -31,7 +29,7 @@ export function withUtcOffset(value: string): string {
 }
 
 export function formatKRW(amount: number): string {
-  return krwFormatter.format(amount);
+  return `${krwNumberFormatter.format(amount)}원`;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {

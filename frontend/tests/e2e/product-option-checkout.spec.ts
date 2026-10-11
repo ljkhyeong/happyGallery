@@ -99,7 +99,7 @@ for (const readyStock of [false, true]) {
     await expect(page.getByRole("button", { name: "수량 증가", exact: true })).toBeDisabled();
     await quantity.fill("3");
     await expect(quantity).toHaveValue("2");
-    const total = readyStock ? "₩20,000" : "₩24,000";
+    const total = readyStock ? "20,000원" : "24,000원";
     await expect(page.locator(".store-purchase-summary")).toContainText(total);
     await page.getByRole("link", { name: /비회원 주문하기/ }).click();
     await completeGuestOrderForm(page, !readyStock);
@@ -306,7 +306,7 @@ for (const { quantity, limit, name } of [
       await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
       await page.goto("/cart");
       const cartRow = page.getByRole("row").filter({ hasText: "색상: 브라운" });
-      await expect(cartRow).toContainText("각인 문구: 문구 A (+₩1,000)");
+      await expect(cartRow).toContainText("각인 문구: 문구 A (+1,000원)");
     }
   });
 }
@@ -345,10 +345,10 @@ test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 �
   await page.getByLabel("인증번호", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   const brownItem = page.locator(".list-group-item").filter({ hasText: "색상: 브라운" });
-  await expect(brownItem.getByText("각인 문구: <A> & B (+₩1,000)", { exact: true })).toBeVisible();
-  await expect(brownItem).toContainText("₩13,000");
+  await expect(brownItem.getByText("각인 문구: <A> & B (+1,000원)", { exact: true })).toBeVisible();
+  await expect(brownItem).toContainText("13,000원");
   const blueItem = page.locator(".list-group-item").filter({ hasText: "색상: 블루" });
-  await expect(blueItem).toContainText("₩14,000");
+  await expect(blueItem).toContainText("14,000원");
   await expect(blueItem).not.toContainText("각인 문구");
   await page.getByLabel("주문자 이름", { exact: true }).fill("옵션 확인 고객");
   await page.getByRole("button", { name: "매장 수령", exact: true }).click();
@@ -378,7 +378,7 @@ test("@payment 구분문자가 포함된 각인과 두 개의 직접입력 옵�
   await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
   await page.goto("/cart");
   await expect(page.locator("tbody tr")).toHaveCount(2);
-  await expect(page.getByText("각인 문구: A|note=B (+₩1,000)", { exact: true })).toBeVisible();
+  await expect(page.getByText("각인 문구: A|note=B (+1,000원)", { exact: true })).toBeVisible();
   await expect(page.getByText("추가 문구: B", { exact: true })).toBeVisible();
 });
 
@@ -464,7 +464,7 @@ test("@payment 선택한 옵션은 상품 재조회 뒤 현재 이름과 단가�
   await page.getByRole("textbox", { name: /각인 문구/ }).fill("문구 A");
   await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
   await page.locator(".store-option-form").getByRole("spinbutton").fill("2");
-  await expect(page.locator(".store-purchase-summary")).toContainText("₩26,000");
+  await expect(page.locator(".store-purchase-summary")).toContainText("26,000원");
 
   product.price = 12000;
   product.variants[0]!.priceAdjustment = 4000;
@@ -474,12 +474,12 @@ test("@payment 선택한 옵션은 상품 재조회 뒤 현재 이름과 단가�
   await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
   const row = page.locator(".store-option-form tbody tr");
   await expect(row).toContainText("색상: 밤색 / 각인 문구: 문구 A");
-  await expect(row).toContainText("₩17,500");
+  await expect(row).toContainText("17,500원");
   await expect(row.getByRole("spinbutton")).toHaveValue("2");
-  await expect(page.locator(".store-purchase-summary")).toContainText("₩35,000");
+  await expect(page.locator(".store-purchase-summary")).toContainText("35,000원");
   await expect(page.getByText("상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.")).toBeVisible();
   await page.goto("/cart");
-  await expect(page.locator("tbody tr")).toContainText("₩35,000");
+  await expect(page.locator("tbody tr")).toContainText("35,000원");
 });
 
 test("@payment 모든 옵션이 삭제되어도 이전 선택을 기본 상품 주문으로 바꾸지 않는다", async ({ page }) => {

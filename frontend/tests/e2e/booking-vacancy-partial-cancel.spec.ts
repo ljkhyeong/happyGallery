@@ -318,6 +318,6 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
   await expect.poll(() => requestedParticipantCount).toBe(2);
   await expect(page.getByText("2명", { exact: true })).toBeVisible();
   await expect(page.getByText(
-    "1명 부분취소와 ₩10,000 환불 요청이 접수되었습니다.",
+    "1명 부분취소와 10,000원 환불 요청이 접수되었습니다.",
   )).toBeVisible();
 });

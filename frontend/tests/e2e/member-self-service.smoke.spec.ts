@@ -53,7 +53,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
   const itemRow = page.getByRole("row").filter({ hasText: productName });
   await expect(itemRow).toContainText("2");
-  await expect(itemRow).toContainText("₩66,000");
+  await expect(itemRow).toContainText("66,000원");
 
   await logoutCustomer(page);
   await page.goto("/my");
@@ -289,9 +289,9 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
 
   const depositCancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
   await expect(depositCancelDialog.getByText("환불·이용 횟수 복원 마감")).toBeVisible();
-  await expect(depositCancelDialog.getByText("₩15,000", { exact: true })).toBeVisible();
+  await expect(depositCancelDialog.getByText("15,000원", { exact: true })).toBeVisible();
   await expect(depositCancelDialog.getByText(
-    "취소 마감이 지나 예약금 ₩15,000은 환불되지 않습니다. 예약만 취소됩니다.",
+    "취소 마감이 지나 예약금 15,000원은 환불되지 않습니다. 예약만 취소됩니다.",
   )).toBeVisible();
   await expect(depositCancelDialog.getByRole("button", { name: "환불 없이 예약 취소" }))
     .toBeVisible();

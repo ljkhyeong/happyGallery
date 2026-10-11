@@ -222,7 +222,7 @@ test.afterEach(async () => {
 
   await page.goto("/my/benefits");
   await expect(page.getByRole("heading", { name: "쿠폰·적립금" })).toBeVisible();
-  await expect(page.getByText("₩50,000").first()).toBeVisible();
+  await expect(page.getByText("50,000원").first()).toBeVisible();
   const claimableCard = page.locator(".card").filter({ hasText: "여름 공개 쿠폰" }).first();
   await claimableCard.getByRole("button", { name: "쿠폰 받기" }).click();
   await expect(page.getByText("현재 새로 받을 수 있는 쿠폰이 없습니다.")).toBeVisible();
@@ -240,18 +240,18 @@ test.afterEach(async () => {
   await expect(rewardInput).toHaveValue("15000");
   const paymentSummary = page.getByText("결제 예정 금액", { exact: true }).locator("..");
   await page.getByRole("button", { name: /택배 배송/ }).click();
-  await expect(paymentSummary).toContainText("₩3,000");
+  await expect(paymentSummary).toContainText(/(?<![\d,])3,000원/);
 
   await page.getByRole("button", { name: "매장 수령" }).click();
-  await expect(paymentSummary).toContainText("₩0");
+  await expect(paymentSummary).toContainText(/(?<![\d,])0원/);
   if (!checkout.cartCheckout) {
     await page.getByRole("button", { name: "수량 증가", exact: true }).click();
-    await expect(paymentSummary).toContainText("₩20,000");
+    await expect(paymentSummary).toContainText("20,000원");
     await page.getByRole("button", { name: "전액 사용", exact: true }).click();
     await expect(rewardInput).toHaveValue("35000");
     await page.getByRole("button", { name: "수량 감소", exact: true }).click();
     await expect(rewardInput).toHaveValue("15000");
-    await expect(paymentSummary).toContainText("₩0");
+    await expect(paymentSummary).toContainText(/(?<![\d,])0원/);
   }
   await page.getByRole("button", { name: checkout.button, exact: true }).click();
   await expect.poll(() => preparedPayload).not.toBeNull();
