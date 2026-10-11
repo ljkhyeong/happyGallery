@@ -485,7 +485,6 @@ textarea {
 
 // 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
 .store-section-kicker,
-.store-purchase-kicker,
 .store-detail-kicker {
   margin-bottom: 0.75rem;
   color: var(--hg-accent-deep);
@@ -558,8 +557,12 @@ textarea {
 .product-card-meta {
   margin-top: 0.75rem;
   color: var(--hg-ink-soft);
-  font-family: var(--hg-font-display);
   font-size: 0.8rem;
+}
+
+// 카테고리를 숨긴 목록에서는 이름이 사진 바로 아래에 온다.
+.product-card-media + .product-card-name {
+  margin-top: 0.75rem;
 }
 
 .product-card-name {
@@ -596,7 +599,7 @@ textarea {
 }
 
 .product-card-price {
-  margin-top: 0.3rem;
+  margin-top: 0.2rem;
   font-size: 0.98rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -677,10 +680,9 @@ textarea {
 }
 
 .workshop-visit-name {
-  margin: 0;
   font-family: var(--hg-font-display);
-  font-size: 1rem;
-  font-weight: 800;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .workshop-visit-details {
@@ -796,14 +798,17 @@ textarea {
   background: transparent;
 }
 
+// 작품 목록 머리: 조건에 맞춘 제목과 한 줄 안내. 아래 선은 카테고리 탭이 맡는다.
 .store-list-header {
-  padding: 0 0 1.5rem;
-  border-bottom: 1px solid var(--hg-border);
+  margin-bottom: 0.5rem;
 }
 
 .store-list-title {
+  margin-bottom: 0.35rem;
   font-family: var(--hg-font-display);
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
   font-weight: 500;
+  letter-spacing: -0.03em;
 }
 
 @media (prefers-reduced-motion: reduce) {

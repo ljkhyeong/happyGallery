@@ -105,7 +105,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     ssrApiFixture("/products/categories", ["LEATHER"]),
   );
   await page.reload();
-  await expect(page.getByLabel("카테고리").getByRole("option", { name: "LEATHER" }))
+  await expect(page.getByRole("navigation", { name: "카테고리", exact: true }).getByRole("link", { name: "LEATHER" }))
     .toHaveCount(1);
 
   await page.goto("/passes/purchase");

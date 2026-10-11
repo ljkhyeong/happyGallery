@@ -7,7 +7,6 @@ import {
   getClassCategoryLabel,
   getStatusLabel,
   NOTIFICATION_EVENT_LABEL,
-  PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "../../src/shared/lib/labels.ts";
 
@@ -67,7 +66,6 @@ test("클래스 카테고리는 알려진 종류를 고객이 읽을 수 있는 
 test("상품과 알림 라벨은 내부 업무 용어 대신 고객 표현을 사용한다", () => {
   assert.equal(PRODUCT_TYPE_LABEL.READY_STOCK, "재고 상품");
   assert.equal(PRODUCT_TYPE_LABEL.MADE_TO_ORDER, "주문 제작 상품");
-  assert.match(PRODUCT_FULFILLMENT_LABEL.MADE_TO_ORDER, /공방 승인 후/);
   assert.equal(FULFILLMENT_TYPE_LABEL.PICKUP, "매장 수령");
   assert.equal(NOTIFICATION_EVENT_LABEL.ORDER_CLAIM_RESOLVED, "환불·교환 요청 처리 결과");
   assert.equal(NOTIFICATION_EVENT_LABEL.REVIEW_HIDDEN, "후기 비공개 안내");

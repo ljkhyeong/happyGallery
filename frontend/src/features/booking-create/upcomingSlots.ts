@@ -72,12 +72,6 @@ export function classAcceptsPass(bookingClass: Pick<ClassResponse, "passEligible
   return bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category);
 }
 
-export function bookingPaymentHint(bookingClass: Pick<ClassResponse, "passEligible" | "category">): string {
-  return classAcceptsPass(bookingClass)
-    ? "날짜를 고른 뒤 예약금 결제 또는 4회권으로 예약할 수 있습니다."
-    : "날짜를 고른 뒤 예약금을 결제하면 예약이 확정됩니다.";
-}
-
 /** `selectSlot`은 사용자가 이미 시간을 고른 경우에만 붙여 예약 화면이 해당 일정을 바로 선택하게 한다. */
 export function bookingCreateHref(classId: number, slotId?: number, options?: { selectSlot?: boolean }): string {
   const params = new URLSearchParams({ classId: String(classId) });

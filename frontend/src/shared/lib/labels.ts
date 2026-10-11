@@ -42,12 +42,6 @@ export const PRODUCT_TYPE_LABEL: Record<string, string> = {
   MADE_TO_ORDER: "주문 제작 상품",
 };
 
-/** 상품 타입별 배송·제작 안내 문구 */
-export const PRODUCT_FULFILLMENT_LABEL: Record<string, string> = {
-  READY_STOCK: "재고 상품 - 공방 승인 후 선택한 수령 방법에 맞춰 준비합니다.",
-  MADE_TO_ORDER: "주문 제작 상품 - 공방 승인 후 상품에 안내된 기간과 사양에 맞춰 제작합니다.",
-};
-
 /** 상품 수령 방법 라벨 */
 export const FULFILLMENT_TYPE_LABEL: Record<string, string> = {
   SHIPPING: "택배 배송",

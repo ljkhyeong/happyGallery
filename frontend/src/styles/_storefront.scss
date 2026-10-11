@@ -52,11 +52,6 @@
   top: 6rem;
 }
 
-// 작품 상세 구역(작품 안내·후기·문의)에 01·02·03 번호를 붙인다.
-.store-product-page {
-  counter-reset: hg-detail-section;
-}
-
 .store-product-intro {
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
@@ -78,11 +73,20 @@
   letter-spacing: 0;
 }
 
+// 카테고리는 같은 카테고리 작품 목록으로 이어진다.
 .store-detail-category {
   padding-left: 0.65rem;
   border-left: 1px solid var(--hg-border);
   color: var(--hg-ink-soft);
   font-size: 0.85rem;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .store-detail-availability {
@@ -121,8 +125,14 @@
   letter-spacing: -0.035em;
 }
 
+.store-detail-lead {
+  margin: 0.4rem 0 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.875rem;
+}
+
 .store-detail-description {
-  margin: 1rem 0 1rem;
+  margin: 1rem 0;
   color: #3A3A37;
   font-size: 0.95rem;
   line-height: 1.8;
@@ -141,11 +151,11 @@
   }
 }
 
-// 작품 사진은 회색 벽 위 흰 매트 액자에 4:5로 건다.
+// 작품 사진은 옅은 회색 여백 안에 흰 테를 둘러 4:5로 건다. 여백은 사진을 가리지 않을 만큼만 둔다.
 .store-detail-media {
   width: 100%;
   margin: 0;
-  padding: clamp(1.25rem, 4vw, 3.5rem);
+  padding: clamp(1rem, 2.4vw, 1.75rem);
   background: var(--hg-surface-alt);
 
   > img,
@@ -153,7 +163,7 @@
     display: flex;
     width: 100%;
     aspect-ratio: 4 / 5;
-    padding: clamp(0.6rem, 1.4vw, 1.1rem);
+    padding: clamp(0.4rem, 0.8vw, 0.6rem);
     background: #FFFFFF;
   }
 
@@ -170,26 +180,56 @@
   color: var(--hg-dark);
 }
 
-.store-detail-facts {
+// 상세 아래 구역 탭(작품 정보·배송·교환·후기·문의): 화면 위에 붙어 따라온다.
+.store-detail-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0 1.75rem;
   margin-top: clamp(3rem, 6vw, 4.5rem);
-  padding: clamp(1.75rem, 4vw, 2.75rem);
-  background: var(--hg-surface-alt);
+  overflow-x: auto;
+  white-space: nowrap;
+  background: #FFFFFF;
+  border-top: 1px solid var(--hg-dark);
+  border-bottom: 1px solid var(--hg-border);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  a {
+    flex: 0 0 auto;
+    padding: 0.9rem 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--hg-dark);
+    }
+  }
 }
 
-// 상세 구역 제목: 번호 · 명조 제목 · 먹색 1px 선.
-.store-detail-section-heading {
-  margin-bottom: 0.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--hg-dark);
+// 탭으로 이동한 구역이 붙어 있는 탭 아래에 가리지 않게 멈춘다.
+.store-detail-section,
+.store-detail-anchor {
+  scroll-margin-top: 4rem;
+}
 
-  h2 {
-    @include hg-section-number;
-    margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.5rem, 2.6vw, 2rem);
-    font-weight: 500;
-    letter-spacing: -0.03em;
-  }
+.store-detail-section {
+  padding-top: clamp(2rem, 4vw, 2.75rem);
+}
+
+.store-detail-section-title {
+  margin: 0 0 1rem;
+  font-family: var(--hg-font-display);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 .store-detail-terms > div {
@@ -212,11 +252,11 @@
   }
 }
 
-// 고정 사양·주문 제작 안내는 정보 색 대신 흰 바탕 안내 줄로 둔다(회색 면 위).
+// 고정 사양·주문 제작 안내는 정보 색 대신 옅은 회색 안내 줄로 둔다.
 .store-detail-terms .alert {
   color: var(--hg-dark);
-  background: #FFFFFF;
-  border-color: var(--hg-border);
+  background: var(--hg-surface-alt);
+  border: 0;
 }
 
 // 작품 구매 안내: 수령·배송비·교환반품·적립을 같은 줄 구성으로 보여 준다.
@@ -251,68 +291,21 @@
   border-radius: var(--hg-radius-media);
 }
 
-.store-order-sheet-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--hg-border);
-
-  h2 {
-    margin: 0.2rem 0 0.4rem;
-    font-family: var(--hg-font-display);
-    font-size: 1.5rem;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-  }
-
-  p {
-    max-width: 23rem;
-    margin: 0;
-    color: var(--hg-ink-soft);
-    font-size: 0.8125rem;
-    line-height: 1.55;
-  }
-}
-
-.store-order-sheet-header .store-purchase-kicker {
-  margin: 0;
-}
-
-
+// 구매 상자: 옵션·수량 → 금액 → (회원) 받는 방법 → 결제 버튼. 단계 번호와 상자 제목은 두지 않는다.
 .store-order-sheet-step {
   padding: 1.5rem 0;
   border-bottom: 1px solid var(--hg-border);
+
+  &:first-of-type {
+    padding-top: 0;
+  }
 }
 
 .store-order-sheet-step-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1rem;
-
-  > span {
-    display: inline-grid;
-    place-items: center;
-    width: 1.6rem;
-    height: 1.6rem;
-    color: var(--hg-dark);
-    border: 1px solid var(--hg-dark);
-    border-radius: 50%;
-    font-family: var(--hg-font-display);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  h3 {
-    margin: 0;
-    font-size: 0.9375rem;
-  }
-}
-
-.store-order-sheet-action-heading {
-  margin-bottom: 1rem;
+  margin: 0 0 0.85rem;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
 }
 
 .store-purchase-quantity {
@@ -596,7 +589,43 @@
   letter-spacing: 0.02em;
 }
 
-// 작품 목록 도구 막대: 검색은 왼쪽, 종류·카테고리·정렬은 오른쪽 한 줄. 모바일은 검색 아래 세 칸으로 나눈다.
+// 작품 목록 카테고리 탭: 현재 카테고리는 먹색 2px 밑줄과 굵은 글자. 좁은 화면은 가로로 밀어 본다.
+.store-category-tabs {
+  display: flex;
+  gap: 0 1.35rem;
+  margin: 1.25rem 0 1rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--hg-border);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  a {
+    flex: 0 0 auto;
+    margin-bottom: -1px;
+    padding: 0.75rem 0;
+    color: var(--hg-ink-soft);
+    border-bottom: 2px solid transparent;
+    font-size: 0.95rem;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--hg-dark);
+    }
+
+    &[aria-current="page"] {
+      color: var(--hg-dark);
+      border-bottom-color: var(--hg-dark);
+      font-weight: 700;
+    }
+  }
+}
+
+// 작품 목록 도구 막대: 검색은 왼쪽, 판매 방식·정렬은 오른쪽 한 줄. 모바일은 검색 아래 두 칸으로 나눈다.
 .store-filter-bar {
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
@@ -687,26 +716,20 @@
   margin-top: clamp(2.5rem, 6vw, 4rem);
 }
 
-// 후기는 작품·클래스 상세에만 있어 상세 구역 번호를 이어서 붙인다.
+// 후기 머리: 제목과 평균 별점·후기 수를 한 줄에 둔다(작품·클래스 상세 공용).
 .review-section-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
   margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--hg-dark);
 
-  > div:first-child {
-    @include hg-section-number;
-  }
-
-  h3 {
+  h2 {
+    margin: 0;
     font-family: var(--hg-font-display);
-    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
     font-weight: 500;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -736,21 +759,18 @@
 .product-qna-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--hg-dark);
 }
 
 .product-qna-heading {
-  @include hg-section-number;
   margin: 0;
   font-family: var(--hg-font-display);
-  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
   font-weight: 500;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .review-summary > span,

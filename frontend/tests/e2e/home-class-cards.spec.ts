@@ -76,7 +76,7 @@ test("홈 클래스 카드는 마감 일정을 건너뛴 다음 수업과 남은
   });
 
   await page.goto("/");
-  const section = page.getByRole("region", { name: "체험 프로그램" });
+  const section = page.getByRole("region", { name: "공방 클래스" });
 
   // 마감된 오전 수업은 건너뛰고, 남은 자리가 적은 오후 수업을 다음 수업으로 보여 준다.
   const resinCard = section.getByRole("link", { name: /레진아트 원데이.*다음 수업 1\/2\(금\) 오후 01:00.*마감 임박 · 2자리/ });

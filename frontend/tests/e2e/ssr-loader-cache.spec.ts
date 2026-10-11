@@ -132,7 +132,8 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
   await page.goBack();
   await expect(page.getByLabel("검색", { exact: true })).toHaveValue("보존");
   await page.reload();
-  await expect(page.getByLabel("카테고리", { exact: true })).toHaveValue("테스트");
+  await expect(page.getByRole("navigation", { name: "카테고리", exact: true }).getByRole("link", { name: "테스트" }))
+    .toHaveAttribute("aria-current", "page");
   await expect(page.getByText(selected.name, { exact: true })).toBeVisible();
   await page.getByLabel("검색", { exact: true }).fill("없는작품");
   await expect(page.getByText("조건에 맞는 상품이 없습니다.")).toBeVisible();
@@ -140,4 +141,41 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
   await page.getByRole("button", { name: "초기화", exact: true }).click();
   await expect(page).toHaveURL(/\/products$/);
   await expect(page.getByText(selected.name, { exact: true })).toBeVisible();
+});
+
+test("머리글 카테고리는 그 카테고리 제목·경로·탭이 있는 작품 목록으로 이어진다", async ({ page }) => {
+  const leather = productDetailFixture({ name: "카테고리 가죽 작품", category: "가죽" });
+  const query = new URLSearchParams({ category: "가죽" });
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture(`/products?${query}`, [leather]),
+    ssrApiFixture("/products/categories", ["가죽", "레진"]),
+  );
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === "/api/v1/products" || pathname === "/api/v1/products/categories") {
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto(`/products?${query}`);
+
+  // 전체 목록과 구분되도록 제목·문서 제목·경로가 카테고리를 따른다.
+  await expect(page.getByRole("heading", { level: 1, name: "가죽" })).toBeVisible();
+  await expect(page).toHaveTitle("가죽 작품 | 해피갤러리");
+  await expect(page.getByRole("navigation", { name: "경로" }).getByRole("link", { name: "전체 작품" }))
+    .toHaveAttribute("href", "/products");
+  const tabs = page.getByRole("navigation", { name: "카테고리", exact: true });
+  await expect(tabs.getByRole("link", { name: "가죽" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "레진" })).toHaveAttribute("href", "/products?category=%EB%A0%88%EC%A7%84");
+  await expect(page.getByText(leather.name, { exact: true })).toBeVisible();
 });

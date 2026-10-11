@@ -46,8 +46,8 @@ const SITUATIONS = [
   ...CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => ({ to: `/classes?tag=${code}`, label })),
 ];
 
-/** 재료별 전시실. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
-const CATEGORY_ROOMS: ReadonlyArray<{ category: ShopCategory; label: string; image: string }> = [
+/** 재료별 사진 칸. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
+const CATEGORY_TILES: ReadonlyArray<{ category: ShopCategory; label: string; image: string }> = [
   { category: "가죽", label: "가죽 소품", image: leatherClass },
   { category: "레진", label: "레진 소품·가구", image: resinSeaCoaster },
   { category: "향·아로마", label: "향수·디퓨저·핸드크림", image: perfumeShelf },
@@ -69,15 +69,13 @@ interface HomePageProps {
   initialWorkshop: WorkshopProfileResponse;
 }
 
-function SectionHead({ number, id, title, children }: {
-  number: string;
+function SectionHead({ id, title, children }: {
   id: string;
   title: string;
   children?: ReactNode;
 }) {
   return (
     <header className="gallery-section-head">
-      <span className="gallery-section-number" aria-hidden="true">{number}</span>
       <h2 id={id}>{title}</h2>
       {children}
     </header>
@@ -114,6 +112,8 @@ export function HomePage({
     .slice(0, HOME_PRODUCT_LIMIT);
   const productCategories = SHOP_CATEGORIES.filter((name) =>
     availableProducts.some((product) => product.category === name));
+  // 판매 중인 작품이 있는 카테고리만 사진 칸으로 보여 빈 목록으로 보내지 않는다.
+  const categoryTiles = CATEGORY_TILES.filter(({ category: name }) => productCategories.includes(name));
   const productListHref = category === ALL_CATEGORIES
     ? "/products"
     : `/products?${new URLSearchParams({ category })}`;
@@ -139,10 +139,6 @@ export function HomePage({
       <section className="gallery-hero" aria-labelledby="home-hero-title">
         <Container className="gallery-hero-inner">
           <div className="gallery-hero-copy">
-            <p className="gallery-hero-label">
-              <span className="gallery-dot" aria-hidden="true" />
-              상설전 · 충주 계명대로 공방
-            </p>
             <h2 id="home-hero-title" className="gallery-hero-title">손으로 만든<br />것들의<br />작은 상설전</h2>
             <p className="gallery-hero-lead">
               공방에서 가죽, 레진, 향, 양말목, 톨페인팅 작품을 만들어 팝니다.
@@ -150,28 +146,25 @@ export function HomePage({
             </p>
             <dl className="gallery-hero-facts">
               {address && <div><dt>장소</dt><dd>{address}</dd></div>}
-              {workshop.businessHours && <div><dt>관람</dt><dd>{workshop.businessHours}</dd></div>}
+              {workshop.businessHours && <div><dt>운영 시간</dt><dd>{workshop.businessHours}</dd></div>}
               <div><dt>구매</dt><dd>온라인 주문 · 택배 또는 공방 수령</dd></div>
-              <div><dt>체험</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
+              <div><dt>수업</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
             </dl>
             <div className="gallery-hero-actions">
-              <LinkButton to="/products" variant="dark" size="lg">전시 작품 보기</LinkButton>
-              <LinkButton to="/classes" variant="outline-dark" size="lg">체험 프로그램 예약</LinkButton>
+              <LinkButton to="/products" variant="dark" size="lg">작품 보기</LinkButton>
+              <LinkButton to="/classes" variant="outline-dark" size="lg">클래스 예약</LinkButton>
             </div>
           </div>
           <figure className="gallery-hero-figure">
             <img src={heroWorkshop} alt="가죽 가방과 소품이 놓인 공방 진열 선반" fetchPriority="high" />
-            <figcaption>
-              <span>계명대로 공방 진열장</span>
-              <span>가죽 가방 · 소품</span>
-            </figcaption>
+            <figcaption>계명대로 공방 진열장</figcaption>
           </figure>
         </Container>
       </section>
 
       <section className="gallery-section is-tinted" aria-labelledby="home-product-title">
         <Container>
-          <SectionHead number="01" id="home-product-title" title="전시 중인 작품">
+          <SectionHead id="home-product-title" title="새로 올라온 작품">
             {productCategories.length > 0 && (
               <div className="gallery-tabs" role="group" aria-label="작품 카테고리">
                 {[ALL_CATEGORIES, ...productCategories].map((name) => (
@@ -186,14 +179,14 @@ export function HomePage({
                 ))}
               </div>
             )}
-            <Link to={productListHref} className="gallery-section-more">전체 작품 보기</Link>
+            <Link to={productListHref} className="gallery-section-more">
+              {category === ALL_CATEGORIES ? "전체 작품 보기" : `${category} 작품 더 보기`}
+            </Link>
           </SectionHead>
           <ErrorAlert error={productsError} />
           {featuredProducts.length > 0 && (
             <div className="product-grid home-product-grid">
-              {featuredProducts.map((product, index) => (
-                <ProductCard key={product.id} product={product} exhibitNumber={index + 1} />
-              ))}
+              {featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
             </div>
           )}
           {!productsError && featuredProducts.length === 0 && (
@@ -204,7 +197,7 @@ export function HomePage({
 
       <section className="gallery-section" aria-labelledby="home-class-title">
         <Container>
-          <SectionHead number="02" id="home-class-title" title="체험 프로그램">
+          <SectionHead id="home-class-title" title="공방 클래스">
             <nav className="gallery-chips" aria-label="상황별로 수업 찾기">
               {SITUATIONS.map(({ to, label }) => <Link key={to} to={to}>{label}</Link>)}
             </nav>
@@ -226,7 +219,7 @@ export function HomePage({
                             <strong>{day.month}.{day.day}</strong>
                             <span>{day.weekday}요일</span>
                           </>
-                        ) : <strong>—</strong>}
+                        ) : null}
                       </span>
                       <img src={classImageSrc(bookingClass)} alt="" loading="lazy" />
                       <span className="gallery-program-body">
@@ -250,35 +243,34 @@ export function HomePage({
           )}
           <div className="gallery-program-links">
             <Link to="/passes/purchase">
-              <span>정규반 · 4회권</span>
-              <strong>한 재료를 네 번에 걸쳐 깊게</strong>
-              <span>4회권 하나로 원하는 회차를 골라 예약합니다. 남은 횟수는 내 정보에서 확인합니다.</span>
+              <strong>정규반·4회권</strong>
+              <span>4회권 하나로 원하는 날짜를 골라 네 번 예약합니다. 남은 횟수는 내 정보에서 확인합니다.</span>
             </Link>
             <Link to="/group-classes">
-              <span>단체 · 출강</span>
-              <strong>학교·기관·동아리 단체 수업</strong>
-              <span>인원과 날짜를 알려 주시면 재료를 챙겨 찾아갑니다.</span>
+              <strong>단체·출강 수업</strong>
+              <span>학교·기관·동아리 인원과 날짜를 알려 주시면 재료를 챙겨 찾아갑니다.</span>
             </Link>
           </div>
         </Container>
       </section>
 
-      <section className="gallery-section is-tinted" aria-labelledby="home-category-title">
-        <Container>
-          <SectionHead number="03" id="home-category-title" title="재료별 전시실" />
-          <ul className="gallery-room-grid">
-            {CATEGORY_ROOMS.map(({ category: name, label, image }, index) => (
-              <li key={name}>
-                <Link to={`/products?${new URLSearchParams({ category: name })}`}>
-                  <img src={image} alt="" loading="lazy" />
-                  <span className="gallery-room-number">제{index + 1}전시실</span>
-                  <span className="gallery-room-name">{label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </section>
+      {categoryTiles.length > 0 && (
+        <section className="gallery-section is-tinted" aria-labelledby="home-category-title">
+          <Container>
+            <SectionHead id="home-category-title" title="재료별로 보기" />
+            <ul className="gallery-room-grid">
+              {categoryTiles.map(({ category: name, label, image }) => (
+                <li key={name}>
+                  <Link to={`/products?${new URLSearchParams({ category: name })}`}>
+                    <img src={image} alt="" loading="lazy" />
+                    <span className="gallery-room-name">{label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
 
       <section className="gallery-section home-updates-section">
         <Container className="home-updates-grid">
@@ -292,7 +284,6 @@ export function HomePage({
           <div className="gallery-story">
             <img src={leatherWorkshopHands} alt="빈티지 가죽에 각인 도장을 찍는 손" loading="lazy" />
             <div className="gallery-story-copy">
-              <p className="gallery-story-label"><span aria-hidden="true">04</span>공방 이야기</p>
               <h2 id="home-shop-title">{workshop.name}</h2>
               {workshop.introduction && <p>{workshop.introduction}</p>}
               {address && <p className="gallery-story-address">{address}</p>}

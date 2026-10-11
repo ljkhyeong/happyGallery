@@ -11,22 +11,6 @@
 }
 
 // ── Common utilities ───────────────────────────────────
-// 상세 화면 구역 번호(01·02…). 제목 위에 작은 명조 숫자로 붙이고, 화면 읽기에서는 번호를 읽지 않는다.
-// 번호를 셀 화면 바깥 틀에 `counter-reset: hg-detail-section`을 둔다.
-@mixin hg-section-number {
-  counter-increment: hg-detail-section;
-
-  &::before {
-    display: block;
-    margin-bottom: 0.4rem;
-    font-family: var(--hg-font-display);
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0;
-    content: counter(hg-detail-section, decimal-leading-zero) / "";
-  }
-}
-
 // 화면 본문 틀: 머리글·바닥글과 같은 1180px 폭에 맞춘다.
 .page-container {
   max-width: 1180px;

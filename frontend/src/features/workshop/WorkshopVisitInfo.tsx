@@ -42,10 +42,8 @@ export function WorkshopVisitInfo() {
         retrying={isFetching}
       />
       <div className="workshop-visit-info">
-        <div>
-          <p className="store-section-kicker mb-2">방문 안내</p>
-          <h2 className="workshop-visit-name">{profile.name}</h2>
-        </div>
+        {/* 구역 제목은 쓰는 화면이 정하고, 여기서는 어느 공방인지만 밝힌다. */}
+        <strong className="workshop-visit-name">{profile.name}</strong>
         <dl className="workshop-visit-details mb-0">
           {address && <><dt>주소</dt><dd>{address}</dd></>}
           {profile.phone && <><dt>전화</dt><dd><a href={telHref(profile.phone)}>{profile.phone}</a></dd></>}

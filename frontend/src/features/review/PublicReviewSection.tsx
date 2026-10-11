@@ -76,10 +76,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
   return (
     <section className="review-section" aria-labelledby={`${targetType}-${targetId}-reviews`}>
       <header className="review-section-header">
-        <div>
-          <p className="store-section-kicker mb-1">구매·수강 후기</p>
-          <h3 id={`${targetType}-${targetId}-reviews`} className="mb-1">이용 후기</h3>
-        </div>
+        <h2 id={`${targetType}-${targetId}-reviews`}>후기</h2>
         {summary && (
           <div className="review-summary" aria-label={`평균 별점 ${summary.averageRating.toFixed(1)}점, 후기 ${summary.reviewCount}개`}>
             <strong>{summary.averageRating.toFixed(1)}</strong>

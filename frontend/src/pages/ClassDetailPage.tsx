@@ -10,7 +10,6 @@ import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import {
   bookingCreateHref,
-  bookingPaymentHint,
   classAcceptsPass,
   formatSlotStart,
   isFewSeats,
@@ -26,7 +25,6 @@ import {
   getClassCategoryLabel,
   getClassSituationTagLabel,
   isClassSituationTag,
-  isPerfumeClassCategory,
 } from "@/shared/lib";
 import { ErrorAlert, LinkButton } from "@/shared/ui";
 
@@ -50,7 +48,6 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
   if (error) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
-  const perfume = isPerfumeClassCategory(bookingClass.category);
   const passEligible = classAcceptsPass(bookingClass);
   const { depositAmount, balanceAmount } = splitBookingAmount(bookingClass.price);
   const nearestSlot = nextOpenSlot(slotsQuery.data);
@@ -76,9 +73,8 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
 
         <div className="class-detail-summary">
           <div className="class-detail-badges">
-            <span className="is-filled">{perfume ? "향수 클래스" : "공예 클래스"}</span>
             <span>{getClassCategoryLabel(bookingClass.category)}</span>
-            {passEligible && <span>이용권 사용 가능</span>}
+            {passEligible && <Link to="/classes?passEligible=true">4회권 사용 가능</Link>}
           </div>
           <h1 className="class-detail-title">{bookingClass.name}</h1>
           <div className="class-detail-price-row">
@@ -103,8 +99,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
           </dl>
 
           <section className="class-detail-card" aria-labelledby="class-payment-title">
-            <h2 id="class-payment-title">결제 안내</h2>
-            <p className="class-detail-card-lead">예약금만 먼저 결제하면 자리가 확정됩니다.</p>
+            <h2 id="class-payment-title" className="visually-hidden">예약</h2>
             <dl className="class-detail-amounts">
               <div>
                 <dt>예약금 <span>수업료의 10% · 예약할 때 결제</span></dt>
@@ -140,7 +135,6 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
                 </b>
               </Link>
             )}
-            <p className="class-detail-helper">{bookingPaymentHint(bookingClass)}</p>
           </section>
         </div>
       </div>
@@ -148,14 +142,15 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
       <ClassUpcomingSlots bookingClass={bookingClass} />
 
       <div className="class-detail-columns">
-        <section className="class-detail-section" aria-labelledby="class-detail-story-title">
-          <div className="class-detail-section-head">
-            <h2 id="class-detail-story-title">수업 소개</h2>
-          </div>
-          <p className="class-detail-description">
-            {bookingClass.description || "재료와 과정을 차근차근 안내하는 해피갤러리 공예 수업입니다."}
-          </p>
-        </section>
+        {/* 소개 글이 없는 수업은 꾸민 대체 문장을 넣지 않고 구역을 숨긴다. */}
+        {bookingClass.description && (
+          <section className="class-detail-section" aria-labelledby="class-detail-story-title">
+            <div className="class-detail-section-head">
+              <h2 id="class-detail-story-title">수업 소개</h2>
+            </div>
+            <p className="class-detail-description">{bookingClass.description}</p>
+          </section>
+        )}
 
         <section className="class-detail-section" aria-labelledby="class-policy-title">
           <div className="class-detail-section-head">
@@ -169,9 +164,12 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
         </section>
       </div>
 
-      <div className="class-detail-section class-detail-visit">
+      <section className="class-detail-section" aria-labelledby="class-visit-title">
+        <div className="class-detail-section-head">
+          <h2 id="class-visit-title">오시는 길</h2>
+        </div>
         <WorkshopVisitInfo />
-      </div>
+      </section>
 
       <PublicReviewSection targetType="CLASS" targetId={bookingClass.id} />
     </Container>

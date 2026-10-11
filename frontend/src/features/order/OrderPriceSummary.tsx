@@ -61,8 +61,9 @@ export function OrderPriceSummary({
       <div className="d-flex justify-content-between align-items-center pt-3 mt-2 border-top">
         <span className="fw-semibold">결제 예정 금액</span>
         <span className="fs-5 fw-bold">
+          {/* 수령 방법을 고르기 전에는 아는 금액까지만 보이고 배송비가 더해진다는 것을 밝힌다. */}
           {shippingFee == null
-            ? "-"
+            ? `${formatKRW(Math.max(0, itemAmount - couponDiscountAmount - rewardAmount))} + 배송비`
             : formatKRW(Math.max(0, itemAmount - couponDiscountAmount - rewardAmount) + shippingFee)}
         </span>
       </div>

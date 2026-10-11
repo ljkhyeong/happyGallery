@@ -1,5 +1,5 @@
 // ── 홈·클래스·단체수업 화면 ──────────────────────────────
-// 홈은 작은 상설전 첫 화면(작품·체험 프로그램·재료별 전시실)이고, 섹션은 흰 면과 옅은 회색 면을 번갈아 쓴다.
+// 홈은 첫 화면·새로 올라온 작품·공방 클래스·재료별로 보기 순서이고, 섹션은 흰 면과 옅은 회색 면을 번갈아 쓴다.
 
 .gallery-section,
 .class-catalog-page,
@@ -9,8 +9,8 @@
   overflow-wrap: anywhere;
 }
 
-// ── 홈: 상설전 첫 화면 · 전시 중인 작품 · 체험 프로그램 · 재료별 전시실 · 공방 이야기 ──────────
-// 구역은 번호(01·02…)와 명조 제목, 먹색 1px 선으로 시작하고 흰 면과 옅은 회색 면을 번갈아 쓴다.
+// ── 홈: 첫 화면 · 새로 올라온 작품 · 공방 클래스 · 재료별로 보기 · 공방 이야기 ──────────
+// 구역은 명조 제목과 먹색 1px 선으로 시작하고 흰 면과 옅은 회색 면을 번갈아 쓴다.
 .gallery-section {
   padding-block: clamp(3rem, 6vw, 4.5rem);
 
@@ -22,16 +22,6 @@
 // 회색 면 위 작품 카드는 액자 매트를 흰색으로 바꾼다.
 .gallery-section.is-tinted .product-card-media {
   background: #FFFFFF;
-}
-
-// 첫 화면 이름표의 점은 전시가 열려 있다는 표시다(작품 카드의 판매 완료 점과 같은 빨강).
-.gallery-dot {
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background: var(--hg-signal);
 }
 
 .gallery-hero-inner {
@@ -46,15 +36,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.gallery-hero-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 700;
 }
 
 .gallery-hero-title {
@@ -143,12 +124,6 @@
   }
 }
 
-.gallery-section-number {
-  font-family: var(--hg-font-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
 .gallery-section-more {
   margin-left: auto;
   color: var(--hg-dark);
@@ -209,7 +184,7 @@
   }
 }
 
-// 체험 프로그램: 전시 프로그램 시간표처럼 날짜 · 사진 · 수업 · 가격 · 자세히 보기를 한 줄에 둔다.
+// 공방 클래스: 시간표처럼 날짜 · 사진 · 수업 · 가격 · 자세히 보기를 한 줄에 둔다.
 .gallery-program-list {
   margin: 0;
   padding: 0;
@@ -218,7 +193,7 @@
 
 .gallery-program-row {
   display: grid;
-  grid-template-columns: 5.5rem 8rem minmax(0, 1fr) 7rem auto;
+  grid-template-columns: 6.5rem 8rem minmax(0, 1fr) 7rem auto;
   align-items: center;
   gap: 1.75rem;
   padding-block: 1.35rem;
@@ -249,11 +224,13 @@
   flex-direction: column;
   font-family: var(--hg-font-display);
 
+  // 10.12처럼 월·일이 두 자리여도 한 줄로 둔다.
   strong {
-    font-size: 1.9rem;
+    font-size: 1.75rem;
     font-weight: 500;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   span {
@@ -315,11 +292,6 @@
     border: 1px solid var(--hg-dark);
     text-decoration: none;
 
-    > span:first-child {
-      color: var(--hg-ink-soft);
-      font-size: 0.8rem;
-    }
-
     > strong {
       font-family: var(--hg-font-display);
       font-size: 1.4rem;
@@ -340,7 +312,7 @@
   }
 }
 
-// 재료별 전시실: 3:2 사진 아래 "제N전시실"과 이름.
+// 재료별로 보기: 3:2 사진 아래 카테고리 이름.
 .gallery-room-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -350,9 +322,8 @@
   list-style: none;
 
   a {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: baseline;
+    display: flex;
+    flex-direction: column;
     gap: 0.75rem;
     color: var(--hg-dark);
     text-decoration: none;
@@ -365,17 +336,10 @@
   }
 
   img {
-    grid-column: 1 / -1;
     width: 100%;
     aspect-ratio: 3 / 2;
     object-fit: cover;
   }
-}
-
-.gallery-room-number {
-  color: var(--hg-ink-soft);
-  font-family: var(--hg-font-display);
-  font-size: 0.8rem;
 }
 
 .gallery-room-name {
@@ -416,15 +380,6 @@
     margin: 0;
     color: #3A3A37;
     line-height: 1.8;
-  }
-
-  .gallery-story-label {
-    display: flex;
-    gap: 0.75rem;
-    color: var(--hg-dark);
-    font-family: var(--hg-font-display);
-    font-size: 0.95rem;
-    font-weight: 600;
   }
 
   .gallery-story-address {
@@ -975,11 +930,7 @@
 }
 
 // ── 클래스 상세 ─────────────────────────────────────────
-// 사진과 요약(배지·제목·가격·상황·수업 정보·결제 안내)을 나란히 두고, 아래 구역에 01·02… 번호를 붙인다.
-.class-detail-page {
-  counter-reset: hg-detail-section;
-}
-
+// 사진과 요약(분류·제목·가격·상황·수업 정보·예약 상자)을 나란히 두고, 아래에 일정·소개·안내·오시는 길·후기를 둔다.
 .class-detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
@@ -1003,16 +954,19 @@
   flex-wrap: wrap;
   gap: 0.35rem;
 
-  > span {
+  > span,
+  > a {
     padding: 0.1rem 0.6rem;
+    color: var(--hg-dark);
     border: 1px solid var(--hg-dark);
     font-size: 0.78rem;
+    text-decoration: none;
   }
 
-  > .is-filled {
-    color: #FFFFFF;
-    background: var(--hg-dark);
-    font-weight: 700;
+  // 4회권 표시는 4회권으로 예약할 수 있는 수업 목록으로 이어진다.
+  > a:hover,
+  > a:focus-visible {
+    text-decoration: underline;
   }
 }
 
@@ -1101,27 +1055,13 @@
   }
 }
 
-// 결제 안내: 예약금·잔금을 금액으로 먼저 보여 주고 예약 버튼과 가장 가까운 회차를 붙인다.
+// 예약 상자: 예약금·잔금을 금액으로 먼저 보여 주고 예약 버튼과 가장 가까운 회차를 붙인다.
 .class-detail-card {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   padding: clamp(1.25rem, 2.4vw, 1.75rem);
   border: 1px solid var(--hg-dark);
-
-  h2 {
-    margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: 1.4rem;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-  }
-}
-
-.class-detail-card-lead {
-  margin: -0.6rem 0 0;
-  color: var(--hg-ink-soft);
-  font-size: 0.88rem;
 }
 
 .class-detail-amounts {
@@ -1188,13 +1128,7 @@
   }
 }
 
-.class-detail-helper {
-  margin: 0;
-  color: var(--hg-ink-soft);
-  font-size: 0.82rem;
-}
-
-// 아래 구역: 다가오는 일정 · 수업 소개 · 예약 안내 · 방문 안내 (후기는 후기 구역 스타일을 쓴다)
+// 아래 구역: 다가오는 일정 · 수업 소개 · 예약 안내 · 오시는 길 (후기는 후기 구역 스타일을 쓴다)
 .class-detail-section {
   margin-top: clamp(2.75rem, 6vw, 4rem);
 }
@@ -1202,20 +1136,17 @@
 .class-detail-section-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem 1rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--hg-dark);
+  margin-bottom: 1rem;
 
   h2 {
-    @include hg-section-number;
     margin: 0;
     font-family: var(--hg-font-display);
-    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
     font-weight: 500;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
   }
 
   > span {
@@ -1330,16 +1261,6 @@
       font-size: 1rem;
       content: counter(class-policy);
     }
-  }
-}
-
-// 방문 안내는 공용 방문 정보 묶음을 쓰므로 이름표(방문 안내) 위에 구역 번호를 붙인다.
-.class-detail-visit {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hg-dark);
-
-  .store-section-kicker {
-    @include hg-section-number;
   }
 }
 
@@ -1482,7 +1403,7 @@
 
   // 태블릿은 자세히 보기 버튼을 빼고 날짜 · 사진 · 수업 · 가격만 둔다.
   .gallery-program-row {
-    grid-template-columns: 4.5rem 7rem minmax(0, 1fr) auto;
+    grid-template-columns: 5.5rem 7rem minmax(0, 1fr) auto;
     gap: 1.25rem;
 
     > img {

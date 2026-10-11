@@ -22,7 +22,6 @@ export {
   getStatusLabel,
   isPerfumeClassCategory,
   NOTIFICATION_EVENT_LABEL,
-  PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_SORT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "./labels";
