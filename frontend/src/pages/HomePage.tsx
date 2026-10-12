@@ -190,7 +190,7 @@ export function HomePage({
             </div>
           )}
           {!productsError && featuredProducts.length === 0 && (
-            <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
+            <p className="text-muted-soft">판매 중인 작품이 없습니다.</p>
           )}
         </Container>
       </section>
@@ -239,7 +239,7 @@ export function HomePage({
             </ul>
           )}
           {!classesError && featuredClasses.length === 0 && (
-            <p className="text-muted-soft">예약 가능한 클래스를 준비하고 있습니다.</p>
+            <p className="text-muted-soft">지금 예약할 수 있는 클래스가 없습니다.</p>
           )}
           <div className="gallery-program-links">
             <Link to="/passes/purchase">
@@ -316,7 +316,7 @@ export function HomePage({
             </div>
             <div>
               <dt>회원 혜택</dt>
-              <dd>회원은 쿠폰과 결제한 상품 금액 1% 적립을 받습니다. 비회원 주문도 됩니다.</dd>
+              <dd>회원은 쿠폰과 결제한 상품 금액 1% 적립을 받습니다. 비회원도 주문할 수 있습니다.</dd>
             </div>
           </dl>
         </Container>

@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowRight, CalendarCheck, PackageCheck } from "lucide-react";
+import { CalendarCheck, PackageCheck } from "lucide-react";
 import { Card } from "react-bootstrap";
 import { Link } from "react-router";
 import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
@@ -79,7 +79,7 @@ export function ReviewOpportunityList() {
                     </small>
                   </div>
                   <Link to={sourceHref} className="btn btn-sm btn-dark">
-                    후기 작성 <ArrowRight size={14} aria-hidden="true" />
+                    후기 작성
                   </Link>
                 </Card.Body>
               </Card>

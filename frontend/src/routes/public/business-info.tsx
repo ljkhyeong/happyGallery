@@ -11,7 +11,7 @@ import { loadWorkshop } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "사업자 정보 | 해피갤러리";
-const DESCRIPTION = "해피갤러리 사업자와 공방 정보를 확인하세요.";
+const DESCRIPTION = "해피갤러리 공방의 사업자 정보와 연락처입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   return { workshop: await loadWorkshop(request.signal) };

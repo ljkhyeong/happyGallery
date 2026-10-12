@@ -16,7 +16,6 @@ export function GuestLookupPanel({ kind, title, children, onKindChange, onHelpRe
     <section className="guest-lookup-panel" aria-labelledby="guest-lookup-title">
       <header className="guest-lookup-heading">
         <h1 id="guest-lookup-title">{title}</h1>
-        <p>회원가입 없이 주문과 수업 예약 내역을 확인하세요.</p>
       </header>
       <div className="guest-lookup-tabs" aria-label="조회 종류">
         {(["orders", "bookings"] as const).map((value) => {

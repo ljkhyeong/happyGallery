@@ -93,7 +93,7 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
               && !ownedCoupon
               && !claimableCoupon && (
                 <p className="mb-0 text-muted-soft">
-                  현재 받을 수 없는 쿠폰입니다. 발급 기간과 쿠폰 상태를 확인해 주세요.
+                  지금은 받을 수 없는 쿠폰입니다.
                 </p>
               )}
           </>

@@ -11,7 +11,7 @@ import { loadProductCategories, loadProducts } from "@/shared/seo/serverApi.serv
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "수공예 작품 | 해피갤러리";
-const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 상품을 둘러보세요.";
+const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 작품입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const filters = readProductFilters(new URL(request.url).searchParams);

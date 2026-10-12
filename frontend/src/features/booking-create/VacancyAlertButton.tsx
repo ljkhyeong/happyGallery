@@ -114,7 +114,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         return;
       }
       setShowGuestForm(false);
-      toast.show("빈자리가 생기면 한 번 알려드릴게요.");
+      toast.show("빈자리가 생기면 한 번 알려 드립니다.");
     },
   });
 

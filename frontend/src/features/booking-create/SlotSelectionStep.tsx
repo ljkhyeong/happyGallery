@@ -152,7 +152,7 @@ export function SlotSelectionStep({
 
   return (
     <>
-      <CheckoutPanel step={1} title="수업">
+      <CheckoutPanel title="수업">
         {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다..." />}
         <ErrorAlert
           error={classesError}
@@ -222,7 +222,7 @@ export function SlotSelectionStep({
         )}
       </CheckoutPanel>
 
-      <CheckoutPanel step={2} title="날짜와 시간" meta={`앞으로 ${UPCOMING_SLOT_DAYS}일`}>
+      <CheckoutPanel title="날짜와 시간" meta={`앞으로 ${UPCOMING_SLOT_DAYS}일`}>
         {!selectedClass && classes !== undefined && (
           <p className="checkout-panel-empty">수업을 먼저 선택해 주세요.</p>
         )}

@@ -127,7 +127,7 @@ export function ProductListPage({
       <ErrorAlert error={error} />
       {products && products.length === 0 && (
         <EmptyState message={category && !filterParams.keyword && !filterParams.type
-          ? `아직 등록된 ${category} 작품이 없습니다.`
+          ? `판매 중인 ${category} 작품이 없습니다.`
           : "조건에 맞는 상품이 없습니다."} />
       )}
       {products && products.length > 0 && (

@@ -269,7 +269,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   }
 
   // 비회원은 휴대폰 인증이 첫 단계라 이후 단계 번호가 하나씩 밀린다.
-  const stepOffset = user ? 0 : 1;
   // 결제 버튼이 비활성인 이유를 화면 순서대로 알려 준다. 상품·임시 저장 오류는 각 안내가 따로 보인다.
   const remainingSteps = [
     !user && !code && "휴대폰 인증",
@@ -323,7 +322,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         ) : undefined}
       >
         {!user && (
-          <CheckoutPanel step={1} title="휴대폰 인증">
+          <CheckoutPanel title="휴대폰 인증">
             {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
               key={verificationReset.version}
@@ -345,7 +344,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
         {step === "items" && (
           <>
-            <CheckoutPanel step={1 + stepOffset} title="주문자 정보">
+            <CheckoutPanel title="주문자 정보">
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
@@ -367,7 +366,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </Form.Group>
             </CheckoutPanel>
 
-            <CheckoutPanel step={2 + stepOffset} title="상품 선택">
+            <CheckoutPanel title="상품 선택">
               <OrderItemsForm
                 state={orderItems}
                 onChange={updateItems}
@@ -378,11 +377,11 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </Alert>}
             </CheckoutPanel>
 
-            <CheckoutPanel step={3 + stepOffset} title="수령 방법">
+            <CheckoutPanel title="수령 방법">
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
             </CheckoutPanel>
 
-            <CheckoutPanel step={4 + stepOffset} title="결제 수단">
+            <CheckoutPanel title="결제 수단">
               <PaymentMethodFields
                 value={checkoutSelection}
                 onChange={setCheckoutSelection}
@@ -392,7 +391,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
             </CheckoutPanel>
 
             {showConsentPanel && (
-              <CheckoutPanel step={5 + stepOffset} title="동의">
+              <CheckoutPanel title="동의">
                 <MadeToOrderConsent consent={consent} />
                 {!user && (
                   <PolicyConsentFields id="guest-order-policy-consent" consent={guestPolicyConsent} />

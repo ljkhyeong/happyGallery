@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Badge, Container } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import { Navigate, NavLink, useLocation, useNavigate } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CustomerSessionChangedError } from "@/shared/api";
@@ -36,10 +36,9 @@ export function MyShell({ children }: { children: ReactNode }) {
     const item = findMyNavItem(pathname);
     return (
       <Container className="page-container my-gate-page">
-        <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
         {isHome || !item ? (
           <MyAuthGateCard
-            title="로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요"
+            title="로그인이 필요합니다"
             description="로그인하면 추가 휴대폰 인증 없이 주문·예약·이용권과 쿠폰·적립금을 확인할 수 있습니다."
             showGuestLinks
           />

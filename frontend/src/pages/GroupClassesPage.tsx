@@ -9,9 +9,9 @@ import type { WorkshopProfileResponse } from "@/generated/api/workshop";
 import { telHref } from "@/shared/lib";
 
 const PROCESS = [
-  ["1", "문의", "인원, 대상 연령, 장소, 희망 날짜와 관심 있는 공예를 알려 주세요."],
-  ["2", "수업 정하기", "참여자와 수업 시간에 맞춰 재료, 작품 난이도, 진행 방법을 정합니다."],
-  ["3", "수업", "정한 날짜에 재료와 도구를 챙겨 가서 수업합니다."],
+  ["문의", "인원, 대상 연령, 장소, 희망 날짜와 관심 있는 공예를 알려 주세요."],
+  ["수업 정하기", "참여자와 수업 시간에 맞춰 재료, 작품 난이도, 진행 방법을 정합니다."],
+  ["수업", "정한 날짜에 재료와 도구를 챙겨 가서 수업합니다."],
 ] as const;
 
 export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: WorkshopProfileResponse }) {
@@ -66,9 +66,8 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
             <h2>진행 순서</h2>
           </header>
           <ol>
-            {PROCESS.map(([number, title, description]) => (
-              <li key={number}>
-                <span>{number}</span>
+            {PROCESS.map(([title, description]) => (
+              <li key={title}>
                 <h3>{title}</h3>
                 <p>{description}</p>
               </li>
@@ -108,9 +107,6 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
               onRetry={() => { void refetch(); }}
               retrying={isFetching}
             />
-            {!error && !inquiryHref && !phone && !kakaoTalkId && (
-              <span>수업 문의 채널을 준비하고 있습니다.</span>
-            )}
             <Link to="/classes" className="store-section-link">개인 클래스 보기</Link>
           </div>
         </section>

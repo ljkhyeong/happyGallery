@@ -40,7 +40,7 @@ export function MyVacancyAlertsSection() {
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <p className="text-muted-soft small mb-0">
-            신청한 일정의 잔여 좌석을 확인할 수 있습니다. 알림으로 자리가 확보되지는 않습니다.
+            남은 자리는 ‘예약 가능 여부 확인’에서 볼 수 있습니다. 알림을 받아도 자리가 잡히지는 않습니다.
           </p>
         </div>
         {alerts && <span className="text-muted-soft small text-nowrap">

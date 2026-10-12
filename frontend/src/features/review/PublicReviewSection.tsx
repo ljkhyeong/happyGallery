@@ -122,7 +122,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
       {query.data !== undefined && reviews.length === 0 && (
         <EmptyState
           message={rating
-            ? `${rating}점 후기가 아직 없습니다. 다른 별점을 선택해 보세요.`
+            ? `${rating}점 후기가 없습니다.`
             : "아직 등록된 후기가 없습니다."}
         />
       )}

@@ -109,7 +109,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     .toHaveCount(1);
 
   await page.goto("/passes/purchase");
-  await expect(page.getByText("이용 기간을 확인하고 있습니다."))
+  await expect(page.getByText("이용 기간을 불러오지 못했습니다."))
     .toBeVisible();
   await expect(page.getByText(/결제일 포함 90일/)).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();

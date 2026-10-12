@@ -11,7 +11,7 @@ import { buildProductJsonLd } from "@/shared/seo/schemas";
 import { loadProduct, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const FALLBACK_DESCRIPTION = "해피갤러리 수공예 작품의 상세 정보와 주문 방법을 확인하세요.";
+const FALLBACK_DESCRIPTION = "해피갤러리가 만든 수공예 작품의 상세 정보와 주문 방법입니다.";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const productId = requirePublicId(params.id);

@@ -226,7 +226,6 @@ function CartContent() {
         <section className="cart-empty">
           <ShoppingBag size={36} strokeWidth={1.4} aria-hidden="true" />
           <h2>장바구니가 비어 있습니다.</h2>
-          <p>공방에서 만든 작품을 둘러보고 마음에 드는 작품을 담아 보세요.</p>
           <div className="cart-empty-actions">
             <LinkButton to="/products" variant="primary">작품 둘러보기</LinkButton>
             <LinkButton to="/classes" variant="outline-dark">클래스 둘러보기</LinkButton>
@@ -362,7 +361,7 @@ function CartContent() {
           </CheckoutSummary>
         )}
       >
-        <CheckoutPanel step={isAuthenticated ? 1 : undefined} title="담은 작품" meta={`${items.length}종`}>
+        <CheckoutPanel title="담은 작품" meta={`${items.length}종`}>
           {isAuthenticated && (
             <div className="cart-select-all">
               <Form.Check id="cart-select-all" label={`전체 선택 (${selectedItems.length}/${availableItems.length})`}
@@ -473,10 +472,10 @@ function CartContent() {
 
         {isAuthenticated && (
           <>
-            <CheckoutPanel step={2} title="수령 방법">
+            <CheckoutPanel title="수령 방법">
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
             </CheckoutPanel>
-            <CheckoutPanel step={3} title="결제 수단">
+            <CheckoutPanel title="결제 수단">
               <PaymentMethodFields
                 value={checkoutSelection}
                 onChange={setCheckoutSelection}
@@ -485,7 +484,7 @@ function CartContent() {
               />
             </CheckoutPanel>
             {requiresMadeToOrderConsent && (
-              <CheckoutPanel step={4} title="동의">
+              <CheckoutPanel title="동의">
                 <MadeToOrderConsent consent={consent} />
               </CheckoutPanel>
             )}

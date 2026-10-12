@@ -51,7 +51,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const emptyMessage = when
     ? `${SLOT_WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
     : tag
-      ? `${getClassSituationTagLabel(tag)} 수업이 아직 없습니다.`
+      ? `${getClassSituationTagLabel(tag)} 수업이 없습니다.`
       : passEligibleOnly
         ? "이용권을 사용할 수 있는 수업이 없습니다."
         : "지금 예약할 수 있는 클래스가 없습니다.";

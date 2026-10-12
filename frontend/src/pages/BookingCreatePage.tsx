@@ -380,10 +380,10 @@ function BookingCreateContent({
           >
             {selectedClass ? (
               <>
-                <p className="checkout-summary-kicker">
+                <h2 className="checkout-summary-title">{selectedClass.name}</h2>
+                <p className="checkout-summary-meta">
                   {getClassCategoryLabel(selectedClass.category)} · {selectedClass.durationMin}분
                 </p>
-                <h2 className="checkout-summary-title">{selectedClass.name}</h2>
               </>
             ) : (
               <h2 className="checkout-summary-title">수업을 선택해 주세요</h2>
@@ -432,7 +432,7 @@ function BookingCreateContent({
         />
 
         {selectedSlot && (
-          <CheckoutPanel step={3} title="인원과 결제 방식">
+          <CheckoutPanel title="인원과 결제 방식">
             <Form.Group controlId="booking-participant-count" className="checkout-field-row">
               <div>
                 <Form.Label>예약 인원</Form.Label>
@@ -545,7 +545,7 @@ function BookingCreateContent({
         )}
 
         {paymentPath === "deposit" && (
-          <CheckoutPanel step={selectedSlot ? 4 : 3} title="결제 수단">
+          <CheckoutPanel title="결제 수단">
             <PaymentMethodFields
               value={checkoutSelection}
               onChange={setCheckoutSelection}

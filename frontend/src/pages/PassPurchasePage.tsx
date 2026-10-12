@@ -100,7 +100,7 @@ export function PassPurchasePage() {
             retrying={policyQuery.isFetching}
           />
           <p className="text-muted-soft mb-3">
-            향수를 제외한 정규 공예 클래스 중 ‘이용권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
+            향수를 제외한 정규 공예 클래스 중 ‘4회권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
             예약할 때 이용권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
           </p>
           <LinkButton to="/classes?passEligible=true" variant="outline-primary">
@@ -116,7 +116,7 @@ export function PassPurchasePage() {
                 마지막 사용 가능일 다음 날 00:00에 남은 횟수는 환불 없이 소멸합니다.
               </li>
             ) : (
-              <li>이용 기간을 확인하고 있습니다.</li>
+              <li>{policyQuery.isError ? "이용 기간을 불러오지 못했습니다." : "이용 기간을 확인하고 있습니다."}</li>
             )}
             <li>예약마다 1회가 차감됩니다. 결석해도 차감한 횟수는 복구되지 않으며, 보강 수업은 없습니다.</li>
             <li>취소 마감 전 취소하면 1회가 복구됩니다. 마감 후에는 복구되지 않습니다.</li>

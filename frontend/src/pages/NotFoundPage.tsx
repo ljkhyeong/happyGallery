@@ -15,12 +15,12 @@ interface NotFoundCopy {
 const NOT_FOUND_BY_SECTION = new Map<string, NotFoundCopy>(Object.entries({
   products: {
     title: "작품을 찾을 수 없습니다",
-    description: "판매가 끝났거나 주소가 바뀌었을 수 있습니다. 지금 판매 중인 작품을 확인해 보세요.",
+    description: "판매가 끝났거나 주소가 바뀌었을 수 있습니다.",
     action: { to: "/products", label: "작품 목록 보기" },
   },
   classes: {
     title: "클래스를 찾을 수 없습니다",
-    description: "운영이 끝났거나 주소가 바뀌었을 수 있습니다. 지금 예약할 수 있는 클래스를 확인해 보세요.",
+    description: "운영이 끝났거나 주소가 바뀌었을 수 있습니다.",
     action: { to: "/classes", label: "클래스 목록 보기" },
   },
   events: {

@@ -60,7 +60,7 @@ function requiresPaymentReconciliation(error: unknown): boolean {
 /** 결제 직후 상태만 설명한다. 주문은 공방 승인 전이므로 확정·발송을 약속하지 않는다. */
 const PAYMENT_RESULT_LEAD: Record<ConfirmPaymentResponse["context"], string> = {
   ORDER: "주문이 접수되어 공방 승인을 기다리고 있습니다. 진행 상황은 주문 상세에서 확인할 수 있습니다.",
-  BOOKING: "예약이 확정되었습니다. 수업 당일 공방에서 만나요.",
+  BOOKING: "예약이 확정되었습니다. 수업 당일 공방에서 뵙겠습니다.",
   PASS: "4회권이 발급되었습니다. 이제 이용권으로 정규 공예 수업을 예약할 수 있습니다.",
 };
 

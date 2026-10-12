@@ -11,7 +11,7 @@ import { buildCourseJsonLd } from "@/shared/seo/schemas";
 import { loadClass, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const FALLBACK_DESCRIPTION = "해피갤러리 공예 클래스의 수업 정보와 이용 후기를 확인하고 원하는 날짜를 예약하세요.";
+const FALLBACK_DESCRIPTION = "해피갤러리 공예 클래스의 수업 정보와 후기, 예약할 수 있는 일정입니다.";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const classId = requirePublicId(params.id);

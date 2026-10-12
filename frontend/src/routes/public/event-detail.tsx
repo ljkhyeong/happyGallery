@@ -10,7 +10,7 @@ import {
 import { loadEvent, loadProduct, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const FALLBACK_DESCRIPTION = "해피갤러리 이벤트 일정과 참여 내용을 확인하세요.";
+const FALLBACK_DESCRIPTION = "해피갤러리 이벤트의 일정과 참여 방법입니다.";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const eventId = requirePublicId(params.id);

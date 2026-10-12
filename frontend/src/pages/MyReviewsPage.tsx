@@ -32,7 +32,7 @@ export function MyReviewsPage() {
         retrying={reviewsQuery.isFetching}
       />
       {reviewsQuery.data !== undefined && reviews.length === 0 && (
-        <EmptyState message="아직 작성한 후기가 없습니다. 작성 가능한 이용 내역이나 완료된 주문·예약 상세에서 첫 후기를 남겨보세요." />
+        <EmptyState message="작성한 후기가 없습니다. 후기는 받은 작품·들은 수업의 주문·예약 상세에서 쓸 수 있습니다." />
       )}
       <div className="review-list">
         {reviews.map((review) => <MemberReviewCard key={review.id} review={review} />)}

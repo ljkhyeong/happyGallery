@@ -14,18 +14,16 @@ export function CheckoutLayout({ children, summary }: { children: ReactNode; sum
 }
 
 interface PanelProps {
-  step?: number;
   title: string;
   meta?: ReactNode;
   children: ReactNode;
 }
 
-/** 한 폼의 단계라 랜드마크(region)로 만들지 않고 h2 제목으로만 구분한다. */
-export function CheckoutPanel({ step, title, meta, children }: PanelProps) {
+/** 한 폼의 단계라 랜드마크(region)로 만들지 않고 h2 제목으로만 구분한다. 단계 번호는 붙이지 않는다. */
+export function CheckoutPanel({ title, meta, children }: PanelProps) {
   return (
     <section className="checkout-panel">
       <div className="checkout-panel-head">
-        {step !== undefined && <span className="checkout-panel-step" aria-hidden="true">{step}</span>}
         <h2>{title}</h2>
         {meta && <span className="checkout-panel-meta">{meta}</span>}
       </div>

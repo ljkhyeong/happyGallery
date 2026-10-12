@@ -1235,19 +1235,6 @@
   }
 }
 
-.checkout-panel-step {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  color: #FFFFFF;
-  background: var(--hg-leaf);
-  border-radius: 50%;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
 .checkout-panel-meta {
   margin-left: auto;
   color: var(--hg-ink-soft);
@@ -1386,11 +1373,11 @@
   }
 }
 
-.checkout-summary-kicker {
-  margin-bottom: 0.15rem;
-  color: var(--hg-leaf);
-  font-size: 0.78rem;
-  font-weight: 700;
+// 요약 제목 아래의 분류·시간 한 줄.
+.checkout-summary-meta {
+  margin: -0.5rem 0 0.75rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.85rem;
 }
 
 .checkout-summary-title {
