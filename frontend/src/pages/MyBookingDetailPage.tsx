@@ -96,7 +96,8 @@ export function MyBookingDetailPage() {
             </Card>
           )}
 
-          {isBooked && booking.participantCount > 1 && (
+          {/* 잔금까지 낸 예약은 고객이 인원을 바꿀 수 없어 취소 칸의 공방 문의 안내로 모은다. */}
+          {isBooked && booking.participantCount > 1 && booking.cancelPolicy.cancellable && (
             <Card className="mt-3 border-0 my-action-card">
               <Card.Header>예약 인원 변경</Card.Header>
               <Card.Body>
