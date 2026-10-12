@@ -50,3 +50,44 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
   await expect(section.getByText("해지", { exact: true })).toBeVisible();
   await expect(section.getByRole("button", { name: "알림 해지" })).toHaveCount(0);
 });
+
+test("휴대폰 인증이 없는 회원은 내 정보에서 번호를 등록한 뒤 같은 작품으로 돌아온다", async ({ page, context, baseURL }) => {
+  await installCsrfCookie(context, baseURL);
+  const product = productDetailFixture({ name: "번호 인증 후 알림 작품", category: "공예", available: false, stockQuantity: 0 });
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
+  const member = { id: 502, name: "회원", email: "restock-phone@example.com", phone: null as string | null,
+    phoneVerified: false, localPasswordEnabled: true };
+  let phoneUpdate: unknown = null;
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/products/42") return route.fallback();
+    if (path === "/api/v1/me") return fulfillJson(route, member);
+    if (path === "/api/v1/me/phone") {
+      phoneUpdate = route.request().postDataJSON();
+      Object.assign(member, { phone: "01055556666", phoneVerified: true });
+      return fulfillJson(route, member);
+    }
+    if (path === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { phone: "01055556666", verificationId: 801 });
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
+    if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+    return fulfillJson(route, []);
+  });
+
+  await page.goto("/products/42");
+  await page.getByRole("link", { name: "휴대폰 인증 후 재입고 알림 받기", exact: true }).click();
+  await expect(page).toHaveURL(/\/my$/);
+  const dialog = page.getByRole("dialog", { name: "휴대폰 번호 등록" });
+  await dialog.getByLabel("휴대폰 번호").fill("01055556666");
+  await dialog.getByRole("button", { name: "인증번호 발송", exact: true }).click();
+  await dialog.getByLabel("인증번호").fill("123456");
+  await dialog.getByRole("button", { name: "인증하고 등록", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/products\/42$/);
+  await expect(page.getByRole("button", { name: "재입고 알림 받기", exact: true })).toBeVisible();
+  expect(phoneUpdate).toEqual({ phone: "01055556666", verificationCode: "123456" });
+});

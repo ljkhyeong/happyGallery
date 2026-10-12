@@ -16,6 +16,8 @@ interface Props {
   currentPhone: string | null;
   localPasswordEnabled: boolean;
   initiallyReauthenticated: boolean;
+  /** 등록·변경을 마친 뒤 돌아갈 화면. 번호를 바꾸면 다시 로그인한 뒤 이 화면으로 간다. */
+  returnTo?: string | null;
   onClose: () => void;
   onUpdated: () => Promise<void>;
 }
@@ -25,6 +27,7 @@ export function MemberPhoneUpdateModal({
   currentPhone,
   localPasswordEnabled,
   initiallyReauthenticated,
+  returnTo,
   onClose,
   onUpdated,
 }: Props) {
@@ -49,7 +52,7 @@ export function MemberPhoneUpdateModal({
             currentPhone ? "휴대폰 번호가 변경되었습니다." : "휴대폰 번호가 등록되었습니다.",
           );
           if (currentPhone) {
-            window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
+            window.location.assign(buildAuthPageHref("/login", { redirectTo: returnTo ?? "/my" }));
             return;
           }
           await onUpdated();

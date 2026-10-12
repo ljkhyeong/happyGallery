@@ -5,6 +5,7 @@ import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
 import { MemberEmailRegistrationModal } from "@/features/customer-auth/MemberEmailRegistrationModal";
 import { MemberPhoneUpdateModal } from "@/features/customer-auth/MemberPhoneUpdateModal";
+import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
 import { SOCIAL_PROVIDER_DETAILS, type SocialProvider } from "@/features/customer-auth/socialAuth";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -36,6 +37,8 @@ export function MyPage() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
+  // 다른 화면에서 휴대폰 인증을 요청하며 들어오면 등록을 마친 뒤 그 화면으로 돌아간다.
+  const [phoneReturnTo, setPhoneReturnTo] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
   const { user, isAuthenticated, withdraw, refresh } = useCustomerAuth();
   const toast = useToast();
@@ -190,6 +193,25 @@ export function MyPage() {
     setSearchParams(nextSearchParams, { replace: true });
   }, [isAuthenticated, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (!isAuthenticated || searchParams.get("phone") !== "1") {
+      return;
+    }
+    const returnTo = searchParams.get("returnTo");
+    const target = returnTo ? resolveSafeReturnTo(returnTo) : null;
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("phone");
+    nextSearchParams.delete("returnTo");
+    setSearchParams(nextSearchParams, { replace: true });
+    if (user?.phoneVerified) {
+      if (target) navigate(target, { replace: true });
+      return;
+    }
+    setPhoneReturnTo(target);
+    setPhoneOnboardingHandled(false);
+    setShowPhoneRegistration(true);
+  }, [isAuthenticated, navigate, searchParams, setSearchParams, user?.phoneVerified]);
+
   const handleOpenClaim = () => {
     if (!user?.phone) {
       setPhoneOnboardingHandled(false);
@@ -203,6 +225,7 @@ export function MyPage() {
     setPhoneOnboardingHandled(true);
     setShowPhoneRegistration(false);
     setPhoneStepUpCompleted(false);
+    setPhoneReturnTo(null);
   };
 
   return (
@@ -281,9 +304,11 @@ export function MyPage() {
         currentPhone={user!.phone}
         localPasswordEnabled={user!.localPasswordEnabled}
         initiallyReauthenticated={phoneStepUpCompleted}
+        returnTo={phoneReturnTo}
         onClose={closePhoneRegistration}
         onUpdated={async () => {
           await refresh();
+          if (phoneReturnTo) navigate(phoneReturnTo, { replace: true });
         }}
       />
 

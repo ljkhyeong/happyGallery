@@ -22,7 +22,15 @@ function RestockAlertButtonContent({ productId, productVariantId }: Props) {
   const needsStatusCheck = mutation.isSuccess && query.isError;
   if (isLoading) return null;
   if (!isAuthenticated) return <LinkButton to={buildAuthPageHref("/login", { redirectTo: productDetailHref(productId, productVariantId) })} variant="outline-primary">로그인하고 재입고 알림 받기</LinkButton>;
-  if (!user?.phoneVerified) return <LinkButton to="/my" variant="outline-primary">휴대폰 인증 후 재입고 알림 받기</LinkButton>;
+  if (!user?.phoneVerified) {
+    // 내 정보에서 휴대폰을 인증한 뒤 이 작품으로 돌아온다.
+    const returnTo = productDetailHref(productId, productVariantId);
+    return (
+      <LinkButton to={`/my?${new URLSearchParams({ phone: "1", returnTo })}`} variant="outline-primary">
+        휴대폰 인증 후 재입고 알림 받기
+      </LinkButton>
+    );
+  }
   return (
     <div className="my-2">
       <Button variant="outline-primary" disabled={busy || query.isPending || query.isError} onClick={() => {

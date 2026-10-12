@@ -133,7 +133,9 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         customerPhone: user.phone || undefined,
         returnHint: {
           customerName: user.name, customerPhone: user.phone ?? undefined,
-          returnPath: `/products/${productId}`,
+          // 결제를 마치지 못하고 돌아오면 옵션을 하나만 골랐을 때 그 옵션을 다시 골라 둔다.
+          returnPath: productDetailHref(productId,
+            product.optionGroups.length > 0 && items.length === 1 ? items[0]!.productVariantId : null),
         },
       });
     },
