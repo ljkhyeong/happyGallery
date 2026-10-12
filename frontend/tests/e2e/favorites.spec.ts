@@ -41,8 +41,8 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
     return fulfillJson(route, []);
   });
   await page.goto("/products/42");
-  await page.getByRole("button", { name: "상품 찜하기", exact: true }).click();
-  await expect(page.getByRole("button", { name: "상품 찜 해제", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "작품 찜하기", exact: true }).click();
+  await expect(page.getByRole("button", { name: "작품 찜 해제", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.goto("/classes/42");
   await page.getByRole("button", { name: "클래스 찜하기", exact: true }).click();
   await page.getByRole("link", { name: "내 찜 보기", exact: true }).click();
@@ -63,6 +63,6 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
   await section.getByLabel("찜 종류").selectOption("");
   await expect(page).toHaveURL(/\/my\/favorites$/);
   await section.getByRole("link", { name: product.name, exact: true }).click();
-  await page.getByRole("button", { name: "상품 찜 해제", exact: true }).click();
-  await expect(page.getByRole("button", { name: "상품 찜하기", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "작품 찜 해제", exact: true }).click();
+  await expect(page.getByRole("button", { name: "작품 찜하기", exact: true })).toHaveAttribute("aria-pressed", "false");
 });

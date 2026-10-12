@@ -100,11 +100,11 @@ export function OrderReviewsSection({ orderId, items }: Props) {
                 )}
                 {creationStatus === "RECREATION_BLOCKED" && (
                   <Alert variant="warning" className="small mt-3 mb-0">
-                    이 상품의 후기가 공방에서 비공개 처리된 적이 있어 새 후기를 작성할 수 없습니다.
+                    이 작품의 후기가 공방에서 비공개 처리된 적이 있어 새 후기를 작성할 수 없습니다.
                   </Alert>
                 )}
                 {creationStatus === "REVIEW_EXISTS" && (
-                  <p className="text-muted-soft small mt-3 mb-0">이 주문 상품에는 이미 후기를 작성했습니다.</p>
+                  <p className="text-muted-soft small mt-3 mb-0">이 작품에는 이미 후기를 작성했습니다.</p>
                 )}
                 {creationStatus === "NOT_REVIEWABLE" && (
                   <p className="text-muted-soft small mt-3 mb-0">배송·매장 수령 또는 주문이 완료된 뒤 작성할 수 있습니다.</p>

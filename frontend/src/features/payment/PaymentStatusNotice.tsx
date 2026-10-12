@@ -10,7 +10,7 @@ function paymentContextCopy(context: PaymentStatusResponse["context"]) {
         completedHeading: "결제가 완료되었습니다",
         creationFailed: "주문을 만들지 못해",
         notCreated: "주문이 생성되지 않았으며",
-        restartLocation: "상품 화면",
+        restartLocation: "작품 화면",
       };
     case "BOOKING":
       return {

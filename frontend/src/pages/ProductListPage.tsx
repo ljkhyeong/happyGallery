@@ -128,7 +128,7 @@ export function ProductListPage({
       {products && products.length === 0 && (
         <EmptyState message={category && !filterParams.keyword && !filterParams.type
           ? `판매 중인 ${category} 작품이 없습니다.`
-          : "조건에 맞는 상품이 없습니다."} />
+          : "조건에 맞는 작품이 없습니다."} />
       )}
       {products && products.length > 0 && (
         <div className="product-grid">

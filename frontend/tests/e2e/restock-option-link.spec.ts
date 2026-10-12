@@ -148,7 +148,7 @@ test("삭제·판매 중지된 옵션 링크는 안내를 표시하고 다른 �
   await mockRestockProduct(page);
   for (const variantId of [999, 803]) {
     await page.goto(`/products/42?variantId=${variantId}`);
-    await expect(page.getByText("해당 옵션은 현재 판매하지 않습니다. 현재 상품의 옵션과 가격을 확인해 주세요.")).toBeVisible();
+    await expect(page.getByText("해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.")).toBeVisible();
     await expect(page.getByRole("combobox", { name: /색상/ })).toHaveValue("");
     await expect(page.getByRole("combobox", { name: /크기/ })).toHaveValue("");
     await expect(page.locator(".store-option-form tbody tr")).toHaveCount(0);

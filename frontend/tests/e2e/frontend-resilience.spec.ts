@@ -707,8 +707,8 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
   await expect(refundAlert).toContainText("10,000원 환불이 완료되었습니다.");
   await expect(refundAlert.getByText(/결제사 환불 7,000원 · 완료/)).toBeVisible();
-  await expect(refundAlert.getByText(/적립금 복원 3,000P · 완료/)).toBeVisible();
-  await expect(refundAlert.getByText(/지급 적립금 회수 70P · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/적립금 복원 3,000원 · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/지급 적립금 회수 70원 · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/쿠폰을 다시 사용할 수 있습니다./)).toBeVisible();
 
   await page.goto("/my/orders/76");

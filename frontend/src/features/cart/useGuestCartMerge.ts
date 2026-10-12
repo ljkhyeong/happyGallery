@@ -117,7 +117,7 @@ export function useGuestCartMerge({
               if (generation === mergeGeneration.current) {
                 const mismatch: GuestCartMergeIssue = {
                   kind: "ACCOUNT_MISMATCH",
-                  message: "다른 계정으로 로그인하기 전에 담은 상품이 남아 있습니다. 해당 계정으로 다시 로그인해 불러오거나 이 기기에서 해당 상품을 제거해 주세요.",
+                  message: "다른 계정으로 로그인하기 전에 담은 작품이 남아 있습니다. 해당 계정으로 다시 로그인해 불러오거나 이 기기에서 해당 작품을 제거해 주세요.",
                   canRetry: false,
                 };
                 mergeBlocked.current = true;

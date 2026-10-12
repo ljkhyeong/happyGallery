@@ -182,7 +182,7 @@ export function OrderClaimSection({ order, access }: Props) {
           </Row>
 
           <fieldset className="mb-3">
-            <legend className="fs-6">대상 상품</legend>
+            <legend className="fs-6">대상 작품</legend>
             {availableItems.map((item) => {
               const quantity = quantities[item.orderItemId] ?? 0;
               return (

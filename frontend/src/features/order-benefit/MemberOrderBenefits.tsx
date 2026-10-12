@@ -79,7 +79,7 @@ export function MemberOrderBenefits({
     <div>
       <h6 className="mb-1">쿠폰·적립금</h6>
       <p className="text-muted-soft small mb-3">
-        회원 상품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
+        회원 작품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
       </p>
 
       {isLoading && <LoadingSpinner text="쿠폰·적립금 조회 중..." />}

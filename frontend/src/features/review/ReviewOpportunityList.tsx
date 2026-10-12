@@ -75,7 +75,7 @@ export function ReviewOpportunityList() {
                       {opportunity.targetName}
                     </Link>
                     <small className="text-muted-soft">
-                      {opportunity.targetType === "PRODUCT" ? "상품 수령" : "클래스 이용"} 완료 · {formatDateTime(opportunity.completedAt)}
+                      {opportunity.targetType === "PRODUCT" ? "작품 수령" : "클래스 이용"} 완료 · {formatDateTime(opportunity.completedAt)}
                     </small>
                   </div>
                   <Link to={sourceHref} className="btn btn-sm btn-dark">

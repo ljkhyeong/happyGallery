@@ -41,7 +41,7 @@ function RestockAlertButtonContent({ productId, productVariantId }: Props) {
       }}>
         {mutation.isPending ? "처리 중..." : needsStatusCheck ? "신청 상태 확인 필요" : registration ? "재입고 알림 해지" : "재입고 알림 받기"}
       </Button>
-      <p className="small text-muted mt-1 mb-0">선택한 상품·옵션이 입고되면 한 번 안내합니다. 알림은 재고 예약을 보장하지 않습니다.</p>
+      <p className="small text-muted mt-1 mb-0">선택한 작품·옵션이 입고되면 한 번 안내합니다. 알림은 재고 예약을 보장하지 않습니다.</p>
       {needsStatusCheck && <p className="small mt-2 mb-2" role="status">요청을 처리했습니다. 최신 신청 상태를 확인해 주세요.</p>}
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }}
         retrying={busy} retryLabel="신청 상태 다시 확인" />

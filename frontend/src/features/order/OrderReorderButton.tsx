@@ -66,7 +66,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
   const mutation = useMutation({
     mutationFn: () => runForCurrentCustomer(
       async () => {
-        if (!product || !selection || requiresSelection || !validQty) throw new Error("상품 옵션과 수량을 다시 확인해 주세요.");
+        if (!product || !selection || requiresSelection || !validQty) throw new Error("작품 옵션과 수량을 다시 확인해 주세요.");
         const additions = [{ productId: product.id, productVariantId: selection.productVariantId, textInputs: [], qty: quantity }];
         const fingerprint = JSON.stringify(additions);
         if (requestRef.current?.fingerprint !== fingerprint) requestRef.current = { fingerprint, key: crypto.randomUUID() };
@@ -81,11 +81,11 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
   });
   return (
     <Modal show onHide={() => { if (!mutation.isPending) onClose(); }} centered>
-      <Modal.Header closeButton={!mutation.isPending}><Modal.Title>구매 상품 다시 담기</Modal.Title></Modal.Header>
+      <Modal.Header closeButton={!mutation.isPending}><Modal.Title>구매한 작품 다시 담기</Modal.Title></Modal.Header>
       <Modal.Body>
         <p className="fw-semibold">{item.productName}</p>
         <p className="small text-muted">이전 주문: {item.qty}개 · 당시 개당 {formatKRW(item.unitPrice)}</p>
-        {query.isLoading && <LoadingSpinner text="현재 상품과 재고를 확인하고 있습니다" />}
+        {query.isLoading && <LoadingSpinner text="현재 작품과 재고를 확인하고 있습니다" />}
         <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
         <ErrorAlert error={cart.error} onRetry={cart.refetch} />
         {product && selection && <>
@@ -93,7 +93,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
           <ProductPurchaseTerms productName={product.name} type={product.type} specification={product.specification}
             careInstructions={product.careInstructions} productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
           {requiresSelection ? <Alert variant="info" className="mt-3">
-            상품 옵션이 바뀌었거나 직접 입력한 문구가 있습니다. 상품 상세에서 옵션과 문구를 다시 선택해 주세요.
+            작품 옵션이 바뀌었거나 직접 입력한 문구가 있습니다. 작품 상세에서 옵션과 문구를 다시 선택해 주세요.
             <div className="mt-2"><LinkButton to={productDetailHref(product.id, onlyTextChanged ? item.productVariantId : null)} size="sm" variant="outline-primary">옵션 다시 선택</LinkButton></div>
           </Alert> : <>
             <OrderOptionList options={selection.options} />

@@ -61,7 +61,7 @@ function FavoriteButtonContent({ type, targetId }: { type: TargetType; targetId:
       disabled={query.isLoading || query.isError || mutation.isPending}
       onClick={() => mutation.mutate({ shouldSave: !saved, customerSession: captureCustomerSession() })}>
       <Heart size={16} fill={saved ? "currentColor" : "none"} aria-hidden className="me-1" />
-      {type === "PRODUCT" ? "상품" : "클래스"} {saved ? "찜 해제" : "찜하기"}
+      {type === "PRODUCT" ? "작품" : "클래스"} {saved ? "찜 해제" : "찜하기"}
     </Button>
     <Link to="/my/favorites" className="small ms-3">내 찜 보기</Link>
     <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }}
@@ -103,7 +103,7 @@ export function MyFavoritesSection() {
         else next.delete("type");
         setSearchParams(next, { replace: true });
       }}>
-        <option value="">전체</option><option value="PRODUCT">상품</option><option value="CLASS">클래스</option>
+        <option value="">전체</option><option value="PRODUCT">작품</option><option value="CLASS">클래스</option>
       </Form.Select>
     </div>
     {query.isLoading && <LoadingSpinner />}
@@ -116,7 +116,7 @@ export function MyFavoritesSection() {
       retrying={mutation.isPending} retryLabel="찜 해제 다시 시도" />
     {query.data && items.length === 0 && <EmptyState message="찜한 항목이 없습니다." />}
     {items.map((item) => <div key={item.id} className="d-flex justify-content-between align-items-center gap-2 border-bottom py-2">
-      <div><span className="small text-muted me-2">{item.targetType === "PRODUCT" ? "상품" : "클래스"}</span>
+      <div><span className="small text-muted me-2">{item.targetType === "PRODUCT" ? "작품" : "클래스"}</span>
         {item.active ? <Link to={reviewTargetHref(item.targetType, item.targetId)}>{item.name}</Link> : <span>{item.name} · 현재 이용할 수 없음</span>}
       </div>
       <Button size="sm" variant="outline-secondary" disabled={mutation.isPending}

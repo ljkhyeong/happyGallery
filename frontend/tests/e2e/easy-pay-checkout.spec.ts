@@ -288,7 +288,7 @@ test("@payment 복귀 정보가 없거나 외부 주소이면 구매 복귀 링�
   await page.reload();
   await expect(page.getByRole("link", { name: "결제 테스트", exact: true })).toBeVisible();
   await expect(back).not.toBeVisible();
-  await expect(page.getByRole("link", { name: "상품 둘러보기", exact: true })).toHaveAttribute("href", "/products");
+  await expect(page.getByRole("link", { name: "작품 둘러보기", exact: true })).toHaveAttribute("href", "/products");
 });
 
 test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨긴다", async ({ page }) => {

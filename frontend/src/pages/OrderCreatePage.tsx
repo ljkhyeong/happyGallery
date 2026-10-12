@@ -161,8 +161,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
         orderName: items.length === 1 && items[0]
-          ? `상품 주문 (${items[0].qty}개)`
-          : `상품 주문 ${items.length}건`,
+          ? `작품 주문 (${items[0].qty}개)`
+          : `작품 주문 ${items.length}건`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: normalizedName,
         customerPhone: phone || undefined,
@@ -192,10 +192,10 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   if (draftMissing) {
     return <Container className="page-container" style={{ maxWidth: 640 }}>
       <Alert variant="warning">{searchParams.get("draft") === "options"
-        ? "선택한 옵션 정보를 불러올 수 없습니다. 상품 상세에서 옵션과 수량을 다시 선택해 주세요."
-        : "주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요."}</Alert>
+        ? "선택한 옵션 정보를 불러올 수 없습니다. 작품 상세에서 옵션과 수량을 다시 선택해 주세요."
+        : "주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요."}</Alert>
       <LinkButton to={hasPrefilledItem ? `/products/${productId}` : "/products"}>
-        상품 다시 선택
+        작품 다시 선택
       </LinkButton>
     </Container>;
   }
@@ -205,12 +205,12 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       <PageHeader
         title={user ? "주문서" : "비회원 주문"}
         description={user
-          ? "주문할 상품과 수령 방법을 확인한 뒤 결제해 주세요."
-          : "로그인 없이 한 번에 여러 상품을 주문할 수 있습니다."}
+          ? "주문할 작품과 수령 방법을 확인한 뒤 결제해 주세요."
+          : "로그인 없이 여러 작품을 한 번에 주문할 수 있습니다."}
         actions={(
           <>
             <LinkButton to="/products" variant="dark" size="sm">
-              상품 보러가기
+              작품 보러가기
             </LinkButton>
             {!user && (
               <LinkButton to={loginHref} variant="outline-secondary" size="sm">
@@ -222,8 +222,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       />
       {hasPrefilledItem && (
         <Alert variant="info" className="mb-4">
-          선택한 상품과 수량을 주문서에 담았습니다.
-          아래에서 상품을 추가하거나 삭제할 수 있습니다.
+          선택한 작품과 수량을 주문서에 담았습니다.
+          아래에서 작품을 추가하거나 삭제할 수 있습니다.
         </Alert>
       )}
     </>
@@ -235,14 +235,14 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         {header}
         <Card className="mb-4 border-0 my-claim-card checkout-gate">
           <Card.Body className="p-4">
-            <h2 className="h5 mb-2">주문할 상품을 먼저 선택해 주세요</h2>
+            <h2 className="h5 mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
-              작품 목록에서 상품과 수량을 고르면 주문서에 자동으로 입력됩니다.
-              여러 상품을 직접 선택할 수도 있습니다.
+              작품 목록에서 작품과 수량을 고르면 주문서에 자동으로 들어갑니다.
+              여러 작품을 여기서 직접 고를 수도 있습니다.
             </p>
             <div className="d-flex flex-wrap gap-2">
               <LinkButton to="/products" variant="dark" size="sm">
-                상품 먼저 고르기
+                작품 먼저 고르기
               </LinkButton>
               <LinkButton
                 to="/guest#lookup-help"
@@ -259,7 +259,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                   setManualEntryConfirmed(true);
                 }}
               >
-                여러 상품 직접 선택
+                여러 작품 직접 선택
               </Button>
             </div>
           </Card.Body>
@@ -366,7 +366,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </Form.Group>
             </CheckoutPanel>
 
-            <CheckoutPanel title="상품 선택">
+            <CheckoutPanel title="작품 선택">
               <OrderItemsForm
                 state={orderItems}
                 onChange={updateItems}

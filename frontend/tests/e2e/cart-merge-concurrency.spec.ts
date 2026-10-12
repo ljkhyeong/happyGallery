@@ -261,7 +261,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
 
     await expect(
       page.getByRole("main").getByText(
-        "다른 계정으로 로그인하기 전에 담은 상품이 남아 있습니다.",
+        "다른 계정으로 로그인하기 전에 담은 작품이 남아 있습니다.",
       ),
     ).toBeVisible();
     await expect.poll(() => page.evaluate(

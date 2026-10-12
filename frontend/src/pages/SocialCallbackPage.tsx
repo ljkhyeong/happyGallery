@@ -187,7 +187,7 @@ export function SocialCallbackPage() {
       ? "/my"
       : buildAuthPageHref(policyConsentRequired ? "/signup" : "/login", { redirectTo: returnTo });
     const errorLinkLabel = linkCallback
-      ? "마이페이지로 돌아가기"
+      ? "내 정보로 돌아가기"
       : policyConsentRequired
         ? "동의하고 회원가입하기"
         : "로그인 페이지로 돌아가기";

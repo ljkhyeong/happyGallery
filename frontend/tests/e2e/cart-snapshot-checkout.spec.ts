@@ -331,7 +331,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
   await page.getByRole("button", { name: "매장 수령" }).click();
   await page.getByRole("checkbox", { name: "주문제작 동의", exact: true }).check();
   const checkoutButton = page.getByRole("button", { name: "결제하기", exact: true });
-  const warning = page.getByRole("alert").filter({ hasText: "같은 상품·옵션은 합계 1개까지" });
+  const warning = page.getByRole("alert").filter({ hasText: "같은 작품·옵션은 합계 1개까지" });
   await expect(warning).toContainText("현재 2개를 선택했습니다.");
   await expect(checkoutButton).toBeDisabled();
   expect(preparePayloads).toHaveLength(0);

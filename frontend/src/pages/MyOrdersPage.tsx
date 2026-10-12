@@ -53,7 +53,7 @@ export function MyOrdersPage() {
       />
       <MyListFilterBar
         idPrefix="my-orders"
-        searchLabel="주문 번호·상품명 검색"
+        searchLabel="주문 번호·작품명 검색"
         searchPlaceholder="예: 123 또는 머그"
         filters={filters}
         statusOptions={statusOptions}

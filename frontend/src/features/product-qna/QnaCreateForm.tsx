@@ -134,7 +134,7 @@ export function QnaCreateForm({ productId }: Props) {
               />
               {secret && (
                 <Form.Text className="text-muted d-block mb-2">
-                  비밀글은 작성자와 관리자만 볼 수 있습니다.
+                  비밀글은 작성자와 공방만 볼 수 있습니다.
                 </Form.Text>
               )}
               <ErrorAlert error={mutation.error} />

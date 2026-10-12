@@ -22,10 +22,10 @@ export function RefundProgressAlert({ refund, couponStatus }: Props) {
           <li>결제사 환불 {formatKRW(refund.pgRefundAmount)} · {progressLabel}</li>
         )}
         {refund.rewardRestoreAmount > 0 && (
-          <li>적립금 복원 {refund.rewardRestoreAmount.toLocaleString("ko-KR")}P · {progressLabel}</li>
+          <li>적립금 복원 {formatKRW(refund.rewardRestoreAmount)} · {progressLabel}</li>
         )}
         {refund.rewardRevokeAmount > 0 && (
-          <li>지급 적립금 회수 {refund.rewardRevokeAmount.toLocaleString("ko-KR")}P · {progressLabel}</li>
+          <li>지급 적립금 회수 {formatKRW(refund.rewardRevokeAmount)} · {progressLabel}</li>
         )}
         {refund.restoreCoupon && <li>{refundCouponMessage(refund.status, couponStatus)}</li>}
       </ul>

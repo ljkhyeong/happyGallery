@@ -37,11 +37,11 @@ export function OrderDetailCard({ order }: Props) {
           </Col>
         </Row>
 
-        <h6>주문 상품</h6>
+        <h6>주문한 작품</h6>
         <Table responsive size="sm" className="mb-3">
           <thead>
             <tr>
-              <th>상품</th>
+              <th>작품</th>
               <th className="text-end">수량</th>
               <th className="text-end">단가</th>
               <th className="text-end">소계</th>

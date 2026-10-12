@@ -42,6 +42,12 @@ export const PRODUCT_TYPE_LABEL: Record<string, string> = {
   MADE_TO_ORDER: "주문 제작 상품",
 };
 
+/** 고객 화면의 판매 방식 이름. 작품 목록 제목(바로 구매·주문 제작)과 같은 말을 쓴다. 관리자는 PRODUCT_TYPE_LABEL을 쓴다. */
+export const PRODUCT_SALE_TYPE_LABEL: Record<string, string> = {
+  READY_STOCK: "바로 구매",
+  MADE_TO_ORDER: "주문 제작",
+};
+
 /** 상품 수령 방법 라벨 */
 export const FULFILLMENT_TYPE_LABEL: Record<string, string> = {
   SHIPPING: "택배 배송",
@@ -66,7 +72,7 @@ export const NOTIFICATION_EVENT_LABEL: Record<string, string> = {
   BOOKING_CONFIRMED: "예약 확정",
   BOOKING_RESCHEDULED: "예약 변경",
   BOOKING_CANCELED: "예약 취소",
-  PRODUCT_RESTOCK_AVAILABLE: "상품 재입고 안내",
+  PRODUCT_RESTOCK_AVAILABLE: "작품 재입고 안내",
   BOOKING_VACANCY_AVAILABLE: "예약 빈자리 안내",
   DEPOSIT_REFUNDED: "예약금 환불",
   ORDER_PAID: "주문 결제 완료",
@@ -75,7 +81,7 @@ export const NOTIFICATION_EVENT_LABEL: Record<string, string> = {
   ORDER_SHIPPED: "배송 시작",
   ORDER_DELAY_REQUESTED: "주문 지연 일정 확인 요청",
   ORDER_REFUNDED: "주문 환불",
-  ORDER_CLAIM_RESOLVED: "환불·교환 요청 처리 결과",
+  ORDER_CLAIM_RESOLVED: "반품·교환 요청 처리 결과",
   ORDER_EXCHANGE_COMPLETED: "주문 교환 완료",
   PASS_PURCHASED: "이용권 결제 완료",
   PASS_REFUNDED: "이용권 환불 완료",
@@ -121,7 +127,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const CUSTOMER_STATUS_LABEL: Record<string, string> = {
   PAID_APPROVAL_PENDING: "공방 승인 대기",
-  APPROVED_FULFILLMENT_PENDING: "상품 준비 대기",
+  APPROVED_FULFILLMENT_PENDING: "작품 준비 대기",
   DELAY_CONSENT_PENDING: "지연 안내 확인 필요",
   DELAY_ACCEPTED: "지연 일정 동의",
   PICKUP_READY: "매장에서 수령 가능",

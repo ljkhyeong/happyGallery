@@ -47,7 +47,7 @@ export function projectGuestCartItems(
       availableQuantity: product.available && configurationValid ? limit : 0,
       maxQuantity: configurationValid ? Math.max(0, limit - skuQuantity + item.qty) : 0,
       quantityWarning: product.available && configurationValid && skuQuantity > limit
-        ? `같은 상품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
+        ? `같은 작품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
         : undefined,
       specification: product.specification,
       careInstructions: product.careInstructions,
@@ -61,7 +61,7 @@ function unavailableGuestItem(item: GuestCartItem): CartItemView {
     cartItemId: item.lineKey,
     productId: item.productId,
     productVariantId: item.productVariantId,
-    productName: `상품 #${item.productId}`,
+    productName: `작품 #${item.productId}`,
     productType: null,
     basePrice: 0,
     variantPriceAdjustment: 0,

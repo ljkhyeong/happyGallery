@@ -23,7 +23,7 @@ const booking = {
 
 const scenarios = [
   {
-    path: "orders", title: "주문", label: "주문 번호·상품명 검색", sort: "AMOUNT_DESC",
+    path: "orders", title: "주문", label: "주문 번호·작품명 검색", sort: "AMOUNT_DESC",
     link: /주문 #9090/, detailText: order.orderNumber, detail: order,
     summary: { ...order, createdAt: "2026-08-01T12:00:00" },
   },

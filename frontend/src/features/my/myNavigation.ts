@@ -29,14 +29,14 @@ export const MY_NAV_GROUPS: MyNavGroup[] = [
     title: "혜택",
     items: [
       { to: "/my/benefits", label: "쿠폰·적립금", gateDescription: "로그인하면 내 쿠폰과 적립금을 확인할 수 있습니다." },
-      { to: "/my/favorites", label: "내 찜", gateDescription: "로그인하면 찜한 상품과 클래스를 확인할 수 있습니다." },
+      { to: "/my/favorites", label: "내 찜", gateDescription: "로그인하면 찜한 작품과 클래스를 확인할 수 있습니다." },
     ],
   },
   {
     title: "문의·후기",
     items: [
       { to: "/my/inquiries", label: "1:1 문의", gateDescription: "로그인하면 1:1 문의를 작성하고 답변을 확인할 수 있습니다." },
-      { to: "/my/reviews", label: "내 후기", gateDescription: "내가 작성한 상품·클래스 후기는 로그인 후 확인하고 수정할 수 있습니다." },
+      { to: "/my/reviews", label: "내 후기", gateDescription: "내가 작성한 작품·클래스 후기는 로그인 후 확인하고 수정할 수 있습니다." },
       { to: "/my/group-inquiries", label: "단체 수업 문의", gateDescription: "로그인하면 단체 수업 문의 상태를 확인할 수 있습니다." },
       { to: "/my/notifications", label: "알림함", gateDescription: "로그인하면 받은 알림을 확인할 수 있습니다." },
     ],

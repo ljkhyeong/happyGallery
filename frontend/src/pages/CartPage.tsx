@@ -121,8 +121,8 @@ function CartContent() {
         context: "ORDER",
         payload,
         orderName: selectedItems.length === 1
-          ? `${selectedItems[0]?.productName ?? "장바구니 상품"} 주문`
-          : `장바구니 상품 ${selectedItems.length}건`,
+          ? `${selectedItems[0]?.productName ?? "장바구니 작품"} 주문`
+          : `장바구니 작품 ${selectedItems.length}건`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
         returnHint: { customerName: user.name, returnPath: "/cart" },
@@ -158,11 +158,11 @@ function CartContent() {
           variant="outline-danger"
           onClick={() => setShowDiscardConfirm(true)}
         >
-          이 기기에서 해당 상품 제거
+          이 기기에서 해당 작품 제거
         </Button>
       </div>
       <small className="d-block mt-2">
-        제거하면 로그인 전에 담은 해당 상품 수량만 이 기기에서 사라집니다.
+        제거하면 로그인 전에 담은 해당 작품 수량만 이 기기에서 사라집니다.
       </small>
     </Alert>
   );
@@ -175,11 +175,11 @@ function CartContent() {
     >
       <Modal.Header closeButton>
         <Modal.Title id="held-cart-discard-title" className="fs-6">
-          로그인 전에 담은 상품 제거
+          로그인 전에 담은 작품 제거
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        다른 계정으로 로그인하기 전에 담은 상품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+        다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
@@ -192,7 +192,7 @@ function CartContent() {
             setShowDiscardConfirm(false);
           }}
         >
-          상품 제거
+          작품 제거
         </Button>
       </Modal.Footer>
     </Modal>
@@ -319,7 +319,7 @@ function CartContent() {
               <>
                 {selectedItems.length === 0 && <Alert variant="info">구매할 작품을 선택해 주세요.</Alert>}
                 {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
-                  {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
+                  {item.productName}: 같은 작품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
                   현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
                 </Alert>)}
                 <MemberOrderBenefits
@@ -398,7 +398,7 @@ function CartContent() {
                         }} />}
                       <div>
                         <Link to={productDetailHref(item.productId, item.productVariantId)}>
-                          {item.productName || `상품 #${item.productId}`}
+                          {item.productName || `작품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted-soft">{formatKRW(item.price)}</div>
                       </div>

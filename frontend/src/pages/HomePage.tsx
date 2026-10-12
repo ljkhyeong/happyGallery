@@ -147,7 +147,7 @@ export function HomePage({
             <dl className="gallery-hero-facts">
               {address && <div><dt>장소</dt><dd>{address}</dd></div>}
               {workshop.businessHours && <div><dt>운영 시간</dt><dd>{workshop.businessHours}</dd></div>}
-              <div><dt>구매</dt><dd>온라인 주문 · 택배 또는 공방 수령</dd></div>
+              <div><dt>구매</dt><dd>온라인 주문 · 택배 또는 매장 수령</dd></div>
               <div><dt>수업</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
             </dl>
             <div className="gallery-hero-actions">

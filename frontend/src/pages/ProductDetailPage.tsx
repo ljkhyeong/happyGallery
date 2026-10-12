@@ -19,7 +19,7 @@ import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import {
   formatKRW,
-  PRODUCT_TYPE_LABEL,
+  PRODUCT_SALE_TYPE_LABEL,
 } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
@@ -127,7 +127,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         payload,
         orderName: product
           ? `${product.name} (${items.reduce((sum, item) => sum + item.qty, 0)}개)`
-          : "상품 주문",
+          : "작품 주문",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
@@ -246,7 +246,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
           <header className="store-product-intro">
             <div className="store-detail-meta">
               <span className="store-detail-kicker">
-                {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
+                {PRODUCT_SALE_TYPE_LABEL[product.type] ?? "판매 방식 확인 필요"}
               </span>
               {product.category && (
                 <Link
@@ -286,12 +286,12 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                 </h3>
                 {selectionChanged && (
                   <Alert variant="info" className="py-2">
-                    상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.
+                    작품 가격이나 옵션이 바뀌었습니다. 옵션과 금액을 다시 확인해 주세요.
                   </Alert>
                 )}
                 {variantId !== null && !linkedVariant && (
                   <Alert variant="warning" className="py-2">
-                    해당 옵션은 현재 판매하지 않습니다. 현재 상품의 옵션과 가격을 확인해 주세요.
+                    해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.
                   </Alert>
                 )}
                 {hasConfiguredOptions ? (

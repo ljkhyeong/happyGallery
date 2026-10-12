@@ -34,7 +34,7 @@ export function ProductPurchaseTerms({
       )}
       {specification && (
         <div className="mb-2">
-          <strong className="d-block">상품 사양</strong>
+          <strong className="d-block">작품 사양</strong>
           <span className="text-muted-soft" style={{ whiteSpace: "pre-wrap" }}>
             {specification}
           </span>
@@ -66,8 +66,8 @@ function CustomizationInquiry({ productName }: { productName: string }) {
   if (!workshop?.naverTalkUrl) return null;
 
   const message = [
-    "해피갤러리 상품 맞춤 변경 문의드립니다.",
-    `상품: ${productName}`,
+    "해피갤러리 작품 맞춤 변경 문의드립니다.",
+    `작품: ${productName}`,
     "원하는 변경: ",
   ].join("\n");
 

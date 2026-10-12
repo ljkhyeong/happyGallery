@@ -406,7 +406,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await page.getByLabel("인증번호").fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   await page.getByLabel("주문자 이름").fill("비회원 주문자");
-  await expect(page.getByLabel("상품")).toContainText("비회원 지연 결제 작품");
+  await expect(page.getByLabel("작품", { exact: true })).toContainText("비회원 지연 결제 작품");
   await page.getByRole("button", { name: "매장 수령" }).click();
   await page.locator("#guest-order-policy-consent").check();
   await expect(page.getByRole("button", { name: "결제 진행하기" }))
@@ -1257,7 +1257,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await page.goto("/orders/new");
   await page.getByLabel("주문자 이름").fill("B 주문자 정보");
-  await page.getByLabel("상품").selectOption("42");
+  await page.getByLabel("작품", { exact: true }).selectOption("42");
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByRole("button", { name: "택배 배송" }).click();
   await page.getByLabel("기본 주소").fill("B 계정 배송지");
@@ -1265,8 +1265,8 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("B 주문자 정보")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요.");
-  await expect(page.getByRole("link", { name: "상품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
+  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요.");
+  await expect(page.getByRole("link", { name: "작품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
 
   await page.goto(`/login?redirect=${encodeURIComponent("/orders/new")}`);
   await page.getByLabel("이메일").fill(customerA.email);

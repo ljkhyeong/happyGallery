@@ -136,7 +136,7 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
     .toHaveAttribute("aria-current", "page");
   await expect(page.getByText(selected.name, { exact: true })).toBeVisible();
   await page.getByLabel("검색", { exact: true }).fill("없는작품");
-  await expect(page.getByText("조건에 맞는 상품이 없습니다.")).toBeVisible();
+  await expect(page.getByText("조건에 맞는 작품이 없습니다.")).toBeVisible();
   await expect(page.getByLabel("검색", { exact: true })).toBeFocused();
   await page.getByRole("button", { name: "초기화", exact: true }).click();
   await expect(page).toHaveURL(/\/products$/);

@@ -24,5 +24,6 @@ export {
   NOTIFICATION_EVENT_LABEL,
   PRODUCT_SORT_LABEL,
   PRODUCT_TYPE_LABEL,
+  PRODUCT_SALE_TYPE_LABEL,
 } from "./labels";
 export type { ClassSituationTagCode, StatusAudience } from "./labels";

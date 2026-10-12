@@ -78,7 +78,7 @@ export function PaymentFailPage() {
                 onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
             )}
             <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
-            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>상품 둘러보기</LinkButton>
+            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>작품 둘러보기</LinkButton>
           </>
         )}
       >

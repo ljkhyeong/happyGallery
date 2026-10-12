@@ -50,7 +50,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await page.getByRole("link", { name: "내 주문 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);
-  await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "주문한 작품" })).toBeVisible();
   const itemRow = page.getByRole("row").filter({ hasText: productName });
   await expect(itemRow).toContainText("2");
   await expect(itemRow).toContainText("66,000원");
@@ -62,7 +62,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
   await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
-  await page.getByLabel("주문 번호·상품명 검색").fill(String(orderId));
+  await page.getByLabel("주문 번호·작품명 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
   await expect(page).toHaveURL((url) =>
     url.pathname === `/my/orders/${orderId}`

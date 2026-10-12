@@ -39,7 +39,7 @@ export function useCreateProductReview(onApplied?: () => void) {
         () => submitProductReview(input),
         (review, requireCurrent) => applySuccess(
           review,
-          "상품 후기를 등록했습니다.",
+          "작품 후기를 등록했습니다.",
           requireCurrent,
           onApplied,
         ),

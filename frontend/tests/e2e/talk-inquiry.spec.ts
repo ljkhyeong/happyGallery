@@ -90,7 +90,7 @@ test("상품 문의는 복사 기능이 없어도 문구를 보여주고 톡톡�
   await expect(page.getByRole("button", { name: "문의 문구 복사", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "문의 문구 복사", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "직접 복사할 문의 문구" }))
-    .toHaveValue("해피갤러리 상품 맞춤 변경 문의드립니다.\n상품: 맞춤 가죽 키링\n원하는 변경: ");
+    .toHaveValue("해피갤러리 작품 맞춤 변경 문의드립니다.\n작품: 맞춤 가죽 키링\n원하는 변경: ");
   await expect(page.getByRole("alert").filter({ hasText: "복사하지 못했습니다" })).toBeVisible();
   const talk = page.getByRole("link", { name: "맞춤 변경 네이버톡톡 상담" });
   await expect(talk).toHaveAttribute("href", "https://talk.naver.com/example");

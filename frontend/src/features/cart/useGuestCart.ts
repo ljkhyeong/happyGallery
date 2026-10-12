@@ -29,7 +29,7 @@ export interface GuestCartMergeRequest {
 export type CartAddition = Pick<GuestCartItem, "productId" | "productVariantId" | "textInputs" | "qty">;
 
 export class CartQuantityError extends Error {
-  constructor(message = `같은 상품·옵션 조합의 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`) {
+  constructor(message = `같은 작품·옵션 조합의 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`) {
     super(message);
     this.name = "CartQuantityError";
   }
@@ -198,7 +198,7 @@ function requirePurchasableAdditions(items: GuestCartItem[], changed: readonly C
   for (const item of changed) {
     const product = productsById.get(item.productId)!;
     if (!productSelectionView(product, item).configurationValid) {
-      throw new CartQuantityError(`${product.name}의 선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요.`);
+      throw new CartQuantityError(`${product.name}의 선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요.`);
     }
   }
   for (const item of new Map(changed.map((item) => [productSkuKey(item), item])).values()) {
