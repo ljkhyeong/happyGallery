@@ -34,8 +34,9 @@ public class MeInquiryController {
     @ResponseStatus(HttpStatus.CREATED)
     public InquiryResponse create(@RequestBody @Valid CreateInquiryRequest request,
                                   @AuthenticationPrincipal CustomerPrincipal customer) {
-        var inquiry = inquiryUseCase.create(customer.userId(), request.title(), request.content());
-        return InquiryResponse.from(inquiry);
+        var created = inquiryUseCase.create(customer.userId(), request.title(), request.content());
+        // 작성 시각은 DB 기본값이라 저장한 엔티티에는 비어 있다. 저장이 끝난 뒤 다시 읽어 응답한다.
+        return InquiryResponse.from(inquiryUseCase.getOwned(created.getId(), customer.userId()));
     }
 
     @GetMapping("/page")

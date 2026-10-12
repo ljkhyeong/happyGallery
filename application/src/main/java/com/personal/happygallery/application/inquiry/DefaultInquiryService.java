@@ -54,6 +54,13 @@ public class DefaultInquiryService implements InquiryUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public Inquiry getOwned(Long inquiryId, Long userId) {
+        return inquiryReader.findByIdAndUserId(inquiryId, userId)
+                .orElseThrow(NotFoundException.supplier("문의"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CursorPage<Inquiry> listByUser(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         CursorParam after = CursorUtils.decodeOrFirst(cursor);

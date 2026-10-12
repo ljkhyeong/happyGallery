@@ -14,6 +14,9 @@ public interface InquiryUseCase {
 
     Inquiry create(Long userId, String title, String content);
 
+    /** 본인 문의만 조회한다. 다른 회원의 문의는 찾을 수 없는 것처럼 거절한다. */
+    Inquiry getOwned(Long inquiryId, Long userId);
+
     CursorPage<Inquiry> listByUser(Long userId, String cursor, int size);
 
     CursorPage<InquiryWithUser> listAll(String cursor, int size);

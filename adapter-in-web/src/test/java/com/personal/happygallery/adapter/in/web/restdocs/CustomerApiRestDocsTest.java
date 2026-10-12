@@ -239,6 +239,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(socialAuthUseCase.listLinkedProviders(CUSTOMER_USER_ID))
                 .thenReturn(List.of(SocialProvider.GOOGLE));
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
+        when(inquiryUseCase.getOwned(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(inquiry), "cursor-next", true));
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false)))

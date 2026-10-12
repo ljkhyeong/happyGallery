@@ -27,6 +27,9 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long>,
     @Query("SELECT i FROM Inquiry i WHERE i.id = :id")
     Optional<Inquiry> findByIdForUpdate(@Param("id") Long id);
 
+    @Override
+    Optional<Inquiry> findByIdAndUserId(Long id, Long userId);
+
     @Query("""
             SELECT i FROM Inquiry i
             WHERE i.userId = :userId
