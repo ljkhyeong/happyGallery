@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Card, Form, Modal } from "react-bootstrap";
@@ -25,6 +25,9 @@ type InquiryChange = { customerSession: CustomerSessionSnapshot } & (
 );
 
 export function MyGroupInquiryDetail({ id }: { id: number }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  // 상세는 목록 아래에 열리므로 고른 문의가 보이도록 그 위치로 옮긴다.
+  useEffect(() => { cardRef.current?.scrollIntoView({ block: "start" }); }, []);
   const [draft, setDraft] = useState<InquiryDraft | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const leaveTitleId = useId();
@@ -103,7 +106,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   );
 
   return (
-    <Card className="mt-4"><Card.Body>
+    <Card ref={cardRef} className="mt-4 my-anchor-section"><Card.Body>
       <h2 className="h6">문의 상세 · 접수 번호 {id}</h2>
       <Button size="sm" variant="link" disabled={busy} onClick={() => { void query.refetch(); }}>문의 새로고침</Button>
       {query.isLoading && <LoadingSpinner />}

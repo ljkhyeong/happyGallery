@@ -24,8 +24,9 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
   const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
   const claimMutation = useClaimCoupon();
 
+  // 로그인 뒤 이벤트 쿠폰 칸으로 돌아온다.
   const loginHref = buildAuthPageHref("/login", {
-    redirectTo: `/events/${eventId}`,
+    redirectTo: `/events/${eventId}#event-coupon-heading`,
   });
   const ownedCoupon = couponsQuery.data?.find(
     (coupon) => coupon.definitionId === couponDefinitionId,

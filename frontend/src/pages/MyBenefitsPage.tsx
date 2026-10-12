@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Row } from "react-bootstrap";
+import { Link } from "react-router";
 import type { MyCouponResponse } from "@/features/coupon/api";
 import { couponConditionLabel, couponDiscountLabel } from "@/features/coupon/presentation";
 import { claimableCouponsQuery, myCouponsQuery, useClaimCoupon } from "@/features/coupon/queries";
@@ -102,7 +103,9 @@ export function MyBenefitsPage() {
                     <strong className="small">{REWARD_HISTORY_LABEL[history.type]}</strong>
                     <div className="text-muted-soft small">
                       {formatDateTime(history.createdAt)}
-                      {history.orderId !== null ? ` · 주문 #${history.orderId}` : ""}
+                      {history.orderId !== null && (
+                        <> · <Link to={`/my/orders/${history.orderId}`}>주문 #{history.orderId}</Link></>
+                      )}
                     </div>
                   </div>
                   <div className="text-end">

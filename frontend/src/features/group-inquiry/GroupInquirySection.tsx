@@ -43,7 +43,7 @@ function GroupInquirySectionContent() {
           {receiptId !== null ? <Alert variant="success">
             <Alert.Heading>문의가 접수되었습니다.</Alert.Heading>
             <p className="mb-1">접수 번호 {receiptId} · 입력한 연락처로 답변드립니다.</p>
-            {isAuthenticated && <Link to="/my/group-inquiries">내 문의 상태 확인</Link>}
+            {isAuthenticated && <Link to={`/my/group-inquiries?inquiryId=${receiptId}`}>내 문의 상태 확인</Link>}
           </Alert> : isLoading ? <LoadingSpinner /> : status === "error" ? <ErrorAlert error={error} onRetry={() => { void refresh(); }} /> : <>
             {botProtection.challenge}
             <GroupInquiryForm onSubmit={(request) => mutation.mutate(request)} submitDisabled={!botProtection.ready}

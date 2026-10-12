@@ -118,8 +118,9 @@ test("P8-3 @smoke @payment 회원은 4회권 구매 후 이용권으로 예약�
   await page.goto("/passes/purchase");
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "이 이용권으로 예약" })).toHaveAttribute("href", /\/bookings\/new\?passId=\d+$/);
   await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
-  await expect(page).toHaveURL(/\/my\/passes$/);
+  await expect(page).toHaveURL(/\/my\/passes\?q=\d+$/);
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {
     throw new Error("Member pass list text was empty");

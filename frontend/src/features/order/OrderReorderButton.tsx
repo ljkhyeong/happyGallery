@@ -6,6 +6,7 @@ import type { OrderDetailResponse } from "@/generated/api/customerStore";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
 import { productSelectionView } from "@/features/product/productSelectionView";
+import { productDetailHref } from "@/features/product/navigation";
 import { productQuantityLimit } from "@/features/product/purchaseStock";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
@@ -54,6 +55,9 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
     || !selection.configurationValid
     || selectOptionsKey(item.options) !== selectOptionsKey(selection.options)
   );
+  // 직접입력 문구 때문에만 다시 고르는 경우는 같은 옵션 조합을 상품 상세에 골라 둔다.
+  const onlyTextChanged = Boolean(product && selection && item.productType === product.type
+    && selection.configurationValid && selectOptionsKey(item.options) === selectOptionsKey(selection.options));
   const existingQty = cart.items.filter((row) => row.productId === item.productId
     && row.productVariantId === selection?.productVariantId).reduce((sum, row) => sum + row.qty, 0);
   const limit = product && selection ? Math.max(0, productQuantityLimit(product, selection.productVariantId) - existingQty) : 0;
@@ -90,7 +94,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
             careInstructions={product.careInstructions} productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
           {requiresSelection ? <Alert variant="info" className="mt-3">
             상품 옵션이 바뀌었거나 직접 입력한 문구가 있습니다. 상품 상세에서 옵션과 문구를 다시 선택해 주세요.
-            <div className="mt-2"><LinkButton to={`/products/${product.id}`} size="sm" variant="outline-primary">옵션 다시 선택</LinkButton></div>
+            <div className="mt-2"><LinkButton to={productDetailHref(product.id, onlyTextChanged ? item.productVariantId : null)} size="sm" variant="outline-primary">옵션 다시 선택</LinkButton></div>
           </Alert> : <>
             <OrderOptionList options={selection.options} />
             <Form.Group controlId={`reorder-qty-${item.orderItemId}`} className="mt-3">

@@ -69,8 +69,10 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     reviewIds.forEach((reviewId) => reactionLoadingByReviewId.set(reviewId, isLoading));
   });
   const reactionErrorQuery = reactionQueries.find(({ error }) => error);
+  // 로그인 뒤 후기 칸으로 돌아온다. 작품 상세는 위에 붙는 탭 아래에 멈추는 #product-reviews를 쓴다.
+  const reviewsAnchor = targetType === "PRODUCT" ? "product-reviews" : `${targetType}-${targetId}-reviews`;
   const loginHref = buildAuthPageHref("/login", {
-    redirectTo: reviewTargetHref(targetType, targetId),
+    redirectTo: `${reviewTargetHref(targetType, targetId)}#${reviewsAnchor}`,
   });
 
   return (

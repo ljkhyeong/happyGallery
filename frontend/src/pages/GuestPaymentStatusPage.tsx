@@ -2,6 +2,7 @@ import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Container } from "react-bootstrap";
 import { Link, useLocation, useParams } from "react-router";
+import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   fetchPaymentStatus,
@@ -160,6 +161,7 @@ export function GuestPaymentStatusPage() {
         {status.status === "COMPLETED" && !completedResult && (
           <Alert variant="warning" className="mb-0">
             결제는 완료됐지만 연결된 주문·예약 또는 이용권 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.
+            <WorkshopContactLinks />
           </Alert>
         )}
       </PaymentResultCard>

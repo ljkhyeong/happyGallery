@@ -24,6 +24,8 @@ import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
+import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import {
@@ -82,6 +84,12 @@ export function PaymentSuccessPage() {
 
   const [returnHintSession] = useState(() =>
     completedOrderId ? null : readPaymentReturnHint(customerSession));
+  // 결제를 마치지 못했을 때 돌아갈 구매 화면. 없으면 "/"다.
+  const returnPath = resolveSafeReturnTo(returnHintSession?.value.returnPath);
+  const returnToPurchase = () => {
+    if (returnHintSession) consumePaymentReturnHint(returnHintSession);
+    navigate(returnPath);
+  };
   const [confirmSession] = useState<PaymentConfirmSession | null>(() => {
     if (completedOrderId) return null;
     if (!callbackPresent) {
@@ -334,7 +342,7 @@ export function PaymentSuccessPage() {
             <>
               {isAuthenticated
                 ? <LinkButton to="/my">내 정보에서 확인</LinkButton>
-                : <LinkButton to="/guest">비회원 조회</LinkButton>}
+                : <LinkButton to="/guest#payment-help">비회원 결제 확인</LinkButton>}
               <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
             </>
           )}
@@ -368,6 +376,10 @@ export function PaymentSuccessPage() {
                   상태 새로고침
                 </Button>
               )}
+              {/* 승인되지 않았거나 종료·환불된 결제는 구매 화면에서 다시 시작한다. */}
+              {returnPath !== "/" && ["FAILED", "EXPIRED", "REFUNDED"].includes(paymentStatus.status) && (
+                <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
+              )}
               <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
             </>
           )}
@@ -398,13 +410,15 @@ export function PaymentSuccessPage() {
                 </Button>
               )}
               <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
-              {!retryable && !reconciliationRequired && (
-                <Button variant="primary" onClick={() => navigate(-1)}>이전으로</Button>
-              )}
+              {/* 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로 저장한 구매 화면으로 보낸다. */}
+              {!retryable && !reconciliationRequired && (returnPath !== "/"
+                ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
+                : <Button variant="primary" onClick={() => navigate(-1)}>이전으로</Button>)}
             </>
           )}
         >
           <ErrorAlert error={error} />
+          {reconciliationRequired && <WorkshopContactLinks />}
         </PaymentResultCard>
       </Container>
     );

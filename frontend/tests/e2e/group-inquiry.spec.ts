@@ -33,6 +33,7 @@ for (const member of [false, true]) {
       if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
       if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+      if (path === "/api/v1/me/group-inquiries/51") return fulfillJson(route, { summary, version: 1, changes: [] });
       if (path.endsWith("/group-inquiries")) {
         if (route.request().method() === "POST") {
           expect(path).toBe(member ? "/api/v1/me/group-inquiries" : "/api/v1/group-inquiries");
@@ -54,8 +55,10 @@ for (const member of [false, true]) {
     await expect(form.getByText("문의가 접수되었습니다.", { exact: true })).toBeVisible();
     if (member) {
       await form.getByRole("link", { name: "내 문의 상태 확인" }).click();
-      await expect(page.locator("#my-group-inquiries").getByText(details.organization, { exact: true })).toBeVisible();
-      await expect(page.locator("#my-group-inquiries").getByText("접수", { exact: true })).toBeVisible();
+      // 접수한 문의의 상세가 함께 열린다.
+      await expect(page).toHaveURL(/\/my\/group-inquiries\?inquiryId=\d+$/);
+      await expect(page.locator("#my-group-inquiries").getByText(details.organization, { exact: true }).first()).toBeVisible();
+      await expect(page.locator("#my-group-inquiries").getByText("접수", { exact: true }).first()).toBeVisible();
     }
   });
 }

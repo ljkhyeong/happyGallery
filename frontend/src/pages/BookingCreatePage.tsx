@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Form, Button } from "react-bootstrap";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { splitBookingAmount } from "@/features/booking-create/bookingAmounts";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { bookingCreateHref, classAcceptsPass, formatSlotStart } from "@/features/booking-create/upcomingSlots";
@@ -493,7 +493,7 @@ function BookingCreateContent({
               <Alert variant="warning">
                 <p className="mb-2">
                   링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
-                  이용권 상태를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
+                  <Link to="/my/passes?status=ACTIVE">이용권 상태</Link>를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
                 </p>
                 <Button
                   type="button"

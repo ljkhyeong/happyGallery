@@ -201,7 +201,9 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     && [...selectedQuantities].every(([variantId, quantity]) => quantity <= productQuantityLimit(product, variantId));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
-  const memberRedirectPath = productDetailHref(productId, linkedVariant?.id);
+  // 로그인·가입을 마치고 돌아오면 옵션을 하나만 골랐을 때 그 옵션을 다시 골라 둔다.
+  const memberRedirectPath = productDetailHref(productId,
+    purchaseLines.length === 1 ? purchaseLines[0]!.productVariantId : linkedVariant?.id);
   const loginHref = buildAuthPageHref("/login", { redirectTo: memberRedirectPath });
   const signupHref = buildAuthPageHref("/signup", { redirectTo: memberRedirectPath });
   // 주문 제작은 고정 사양 안내가 늘 있고, 재고 상품은 사양·관리 방법이 있을 때만 작품 정보 구역을 둔다.

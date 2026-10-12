@@ -57,9 +57,10 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
   await page.getByRole("button", { name: "이전 주문 머그 다시 담기" }).click();
   await expect(dialog.getByRole("button", { name: "장바구니에 담기" })).toBeDisabled();
   await dialog.getByRole("button", { name: "닫기", exact: true }).click();
-  for (const [name, id] of [["옵션 변경 상품", 43], ["각인 상품", 44]]) {
+  // 옵션이 바뀐 작품은 처음부터 고르고, 각인만 다시 쓰면 되는 작품은 같은 옵션 조합을 골라 둔다.
+  for (const [name, href] of [["옵션 변경 상품", "/products/43"], ["각인 상품", "/products/44?variantId=440"]]) {
     await page.getByRole("button", { name: `${name} 다시 담기` }).click();
-    await expect(dialog.getByRole("link", { name: "옵션 다시 선택" })).toHaveAttribute("href", `/products/${id}`);
+    await expect(dialog.getByRole("link", { name: "옵션 다시 선택" })).toHaveAttribute("href", href);
     await expect(dialog.getByRole("button", { name: "장바구니에 담기" })).toHaveCount(0);
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
   }

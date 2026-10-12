@@ -106,7 +106,7 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 이용권 확인하기" })).toBeVisible();
   await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
-  await expect(page).toHaveURL(/\/my\/passes$/);
+  await expect(page).toHaveURL(/\/my\/passes\?q=\d+$/);
   await expect(page.getByRole("heading", { name: "이용권", level: 1 })).toBeVisible();
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {

@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useMatches } from "react-router";
 import { Container, Nav } from "react-bootstrap";
 import { CalendarDays, ClipboardList, Heart, House, Palette, UserRound } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 import { ProductSearchForm } from "@/features/product/ProductSearchForm";
@@ -22,7 +23,16 @@ const CLASS_NAV_ITEMS = [
 ] as const;
 
 /** 둘러보기 화면에서만 모바일 하단 탭바를 보여 주고, 상세·결제 화면의 하단 버튼과 겹치지 않게 한다. */
-const TAB_BAR_PATHS = new Set(["/", "/classes", "/products", "/events", "/group-classes", "/guest", "/my"]);
+const TAB_BAR_PATHS = new Set(["/", "/classes", "/products", "/events", "/group-classes", "/guest", "/my", "/my/bookings"]);
+
+/** 로그인·가입을 마친 뒤 돌아오지 않을 화면: 인증 화면 자체와 결제 결과·관리자 화면. */
+function authReturnPath(pathname: string, search: string, hash: string): string | undefined {
+  if (["/login", "/signup", "/forgot-password", "/auth/callback", "/admin"].includes(pathname)
+    || pathname.startsWith("/payments/")) {
+    return undefined;
+  }
+  return `${pathname}${search}${hash}`;
+}
 
 function isActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/") return pathname === "/";
@@ -45,7 +55,7 @@ function initialWorkshopFromMatches(
 }
 
 export function Layout() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const searchParams = new URLSearchParams(search);
   const onProducts = pathname === "/products";
   const activeCategory = onProducts ? searchParams.get("category") : undefined;
@@ -181,13 +191,18 @@ export function Layout() {
               ) : (
                 <>
                   <Link
-                    to="/login"
+                    to={buildAuthPageHref("/login", { redirectTo: authReturnPath(pathname, search, hash) })}
                     className={`app-icon-link${isActive(pathname, "/login") ? " active" : ""}`}
                   >
                     <UserRound size={21} strokeWidth={1.8} aria-hidden="true" />
                     <span>로그인</span>
                   </Link>
-                  <Link to="/signup" className="app-signup-link">회원가입</Link>
+                  <Link
+                    to={buildAuthPageHref("/signup", { redirectTo: authReturnPath(pathname, search, hash) })}
+                    className="app-signup-link"
+                  >
+                    회원가입
+                  </Link>
                 </>
               )
             )}

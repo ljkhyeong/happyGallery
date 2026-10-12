@@ -22,7 +22,7 @@ interface BuildAuthPageHrefOptions {
 }
 
 export function buildAuthPageHref(
-  path: "/login" | "/signup",
+  path: "/login" | "/signup" | "/forgot-password",
   options: BuildAuthPageHrefOptions = {},
 ) {
   const searchParams = new URLSearchParams();

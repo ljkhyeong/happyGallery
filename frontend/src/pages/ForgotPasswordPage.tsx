@@ -4,6 +4,8 @@ import { Card, Container, Form } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { resetPassword } from "@/features/customer-auth/credentialApi";
+import { useAuthPageTarget } from "@/features/customer-auth/AuthPageShell";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { NewPasswordFields } from "@/features/customer-auth/NewPasswordFields";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert, useToast } from "@/shared/ui";
@@ -16,6 +18,9 @@ export function ForgotPasswordPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { refresh } = useCustomerAuth();
+  // 로그인 화면에서 넘어온 돌아갈 곳·가져오기 의도를 재설정 뒤 로그인까지 이어 간다.
+  const { returnTo, claimIntent } = useAuthPageTarget();
+  const loginHref = buildAuthPageHref("/login", { redirectTo: returnTo, claim: claimIntent });
   const prefill = location.state as { email?: string; phone?: string | null } | null;
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [newPassword, setNewPassword] = useState("");
@@ -27,7 +32,7 @@ export function ForgotPasswordPage() {
     onSuccess: async () => {
       const currentUser = await refresh();
       toast.show("비밀번호가 설정되었습니다.");
-      navigate(currentUser ? "/my" : "/login", { replace: true });
+      navigate(currentUser ? (returnTo !== "/" ? returnTo : "/my") : loginHref, { replace: true });
     },
   });
 
@@ -81,7 +86,7 @@ export function ForgotPasswordPage() {
           />
 
           <div className="auth-footer-link mt-4">
-            <Link to="/login">로그인으로 돌아가기</Link>
+            <Link to={loginHref}>로그인으로 돌아가기</Link>
           </div>
         </Card.Body>
       </Card>

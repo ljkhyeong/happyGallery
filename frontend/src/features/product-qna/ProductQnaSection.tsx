@@ -152,7 +152,7 @@ function ProductQnaContent({ productId }: Props) {
         {!isAuthenticated && (
           <p className="text-muted-soft small mt-2 mb-0">
             상품 문의는 회원만 남길 수 있습니다.{" "}
-            <Link to={buildAuthPageHref("/login", { redirectTo: productDetailHref(productId) })}>로그인하고 문의하기</Link>
+            <Link to={buildAuthPageHref("/login", { redirectTo: `${productDetailHref(productId)}#product-qna` })}>로그인하고 문의하기</Link>
           </p>
         )}
       </Card.Body>

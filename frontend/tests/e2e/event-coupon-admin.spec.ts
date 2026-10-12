@@ -119,7 +119,7 @@ test("이벤트 쿠폰은 비회원에게 로그인 후 돌아올 경로를 제�
   await expect(page.getByRole("heading", { name: "이벤트 쿠폰" })).toBeVisible();
   await expect(page.getByRole("link", { name: "로그인하고 쿠폰 받기" })).toHaveAttribute(
     "href",
-    "/login?redirect=%2Fevents%2F25",
+    "/login?redirect=%2Fevents%2F25%23event-coupon-heading",
   );
 });
 

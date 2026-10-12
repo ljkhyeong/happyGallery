@@ -19,6 +19,10 @@ export function LoginPage() {
     redirectTo: returnTo,
     claim: claimIntent,
   });
+  const resetHref = buildAuthPageHref("/forgot-password", {
+    redirectTo: returnTo,
+    claim: claimIntent,
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const loginMutation = useMutation({
@@ -72,7 +76,7 @@ export function LoginPage() {
           <div className="d-flex justify-content-between align-items-center">
             <Form.Label>비밀번호</Form.Label>
             <Link
-              to="/forgot-password"
+              to={resetHref}
               state={{ email }}
               className="auth-inline-link small mb-2"
             >

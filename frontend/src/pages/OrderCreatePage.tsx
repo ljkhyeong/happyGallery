@@ -245,7 +245,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 상품 먼저 고르기
               </LinkButton>
               <LinkButton
-                to="/guest"
+                to="/guest#lookup-help"
                 variant="outline-secondary"
                 size="sm"
               >
