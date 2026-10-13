@@ -71,14 +71,6 @@ export const AdminReviewReportResponseStatus = {
   REJECTED: 'REJECTED',
 } as const;
 
-export type ReviewEvidenceResponseProvenance = typeof ReviewEvidenceResponseProvenance[keyof typeof ReviewEvidenceResponseProvenance];
-
-
-export const ReviewEvidenceResponseProvenance = {
-  LIVE: 'LIVE',
-  LEGACY_REPORT: 'LEGACY_REPORT',
-} as const;
-
 export interface ReviewEvidenceResponse {
   capturedAt: string;
   content: string;
@@ -89,8 +81,6 @@ export interface ReviewEvidenceResponse {
   id: number;
   /** @maxItems 5 */
   imageUrls: string[];
-  imagesComplete: boolean;
-  provenance: ReviewEvidenceResponseProvenance;
   /**
      * @minimum 1
      * @maximum 5
@@ -108,7 +98,7 @@ export interface AdminReviewReportResponse {
   decisionNote: string | null;
   /** @nullable */
   detail: string | null;
-  evidence: ReviewEvidenceResponse | null;
+  evidence: ReviewEvidenceResponse;
   id: number;
   reason: AdminReviewReportResponseReason;
   reporterUserId: number;
@@ -253,7 +243,7 @@ export interface ReviewModerationActionResponse {
   action: ReviewModerationActionResponseAction;
   adminUserId: number;
   createdAt: string;
-  evidence: ReviewEvidenceResponse | null;
+  evidence: ReviewEvidenceResponse;
   id: number;
   newStatus: ReviewModerationActionResponseNewStatus;
   previousStatus: ReviewModerationActionResponsePreviousStatus;

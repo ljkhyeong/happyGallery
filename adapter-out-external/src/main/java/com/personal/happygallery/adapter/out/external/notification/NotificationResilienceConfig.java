@@ -1,8 +1,8 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
@@ -10,11 +10,9 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultProvider;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import java.time.Duration;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -41,7 +39,7 @@ class NotificationResilienceConfig {
                                                        CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "alimtalkNotification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -49,7 +47,7 @@ class NotificationResilienceConfig {
                                                   CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "smsNotification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -57,7 +55,7 @@ class NotificationResilienceConfig {
                                                        CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "phoneVerificationSms",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -65,7 +63,7 @@ class NotificationResilienceConfig {
                                                     CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "emailVerification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -149,7 +147,7 @@ class NotificationResilienceConfig {
             @Qualifier("alimtalkNotificationTimeoutExecutor") Executor timeoutExecutor,
             NotificationResilienceProperties resilience
     ) {
-        validateTimeoutHierarchy(resilience, props);
+        validateTimeoutHierarchy(resilience, props.http());
         NhnAlimtalkSender raw = new NhnAlimtalkSender(props, alimtalkRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 timeoutExecutor, resilience.timeout());
@@ -185,7 +183,7 @@ class NotificationResilienceConfig {
             @Qualifier("smsNotificationTimeoutExecutor") Executor timeoutExecutor,
             NotificationResilienceProperties resilience
     ) {
-        validateTimeoutHierarchy(resilience, props);
+        validateTimeoutHierarchy(resilience, props.http());
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
                 timeoutExecutor, resilience.timeout());
@@ -202,7 +200,7 @@ class NotificationResilienceConfig {
                                                      @Qualifier("phoneVerificationTimeoutExecutor")
                                                      Executor timeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
-        validateTimeoutHierarchy(resilience, props);
+        validateTimeoutHierarchy(resilience, props.http());
         RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
         return new ResilientPhoneVerificationSender(
                 raw,
@@ -228,17 +226,6 @@ class NotificationResilienceConfig {
                 props.timeout());
     }
 
-    private static CircuitBreakerConfig circuitBreakerConfig(ExternalCircuitBreakerProperties cb) {
-        return CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(cb.waitDurationOpen())
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .recordResult(NotificationResilienceConfig::isFailureResult)
-                .build();
-    }
-
     private static boolean isFailureResult(Object result) {
         if (result instanceof NotificationSendOutcome outcome) {
             return outcome.result() == NotificationSendResult.TRANSIENT_FAILURE
@@ -249,7 +236,7 @@ class NotificationResilienceConfig {
     }
 
     private static ThreadPoolTaskExecutor createExecutor(
-            NotificationResilienceProperties.ThreadPool threadPool,
+            ExecutorPoolProperties threadPool,
             BoundedExecutorFactory executorFactory,
             String threadNamePrefix,
             String rejectionMetricName,
@@ -264,11 +251,8 @@ class NotificationResilienceConfig {
     }
 
     private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,
-                                                 HttpPoolProperties transport) {
-        Duration transportBudget = transport.acquireTimeout()
-                .plus(transport.connectTimeout())
-                .plus(transport.timeout());
-        Assert.isTrue(resilience.timeout().compareTo(transportBudget) > 0,
+                                                 HttpPool transport) {
+        Assert.isTrue(resilience.timeout().compareTo(transport.requestBudget()) > 0,
                 "알림 TimeLimiter는 acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }

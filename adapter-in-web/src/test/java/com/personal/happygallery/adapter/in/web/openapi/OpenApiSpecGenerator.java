@@ -118,7 +118,6 @@ class OpenApiSpecGenerator {
 
     private void assertPaymentAndCartRequestContracts(Map<?, ?> document) {
         assertRequiredProperties(document, "ConfirmPaymentRequest", "orderId", "amount");
-        assertRequiredProperties(document, "AddCartItemRequest", "productId", "qty");
         assertRequiredProperties(document, "UpdateCartItemRequest", "qty");
         assertRequiredProperties(
                 document,
@@ -419,8 +418,6 @@ class OpenApiSpecGenerator {
                 "rating",
                 "content",
                 "editedAt",
-                "provenance",
-                "imagesComplete",
                 "imageUrls",
                 "capturedAt");
 
@@ -488,13 +485,11 @@ class OpenApiSpecGenerator {
         assertNullableProperty(document, "ReviewOpportunityPageResponse", "nextCursor");
         assertNullableProperty(document, "MemberReviewReportResponse", "detail");
         assertNullableProperty(document, "AdminReviewReportResponse", "detail");
-        assertNullableProperty(document, "AdminReviewReportResponse", "evidence");
         assertNullableProperty(document, "AdminReviewReportResponse", "decisionNote");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedByAdminId");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedAt");
         assertNullableProperty(document, "AdminReviewReportPageResponse", "nextCursor");
         assertNullableProperty(document, "ReviewModerationActionResponse", "reason");
-        assertNullableProperty(document, "ReviewModerationActionResponse", "evidence");
         assertNullableProperty(document, "ReviewEvidenceResponse", "editedAt");
         assertNullableProperty(document, "UpdateReviewStatusRequest", "reason");
         assertNullableProperty(document, "CreateReviewReportRequest", "detail");

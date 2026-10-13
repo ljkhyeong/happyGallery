@@ -9,7 +9,7 @@ import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -60,16 +60,11 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
     }
 
     private AdminPassView toView(AdminPassQueryResult result, LocalDateTime now) {
-        RefundStatus refundStatus = result.refundStatus() == null
-                ? null
-                : RefundStatus.valueOf(result.refundStatus());
         AdminPassStatus status = AdminPassStatus.from(
-                refundStatus, result.expiresAt(), result.remainingCredits(), now);
-        int refundableCredits = Math.clamp(
-                result.remainingCredits() + result.futureBookingCount(), 0, result.totalCredits());
+                result.refundStatus(), result.expiresAt(), result.remainingCredits(), now);
         long expectedRefundAmount = result.refundAmount() != null
                 ? result.refundAmount()
-                : calculateExpectedRefundAmount(result, status, refundableCredits);
+                : calculateExpectedRefundAmount(result, status);
 
         return new AdminPassView(
                 result.passId(),
@@ -82,16 +77,16 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
                 result.expiresAt(),
                 result.futureBookingCount(),
                 expectedRefundAmount,
-                refundStatus);
+                result.refundStatus());
     }
 
-    private long calculateExpectedRefundAmount(AdminPassQueryResult result,
-                                               AdminPassStatus status,
-                                               int refundableCredits) {
+    /** 실제 환불 처리와 같은 크레딧·금액 계산으로 미래 예약까지 취소했을 때의 환불액을 보여 준다. */
+    private static long calculateExpectedRefundAmount(AdminPassQueryResult result, AdminPassStatus status) {
         if (status == AdminPassStatus.EXPIRED) {
             return 0L;
         }
-        return Math.multiplyExact(result.totalPrice(), refundableCredits) / result.totalCredits();
+        int refundableCredits = PassPurchase.refundableCredits(
+                result.remainingCredits(), result.futureBookingCount(), result.totalCredits());
+        return PassPurchase.refundAmount(result.totalPrice(), refundableCredits, result.totalCredits());
     }
-
 }

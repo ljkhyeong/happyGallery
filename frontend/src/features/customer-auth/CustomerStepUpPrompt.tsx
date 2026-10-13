@@ -1,14 +1,12 @@
-import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
 import {
-  ApiError,
   CustomerSessionChangedError,
+  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
-import { getUserMessage } from "@/shared/lib";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { describeError, ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import {
   fetchLinkedSocialProviders,
@@ -18,6 +16,7 @@ import {
   redirectToSocialStepUp,
   type CustomerStepUpReturnAction,
 } from "@/features/customer-auth/customerStepUp";
+import { CurrentPasswordInput } from "@/features/customer-auth/CurrentPasswordInput";
 
 interface Props {
   localPasswordEnabled: boolean;
@@ -36,7 +35,7 @@ export function CustomerStepUpPrompt({
   const [password, setPassword] = useState("");
   const [socialPending, setSocialPending] = useState(false);
   const linkedProviders = useQuery({
-    queryKey: ["me", "social-accounts"],
+    queryKey: queryKeys.member.socialAccounts,
     queryFn: fetchLinkedSocialProviders,
   });
   const passwordReauthentication = useMutation({
@@ -67,10 +66,7 @@ export function CustomerStepUpPrompt({
       });
     } catch (error) {
       if (error instanceof CustomerSessionChangedError) return;
-      const message = error instanceof ApiError
-        ? getUserMessage(error.code) ?? "소셜 계정 본인 확인을 시작하지 못했습니다."
-        : "소셜 계정 본인 확인을 시작하지 못했습니다.";
-      toast.show(message, "danger");
+      toast.show(describeError(error, "소셜 계정 본인 확인을 시작하지 못했습니다."), "danger");
     } finally {
       setSocialPending(false);
     }
@@ -94,16 +90,7 @@ export function CustomerStepUpPrompt({
         >
           <Form.Group controlId={`${returnAction}-current-password`}>
             <Form.Label>현재 비밀번호</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="current-password"
-              maxLength={72}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              autoFocus
-            />
-            <PasswordLengthFeedback value={password} />
+            <CurrentPasswordInput value={password} onChange={setPassword} />
           </Form.Group>
           <Button
             type="submit"

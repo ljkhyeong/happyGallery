@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
-import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import leatherWorkshopHands from "@/assets/happygallery/leather-workshop-hands.jpg";
 import leatherClass from "@/assets/happygallery/leather-class.jpg";
 import resinSeaCoaster from "@/assets/happygallery/resin-sea-coaster.jpg";
@@ -11,9 +10,16 @@ import perfumeShelf from "@/assets/happygallery/perfume-shelf.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import toleMaterials from "@/assets/happygallery/tole-materials.jpg";
 import acrylicPouring from "@/assets/happygallery/acrylic-pouring.jpg";
-import { fetchClasses } from "@/features/booking-create/api";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
-import { upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import {
+  classAcceptsPass,
+  nextOpenSlot,
+  publicClassesQuery,
+  SLOT_WHEN_LABEL,
+  type SlotWhen,
+  slotDayParts,
+  upcomingSlotsQuery,
+} from "@/features/booking-create/upcomingSlots";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
@@ -21,9 +27,9 @@ import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCategories";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
-import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { CLASS_SITUATION_TAG_OPTIONS, classImageSrc, formatKRW, getClassCategoryLabel, telHref, workshopAddress } from "@/shared/lib";
+import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
@@ -33,15 +39,14 @@ import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
 /** 클래스 상황 바로가기. 주말·오늘은 실제 일정, 나머지는 관리자가 지정한 클래스 상황 태그로 거른다. */
 const SITUATIONS = [
-  { to: "/classes?when=weekend", label: "이번 주말" },
-  { to: "/classes?when=today", label: "오늘 바로" },
-  { to: "/classes?tag=DATE", label: "데이트" },
-  { to: "/classes?tag=WITH_KIDS", label: "아이와 함께" },
-  { to: "/classes?tag=FRIENDS", label: "친구 모임" },
-  { to: "/classes?tag=GIFT", label: "선물 만들기" },
-] as const;
+  ...(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((when) => ({
+    to: `/classes?when=${when}`,
+    label: SLOT_WHEN_LABEL[when],
+  })),
+  ...CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => ({ to: `/classes?tag=${code}`, label })),
+];
 
-/** 카테고리 사진 칸. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
+/** 재료별 사진 칸. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
 const CATEGORY_TILES: ReadonlyArray<{ category: ShopCategory; label: string; image: string }> = [
   { category: "가죽", label: "가죽 소품", image: leatherClass },
   { category: "레진", label: "레진 소품·가구", image: resinSeaCoaster },
@@ -52,7 +57,8 @@ const CATEGORY_TILES: ReadonlyArray<{ category: ShopCategory; label: string; ima
 ];
 
 const HOME_CLASS_LIMIT = 4;
-const HOME_PRODUCT_LIMIT = 10;
+/** 데스크톱 네 줄 두 번(8개), 모바일은 CSS로 6개까지만 보여 준다. */
+const HOME_PRODUCT_LIMIT = 8;
 const ALL_CATEGORIES = "전체";
 
 interface HomePageProps {
@@ -61,6 +67,19 @@ interface HomePageProps {
   initialEvents: EventResponse[];
   initialNotices: NoticeListResponse[];
   initialWorkshop: WorkshopProfileResponse;
+}
+
+function SectionHead({ id, title, children }: {
+  id: string;
+  title: string;
+  children?: ReactNode;
+}) {
+  return (
+    <header className="gallery-section-head">
+      <h2 id={id}>{title}</h2>
+      {children}
+    </header>
+  );
 }
 
 export function HomePage({
@@ -73,7 +92,6 @@ export function HomePage({
   const {
     data: products,
     error: productsError,
-    isLoading: productsLoading,
   } = useLoaderBackedQuery({
     queryKey: queryKeys.catalog.products,
     queryFn: () => fetchProducts(),
@@ -82,32 +100,30 @@ export function HomePage({
   const {
     data: classes,
     error: classesError,
-    isLoading: classesLoading,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.catalog.classes,
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  }, initialClasses);
+  } = useLoaderBackedQuery(publicClassesQuery(), initialClasses);
   const { data: workshop } = useWorkshopProfile(initialWorkshop);
   const { data: pricePolicy } = useOrderPricePolicy();
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
-  const availableProducts = products?.filter((product) => product.available) ?? [];
+  const availableProducts = products.filter((product) => product.available);
   // 이미 받은 목록을 화면에서만 나눠 보여 주므로 카테고리를 바꿔도 다시 조회하지 않는다.
   const featuredProducts = availableProducts
     .filter((product) => category === ALL_CATEGORIES || product.category === category)
     .slice(0, HOME_PRODUCT_LIMIT);
   const productCategories = SHOP_CATEGORIES.filter((name) =>
     availableProducts.some((product) => product.category === name));
+  // 판매 중인 작품이 있는 카테고리만 사진 칸으로 보여 빈 목록으로 보내지 않는다.
+  const categoryTiles = CATEGORY_TILES.filter(({ category: name }) => productCategories.includes(name));
   const productListHref = category === ALL_CATEGORIES
     ? "/products"
     : `/products?${new URLSearchParams({ category })}`;
-  const featuredClasses = classes?.slice(0, HOME_CLASS_LIMIT) ?? [];
+  const featuredClasses = classes.slice(0, HOME_CLASS_LIMIT);
   const classSlotResults = useQueries({
     queries: featuredClasses.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
-  const consultHref = workshop?.naverTalkUrl
-    ?? (workshop?.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
+  const address = workshopAddress(workshop);
+  const consultHref = workshop.naverTalkUrl
+    ?? (workshop.phone ? telHref(workshop.phone) : undefined);
   const shippingFee = pricePolicy?.shippingFee;
   const shippingText = typeof shippingFee !== "number"
     ? "매장 수령은 무료이며, 택배 배송비는 주문서에서 확인할 수 있습니다."
@@ -120,42 +136,37 @@ export function HomePage({
       {/* 검색 결과 제목에 공방 이름이 들어가도록 화면에는 숨긴 H1을 둔다(배포 점검도 이 H1을 확인한다). */}
       <h1 className="visually-hidden">충주 공예 공방 해피갤러리</h1>
 
-      <section className="market-banners" aria-label="기획 안내">
-        <Container className="market-banners-inner">
-          <Link to="/products?type=MADE_TO_ORDER" className="market-banner-main">
-            <img src={leatherWorkshopHands} alt="빈티지 가죽에 각인 도장을 찍는 손" fetchPriority="high" />
-            <span className="market-banner-copy">
-              <span className="market-banner-kicker">주문 제작</span>
-              <strong>원하는 문구와 색으로<br />만드는 빈티지 가죽 소품</strong>
-              <span>카드지갑, 러기지 택, 다이어리를 주문받아 공방에서 직접 만듭니다.</span>
-              <span className="market-banner-link">주문 제작 작품 보기</span>
-            </span>
-          </Link>
-          <div className="market-banner-side">
-            <Link to="/classes" className="market-banner-tile">
-              <img src={heroWorkshop} alt="" loading="lazy" />
-              <span>
-                <strong>원데이 클래스</strong>
-                <span>공방에서 하루 만에 작품을 완성합니다</span>
-              </span>
-            </Link>
-            <Link to="/group-classes" className="market-banner-tile">
-              <img src={groupResinClass} alt="" loading="lazy" />
-              <span>
-                <strong>학교·기관·동아리 단체수업</strong>
-                <span>재료를 챙겨 찾아갑니다</span>
-              </span>
-            </Link>
+      <section className="gallery-hero" aria-labelledby="home-hero-title">
+        <Container className="gallery-hero-inner">
+          <div className="gallery-hero-copy">
+            <h2 id="home-hero-title" className="gallery-hero-title">손으로 만든<br />것들의<br />작은 상설전</h2>
+            <p className="gallery-hero-lead">
+              공방에서 가죽, 레진, 향, 양말목, 톨페인팅 작품을 만들어 팝니다.
+              마음에 드는 작품은 같은 재료로 직접 만들어 볼 수도 있습니다.
+            </p>
+            <dl className="gallery-hero-facts">
+              {address && <div><dt>장소</dt><dd>{address}</dd></div>}
+              {workshop.businessHours && <div><dt>운영 시간</dt><dd>{workshop.businessHours}</dd></div>}
+              <div><dt>구매</dt><dd>온라인 주문 · 택배 또는 매장 수령</dd></div>
+              <div><dt>수업</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
+            </dl>
+            <div className="gallery-hero-actions">
+              <LinkButton to="/products" variant="dark" size="lg">작품 보기</LinkButton>
+              <LinkButton to="/classes" variant="outline-dark" size="lg">클래스 예약</LinkButton>
+            </div>
           </div>
+          <figure className="gallery-hero-figure">
+            <img src={heroWorkshop} alt="가죽 가방과 소품이 놓인 공방 진열 선반" fetchPriority="high" />
+            <figcaption>계명대로 공방 진열장</figcaption>
+          </figure>
         </Container>
       </section>
 
-      <section className="market-section" aria-labelledby="home-product-title">
+      <section className="gallery-section is-tinted" aria-labelledby="home-product-title">
         <Container>
-          <header className="market-section-head">
-            <h2 id="home-product-title">새로 올라온 작품</h2>
+          <SectionHead id="home-product-title" title="새로 올라온 작품">
             {productCategories.length > 0 && (
-              <div className="market-chips" role="group" aria-label="작품 카테고리">
+              <div className="gallery-tabs" role="group" aria-label="작품 카테고리">
                 {[ALL_CATEGORIES, ...productCategories].map((name) => (
                   <button
                     key={name}
@@ -168,113 +179,133 @@ export function HomePage({
                 ))}
               </div>
             )}
-            <Link to={productListHref} className="market-section-more">전체 작품 보기</Link>
-          </header>
-          {productsLoading && <LoadingSpinner />}
+            <Link to={productListHref} className="gallery-section-more">
+              {category === ALL_CATEGORIES ? "전체 작품 보기" : `${category} 작품 더 보기`}
+            </Link>
+          </SectionHead>
           <ErrorAlert error={productsError} />
           {featuredProducts.length > 0 && (
             <div className="product-grid home-product-grid">
               {featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
             </div>
           )}
-          {!productsLoading && !productsError && featuredProducts.length === 0 && (
-            <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
+          {!productsError && featuredProducts.length === 0 && (
+            <p className="text-muted-soft">판매 중인 작품이 없습니다.</p>
           )}
         </Container>
       </section>
 
-      <section className="market-section" aria-labelledby="home-class-title">
+      <section className="gallery-section" aria-labelledby="home-class-title">
         <Container>
-          <div className="market-class-box">
-            <header className="market-section-head">
-              <h2 id="home-class-title">공방에서 직접 만들어 보기</h2>
-              <nav className="market-chips" aria-label="상황별로 수업 찾기">
-                {SITUATIONS.map(({ to, label }) => <Link key={to} to={to}>{label}</Link>)}
-              </nav>
-              <Link to="/passes/purchase" className="market-section-more">정규반·4회권 보기</Link>
-            </header>
-            {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
-            <ErrorAlert error={classesError} />
-            {featuredClasses.length > 0 && (
-              <div className="market-class-grid">
-                {featuredClasses.map((bookingClass, index) => (
-                  <Link key={bookingClass.id} to={`/classes/${bookingClass.id}`} className="market-class-card">
-                    <img src={classImageSrc(bookingClass)} alt="" loading="lazy" />
-                    <span className="market-class-body">
-                      <span className="market-class-meta">
-                        {getClassCategoryLabel(bookingClass.category)} · {bookingClass.durationMin}분
-                        {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && " · 4회권 사용 가능"}
+          <SectionHead id="home-class-title" title="공방 클래스">
+            <nav className="gallery-chips" aria-label="상황별로 수업 찾기">
+              {SITUATIONS.map(({ to, label }) => <Link key={to} to={to}>{label}</Link>)}
+            </nav>
+            <Link to="/classes" className="gallery-section-more">전체 클래스 보기</Link>
+          </SectionHead>
+          <ErrorAlert error={classesError} />
+          {featuredClasses.length > 0 && (
+            <ul className="gallery-program-list">
+              {featuredClasses.map((bookingClass, index) => {
+                const next = nextOpenSlot(classSlotResults[index]?.data);
+                const day = next ? slotDayParts(next.startAt) : null;
+                return (
+                  <li key={bookingClass.id}>
+                    <Link to={`/classes/${bookingClass.id}`} className="gallery-program-row">
+                      {/* 날짜는 아래 다음 수업 문장에도 있으므로 화면 읽기에서는 한 번만 읽힌다. */}
+                      <span className="gallery-program-date" aria-hidden="true">
+                        {day ? (
+                          <>
+                            <strong>{day.month}.{day.day}</strong>
+                            <span>{day.weekday}요일</span>
+                          </>
+                        ) : null}
                       </span>
-                      <h3>{bookingClass.name}</h3>
-                      <strong className="market-class-price">{formatKRW(bookingClass.price)}</strong>
-                      <ClassNextSlot result={classSlotResults[index]} className="market-class-next" />
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-            {!classesLoading && !classesError && featuredClasses.length === 0 && (
-              <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
-            )}
+                      <img src={classImageSrc(bookingClass)} alt="" loading="lazy" />
+                      <span className="gallery-program-body">
+                        <span className="gallery-program-meta">
+                          {getClassCategoryLabel(bookingClass.category)} · {bookingClass.durationMin}분
+                          {classAcceptsPass(bookingClass) && " · 4회권 사용 가능"}
+                        </span>
+                        <h3>{bookingClass.name}</h3>
+                        <ClassNextSlot result={classSlotResults[index]} className="gallery-program-next" />
+                      </span>
+                      <strong className="gallery-program-price">{formatKRW(bookingClass.price)}</strong>
+                      <span className="gallery-program-cta">자세히 보기</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {!classesError && featuredClasses.length === 0 && (
+            <p className="text-muted-soft">지금 예약할 수 있는 클래스가 없습니다.</p>
+          )}
+          <div className="gallery-program-links">
+            <Link to="/passes/purchase">
+              <strong>정규반·4회권</strong>
+              <span>4회권 하나로 원하는 날짜를 골라 네 번 예약합니다. 남은 횟수는 내 정보에서 확인합니다.</span>
+            </Link>
+            <Link to="/group-classes">
+              <strong>단체·출강 수업</strong>
+              <span>학교·기관·동아리 인원과 날짜를 알려 주시면 재료를 챙겨 찾아갑니다.</span>
+            </Link>
           </div>
         </Container>
       </section>
 
-      <section className="market-section" aria-labelledby="home-category-title">
-        <Container>
-          <header className="market-section-head">
-            <h2 id="home-category-title">카테고리별로 보기</h2>
-          </header>
-          <ul className="market-category-grid">
-            {CATEGORY_TILES.map(({ category: name, label, image }) => (
-              <li key={name}>
-                <Link to={`/products?${new URLSearchParams({ category: name })}`}>
-                  <img src={image} alt="" loading="lazy" />
-                  <span>{label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </section>
+      {categoryTiles.length > 0 && (
+        <section className="gallery-section is-tinted" aria-labelledby="home-category-title">
+          <Container>
+            <SectionHead id="home-category-title" title="재료별로 보기" />
+            <ul className="gallery-room-grid">
+              {categoryTiles.map(({ category: name, label, image }) => (
+                <li key={name}>
+                  <Link to={`/products?${new URLSearchParams({ category: name })}`}>
+                    <img src={image} alt="" loading="lazy" />
+                    <span className="gallery-room-name">{label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
 
-      <section className="market-section home-updates-section">
+      <section className="gallery-section home-updates-section">
         <Container className="home-updates-grid">
           <NoticeListWidget initialNotices={initialNotices} />
           <FeaturedEventWidget initialEvents={initialEvents} />
         </Container>
       </section>
 
-      <section className="market-section" aria-labelledby="home-shop-title">
+      <section className="gallery-section" aria-labelledby="home-shop-title">
         <Container>
-          <div className="market-shop-profile">
-            <div>
-              <h2 id="home-shop-title">{workshop?.name ?? "해피갤러리"}</h2>
-              {workshop?.introduction && <p>{workshop.introduction}</p>}
-              {workshop?.addressLine1 && (
-                <p className="market-shop-address">
-                  {[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}
-                </p>
-              )}
-            </div>
-            <div className="market-shop-actions">
-              {workshop?.mapUrl && (
-                <a href={workshop.mapUrl} target="_blank" rel="noreferrer" className="btn btn-outline-dark">오시는 길</a>
-              )}
-              {consultHref && (
-                <a
-                  href={consultHref}
-                  target={workshop?.naverTalkUrl ? "_blank" : undefined}
-                  rel="noreferrer"
-                  className="btn btn-dark"
-                >
-                  {workshop?.naverTalkUrl ? "톡톡 문의" : "전화 문의"}
-                </a>
-              )}
+          <div className="gallery-story">
+            <img src={leatherWorkshopHands} alt="빈티지 가죽에 각인 도장을 찍는 손" loading="lazy" />
+            <div className="gallery-story-copy">
+              <h2 id="home-shop-title">{workshop.name}</h2>
+              {workshop.introduction && <p>{workshop.introduction}</p>}
+              {address && <p className="gallery-story-address">{address}</p>}
+              <div className="gallery-story-actions">
+                {workshop.mapUrl && (
+                  <a href={workshop.mapUrl} target="_blank" rel="noreferrer" className="btn btn-outline-dark">오시는 길</a>
+                )}
+                {consultHref && (
+                  <a
+                    href={consultHref}
+                    target={workshop.naverTalkUrl ? "_blank" : undefined}
+                    rel="noreferrer"
+                    className="btn btn-dark"
+                  >
+                    {workshop.naverTalkUrl ? "톡톡 문의" : "전화 문의"}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 
-          <dl className="market-shop-info">
+          <dl className="gallery-shop-info">
             <div>
               <dt>배송</dt>
               <dd>{shippingText}</dd>
@@ -285,7 +316,7 @@ export function HomePage({
             </div>
             <div>
               <dt>회원 혜택</dt>
-              <dd>회원은 쿠폰과 결제한 상품 금액 1% 적립을 받습니다. 비회원 주문도 됩니다.</dd>
+              <dd>회원은 쿠폰과 결제한 상품 금액 1% 적립을 받습니다. 비회원도 주문할 수 있습니다.</dd>
             </div>
           </dl>
         </Container>

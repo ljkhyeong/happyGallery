@@ -4,11 +4,8 @@ import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Component
 class PaymentAttemptAccessVerifier {
@@ -30,20 +27,7 @@ class PaymentAttemptAccessVerifier {
             throw paymentNotFound();
         }
         if (attempt.getOwnerUserId() != null
-                || !StringUtils.hasText(statusToken)
-                || !StringUtils.hasText(attempt.getStatusAccessTokenHash())) {
-            throw paymentNotFound();
-        }
-
-        String resolvedHash;
-        try {
-            resolvedHash = guestTokenService.resolveTokenHash(statusToken);
-        } catch (NotFoundException ignored) {
-            throw paymentNotFound();
-        }
-        if (!MessageDigest.isEqual(
-                resolvedHash.getBytes(StandardCharsets.UTF_8),
-                attempt.getStatusAccessTokenHash().getBytes(StandardCharsets.UTF_8))) {
+                || !guestTokenService.matches(statusToken, attempt.getStatusAccessTokenHash())) {
             throw paymentNotFound();
         }
     }

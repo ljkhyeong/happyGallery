@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.product.port.in.SmartStoreProductNoticeUseCase.Notice;
+import com.personal.happygallery.application.product.dto.SmartStoreNotice;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 
@@ -19,7 +19,7 @@ public record SmartStoreNoticeResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) OffsetDateTime popupEndDate,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String detailContents
 ) {
-    public static SmartStoreNoticeResponse from(Notice notice) {
+    public static SmartStoreNoticeResponse from(SmartStoreNotice notice) {
         return new SmartStoreNoticeResponse(
                 notice.sellerNoticeId(), notice.postCategoryType(), notice.title(),
                 notice.importantNotice(), notice.importantNoticeStartDate(),

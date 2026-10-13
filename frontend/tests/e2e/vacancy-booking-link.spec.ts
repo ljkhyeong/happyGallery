@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { ClassResponse, PublicSlotResponse, VacancyAlertResponse } from "../../src/generated/api/booking";
 import type { NotificationResponse } from "../../src/generated/api/notification";
+import { fulfillJson } from "./mock-support";
 
 const bookingClass: ClassResponse = {
   id: 42, name: "가죽 카드지갑", category: "LEATHER", durationMin: 90,
@@ -33,17 +34,16 @@ async function mockVacancyFlow(page: Page) {
   };
   const notification: NotificationResponse = {
     id: 901, eventType: "BOOKING_VACANCY_AVAILABLE", aggregateType: "VACANCY_ALERT", aggregateId: 701,
-    contextTitle: null, scheduledAt: null, deliveredAt: "2026-09-12T10:00:00", readAt: null, read: false,
+    contextTitle: `빈자리 · ${bookingClass.name}`, scheduledAt: notified.startAt,
+    target: { orderId: null, bookingId: null, productId: null, productVariantId: null, classId: 42, slotId: 78 },
+    deliveredAt: "2026-09-12T10:00:00", readAt: null, read: false,
   };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
-    const json = (body: unknown, status = 200) => route.fulfill({
-      status, contentType: "application/json", body: JSON.stringify(body),
-    });
     if (pathname === "/api/v1/auth/csrf") {
-      return route.fulfill({ status: 200, contentType: "application/json",
-        headers: { "Set-Cookie": "XSRF-TOKEN=vacancy-link-test; Path=/" }, body: "{}" });
+      return route.fulfill({ status: 200,
+        headers: { "Set-Cookie": "XSRF-TOKEN=vacancy-link-test; Path=/" }, json: {} });
     }
     if (pathname === "/api/v1/me/notifications/901/read") {
       notification.read = true;
@@ -54,7 +54,7 @@ async function mockVacancyFlow(page: Page) {
         state.registrations += 1;
         const waiting: VacancyAlertResponse = { ...notified, alertId: 702, status: "WAITING" };
         state.alerts = [waiting, ...state.alerts];
-        return json(waiting);
+        return fulfillJson(route, waiting);
       }
       if (request.method() === "DELETE") {
         state.cancellations += 1;
@@ -64,40 +64,43 @@ async function mockVacancyFlow(page: Page) {
     }
     if (request.method() !== "GET") {
       state.unexpectedWrites.push(`${request.method()} ${pathname}`);
-      return json({ code: "UNEXPECTED_WRITE" }, 500);
+      return fulfillJson(route, { code: "UNEXPECTED_WRITE" }, 500);
     }
     switch (pathname) {
-      case "/api/v1/me": return json({
+      case "/api/v1/me": return fulfillJson(route, {
         id: 501, name: "회원", email: "vacancy@example.com", phone: "01012345678",
         phoneVerified: true, localPasswordEnabled: true,
       });
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: notification.read ? 0 : 1 });
-      case "/api/v1/me/notifications": return json([notification]);
-      case "/api/v1/me/passes/page": return json({ content: [], hasMore: false, nextCursor: null });
-      case "/api/v1/me/vacancy-alerts": return json(state.alerts);
-      case "/api/v1/classes": return json(state.classes);
-      case "/api/v1/policies/current": return json({
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: notification.read ? 0 : 1 });
+      case "/api/v1/me/notifications": return fulfillJson(route, [notification]);
+      case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/vacancy-alerts": return fulfillJson(route, state.alerts);
+      case "/api/v1/classes": return fulfillJson(route, state.classes);
+      case "/api/v1/policies/current": return fulfillJson(route, {
         terms: { version: "2026-09", documentPath: "/terms" },
         privacy: { version: "2026-09", documentPath: "/privacy" },
       });
       case "/api/v1/slots/upcoming":
         state.slotReads += 1;
         return state.slotError
-          ? json({ code: "INTERNAL_ERROR", message: "일정을 불러오지 못했습니다." }, 503)
-          : json(state.slots);
+          ? fulfillJson(route, { code: "INTERNAL_ERROR", message: "일정을 불러오지 못했습니다." }, 503)
+          : fulfillJson(route, state.slots);
       default: throw new Error(`정의하지 않은 빈자리 알림 테스트 요청: ${pathname}`);
     }
   });
   return state;
 }
 
-test("빈자리 알림에서 해당 날짜로 이동하고 재방문 시 최신 잔여 좌석을 확인한다", async ({ page }, testInfo) => {
+test("빈자리 알림에서 해당 회차로 이동하고 재방문 시 최신 잔여 좌석을 확인한다", async ({ page }, testInfo) => {
   const state = await mockVacancyFlow(page);
   await page.goto("/my/notifications");
+  await expect(page.getByText(/회차:/)).toContainText("2099. 01. 03.");
   await page.getByRole("link", { name: "예약 빈자리 안내", exact: true }).click();
-  await expect(page).toHaveURL(/\/my\/vacancy-alerts$/);
+  await expect(page).toHaveURL(/\/bookings\/new\?classId=42&slotId=78$/);
+  await expect(page.locator('[data-slot-id="78"]')).toContainText("알림 신청한 일정");
+  await page.goto("/my/vacancy-alerts");
   await expect(page.getByText("빈자리 발생", { exact: true })).toBeVisible();
   await expect(page.getByText("대기 중 0건", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /빈자리 알림 취소/ })).toHaveCount(0);
@@ -137,9 +140,7 @@ test("다시 만석이 되면 알림을 재신청하고 취소 후에도 이전 
   await page.getByRole("button", { name: "빈자리 알림 취소", exact: true }).click();
   await expect.poll(() => state.cancellations).toBe(1);
   await expect(page.getByRole("button", { name: "빈자리 알림", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "알림", exact: true }).click();
-  await page.getByRole("dialog", { name: "알림 목록" }).getByRole("button", { name: /예약 빈자리 안내/ }).click();
-  await expect(page).toHaveURL(/\/my\/vacancy-alerts$/);
+  await page.goto("/my/vacancy-alerts");
   await expect(page.getByText("빈자리 발생", { exact: true })).toBeVisible();
   await expect(page.getByText("대기 중 0건", { exact: true })).toBeVisible();
   expect(state.unexpectedWrites).toEqual([]);

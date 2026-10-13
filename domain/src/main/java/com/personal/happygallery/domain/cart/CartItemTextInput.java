@@ -1,6 +1,7 @@
 package com.personal.happygallery.domain.cart;
 
 import com.personal.happygallery.domain.product.ProductOptionPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 
@@ -27,8 +28,8 @@ public class CartItemTextInput {
         }
         this.optionGroupId = optionGroupId;
         this.optionKey = ProductOptionPolicy.requireKey(optionKey, "직접입력형 옵션");
-        this.value = ProductOptionPolicy.requireText(
-                value, "직접입력형 옵션값", ProductOptionPolicy.MAX_INPUT_LENGTH);
+        this.value = DomainText.required(
+                value, "직접입력형 옵션값은", ProductOptionPolicy.MAX_INPUT_LENGTH);
         this.sortOrder = ProductOptionPolicy.requireSortOrder(sortOrder);
     }
 

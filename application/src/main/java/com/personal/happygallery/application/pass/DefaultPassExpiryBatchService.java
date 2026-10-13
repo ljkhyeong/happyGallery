@@ -7,6 +7,7 @@ import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase
 import com.personal.happygallery.application.pass.port.out.PassExpiryReminderCandidatePort;
 import com.personal.happygallery.application.pass.port.out.PassExpiryReminderTarget;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -53,7 +54,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> passPurchaseReader.findExpiredWithRemainingCreditsAfterId(
-                        now, 0, afterId, PAGE_SIZE),
+                        now, afterId, PAGE_SIZE),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "이용권 만료");
@@ -70,7 +71,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> reminderCandidatePort.findUnnotifiedExpiringAfterId(
-                        now, now.plusDays(7), 0, afterId, PAGE_SIZE),
+                        now, now.plusDays(7), afterId, PAGE_SIZE),
                 PassExpiryReminderTarget::passId,
                 this::requestExpiryNotification,
                 "이용권 만료 알림");
@@ -80,7 +81,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
         NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
                 target.userId(),
                 NotificationEventType.PASS_EXPIRY_SOON,
-                "PASS_PURCHASE",
+                NotificationAggregateType.PASS_PURCHASE,
                 target.passId());
         return notificationOutboxService.enqueue(event);
     }

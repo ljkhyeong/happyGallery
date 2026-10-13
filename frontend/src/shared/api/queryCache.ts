@@ -24,3 +24,17 @@ export async function invalidateSlotAvailability(queryClient: QueryClient): Prom
     }),
   ]);
 }
+
+/** 후기 변경 뒤 공개 대상 후기, 회원 후기, 관리자 후기 목록을 함께 다시 읽는다. */
+export async function invalidateReviewTarget(
+  queryClient: QueryClient,
+  target: { targetType: "PRODUCT" | "CLASS"; targetId: number },
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.reviews.byTarget(target.targetType, target.targetId),
+    }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
+  ]);
+}

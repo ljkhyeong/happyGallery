@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   captureCustomerSession,
   isCurrentCustomerSession,
+  queryKeys,
   requireCurrentCustomerSession,
   runForCurrentCustomer,
   type CustomerSessionSnapshot,
@@ -9,12 +10,9 @@ import {
 import { useToast } from "@/shared/ui";
 import { fetchNotifications, fetchUnreadCount, markAsRead, markAllAsRead } from "./api";
 
-const NOTIFICATION_KEY = ["me", "notifications"] as const;
-const UNREAD_KEY = ["me", "notifications", "unread-count"] as const;
-
 export function useUnreadCount(enabled: boolean) {
   return useQuery({
-    queryKey: [...UNREAD_KEY],
+    queryKey: queryKeys.member.notifications.unreadCount,
     queryFn: fetchUnreadCount,
     enabled,
     refetchInterval: 30_000,
@@ -24,8 +22,8 @@ export function useUnreadCount(enabled: boolean) {
 
 export function useNotificationList(page: number, enabled: boolean, unreadOnly = false) {
   return useQuery({
-    queryKey: [...NOTIFICATION_KEY, page, unreadOnly],
-    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchNotifications(page, 20, unreadOnly, signal)),
+    queryKey: queryKeys.member.notifications.page(page, unreadOnly),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchNotifications(page, unreadOnly, signal)),
     enabled,
   });
 }
@@ -48,7 +46,7 @@ export function useReadNotifications() {
         requireCurrentCustomerSession(customerSession);
         return id === undefined ? markAllAsRead() : markAsRead(id);
       },
-      () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEY }),
+      () => queryClient.invalidateQueries({ queryKey: queryKeys.member.notifications.all }),
     ),
     onError: (_error, request) => {
       if (request.notifyOnError && isCurrentCustomerSession(request.customerSession)) {

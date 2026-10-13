@@ -16,10 +16,10 @@ import {
   type OrderPayload,
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
+import { ErrorAlert, useToast } from "@/shared/ui";
 import {
   formatKRW,
-  PRODUCT_TYPE_LABEL,
+  PRODUCT_SALE_TYPE_LABEL,
 } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
@@ -33,10 +33,7 @@ import {
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
 import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
 import { ProductPurchaseGuide } from "@/features/product/ProductPurchaseGuide";
@@ -88,19 +85,18 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
   const {
     data: product,
     error,
-    isLoading,
   } = useLoaderBackedQuery({
     queryKey: productQueryKey,
     queryFn: () => fetchProduct(productId),
     staleTime: PUBLIC_DATA_STALE_TIME,
   }, initialProduct);
-  const requiresMadeToOrderConsent = product?.type === "MADE_TO_ORDER";
+  const requiresMadeToOrderConsent = product.type === "MADE_TO_ORDER";
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
 
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
-      const items = (product?.optionGroups.length || purchaseLines.length)
+      const items = (product.optionGroups.length || purchaseLines.length)
         ? purchaseLines.map((line) => ({
           productId,
           productVariantId: line.productVariantId,
@@ -109,7 +105,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         }))
         : [{
           productId,
-          productVariantId: product ? productSelectionView(product, {}).productVariantId : null,
+          productVariantId: productSelectionView(product, {}).productVariantId,
           textInputs: [],
           qty,
         }];
@@ -119,7 +115,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         name: user.name,
         items,
         cartCheckout: false,
-        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        issuedCouponId,
         rewardAmount,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
@@ -131,13 +127,15 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         payload,
         orderName: product
           ? `${product.name} (${items.reduce((sum, item) => sum + item.qty, 0)}개)`
-          : "상품 주문",
+          : "작품 주문",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
         returnHint: {
           customerName: user.name, customerPhone: user.phone ?? undefined,
-          returnPath: `/products/${productId}`,
+          // 결제를 마치지 못하고 돌아오면 옵션을 하나만 골랐을 때 그 옵션을 다시 골라 둔다.
+          returnPath: productDetailHref(productId,
+            product.optionGroups.length > 0 && items.length === 1 ? items[0]!.productVariantId : null),
         },
       });
     },
@@ -146,7 +144,6 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
   const cartMutation = useMutation({
     mutationFn: () => runForCurrentCustomer(
       async () => {
-        if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
         const items = (product.optionGroups.length || purchaseLines.length)
           ? purchaseLines.map((line) => ({
             productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
@@ -164,7 +161,6 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
       },
     ),
   });
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
 
   useEffect(() => {
     const purchasePanel = purchasePanelRef.current;
@@ -178,9 +174,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     return () => observer.disconnect();
   }, [product]);
 
-  if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
-  if (!product) return null;
 
   const hasConfiguredOptions = product.optionGroups.length > 0 || purchaseLines.length > 0;
   const linkedVariant = product.variants.find((variant) => variant.active && String(variant.id) === variantId);
@@ -207,19 +201,35 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     && [...selectedQuantities].every(([variantId, quantity]) => quantity <= productQuantityLimit(product, variantId));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
-  const memberRedirectPath = productDetailHref(productId, linkedVariant?.id);
+  // 로그인·가입을 마치고 돌아오면 옵션을 하나만 골랐을 때 그 옵션을 다시 골라 둔다.
+  const memberRedirectPath = productDetailHref(productId,
+    purchaseLines.length === 1 ? purchaseLines[0]!.productVariantId : linkedVariant?.id);
   const loginHref = buildAuthPageHref("/login", { redirectTo: memberRedirectPath });
   const signupHref = buildAuthPageHref("/signup", { redirectTo: memberRedirectPath });
+  // 주문 제작은 고정 사양 안내가 늘 있고, 재고 상품은 사양·관리 방법이 있을 때만 작품 정보 구역을 둔다.
+  const hasProductInfo = product.type === "MADE_TO_ORDER" || Boolean(product.specification)
+    || Boolean(product.careInstructions) || product.productionLeadDays != null;
 
   return (
-    <Container className="page-container">
-      <div className="store-detail-breadcrumb">
+    <Container className="page-container store-product-page">
+      <nav className="store-detail-breadcrumb" aria-label="경로">
         <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
-        <span>/</span>
+        <span aria-hidden="true">/</span>
         <Link to="/products" className="store-detail-breadcrumb-link">작품</Link>
-        <span>/</span>
-        <span className="store-detail-breadcrumb-current">{product.name}</span>
-      </div>
+        {product.category && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link
+              to={`/products?${new URLSearchParams({ category: product.category })}`}
+              className="store-detail-breadcrumb-link"
+            >
+              {product.category}
+            </Link>
+          </>
+        )}
+        <span aria-hidden="true">/</span>
+        <span className="store-detail-breadcrumb-current" aria-current="page">{product.name}</span>
+      </nav>
 
       <div className="store-product-layout">
         <div className="store-product-gallery">
@@ -236,10 +246,15 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
           <header className="store-product-intro">
             <div className="store-detail-meta">
               <span className="store-detail-kicker">
-                {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
+                {PRODUCT_SALE_TYPE_LABEL[product.type] ?? "판매 방식 확인 필요"}
               </span>
               {product.category && (
-                <span className="store-detail-category">{product.category}</span>
+                <Link
+                  to={`/products?${new URLSearchParams({ category: product.category })}`}
+                  className="store-detail-category"
+                >
+                  {product.category}
+                </Link>
               )}
               <span className={`store-detail-availability ${product.available ? "is-available" : "is-sold-out"}`}>
                 {product.available ? "주문 가능" : "품절"}
@@ -247,40 +262,36 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
             </div>
             <h1 className="store-detail-title">{product.name}</h1>
             <div className="store-detail-price-block">
-              <span>기본가</span>
+              {/* 옵션에 따라 금액이 더해질 때만 시작 금액임을 밝힌다. */}
+              {product.optionGroups.length > 0 && <span>기본가</span>}
               <strong className="store-detail-price">{formatKRW(product.price)}</strong>
             </div>
-            <p className="store-detail-description">
-              {product.description || (product.type === "MADE_TO_ORDER"
-                ? "주문 승인 후 제작하는 상품입니다."
-                : "재고가 있으면 바로 주문할 수 있는 상품입니다.")}
-            </p>
+            {product.type === "MADE_TO_ORDER" && product.productionLeadDays != null && (
+              <p className="store-detail-lead">제작 기간은 결제 후 약 {product.productionLeadDays}일입니다.</p>
+            )}
+            {product.description && <p className="store-detail-description">{product.description}</p>}
             <FavoriteButton type="PRODUCT" targetId={product.id} />
           </header>
 
           <Card ref={purchasePanelRef} className="purchase-panel store-purchase-card store-order-sheet">
             <Card.Body className="p-4 p-xl-5">
-              <header className="store-order-sheet-header">
-                <div>
-                  <div className="store-purchase-kicker">상품 주문</div>
-                  <h2>공방 주문표</h2>
-                  <p>원하는 옵션을 고른 뒤 주문 방법을 선택해 주세요.</p>
-                </div>
-              </header>
-
+              <h2 className="visually-hidden">구매 옵션</h2>
               <section className="store-order-sheet-step" aria-labelledby="product-option-title">
-                <div className="store-order-sheet-step-heading">
-                  <span aria-hidden="true">1</span>
-                  <h3 id="product-option-title">옵션 선택</h3>
-                </div>
+                {/* 옵션이 없으면 수량 칸만 있어 제목은 화면 읽기용으로만 둔다. */}
+                <h3
+                  id="product-option-title"
+                  className={hasConfiguredOptions ? "store-order-sheet-step-heading" : "visually-hidden"}
+                >
+                  {hasConfiguredOptions ? "옵션 선택" : "수량 선택"}
+                </h3>
                 {selectionChanged && (
                   <Alert variant="info" className="py-2">
-                    상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.
+                    작품 가격이나 옵션이 바뀌었습니다. 옵션과 금액을 다시 확인해 주세요.
                   </Alert>
                 )}
                 {variantId !== null && !linkedVariant && (
                   <Alert variant="warning" className="py-2">
-                    해당 옵션은 현재 판매하지 않습니다. 현재 상품의 옵션과 가격을 확인해 주세요.
+                    해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.
                   </Alert>
                 )}
                 {hasConfiguredOptions ? (
@@ -363,16 +374,13 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
 
               {!authLoading && isAuthenticated && (
                 <section className="store-order-sheet-step" aria-labelledby="product-order-title">
-                  <div className="store-order-sheet-step-heading">
-                    <span aria-hidden="true">2</span>
-                    <h3 id="product-order-title">주문 정보</h3>
-                  </div>
+                  <h3 id="product-order-title" className="store-order-sheet-step-heading">받는 방법</h3>
                   <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
                 </section>
               )}
 
               <div className="store-order-sheet-actions">
-                <PaymentErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
+                <PaymentErrorAlert error={consent.paymentError(orderMutation.error)} />
                 {cartMutation.error instanceof CartQuantityError ? (
                   <Alert variant="danger">{cartMutation.error.message}</Alert>
                 ) : (
@@ -382,17 +390,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                 {!authLoading && isAuthenticated ? (
                   <>
                     <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
-                    <MadeToOrderConsent
-                      required={requiresMadeToOrderConsent}
-                      policy={consent.policyQuery.data}
-                      isLoading={consent.policyQuery.isLoading}
-                      isFetching={consent.policyQuery.isFetching}
-                      error={consent.policyQuery.error}
-                      checked={consent.checked}
-                      onChange={consent.setChecked}
-                      versionMismatch={consent.versionMismatch}
-                      refreshRequired={consent.refreshRequired}
-                    />
+                    <MadeToOrderConsent consent={consent} />
                     <Button
                       variant="dark"
                       size="lg"
@@ -405,22 +403,15 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                     <Button
                       variant="outline-dark"
                       size="lg"
-                      className="w-100 mb-2"
+                      className="w-100"
                       disabled={!canBuy || cartMutation.isPending}
                       onClick={() => cartMutation.mutate()}
                     >
                       {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                     </Button>
-                    <p className="store-purchase-helper mb-0">
-                      결제 완료 화면에서 내 주문 상세를 확인할 수 있습니다.
-                    </p>
                   </>
                 ) : !authLoading ? (
-                  <section aria-labelledby="guest-order-title">
-                    <div className="store-order-sheet-step-heading store-order-sheet-action-heading">
-                      <span aria-hidden="true">2</span>
-                      <h3 id="guest-order-title">주문 방법</h3>
-                    </div>
+                  <div>
                     <Button
                       variant="dark"
                       size="lg"
@@ -473,7 +464,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                       회원은 쿠폰과 결제 금액 1% 적립을 받을 수 있습니다.{" "}
                       <Link to={signupHref}>회원가입 후 구매하기</Link>
                     </p>
-                  </section>
+                  </div>
                 ) : null}
               </div>
             </Card.Body>
@@ -481,19 +472,31 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         </div>
       </div>
 
-      <section className="store-detail-facts" aria-labelledby="product-information-title">
-        <div className="store-detail-section-heading">
-          <h2 id="product-information-title">작품 안내</h2>
-        </div>
-        <div className="store-detail-terms">
-          <ProductPurchaseTerms
-            productName={product.name}
-            type={product.type}
-            specification={product.specification}
-            careInstructions={product.careInstructions}
-            productionLeadDays={product.productionLeadDays}
-          />
-        </div>
+      {/* 상세 아래 구역으로 바로 가는 탭. 화면 위에 붙어 따라오며 각 구역은 탭 높이만큼 띄워 멈춘다. */}
+      <nav className="store-detail-tabs" aria-label="작품 상세 구역">
+        {hasProductInfo && <a href="#product-info">작품 정보</a>}
+        <a href="#product-delivery">배송·교환</a>
+        <a href="#product-reviews">후기</a>
+        <a href="#product-qna">문의</a>
+      </nav>
+
+      {hasProductInfo && (
+        <section id="product-info" className="store-detail-section" aria-labelledby="product-information-title">
+          <h2 id="product-information-title" className="store-detail-section-title">작품 정보</h2>
+          <div className="store-detail-terms">
+            <ProductPurchaseTerms
+              productName={product.name}
+              type={product.type}
+              specification={product.specification}
+              careInstructions={product.careInstructions}
+              productionLeadDays={product.productionLeadDays}
+            />
+          </div>
+        </section>
+      )}
+
+      <section id="product-delivery" className="store-detail-section" aria-labelledby="product-delivery-title">
+        <h2 id="product-delivery-title" className="store-detail-section-title">배송·교환</h2>
         <ProductPurchaseGuide type={product.type} />
       </section>
 
@@ -514,8 +517,12 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         </div>
       )}
 
-      <PublicReviewSection targetType="PRODUCT" targetId={productId} />
-      <ProductQnaSection productId={productId} />
+      <div id="product-reviews" className="store-detail-anchor">
+        <PublicReviewSection targetType="PRODUCT" targetId={productId} />
+      </div>
+      <div id="product-qna" className="store-detail-anchor">
+        <ProductQnaSection productId={productId} />
+      </div>
     </Container>
   );
 }

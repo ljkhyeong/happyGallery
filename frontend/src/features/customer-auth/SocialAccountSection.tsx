@@ -1,17 +1,14 @@
-import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
 import {
   ApiError,
   CustomerSessionChangedError,
-  currentCustomerSessionUserId,
+  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
-import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
-import { writeSessionValues } from "@/shared/storage/browserSessionStorage";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { describeError, ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import {
   SOCIAL_PROVIDER_DETAILS,
@@ -26,9 +23,11 @@ import {
 } from "@/features/customer-auth/socialAccountApi";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import {
-  clearCustomerStepUpContinuation,
+  CONTINUATION_STORAGE_ERROR_MESSAGE,
   redirectToSocialStepUp,
+  storeContinuationAndRedirect,
 } from "@/features/customer-auth/customerStepUp";
+import { CurrentPasswordInput } from "@/features/customer-auth/CurrentPasswordInput";
 
 interface Props {
   localPasswordEnabled: boolean;
@@ -37,6 +36,11 @@ interface Props {
 type SensitiveAction = {
   kind: "link" | "unlink";
   provider: SocialProvider;
+};
+
+const SENSITIVE_ACTION_FAILURE: Record<SensitiveAction["kind"], string> = {
+  link: "소셜 계정 연결을 시작하지 못했습니다.",
+  unlink: "소셜 계정 연결을 해제하지 못했습니다.",
 };
 
 export function SocialAccountSection({ localPasswordEnabled }: Props) {
@@ -51,7 +55,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     isFetching: linkedProvidersFetching,
     refetch: refetchLinkedProviders,
   } = useQuery({
-    queryKey: ["me", "social-accounts"],
+    queryKey: queryKeys.member.socialAccounts,
     queryFn: fetchLinkedSocialProviders,
   });
   const unlinkMutation = useMutation({
@@ -66,32 +70,24 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
 
   const showActionError = (error: unknown, fallback: string) => {
     if (error instanceof CustomerSessionChangedError) return;
-    const message = error instanceof ApiError
-      ? getUserMessage(error.code) ?? fallback
-      : fallback;
-    toast.show(message, "danger");
+    toast.show(describeError(error, fallback), "danger");
   };
 
   const beginLink = async (provider: SocialProvider) => {
     await runForCurrentCustomer(
       () => startSocialAccountLink(provider),
       ({ authorizationUrl }) => {
-        const customerId = currentCustomerSessionUserId();
-        if (customerId === null) throw new CustomerSessionChangedError();
-        clearCustomerStepUpContinuation();
-        if (!writeSessionValues([
-          [SESSION_KEYS.customerContinuationOwner, String(customerId)],
-          [SESSION_KEYS.socialAccountLink, provider],
-        ])) {
-          throw new Error("인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.");
+        if (!storeContinuationAndRedirect(authorizationUrl, [[SESSION_KEYS.socialAccountLink, provider]])) {
+          throw new Error(CONTINUATION_STORAGE_ERROR_MESSAGE);
         }
-        window.location.assign(authorizationUrl);
       },
     );
   };
 
-  const beginUnlink = async (provider: SocialProvider) => {
-    await unlinkMutation.mutateAsync(provider);
+  /** 연결은 소셜 인증 화면으로 이동하고, 해제는 바로 요청한다. */
+  const beginSensitiveAction = async (action: SensitiveAction) => {
+    if (action.kind === "link") await beginLink(action.provider);
+    else await unlinkMutation.mutateAsync(action.provider);
   };
 
   const redirectForSensitiveAction = async (action: SensitiveAction) => {
@@ -115,41 +111,22 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     return true;
   };
 
-  const startLink = async (provider: SocialProvider) => {
-    setStartingProvider(provider);
+  /** 재인증이 필요하면 비밀번호 확인 창을 열거나 연결된 소셜 계정 본인 확인으로 이어 간다. */
+  const runSensitiveAction = async (action: SensitiveAction) => {
+    setStartingProvider(action.provider);
     try {
-      await beginLink(provider);
+      await beginSensitiveAction(action);
     } catch (error) {
       if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
         if (localPasswordEnabled) {
-          setPendingAction({ kind: "link", provider });
+          setPendingAction(action);
           return;
         }
-        if (await redirectForSensitiveAction({ kind: "link", provider })) {
-          return;
-        }
-      }
-      showActionError(error, "소셜 계정 연결을 시작하지 못했습니다.");
-    } finally {
-      setStartingProvider(null);
-    }
-  };
-
-  const requestUnlink = async (provider: SocialProvider) => {
-    setStartingProvider(provider);
-    try {
-      await beginUnlink(provider);
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
-        if (localPasswordEnabled) {
-          setPendingAction({ kind: "unlink", provider });
-          return;
-        }
-        if (await redirectForSensitiveAction({ kind: "unlink", provider })) {
+        if (await redirectForSensitiveAction(action)) {
           return;
         }
       }
-      showActionError(error, "소셜 계정 연결을 해제하지 못했습니다.");
+      showActionError(error, SENSITIVE_ACTION_FAILURE[action.kind]);
     } finally {
       setStartingProvider(null);
     }
@@ -166,11 +143,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
           const action = pendingAction;
           setPendingAction(null);
           setPassword("");
-          if (action.kind === "link") {
-            await beginLink(action.provider);
-          } else {
-            await beginUnlink(action.provider);
-          }
+          await beginSensitiveAction(action);
         },
       );
     } catch (error) {
@@ -231,7 +204,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
                       || unlinkMutation.isPending
                       || sensitiveActionPending
                     }
-                    onClick={() => void requestUnlink(provider)}
+                    onClick={() => void runSensitiveAction({ kind: "unlink", provider })}
                   >
                     해제
                   </Button>
@@ -241,7 +214,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
                     variant="outline-primary"
                     size="sm"
                     disabled={startingProvider !== null}
-                    onClick={() => void startLink(provider)}
+                    onClick={() => void runSensitiveAction({ kind: "link", provider })}
                   >
                     {startingProvider === provider ? "연결 중..." : "연결"}
                   </Button>
@@ -267,16 +240,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Form.Control
-              type="password"
-              autoComplete="current-password"
-              maxLength={72}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              autoFocus
-            />
-            <PasswordLengthFeedback value={password} />
+            <CurrentPasswordInput value={password} onChange={setPassword} />
           </Modal.Body>
           <Modal.Footer>
             {(linkedProviders?.length ?? 0) > 0 && pendingAction && (

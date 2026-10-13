@@ -3,6 +3,7 @@ import { CalendarPlus, Download } from "lucide-react";
 import { createBookingCalendar, createGoogleCalendarUrl } from "./bookingCalendar";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import type { BookingStatus } from "@/shared/types/booking";
+import { workshopAddress } from "@/shared/lib";
 
 interface Props {
   className: string;
@@ -19,7 +20,7 @@ export function AddBookingToCalendarButton({ className, startAt, endAt, status }
     className,
     startAt,
     endAt,
-    location: workshop ? [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ") : "",
+    location: workshop ? workshopAddress(workshop) : "",
     phone: workshop?.phone,
   };
   const calendar = createBookingCalendar(booking);

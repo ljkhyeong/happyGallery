@@ -12,12 +12,14 @@ import com.personal.happygallery.adapter.out.persistence.review.ReviewRepository
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
 import com.personal.happygallery.application.notification.port.out.ReviewNotificationEligibilityPort;
+import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.application.review.port.out.ReviewModerationPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -25,20 +27,25 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.review.Review;
+import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewModerationAction;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
+import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -57,6 +64,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     @Autowired BookingRepository bookingRepository;
     @Autowired ReviewRepository reviewRepository;
     @Autowired ReviewModerationPort reviewModerationPort;
+    @Autowired ReviewEvidencePort reviewEvidencePort;
     @Autowired AdminUserRepository adminUserRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired JdbcTemplate jdbcTemplate;
@@ -76,10 +84,10 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findOrderRequestRecipient_checksLiveAndBlockedReviewTombstones() {
         User user = createUser("order-review-notice@example.com", "01071000001");
         Product product = productRepository.saveAndFlush(
-                new Product("후기 알림 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("후기 알림 상품", 30_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         NotificationReminderRecipient recipient = NotificationReminderRecipient.forUser(user.getId());
 
         assertThat(eligibilityPort.findOrderRequestRecipient(order.getId())).contains(recipient);
@@ -93,7 +101,7 @@ class ReviewNotificationEligibilityUseCaseIT {
 
         NotificationOutbox outbox = notificationOutboxRepository.saveAndFlush(NotificationOutbox.from(
                 NotificationRequestedEvent.forUserOncePerAggregate(
-                        user.getId(), NotificationEventType.REVIEW_REQUEST, "ORDER", order.getId()),
+                        user.getId(), NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, order.getId()),
                 now()));
         String processingToken = outbox.markProcessing(now());
         notificationOutboxRepository.saveAndFlush(outbox);
@@ -118,7 +126,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findBookingRequestRecipient_checksCompletedMemberBookingAndReview() {
         User user = createUser("booking-review-notice@example.com", "01071000002");
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass("후기 알림 클래스", "CRAFT", 120, 50_000L, 30));
+                bookingClass("후기 알림 클래스", "CRAFT", 120, 50_000L, 30));
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, now().minusHours(3), now().minusHours(1)));
         Booking booking = Booking.forMemberDeposit(
@@ -142,10 +150,10 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findReviewRecipients_checksCurrentStatusReplyAndDeletion() {
         User user = createUser("state-review-notice@example.com", "01071000003");
         Product product = productRepository.saveAndFlush(
-                new Product("상태 알림 상품", ProductType.READY_STOCK, 40_000L));
+                TestFixtures.readyStockProduct("상태 알림 상품", 40_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         Review review = reviewRepository.saveAndFlush(Review.forProduct(
                 user.getId(), orderItem.getId(), product.getId(), 4, "정성스러운 작품이에요", now()));
         AdminUser admin = adminUserRepository.saveAndFlush(
@@ -159,8 +167,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction firstHide = reviewModerationPort.save(
-                ReviewModerationAction.legacyHideWithoutEvidence(
-                review.getId(), "첫 번째 숨김", admin.getId(), now()));
+                ReviewModerationAction.hide(
+                review.getId(), "첫 번째 숨김", admin.getId(), evidenceId(review), now()));
         hide(review.getId(), admin.getId(), "첫 번째 숨김");
 
         assertSoftly(softly -> {
@@ -170,8 +178,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction republish = reviewModerationPort.save(
-                ReviewModerationAction.legacyRepublishWithoutEvidence(
-                review.getId(), admin.getId(), now()));
+                ReviewModerationAction.republish(
+                review.getId(), admin.getId(), evidenceId(review), now()));
         republish(review.getId());
 
         assertSoftly(softly -> {
@@ -181,8 +189,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction latestHide = reviewModerationPort.save(
-                ReviewModerationAction.legacyHideWithoutEvidence(
-                review.getId(), "두 번째 숨김", admin.getId(), now()));
+                ReviewModerationAction.hide(
+                review.getId(), "두 번째 숨김", admin.getId(), evidenceId(review), now()));
         hide(review.getId(), admin.getId(), "두 번째 숨김");
         addReply(review.getId(), admin.getId());
 
@@ -208,7 +216,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     }
 
     private Order completedOrder(User user, long totalAmount) {
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), totalAmount, now().minusHours(1), now().plusHours(23));
         order.approve();
         order.markPickupReady();
@@ -265,6 +273,19 @@ class ReviewNotificationEligibilityUseCaseIT {
                         WHERE id = ?
                         """,
                 adminId, now(), reviewId);
+    }
+
+    /** 운영 조치가 참조할 현재 후기 증거를 저장한다. */
+    private Long evidenceId(Review review) {
+        return reviewEvidencePort.save(new ReviewEvidenceSnapshot(
+                review.getId(),
+                review.getContentRevision(),
+                review.getRating(),
+                review.getContent(),
+                review.getEditedAt(),
+                List.of(),
+                now(),
+                null)).getId();
     }
 
     private LocalDateTime now() {

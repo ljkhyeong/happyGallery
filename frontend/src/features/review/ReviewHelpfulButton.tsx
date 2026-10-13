@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ThumbsUp } from "lucide-react";
 import { Button } from "react-bootstrap";
 import { Link } from "react-router";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { invalidateReviewTarget, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { setReviewHelpful } from "./api";
 
@@ -37,14 +37,7 @@ export function ReviewHelpfulButton({
       () => setReviewHelpful(reviewId, nextHelpful),
       async (_, requireCurrent) => {
         requireCurrent();
-        const publicKey = targetType === "PRODUCT"
-          ? queryKeys.reviews.products.byProduct(targetId)
-          : queryKeys.reviews.classes.byClass(targetId);
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: publicKey }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-        ]);
+        await invalidateReviewTarget(queryClient, { targetType, targetId });
         requireCurrent();
       },
     ),

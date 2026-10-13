@@ -40,12 +40,8 @@ class MemberPhoneUpdateTransactionService {
     public User update(UpdatePhoneCommand command, String normalizedPhone) {
         User user = userReader.findByIdForUpdate(command.userId())
                 .orElseThrow(NotFoundException.supplier("회원"));
-        if (user.getCredentialVersion() != command.credentialVersion()) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!command.recentlyReauthenticated()) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
-        }
+        ProtectedAccountChange.requireCurrentSession(
+                user, command.credentialVersion(), command.recentlyReauthenticated());
 
         boolean firstRegistration = user.getPhone() == null;
         PhoneVerificationPurpose purpose = firstRegistration

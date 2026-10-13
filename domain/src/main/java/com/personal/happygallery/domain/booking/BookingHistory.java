@@ -38,9 +38,9 @@ public class BookingHistory {
     @JoinColumn(name = "to_slot_id")
     private Slot toSlot;
 
-    /** CUSTOMER | ADMIN | SYSTEM */
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private String actor;
+    private BookingHistoryActor actor;
 
     @Column(name = "admin_user_id")
     private Long adminUserId;
@@ -54,7 +54,7 @@ public class BookingHistory {
     protected BookingHistory() {}
 
     public BookingHistory(Booking booking, BookingHistoryAction action,
-                          Slot fromSlot, Slot toSlot, String actor, Long adminUserId, String reason) {
+                          Slot fromSlot, Slot toSlot, BookingHistoryActor actor, Long adminUserId, String reason) {
         this.booking = booking;
         this.action = action;
         this.fromSlot = fromSlot;
@@ -67,9 +67,7 @@ public class BookingHistory {
     public Long getId() { return id; }
     public Booking getBooking() { return booking; }
     public BookingHistoryAction getAction() { return action; }
-    public Slot getFromSlot() { return fromSlot; }
-    public Slot getToSlot() { return toSlot; }
-    public String getActor() { return actor; }
+    public BookingHistoryActor getActor() { return actor; }
     public Long getAdminUserId() { return adminUserId; }
     public String getReason() { return reason; }
     public LocalDateTime getCreatedAt() { return createdAt; }

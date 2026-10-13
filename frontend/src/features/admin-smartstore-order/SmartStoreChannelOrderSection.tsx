@@ -16,14 +16,19 @@ import type {
   SmartStoreOrderActionHistoryResponse,
   SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
-import type { ProductResponse, ProductVariantResponse } from "@/generated/api/adminCatalog";
 import { ApiError } from "@/shared/api";
-import { fetchProducts } from "@/features/admin-product/api";
+import { adminProductsQuery } from "@/features/admin-product/api";
+import { productVariantLabel } from "@/features/admin-product/productVariantLabel";
 import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
+import { adminProductHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import {
   approveSmartStoreCancel,
   approveSmartStoreReturn,
@@ -94,7 +99,7 @@ export function SmartStoreChannelOrderSection({
   const [attentionReason, setAttentionReason] = useState<
     ListSmartStoreChannelOrdersAttentionReason | ""
   >("");
-  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
+  const { cursor, hasPreviousPage, showNextPage, showPreviousPage, resetCursor } = useCursorHistory();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusProductOrderId ?? null);
   const [inventoryResolutionOrder, setInventoryResolutionOrder] =
@@ -103,7 +108,6 @@ export function SmartStoreChannelOrderSection({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDispatchIds, setBulkDispatchIds] = useState<string[] | null>(null);
   const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
-  const cursor = pageCursors.at(-1);
   const queryKey = [
     "admin", "smartstore-orders", attentionOnly, attentionReason || null, cursor ?? null,
   ] as const;
@@ -120,7 +124,7 @@ export function SmartStoreChannelOrderSection({
   const orders = data?.content ?? [];
 
   function resetPages() {
-    setPageCursors([undefined]);
+    resetCursor();
     setSelectedIds(new Set());
   }
 
@@ -178,7 +182,7 @@ export function SmartStoreChannelOrderSection({
 
   if (isLoading) return <LoadingSpinner />;
   if (error && !data) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} onRetry={() => { void refetch(); }} retrying={isFetching} />;
   }
 
@@ -214,10 +218,9 @@ export function SmartStoreChannelOrderSection({
           }}
         >
           <option value="">전체 사유</option>
-          <option value="MAPPING_REQUIRED">상품·옵션 연결 필요</option>
-          <option value="STOCK_SHORTAGE">해피갤러리 재고 부족</option>
-          <option value="RETURN_REVIEW">반품 검수 필요</option>
-          <option value="STATUS_REVIEW">새 주문 상태 확인 필요</option>
+          {Object.entries(ATTENTION_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </Form.Select>
       )}
       {!!selectedIds.size && <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -321,63 +324,44 @@ export function SmartStoreChannelOrderSection({
           </tbody>
         </Table>
       )}
-      {(pageCursors.length > 1 || data?.hasMore) && (
-        <div className="d-flex justify-content-end gap-2 mb-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={selectionLocked || pageCursors.length === 1}
-            onClick={() => {
-              setPageCursors((current) => current.slice(0, -1));
-              setSelectedIds(new Set());
-            }}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={selectionLocked || !data?.hasMore || !data.nextCursor}
-            onClick={() => {
-              if (data?.nextCursor) {
-                setPageCursors((current) => [...current, data.nextCursor ?? undefined]);
-                setSelectedIds(new Set());
-              }
-            }}
-          >
-            다음
-          </Button>
-        </div>
-      )}
-      <Modal
+      <CursorPager
+        className="d-flex justify-content-end gap-2 mb-3"
+        nextVariant="outline-secondary"
+        hasPreviousPage={hasPreviousPage}
+        page={data}
+        busy={selectionLocked}
+        onPrevious={() => {
+          showPreviousPage();
+          setSelectedIds(new Set());
+        }}
+        onNext={(nextCursor) => {
+          showNextPage(nextCursor);
+          setSelectedIds(new Set());
+        }}
+      />
+      <ConfirmModal
         show={returnReviewOrder !== null}
-        onHide={() => { if (!resolveReturn.isPending) setReturnReviewOrder(null); }}
-        centered
-      >
-        <Modal.Header closeButton={!resolveReturn.isPending}>
-          <Modal.Title className="fs-6">스마트스토어 반품 검수</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={resolveReturn.error} />
-          <div>{returnReviewOrder?.productName}</div>
-          {returnReviewOrder?.productOption && <div>{returnReviewOrder.productOption}</div>}
-          <div className="small text-muted-soft mb-3">상품 주문 번호: {returnReviewOrder?.productOrderId}</div>
-          <p className="fw-semibold">이번 검수 대상: {returnReviewOrder?.pendingReturnQuantity}개</p>
-          <p className="mb-0">표시된 수량을 모두 검수한 뒤 처리해 주세요. 판매 가능한 반품만 재고로 복원하세요.</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" disabled={resolveReturn.isPending}
-            onClick={() => setReturnReviewOrder(null)}>닫기</Button>
+        title="스마트스토어 반품 검수"
+        pending={resolveReturn.isPending}
+        onClose={() => setReturnReviewOrder(null)}
+        cancelVariant="secondary"
+        extraActions={(
           <Button variant="outline-secondary" disabled={resolveReturn.isPending}
             onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: false })}>
             복원 없이 검수 완료
           </Button>
-          <Button variant="success" disabled={resolveReturn.isPending}
-            onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: true })}>
-            {returnReviewOrder?.pendingReturnQuantity}개 재고 복원
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        )}
+        confirmLabel={<>{returnReviewOrder?.pendingReturnQuantity}개 재고 복원</>}
+        confirmVariant="success"
+        onConfirm={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: true })}
+      >
+        <ErrorAlert error={resolveReturn.error} />
+        <div>{returnReviewOrder?.productName}</div>
+        {returnReviewOrder?.productOption && <div>{returnReviewOrder.productOption}</div>}
+        <div className="small text-muted-soft mb-3">상품 주문 번호: {returnReviewOrder?.productOrderId}</div>
+        <p className="fw-semibold">이번 검수 대상: {returnReviewOrder?.pendingReturnQuantity}개</p>
+        <p className="mb-0">표시된 수량을 모두 검수한 뒤 처리해 주세요. 판매 가능한 반품만 재고로 복원하세요.</p>
+      </ConfirmModal>
       {inventoryResolutionOrder && (
         <InventoryResolutionModal
           key={inventoryResolutionOrder.productOrderId}
@@ -439,10 +423,7 @@ function InventoryResolutionModal({
       order.attentionReason === "STATUS_REVIEW" ? "KEEP_CURRENT" : "APPLY_REMAINING",
     );
   const [reason, setReason] = useState("");
-  const productsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
+  const productsQuery = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
   const selectedProduct = productsQuery.data?.find(
     (product) => product.id === Number(productId),
   );
@@ -571,15 +552,6 @@ function InventoryResolutionModal({
   );
 }
 
-function productVariantLabel(product: ProductResponse, variant: ProductVariantResponse): string {
-  if (!variant.selections.length) return "기본 조합";
-  return variant.selections.map((selection) => {
-    const group = product.optionGroups.find((candidate) => candidate.key === selection.groupKey);
-    const value = group?.values.find((candidate) => candidate.key === selection.valueKey);
-    return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
-  }).join(" / ");
-}
-
 function BulkResultAlert({ result }: { result: SmartStoreOrderBulkActionResponse }) {
   return <Alert variant={result.failures.length ? "warning" : "success"}>
     성공 {result.successProductOrderIds.length}건 · 실패 {result.failures.length}건
@@ -638,10 +610,7 @@ function BulkDispatchModal({
           <Row className="g-2 mb-3">
             <Col md={4}><Form.Select value={deliveryMethod}
               onChange={(event) => setDeliveryMethod(event.target.value)}>
-              <option value="DELIVERY">택배</option>
-              <option value="DIRECT_DELIVERY">직접 배송</option>
-              <option value="VISIT_RECEIPT">방문 수령</option>
-              <option value="QUICK_SVC">퀵서비스</option>
+              <DeliveryMethodOptions />
             </Form.Select></Col>
             <Col md={4}><Form.Control list="smartstore-delivery-companies"
               value={deliveryCompanyCode}
@@ -705,8 +674,7 @@ function actions(
       {order.productId && <LinkButton
         size="sm"
         variant="outline-warning"
-        to={`/admin?view=products&productId=${order.productId}${order.productVariantId
-          ? `&variantId=${order.productVariantId}` : ""}`}
+        to={adminProductHref(order.productId, order.productVariantId)}
       >
         재고 조정
       </LinkButton>}
@@ -1332,6 +1300,19 @@ function actionStatusColor(status: SmartStoreOrderActionHistoryResponse["status"
   return "secondary";
 }
 
+const DELIVERY_METHOD_LABELS = {
+  DELIVERY: "택배",
+  DIRECT_DELIVERY: "직접 배송",
+  VISIT_RECEIPT: "방문 수령",
+  QUICK_SVC: "퀵서비스",
+};
+
+function DeliveryMethodOptions() {
+  return Object.entries(DELIVERY_METHOD_LABELS).map(([value, label]) => (
+    <option key={value} value={value}>{label}</option>
+  ));
+}
+
 function DeliveryFields({
   required = false,
   deliveryMethod,
@@ -1356,10 +1337,7 @@ function DeliveryFields({
       onChange={(event) => onDeliveryMethod(event.target.value)}
       aria-label="배송 수단"
     >
-      <option value="DELIVERY">택배</option>
-      <option value="DIRECT_DELIVERY">직접 배송</option>
-      <option value="VISIT_RECEIPT">방문 수령</option>
-      <option value="QUICK_SVC">퀵서비스</option>
+      <DeliveryMethodOptions />
     </Form.Select>
     <Form.Control
       className="mb-2"

@@ -11,6 +11,7 @@ import { ReviewTrustBadges } from "./ReviewTrustBadges";
 import { isReviewContentChangedError } from "./reviewMutationConflict";
 import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useDeleteReview, useUpdateReview } from "./useReviewMutations";
+import { reviewTargetHref } from "./reviewTarget";
 
 export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const [editing, setEditing] = useState(false);
@@ -19,9 +20,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const rememberEditingTrigger = useReviewFormTriggerFocus(editing);
   const deleteMutation = useDeleteReview();
   const revisionConflict = isReviewContentChangedError(updateMutation.error);
-  const targetHref = review.targetType === "PRODUCT"
-    ? `/products/${review.targetId}`
-    : `/classes/${review.targetId}`;
+  const targetHref = reviewTargetHref(review.targetType, review.targetId);
 
   return (
     <Card className="review-card member-review-card">
@@ -40,7 +39,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               {review.targetName}
             </Link>
             <div className="text-muted-soft small mt-1">
-              {review.targetType === "PRODUCT" ? "상품" : "클래스"} · <ReviewDate value={review.createdAt} />
+              {review.targetType === "PRODUCT" ? "작품" : "클래스"} · <ReviewDate value={review.createdAt} />
             </div>
           </div>
           {!editing && !confirmingDelete && (
@@ -83,7 +82,6 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               initialRating={review.rating}
               initialContent={review.content}
               submitLabel="수정 저장"
-              autoFocusFirstInput
               pending={updateMutation.isPending}
               error={revisionConflict ? undefined : updateMutation.error}
               hiddenNotice={review.status === "HIDDEN"}
@@ -115,7 +113,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           <Alert variant="danger" className="mb-0">
             <p className="mb-2">이 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
             <p className="small mb-2">
-              공방에서 비공개 처리한 후기는 삭제해도 같은 주문 상품이나 예약에 다시 쓸 수 없습니다. 그 외 후기는 이용 완료 내역에서 다시 작성할 수 있습니다.
+              공방에서 비공개 처리한 후기는 삭제해도 같은 구매 건이나 예약에 다시 쓸 수 없습니다. 그 외 후기는 이용 완료 내역에서 다시 작성할 수 있습니다.
             </p>
             <div className="d-flex gap-2">
               <Button

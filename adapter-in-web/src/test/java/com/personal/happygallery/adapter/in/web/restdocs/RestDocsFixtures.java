@@ -2,7 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.product.ProductOptions;
-import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
@@ -50,11 +50,11 @@ final class RestDocsFixtures {
         return Clock.fixed(NOW.atZone(Clocks.SEOUL).toInstant(), Clocks.SEOUL);
     }
 
-    static ProductQueryUseCase.ProductView productWithInventory() {
+    static ProductView productWithInventory() {
         return productWithInventory(ProductStatus.ACTIVE);
     }
 
-    static ProductQueryUseCase.ProductView productWithInventory(ProductStatus status) {
+    static ProductView productWithInventory(ProductStatus status) {
         Product product = mock(Product.class);
         when(product.getId()).thenReturn(1L);
         when(product.getName()).thenReturn("시그니처 캔들");
@@ -63,7 +63,7 @@ final class RestDocsFixtures {
         when(product.getPrice()).thenReturn(39000L);
         when(product.getStatus()).thenReturn(status);
 
-        return new ProductQueryUseCase.ProductView(
+        return new ProductView(
                 product, 12L, true,
                 ProductOptions.EMPTY);
     }
@@ -109,6 +109,7 @@ final class RestDocsFixtures {
 
         Booking booking = mock(Booking.class);
         when(booking.getId()).thenReturn(100L);
+        when(booking.bookingNumber()).thenReturn("BK-00000100");
         when(booking.getSlot()).thenReturn(slot);
         when(booking.getBookingClass()).thenReturn(bookingClass);
         when(booking.getStatus()).thenReturn(BookingStatus.BOOKED);
@@ -139,6 +140,7 @@ final class RestDocsFixtures {
     static Order order() {
         Order order = mock(Order.class);
         when(order.getId()).thenReturn(200L);
+        when(order.orderNumber()).thenReturn("ORD-00000200");
         when(order.getStatus()).thenReturn(OrderStatus.PAID_APPROVAL_PENDING);
         when(order.getTotalAmount()).thenReturn(39000L);
         when(order.getPaidAt()).thenReturn(NOW.minusMinutes(5));
@@ -219,12 +221,12 @@ final class RestDocsFixtures {
     static PassPurchase passPurchase() {
         PassPurchase pass = mock(PassPurchase.class);
         when(pass.getId()).thenReturn(300L);
-        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_8);
+        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_4);
         when(pass.getPurchasedAt()).thenReturn(NOW.minusDays(1));
         when(pass.getExpiresAt()).thenReturn(NOW.plusDays(89));
-        when(pass.getTotalCredits()).thenReturn(8);
-        when(pass.getRemainingCredits()).thenReturn(7);
-        when(pass.getTotalPrice()).thenReturn(240000L);
+        when(pass.getTotalCredits()).thenReturn(4);
+        when(pass.getRemainingCredits()).thenReturn(3);
+        when(pass.getTotalPrice()).thenReturn(300000L);
         return pass;
     }
 

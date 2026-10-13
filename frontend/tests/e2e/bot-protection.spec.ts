@@ -1,5 +1,6 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const sdk = `
 (() => {
@@ -29,10 +30,6 @@ const sdk = `
   window[callback]?.();
 })();`;
 
-function json(route: Route, body: unknown, status = 200) {
-  return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-}
-
 async function setup(page: Page, member = false) {
   const configuration = { siteKey: "test-site-key", unavailable: false };
   await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js**", (route) =>
@@ -41,18 +38,18 @@ async function setup(page: Page, member = false) {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/workshop") return route.fallback();
     if (path === "/api/v1/bot-protection") return configuration.unavailable
-      ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
-      : json(route, { siteKey: configuration.siteKey });
+      ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      : fulfillJson(route, { siteKey: configuration.siteKey });
     if (path === "/api/v1/me") return member
-      ? json(route, { id: 101, name: "회원", phone: "01012345678", email: "member@example.com", phoneVerified: true })
-      : json(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-    if (path === "/api/v1/me/cart") return json(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return json(route, { count: 0 });
-    if (path === "/api/v1/policies/current") return json(route, {
+      ? fulfillJson(route, { id: 101, name: "회원", phone: "01012345678", email: "member@example.com", phoneVerified: true })
+      : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (path === "/api/v1/policies/current") return fulfillJson(route, {
       terms: { version: "2026-09-11-v1", documentPath: "/terms/2026-09-11-v1" },
       privacy: { version: "2026-09-12-v1", documentPath: "/privacy/2026-09-12-v1" },
     });
-    return json(route, []);
+    return fulfillJson(route, []);
   });
   return configuration;
 }
@@ -68,7 +65,7 @@ async function reconnectAfter(page: Page, minutes: number) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "bot-test-csrf", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   await replaceSsrUpstreamFixtures(ssrApiFixture("/workshop", { name: "해피갤러리" }));
 });
 test.afterEach(clearSsrUpstreamFixtures);
@@ -78,7 +75,7 @@ test("자동 입력 방지 키가 바뀌면 이전 토큰과 늦은 위젯 응�
   const tokens: string[] = [];
   await page.route("**/api/v1/bookings/phone-verifications", (route) => {
     tokens.push(route.request().headers()["x-bot-token"]);
-    return json(route, { phone: "01012345678", expiresAt: "2099-01-01T00:00:00" });
+    return fulfillJson(route, { phone: "01012345678", expiresAt: "2099-01-01T00:00:00" });
   });
   await page.clock.setFixedTime(new Date("2026-09-12T00:00:00Z"));
   await page.goto("/signup");
@@ -141,8 +138,8 @@ test("인증문자는 확인 후 발송하고 실패·재발송에는 새 토큰
   await page.route("**/api/v1/bookings/phone-verifications", async (route) => {
     tokens.push(route.request().headers()["x-bot-token"]);
     expect(route.request().postDataJSON()).toEqual({ phone: "01012345678", purpose: "SIGNUP" });
-    return tokens.length === 1 ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
-      : json(route, { phone: "01012345678", expiresAt: "2099-01-01T00:00:00" });
+    return tokens.length === 1 ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      : fulfillJson(route, { phone: "01012345678", expiresAt: "2099-01-01T00:00:00" });
   });
   await page.goto("/signup");
   await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
@@ -173,8 +170,8 @@ for (const member of [false, true]) {
     await page.route(`**/api/v1/${member ? "me/" : ""}group-inquiries`, (route) => {
       tokens.push(route.request().headers()["x-bot-token"]);
       expect(route.request().postDataJSON().organization).toBe("테스트 기관");
-      return tokens.length === 1 ? json(route, { code: "INVALID_INPUT" }, 400)
-        : json(route, { id: 99, status: "RECEIVED" }, 201);
+      return tokens.length === 1 ? fulfillJson(route, { code: "INVALID_INPUT" }, 400)
+        : fulfillJson(route, { id: 99, status: "RECEIVED" }, 201);
     });
     await page.goto("/group-classes");
     await page.getByRole("button", { name: "단체 수업 문의 접수", exact: true }).click();

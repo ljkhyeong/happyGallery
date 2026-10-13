@@ -7,26 +7,10 @@ export const CaptureClientEventRequestEvent = {
   GUEST_ORDER_DIRECT_ENTRY_CONTINUED: 'GUEST_ORDER_DIRECT_ENTRY_CONTINUED',
   GUEST_MEMBER_CTA_CLICKED: 'GUEST_MEMBER_CTA_CLICKED',
   GUEST_CLAIM_MODAL_OPENED: 'GUEST_CLAIM_MODAL_OPENED',
-  GUEST_CLAIM_COMPLETED: 'GUEST_CLAIM_COMPLETED',
 } as const;
 
 export interface CaptureClientEventRequest {
   event: CaptureClientEventRequestEvent;
-  /**
-     * @minLength 0
-     * @maxLength 120
-     */
-  path: string;
-  /**
-     * @minLength 0
-     * @maxLength 80
-     */
-  source?: string;
-  /**
-     * @minLength 0
-     * @maxLength 80
-     */
-  target?: string;
 }
 
 export const getCaptureClientEventUrl = () => {

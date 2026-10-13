@@ -11,7 +11,6 @@ interface Props {
   productionLeadDays: number | null;
   compact?: boolean;
   showCustomizationInquiry?: boolean;
-  showLegacySnapshotNotice?: boolean;
 }
 
 export function ProductPurchaseTerms({
@@ -22,18 +21,11 @@ export function ProductPurchaseTerms({
   productionLeadDays,
   compact = false,
   showCustomizationInquiry = true,
-  showLegacySnapshotNotice = false,
 }: Props) {
   const isMadeToOrder = type === "MADE_TO_ORDER";
 
   return (
     <div className={compact ? "small" : ""}>
-      {type == null && showLegacySnapshotNotice && (
-        <Alert variant="secondary" className="py-2 mb-2">
-          구매 조건 저장 기능을 도입하기 전 주문입니다.
-          당시 안내 내용은 주문 상담 기록으로 확인해 주세요.
-        </Alert>
-      )}
       {isMadeToOrder && showCustomizationInquiry && (
         <Alert variant="info" className="py-2 mb-2">
           온라인 주문은 아래 고정 사양으로 결제 후 제작합니다.
@@ -42,7 +34,7 @@ export function ProductPurchaseTerms({
       )}
       {specification && (
         <div className="mb-2">
-          <strong className="d-block">상품 사양</strong>
+          <strong className="d-block">작품 사양</strong>
           <span className="text-muted-soft" style={{ whiteSpace: "pre-wrap" }}>
             {specification}
           </span>
@@ -74,8 +66,8 @@ function CustomizationInquiry({ productName }: { productName: string }) {
   if (!workshop?.naverTalkUrl) return null;
 
   const message = [
-    "해피갤러리 상품 맞춤 변경 문의드립니다.",
-    `상품: ${productName}`,
+    "해피갤러리 작품 맞춤 변경 문의드립니다.",
+    `작품: ${productName}`,
     "원하는 변경: ",
   ].join("\n");
 

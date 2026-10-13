@@ -1,24 +1,15 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, fulfillJson } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 const temporaryError = {
   code: "SERVICE_UNAVAILABLE",
@@ -114,11 +105,11 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     ssrApiFixture("/products/categories", ["LEATHER"]),
   );
   await page.reload();
-  await expect(page.getByLabel("카테고리").getByRole("option", { name: "LEATHER" }))
+  await expect(page.getByRole("navigation", { name: "카테고리", exact: true }).getByRole("link", { name: "LEATHER" }))
     .toHaveCount(1);
 
   await page.goto("/passes/purchase");
-  await expect(page.getByText("이용 기간을 확인하고 있습니다."))
+  await expect(page.getByText("이용 기간을 불러오지 못했습니다."))
     .toBeVisible();
   await expect(page.getByText(/결제일 포함 90일/)).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();
@@ -259,12 +250,12 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
               content: [{
                 expiresAt: "2099-12-31T00:00:00",
                 passId: 9,
-                planCode: "REGULAR_CRAFT_8",
-                planName: "정규 공예 8회권",
+                planCode: "REGULAR_CRAFT_4",
+                planName: "정규 공예 4회권",
                 purchasedAt: "2098-12-01T00:00:00",
                 refund: null,
-                remainingCredits: 7,
-                totalCredits: 8,
+                remainingCredits: 3,
+                totalCredits: 4,
                 totalPrice: 240000,
               }],
               hasMore: false,
@@ -380,12 +371,12 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
         content: [{
           expiresAt: "2099-12-31T00:00:00",
           passId: 9,
-          planCode: "REGULAR_CRAFT_8",
-          planName: "정규 공예 8회권",
+          planCode: "REGULAR_CRAFT_4",
+          planName: "정규 공예 4회권",
           purchasedAt: "2098-12-01T00:00:00",
           refund: null,
-          remainingCredits: 7,
-          totalCredits: 8,
+          remainingCredits: 3,
+          totalCredits: 4,
           totalPrice: 240000,
         }],
         hasMore: false,

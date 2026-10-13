@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Alert, Button } from "react-bootstrap";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { useBlobObjectUrl } from "@/shared/hooks/useBlobObjectUrl";
 import { fetchAdminReviewEvidenceImage, fetchAdminReviewImage } from "./api";
 
 type ProtectedImageSource =
@@ -20,9 +21,6 @@ export function AdminReviewProtectedImage({
   alt,
   onAuthError,
 }: Props) {
-  const [objectUrl, setObjectUrl] = useState<string>();
-  const [error, setError] = useState<unknown>();
-  const [retryVersion, setRetryVersion] = useState(0);
   const evidenceId = source.kind === "evidence" ? source.evidenceId : undefined;
   const sortOrder = source.kind === "evidence" ? source.sortOrder : undefined;
   const reviewId = source.kind === "review" ? source.reviewId : undefined;
@@ -40,31 +38,9 @@ export function AdminReviewProtectedImage({
     throw new Error("보호 이미지 식별자가 올바르지 않습니다.");
   }, [adminKey, evidenceId, imageId, reviewId, sortOrder]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let disposed = false;
-    let createdObjectUrl: string | undefined;
-
-    setObjectUrl(undefined);
-    setError(undefined);
-    void loadImage(controller.signal)
-      .then((blob) => {
-        if (disposed) return;
-        createdObjectUrl = URL.createObjectURL(blob);
-        setObjectUrl(createdObjectUrl);
-      })
-      .catch((nextError: unknown) => {
-        if (disposed || controller.signal.aborted) return;
-        if (isAdminSessionUnauthorized(nextError)) onAuthError();
-        setError(nextError);
-      });
-
-    return () => {
-      disposed = true;
-      controller.abort();
-      if (createdObjectUrl) URL.revokeObjectURL(createdObjectUrl);
-    };
-  }, [loadImage, onAuthError, retryVersion]);
+  const { url: objectUrl, error, retry } = useBlobObjectUrl(loadImage, (loadError) => {
+    if (isAdminSessionUnauthorized(loadError)) onAuthError();
+  });
 
   if (error) {
     return (
@@ -79,7 +55,7 @@ export function AdminReviewProtectedImage({
           type="button"
           size="sm"
           variant="outline-dark"
-          onClick={() => setRetryVersion((current) => current + 1)}
+          onClick={retry}
         >
           다시 시도
         </Button>

@@ -1,5 +1,6 @@
 import type { Route } from "./+types/classes";
 import leatherClass from "@/assets/happygallery/leather-class.jpg";
+import { classListHeading, readClassListFilters } from "@/features/booking-create/classListFilters";
 import { ClassListPage } from "@/pages/ClassListPage";
 import {
   buildBreadcrumbJsonLd,
@@ -10,15 +11,17 @@ import { loadClasses } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "충주 공예 원데이클래스 | 해피갤러리";
-const DESCRIPTION = "가죽공예, 레진아트, 위빙 등 해피갤러리 공예 수업의 가격과 예약 방법을 확인하세요.";
+const DESCRIPTION = "충주 해피갤러리의 가죽공예·레진아트·위빙 등 공예 수업과 가격, 예약할 수 있는 일정입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   return { classes: await loadClasses(request.signal) };
 }
 
-export function meta({ loaderData }: Route.MetaArgs) {
+export function meta({ loaderData, location }: Route.MetaArgs) {
+  // 일정·상황·4회권 조건으로 들어오면 제목만 조건에 맞춘다. 대표 주소는 /classes 하나다.
+  const { documentName } = classListHeading(readClassListFilters(new URLSearchParams(location.search)));
   return buildSeoMeta({
-    title: TITLE,
+    title: documentName ? `${documentName} | 해피갤러리` : TITLE,
     description: DESCRIPTION,
     pathname: "/classes",
     image: leatherClass,

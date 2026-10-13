@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderFulfillmentResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderHistoryResponse;
-import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderListItemResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderSearchPageResponse;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
@@ -10,7 +9,6 @@ import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseC
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,8 +47,8 @@ public class AdminOrderQueryController {
     @GetMapping("/search")
     public AdminOrderSearchPageResponse searchOrders(
             @RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) LocalDate dateFrom,
+            @RequestParam(required = false) LocalDate dateTo,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

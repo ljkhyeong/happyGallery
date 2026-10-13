@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Card } from "react-bootstrap";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchClassReviewCreationState, fetchMyBookingReviews } from "./api";
 import { MemberReviewCard } from "./MemberReviewCard";
 import { ReviewForm } from "./ReviewForm";
 import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useCreateClassReview } from "./useReviewMutations";
+import { REVIEW_SECTION_ID } from "./reviewSection";
 
 interface Props {
   bookingId: number;
@@ -30,16 +32,16 @@ export function BookingReviewSection({ bookingId, className }: Props) {
   const rememberWritingTrigger = useReviewFormTriggerFocus(writing);
   const review = reviewsQuery.data?.[0];
   const reviewStateAvailable = reviewsQuery.data !== undefined;
+  useHashScroll(REVIEW_SECTION_ID);
 
   return (
-    <section className="review-section member-source-reviews" aria-labelledby="booking-review-heading">
+    <section id={REVIEW_SECTION_ID} className="review-section member-source-reviews" aria-labelledby="booking-review-heading">
       <header className="review-section-header">
         <div>
-          <p className="my-section-kicker mb-1">후기</p>
           <h5 id="booking-review-heading" className="mb-1">클래스 후기</h5>
           {/* 상태별 안내는 아래 본문이 보여 주므로, 머리에는 작성 가능·대기 상태만 적어 문장이 겹치거나 어긋나지 않게 한다. */}
           {creationStateQuery.data?.status === "AVAILABLE" && (
-            <p className="text-muted-soft small mb-0">{className} 수업 경험을 들려주세요.</p>
+            <p className="text-muted-soft small mb-0">{className} 수업 후기를 쓸 수 있습니다.</p>
           )}
           {creationStateQuery.data?.status === "NOT_REVIEWABLE" && (
             <p className="text-muted-soft small mb-0">공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다.</p>
@@ -84,7 +86,6 @@ export function BookingReviewSection({ bookingId, className }: Props) {
         <Card className="review-card">
           <Card.Body>
             <ReviewForm
-              autoFocusFirstInput
               pending={createMutation.isPending}
               error={createMutation.error}
               onCancel={() => {

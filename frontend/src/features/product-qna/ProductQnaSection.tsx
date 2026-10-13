@@ -1,10 +1,13 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card } from "react-bootstrap";
+import { Link } from "react-router";
 import { fetchMyProductQnaPage, fetchProductQnaPage } from "./api";
 import { QnaItem } from "./QnaItem";
 import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys } from "@/shared/api";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { productDetailHref } from "@/features/product/navigation";
+import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
 interface Props {
@@ -32,9 +35,7 @@ function ProductQnaContent({ productId }: Props) {
     queryKey: queryKeys.productQna.history(productId),
     queryFn: ({ pageParam, signal }) =>
       fetchProductQnaPage(productId, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    ...cursorPageParams,
   });
   const {
     data: myQnaData,
@@ -48,15 +49,13 @@ function ProductQnaContent({ productId }: Props) {
     queryKey: queryKeys.member.productQna.history(productId),
     queryFn: ({ pageParam, signal }) =>
       fetchMyProductQnaPage(productId, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    ...cursorPageParams,
     enabled: isAuthenticated,
   });
   const qnaPages = qnaData?.pages ?? [];
   const myQnaPages = myQnaData?.pages ?? [];
-  const qnaList = qnaPages.flatMap((page) => page.content);
-  const myQnaList = myQnaPages.flatMap((page) => page.content);
+  const qnaList = flattenCursorPages(qnaData);
+  const myQnaList = flattenCursorPages(myQnaData);
   const ownedQnaIds = new Set(myQnaList.map((qna) => qna.id));
   const ownershipBehind = isAuthenticated
     && myQnaData !== undefined
@@ -90,10 +89,10 @@ function ProductQnaContent({ productId }: Props) {
   };
 
   return (
-    <Card className="mt-4">
+    <Card className="product-qna-card">
       <Card.Body>
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <h5 className="mb-0">상품 문의</h5>
+        <div className="product-qna-head">
+          <h2 className="product-qna-heading">상품 문의</h2>
           {isAuthenticated && <QnaCreateForm productId={productId} />}
         </div>
 
@@ -152,7 +151,8 @@ function ProductQnaContent({ productId }: Props) {
 
         {!isAuthenticated && (
           <p className="text-muted-soft small mt-2 mb-0">
-            로그인 후 상품 문의를 작성할 수 있습니다.
+            상품 문의는 회원만 남길 수 있습니다.{" "}
+            <Link to={buildAuthPageHref("/login", { redirectTo: `${productDetailHref(productId)}#product-qna` })}>로그인하고 문의하기</Link>
           </p>
         )}
       </Card.Body>

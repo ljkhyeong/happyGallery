@@ -62,7 +62,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
      * </ol>
      */
     @Override
-    public ProductResult register(SaveProductCommand command) {
+    public ProductView register(SaveProductCommand command) {
         Product product = new Product(
                 command.name(), command.type(), command.category(), command.price(),
                 command.description(), command.imageUrl(), command.specification(),
@@ -72,16 +72,16 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
         if (product.getType() == ProductType.READY_STOCK) {
             int quantity = requireReadyStockQuantity(command.quantity());
             Inventory inventory = inventoryService.create(product, quantity);
-            return new ProductResult(product, inventory.getQuantity(), inventory.isAvailable(), ProductOptions.EMPTY);
+            return ProductView.readyStock(product, inventory);
         }
         inventoryService.create(product, 0);
         ProductOptions options = optionConfigurationService.configure(
                 product, command.quantity(), command.optionGroups(), command.variants());
-        return result(product, options);
+        return ProductView.withOptions(product, options);
     }
 
     @Override
-    public ProductResult update(Long productId, SaveProductCommand command) {
+    public ProductView update(Long productId, SaveProductCommand command) {
         Product product = productReaderPort.findByIdWithLock(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         if (command.type() != null && command.type() != product.getType()) {
@@ -96,16 +96,15 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
                 .orElseThrow(NotFoundException.supplier("재고"));
         Product saved = productStorePort.save(product);
         if (saved.getType() == ProductType.READY_STOCK) {
-            return new ProductResult(
-                    saved, inventory.getQuantity(), inventory.isAvailable(), ProductOptions.EMPTY);
+            return ProductView.readyStock(saved, inventory);
         }
         ProductOptions options = optionConfigurationService.configure(
                 saved, command.quantity(), command.optionGroups(), command.variants());
-        return result(saved, options);
+        return ProductView.withOptions(saved, options);
     }
 
     @Override
-    public ProductResult changeStatus(Long productId, ProductStatus status) {
+    public ProductView changeStatus(Long productId, ProductStatus status) {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         switch (status) {
@@ -116,10 +115,9 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
         Inventory inventory = inventoryReaderPort.findByProductId(productId)
                 .orElseThrow(NotFoundException.supplier("재고"));
         if (saved.getType() == ProductType.READY_STOCK) {
-            return new ProductResult(
-                    saved, inventory.getQuantity(), inventory.isAvailable(), ProductOptions.EMPTY);
+            return ProductView.readyStock(saved, inventory);
         }
-        return result(saved, optionConfigurationService.get(productId, true));
+        return ProductView.withOptions(saved, optionConfigurationService.get(productId, true));
     }
 
     @Override
@@ -168,9 +166,5 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
             throw new IllegalArgumentException("기성품 초기 재고는 1개 이상이어야 합니다.");
         }
         return quantity;
-    }
-
-    private static ProductResult result(Product product, ProductOptions options) {
-        return new ProductResult(product, options.quantity(), options.available(), options);
     }
 }

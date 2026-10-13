@@ -1,8 +1,8 @@
 package com.personal.happygallery.adapter.out.persistence.review;
 
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportSummaryItem;
 import com.personal.happygallery.domain.review.ReviewReport;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
-import com.personal.happygallery.application.review.port.out.ReviewReportListView;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,28 +23,21 @@ public interface ReviewReportRepository extends JpaRepository<ReviewReport, Long
     boolean existsByReviewIdAndReporterUserId(Long reviewId, Long reporterUserId);
 
     @Query("""
-            SELECT new com.personal.happygallery.application.review.port.out.ReviewReportListView(
+            SELECT new com.personal.happygallery.application.review.port.in.ReviewUseCase$ReviewReportSummaryItem(
                 r.id, r.reviewId, r.reason, r.snapshotStatus, r.status, r.createdAt)
             FROM ReviewReport r
             WHERE (:status IS NULL OR r.status = :status)
+              AND (
+                    :cursorId IS NULL
+                    OR r.createdAt < :cursorCreatedAt
+                    OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)
+              )
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewReportListView> findAdminRows(
-            @Param("status") ReviewReportStatus status, Pageable pageable);
-
-    @Query("""
-            SELECT new com.personal.happygallery.application.review.port.out.ReviewReportListView(
-                r.id, r.reviewId, r.reason, r.snapshotStatus, r.status, r.createdAt)
-            FROM ReviewReport r
-            WHERE (:status IS NULL OR r.status = :status)
-              AND (r.createdAt < :createdAt
-                   OR (r.createdAt = :createdAt AND r.id < :id))
-            ORDER BY r.createdAt DESC, r.id DESC
-            """)
-    List<ReviewReportListView> findAdminRowsAfter(
+    List<ReviewReportSummaryItem> findAdminRows(
             @Param("status") ReviewReportStatus status,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     @Query("""

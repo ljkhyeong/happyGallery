@@ -1,8 +1,9 @@
-import { useId, useState } from "react";
-import { Alert, Button, Form, InputGroup, Modal } from "react-bootstrap";
+import { useState } from "react";
+import { Button, Form, InputGroup } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
 import { parseApiDateTime } from "@/shared/lib";
 import type { OrderMutations } from "./useOrderMutations";
+import { RiskActionButton } from "./RiskActionButton";
 import {
   MarkShippedRequestCarrierCode,
   type MarkShippedRequestCarrierCode as GeneratedShippingCarrierCode,
@@ -32,69 +33,27 @@ interface Props {
   mutations: OrderMutations;
 }
 
-interface RiskActionButtonProps {
-  buttonLabel: string;
-  confirmLabel: string;
-  title: string;
-  impact: string;
-  disabled: boolean;
-  pending: boolean;
-  onConfirm: () => void;
-}
-
-function RiskActionButton({
-  buttonLabel,
-  confirmLabel,
-  title,
-  impact,
+function ShipDateInput({
+  value,
+  onChange,
   disabled,
-  pending,
-  onConfirm,
-}: RiskActionButtonProps) {
-  const titleId = `admin-order-action-title-${useId()}`;
-  const [show, setShow] = useState(false);
-
+  onSave,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  onSave: () => void;
+}) {
   return (
-    <>
-      <Button
-        size="sm"
-        variant="outline-danger"
-        disabled={disabled}
-        onClick={() => setShow(true)}
-      >
-        {pending ? "처리 중..." : buttonLabel}
+    <InputGroup size="sm" style={{ width: "auto" }}>
+      <Form.Control type="date" value={value}
+        aria-label="예상 출고일"
+        onChange={(e) => onChange(e.target.value)}
+        style={{ maxWidth: 150 }} />
+      <Button variant="outline-primary" disabled={disabled} onClick={onSave}>
+        출고일 저장
       </Button>
-      <Modal
-        show={show}
-        aria-labelledby={titleId}
-        onHide={() => !pending && setShow(false)}
-        centered
-      >
-        <Modal.Header closeButton={!pending}>
-          <Modal.Title id={titleId} className="fs-6">{title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Alert variant="warning" className="mb-0 small">
-            {impact}
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" disabled={pending} onClick={() => setShow(false)}>
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={pending}
-            onClick={() => {
-              setShow(false);
-              onConfirm();
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+    </InputGroup>
   );
 }
 
@@ -104,16 +63,26 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
   const [carrierCode, setCarrierCode] = useState<ShippingCarrierCode | "">("");
   const [trackingNumber, setTrackingNumber] = useState("");
 
-  const disabled = mutations.pendingId === orderId;
-  const pending = disabled;
+  const pending = mutations.pendingId === orderId;
   const pickupDeadlineIsFuture = pickupDeadline.length > 0
     && parseApiDateTime(pickupDeadline) > Date.now();
+  const shipDateInput = (
+    <ShipDateInput
+      value={shipDateValue}
+      onChange={setShipDateValue}
+      disabled={pending}
+      onSave={() => mutations.shipDate.mutate({
+        id: orderId,
+        body: { expectedShipDate: shipDateValue || undefined },
+      })}
+    />
+  );
 
   switch (status) {
     case "PAID_APPROVAL_PENDING":
       return (
         <div className="d-flex gap-1 flex-wrap">
-          <Button size="sm" variant="success" disabled={disabled}
+          <Button size="sm" variant="success" disabled={pending}
             onClick={() => mutations.approve.mutate(orderId)}>
             {pending ? "처리 중..." : "승인"}
           </Button>
@@ -122,11 +91,11 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             confirmLabel="거절 및 환불 요청"
             title="주문 거절 및 환불 안내"
             impact="주문은 즉시 거절되고 재고가 복구됩니다. 전액 환불을 요청하며, 환불 완료 여부는 별도로 확인해 주세요."
-            disabled={disabled}
+            disabled={pending}
             pending={pending}
             onConfirm={() => mutations.reject.mutate(orderId)}
           />
-          <Button size="sm" variant="outline-warning" disabled={disabled}
+          <Button size="sm" variant="outline-warning" disabled={pending}
             onClick={() => mutations.delay.mutate(orderId)}>
             {pending ? "처리 중..." : "제작 지연 동의 요청"}
           </Button>
@@ -135,48 +104,25 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
     case "IN_PRODUCTION":
       return (
         <div className="d-flex gap-1 flex-wrap">
-          <Button size="sm" variant="info" disabled={disabled}
+          <Button size="sm" variant="info" disabled={pending}
             onClick={() => mutations.completeProduction.mutate(orderId)}>
             {pending ? "처리 중..." : "제작 완료"}
           </Button>
-          <Button size="sm" variant="outline-warning" disabled={disabled}
+          <Button size="sm" variant="outline-warning" disabled={pending}
             onClick={() => mutations.delay.mutate(orderId)}>
             {pending ? "처리 중..." : "제작 지연 동의 요청"}
           </Button>
-          {fulfillmentType === "SHIPPING" && (
-            <InputGroup size="sm" style={{ width: "auto" }}>
-              <Form.Control type="date" value={shipDateValue}
-                aria-label="예상 출고일"
-                onChange={(e) => setShipDateValue(e.target.value)}
-                style={{ maxWidth: 150 }} />
-              <Button variant="outline-primary" disabled={disabled}
-                onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>출고일 저장</Button>
-            </InputGroup>
-          )}
+          {fulfillmentType === "SHIPPING" && shipDateInput}
         </div>
       );
     case "DELAY_ACCEPTED":
       return (
         <div className="d-flex gap-1 flex-wrap">
-          <Button size="sm" variant="outline-success" disabled={disabled}
+          <Button size="sm" variant="outline-success" disabled={pending}
             onClick={() => mutations.resumeAfterDelay.mutate(orderId)}>
             {pending ? "처리 중..." : "주문 처리 계속"}
           </Button>
-          {fulfillmentType === "SHIPPING" && (
-            <InputGroup size="sm" style={{ width: "auto" }}>
-              <Form.Control type="date" value={shipDateValue}
-                aria-label="예상 출고일"
-                onChange={(e) => setShipDateValue(e.target.value)}
-                style={{ maxWidth: 150 }} />
-              <Button variant="outline-primary" disabled={disabled}
-                onClick={() => mutations.shipDate.mutate({
-                  id: orderId,
-                  body: { expectedShipDate: shipDateValue || undefined },
-                })}>
-                출고일 저장
-              </Button>
-            </InputGroup>
-          )}
+          {fulfillmentType === "SHIPPING" && shipDateInput}
         </div>
       );
     case "DELAY_CONSENT_PENDING":
@@ -186,7 +132,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           confirmLabel="주문 취소 및 환불 요청"
           title="주문 취소 및 환불 안내"
           impact="지연 제안을 거절한 주문을 취소하고 재고를 복구합니다. 전액 환불을 요청하며, 환불 완료 여부는 별도로 확인해 주세요."
-          disabled={disabled}
+          disabled={pending}
           pending={pending}
           onConfirm={() => mutations.delayCancel.mutate(orderId)}
         />
@@ -201,14 +147,14 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
                 onChange={(e) => setPickupDeadline(e.target.value)}
                 required
                 style={{ maxWidth: 200 }} />
-              <Button variant="outline-primary" disabled={disabled || !pickupDeadlineIsFuture}
+              <Button variant="outline-primary" disabled={pending || !pickupDeadlineIsFuture}
                 onClick={() => mutations.pickup.mutate({ id: orderId, body: { pickupDeadlineAt: pickupDeadline } })}>
                 {pending ? "처리 중..." : "매장 수령 준비 완료"}
               </Button>
             </InputGroup>
           )}
           {fulfillmentType === "SHIPPING" && (
-            <Button size="sm" variant="outline-info" disabled={disabled}
+            <Button size="sm" variant="outline-info" disabled={pending}
               onClick={() => mutations.prepareShipping.mutate(orderId)}>
               {pending ? "처리 중..." : "배송 준비"}
             </Button>
@@ -218,18 +164,9 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
     case "SHIPPING_PREPARING":
       return (
         <div className="d-flex gap-1 flex-wrap">
-          <InputGroup size="sm" style={{ width: "auto" }}>
-            <Form.Control type="date" value={shipDateValue}
-              aria-label="예상 출고일"
-              onChange={(e) => setShipDateValue(e.target.value)}
-              style={{ maxWidth: 150 }} />
-            <Button variant="outline-primary" disabled={disabled}
-              onClick={() => mutations.shipDate.mutate({ id: orderId, body: { expectedShipDate: shipDateValue || undefined } })}>
-              출고일 저장
-            </Button>
-          </InputGroup>
+          {shipDateInput}
           <Form.Select size="sm" aria-label="택배사"
-            value={carrierCode ?? ""}
+            value={carrierCode}
             onChange={(e) => setCarrierCode(e.target.value as ShippingCarrierCode | "")}
             style={{ width: 160 }}>
             <option value="">택배사 선택</option>
@@ -241,17 +178,12 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)}
             style={{ width: 170 }} />
           <Button size="sm" variant="primary"
-            disabled={disabled || !carrierCode || !trackingNumber.trim()}
+            disabled={pending || !carrierCode || !trackingNumber.trim()}
             onClick={() => {
-              const selectedCarrier = SHIPPING_CARRIERS.find((item) => item.code === carrierCode);
-              if (!selectedCarrier || !carrierCode) return;
+              if (!carrierCode) return;
               mutations.shipped.mutate({
                 id: orderId,
-                body: {
-                  carrier: selectedCarrier.name,
-                  carrierCode,
-                  trackingNumber: trackingNumber.trim(),
-                },
+                body: { carrierCode, trackingNumber: trackingNumber.trim() },
               });
             }}>
             {pending ? "처리 중..." : "배송 출발"}
@@ -260,14 +192,14 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "SHIPPED":
       return (
-        <Button size="sm" variant="success" disabled={disabled}
+        <Button size="sm" variant="success" disabled={pending}
           onClick={() => mutations.delivered.mutate(orderId)}>
           {pending ? "처리 중..." : "배송 완료로 표시"}
         </Button>
       );
     case "PICKUP_READY":
       return (
-        <Button size="sm" variant="outline-success" disabled={disabled}
+        <Button size="sm" variant="outline-success" disabled={pending}
           onClick={() => mutations.pickupDone.mutate(orderId)}>
           {pending ? "처리 중..." : "매장 수령 완료로 표시"}
         </Button>
@@ -279,7 +211,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           confirmLabel="전액 환불 요청"
           title="미수령 주문 예외 환불 확인"
           impact="미수령 주문의 전액 환불을 요청합니다. 기성품 재고는 이미 복구됐으며 주문제작 재고는 변경하지 않습니다. 주문 상태는 즉시 바뀌고, 환불 완료 여부는 별도로 확인해 주세요."
-          disabled={disabled}
+          disabled={pending}
           pending={pending}
           onConfirm={() => mutations.missedPickupRefund.mutate(orderId)}
         />

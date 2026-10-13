@@ -10,10 +10,10 @@ import { getUserMessage } from "@/shared/lib";
 import {
   readSessionValue,
   removeSessionValues,
-  writeSessionValues,
 } from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
-import { LoadingSpinner } from "@/shared/ui";
+import { describeError, LoadingSpinner } from "@/shared/ui";
+import { storeContinuationAndRedirect } from "@/features/customer-auth/customerStepUp";
 import {
   startSocialAccountLink,
   unlinkSocialAccount,
@@ -21,7 +21,6 @@ import {
 import { SocialSignupConsent } from "@/features/customer-auth/SocialSignupConsent";
 import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 import {
-  ApiError,
   CustomerSessionChangedError,
   runForCurrentCustomer,
 } from "@/shared/api";
@@ -72,9 +71,7 @@ export function SocialCallbackPage() {
 
     const errorCode = searchParams.get("error");
     if (errorCode) {
-      setLinkCallback(
-        pendingSocialAccountLink !== null || pendingSocialReauthentication !== null,
-      );
+      setLinkCallback(hasCustomerContinuation);
       if (errorCode === "POLICY_CONSENT_REQUIRED") {
         setPolicyConsentRequired(true);
       }
@@ -116,16 +113,12 @@ export function SocialCallbackPage() {
             await runForCurrentCustomer(
               () => startSocialAccountLink(linkTarget),
               ({ authorizationUrl }) => {
-                if (!user) throw new CustomerSessionChangedError();
-                const continuationStored = writeSessionValues([
-                  [SESSION_KEYS.customerContinuationOwner, String(user.id)],
-                  [SESSION_KEYS.socialAccountLink, linkTarget],
-                ]);
-                if (!continuationStored) {
-                  navigate("/my", { replace: true });
-                  return;
-                }
-                window.location.assign(authorizationUrl);
+                const continuationStored = storeContinuationAndRedirect(
+                  authorizationUrl,
+                  [[SESSION_KEYS.socialAccountLink, linkTarget]],
+                  user?.id ?? null,
+                );
+                if (!continuationStored) navigate("/my", { replace: true });
               },
             );
             return;
@@ -163,11 +156,7 @@ export function SocialCallbackPage() {
 
         removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
 
-        if (user?.phone === null) {
-          navigate("/my", { replace: true, state: { phoneOnboarding: true } });
-        } else {
-          navigate(savedReturnTo, { replace: true });
-        }
+        navigate(user?.phone === null ? "/my" : savedReturnTo, { replace: true });
       } catch (error) {
         if (error instanceof CustomerSessionChangedError) {
           navigate("/my", { replace: true });
@@ -178,15 +167,8 @@ export function SocialCallbackPage() {
           SESSION_KEYS.socialAccountLink,
           SESSION_KEYS.socialLoginReturnTo,
         );
-        setLinkCallback(
-          pendingSocialAccountLink !== null
-          || pendingSocialReauthentication !== null,
-        );
-        setError(
-          error instanceof ApiError
-            ? getUserMessage(error.code) ?? "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요."
-            : "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요.",
-        );
+        setLinkCallback(hasCustomerContinuation);
+        setError(describeError(error, "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요."));
       }
     })();
   }, [navigate, refresh, searchParams]);
@@ -205,7 +187,7 @@ export function SocialCallbackPage() {
       ? "/my"
       : buildAuthPageHref(policyConsentRequired ? "/signup" : "/login", { redirectTo: returnTo });
     const errorLinkLabel = linkCallback
-      ? "마이페이지로 돌아가기"
+      ? "내 정보로 돌아가기"
       : policyConsentRequired
         ? "동의하고 회원가입하기"
         : "로그인 페이지로 돌아가기";

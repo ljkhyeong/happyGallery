@@ -24,18 +24,19 @@ class JpaSocialAccountPersistenceAdapterTest {
 
     @DisplayName("이전 HMAC 키로 찾은 소셜 계정은 활성 키와 암호문으로 즉시 갱신한다")
     @Test
-    void findByPreviousHmac_backfillsActiveProtection() {
-        String providerId = "legacy-provider-id";
+    void findByPreviousHmac_reprotectsWithActiveKeys() {
+        String providerId = "previous-key-provider-id";
         BlindIndexKeyRing keyRing = new BlindIndexKeyRing("v2", keyRing());
         FieldEncryptor fieldEncryptor = mock(FieldEncryptor.class);
         SocialAccountRepository repository = mock(SocialAccountRepository.class);
-        SocialAccount legacyAccount = new SocialAccount(1L, SocialProvider.NAVER, providerId);
-        legacyAccount.protect(null, new BlindIndexer(PREVIOUS_KEY).index(providerId));
+        SocialAccount previousKeyAccount = new SocialAccount(1L, SocialProvider.NAVER, providerId);
+        previousKeyAccount.protect(
+                "hg:v1:encrypted-provider-id", new BlindIndexer(PREVIOUS_KEY).index(providerId));
         when(repository.findByProviderAndProviderIdHmacIn(
                 SocialProvider.NAVER, keyRing.indexCandidates(providerId)))
-                .thenReturn(List.of(legacyAccount));
+                .thenReturn(List.of(previousKeyAccount));
         when(fieldEncryptor.encrypt(providerId)).thenReturn("hg:v2:encrypted-provider-id");
-        when(repository.save(legacyAccount)).thenReturn(legacyAccount);
+        when(repository.save(previousKeyAccount)).thenReturn(previousKeyAccount);
         JpaSocialAccountPersistenceAdapter adapter = new JpaSocialAccountPersistenceAdapter(
                 repository, fieldEncryptor, keyRing);
 
@@ -47,7 +48,7 @@ class JpaSocialAccountPersistenceAdapterTest {
             softly.assertThat(found.getProviderIdEnc()).isEqualTo("hg:v2:encrypted-provider-id");
             softly.assertThat(found.getProviderIdHmac()).isEqualTo(keyRing.index(providerId));
         });
-        verify(repository).save(legacyAccount);
+        verify(repository).save(previousKeyAccount);
     }
 
     private static Map<String, byte[]> keyRing() {

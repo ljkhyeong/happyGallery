@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
+import { productVariantLabel } from "./productVariantLabel";
 import { StockThresholdForm } from "./StockThresholdForm";
-import { ApiError } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -12,7 +14,7 @@ import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
   adminKey: string;
-  product: ProductResponse | null;
+  product: ProductResponse;
   initialVariantId?: number;
   onClose: () => void;
   onAuthError: () => void;
@@ -31,25 +33,23 @@ export function InventoryAdjustmentModal({
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
   const [showImpactConfirm, setShowImpactConfirm] = useState(false);
-  const [productVariantId, setProductVariantId] = useState<number | null>(null);
-
-  useEffect(() => {
-    setProductVariantId(product?.type === "MADE_TO_ORDER"
+  // 목록이 상품마다 key를 바꿔 새로 만들므로 조정 뒤 상품을 다시 읽어도 고른 옵션 조합을 유지한다.
+  const [productVariantId, setProductVariantId] = useState<number | null>(() => (
+    product.type === "MADE_TO_ORDER"
       ? (product.variants.find((variant) => variant.id === initialVariantId)?.id
         ?? product.variants.find((variant) => variant.active)?.id
         ?? product.variants[0]?.id
         ?? null)
-      : null);
-  }, [initialVariantId, product]);
+      : null
+  ));
 
   const historyQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
-    queryFn: () => fetchInventoryAdjustments(adminKey, product!.id),
-    enabled: product !== null,
+    queryKey: ["admin", "products", product.id, "inventory-adjustments"],
+    queryFn: () => fetchInventoryAdjustments(adminKey, product.id),
   });
 
   const mutation = useAdminMutation(onAuthError, {
-    mutationFn: () => adjustInventory(adminKey, product!.id, {
+    mutationFn: () => adjustInventory(adminKey, product.id, {
       productVariantId,
       type,
       quantity: Number(quantity),
@@ -60,19 +60,19 @@ export function InventoryAdjustmentModal({
       setShowImpactConfirm(false);
       setQuantity("1");
       setReason("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
+        queryKey: ["admin", "products", product.id, "inventory-adjustments"],
       });
     },
   });
 
   const quantityNumber = Number(quantity);
-  const selectedVariant = product?.variants.find((variant) => variant.id === productVariantId);
+  const selectedVariant = product.variants.find((variant) => variant.id === productVariantId);
   const currentQuantity = mutation.data?.productVariantId === productVariantId
     ? mutation.data.quantityAfter
-    : (selectedVariant?.quantity ?? product?.quantity ?? 0);
+    : (selectedVariant?.quantity ?? product.quantity);
   const projectedQuantity = type === "INCREASE"
     ? currentQuantity + quantityNumber
     : currentQuantity - quantityNumber;
@@ -82,34 +82,25 @@ export function InventoryAdjustmentModal({
   const valid = Number.isSafeInteger(quantityNumber)
     && quantityNumber > 0
     && projectedQuantity >= 0
-    && (product?.type !== "MADE_TO_ORDER" || productVariantId !== null)
+    && (product.type !== "MADE_TO_ORDER" || productVariantId !== null)
     && reason.trim().length > 0
     && reason.length <= 500;
 
-  const close = () => {
-    mutation.reset();
-    setType("INCREASE");
-    setQuantity("1");
-    setReason("");
-    setShowImpactConfirm(false);
-    onClose();
-  };
-
   return (
     <Modal
-      show={product !== null}
+      show
       aria-labelledby="admin-inventory-adjustment-title"
-      onHide={close}
+      onHide={onClose}
       centered
       size="lg"
     >
       <Modal.Header closeButton>
         <Modal.Title id="admin-inventory-adjustment-title" className="fs-6">
-          {product?.name} 재고 조정
+          {product.name} 재고 조정
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {product?.type === "MADE_TO_ORDER" && (
+        {product.type === "MADE_TO_ORDER" && (
           <Form.Group className="mb-3" controlId="inventory-adjustment-variant">
             <Form.Label>옵션 조합</Form.Label>
             <Form.Select
@@ -122,17 +113,7 @@ export function InventoryAdjustmentModal({
             >
               {product.variants.map((variant) => (
                 <option key={variant.id} value={variant.id}>
-                  {variant.selections.length === 0
-                    ? "기본 조합"
-                    : variant.selections.map((selection) => {
-                      const group = product.optionGroups.find(
-                        (candidate) => candidate.key === selection.groupKey,
-                      );
-                      const value = group?.values.find(
-                        (candidate) => candidate.key === selection.valueKey,
-                      );
-                      return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
-                    }).join(" / ")} ({variant.quantity}개)
+                  {productVariantLabel(product, variant)} ({variant.quantity}개)
                 </option>
               ))}
             </Form.Select>
@@ -144,7 +125,7 @@ export function InventoryAdjustmentModal({
         </div>
 
         <ErrorAlert error={mutation.error} />
-        {product && <StockThresholdForm adminKey={adminKey} productId={product.id} productVariantId={productVariantId} onAuthError={onAuthError} />}
+        <StockThresholdForm adminKey={adminKey} productId={product.id} productVariantId={productVariantId} onAuthError={onAuthError} />
         <Form
           onSubmit={(event) => {
             event.preventDefault();
@@ -251,8 +232,7 @@ export function InventoryAdjustmentModal({
 
         <h6>최근 조정 이력</h6>
         {historyQuery.isLoading && <LoadingSpinner />}
-        {historyQuery.error && !(historyQuery.error instanceof ApiError && historyQuery.error.status === 401)
-          && <ErrorAlert error={historyQuery.error} />}
+        <ErrorAlert error={visibleAdminError(historyQuery.error)} />
         {historyQuery.data?.length === 0 && <EmptyState message="재고 조정 이력이 없습니다." />}
         {historyQuery.data && historyQuery.data.length > 0 && (
           <Table responsive size="sm" className="mb-0">

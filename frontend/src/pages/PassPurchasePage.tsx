@@ -14,12 +14,13 @@ import {
   LoadingSpinner,
   PageHeader,
 } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 export function PassPurchasePage() {
   const { isAuthenticated, user } = useCustomerAuth();
   const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const policyQuery = useQuery({
-    queryKey: ["payment", "pass-policy"],
+    queryKey: queryKeys.policies.passPayment,
     queryFn: fetchPassPaymentPolicy,
   });
 
@@ -66,7 +67,7 @@ export function PassPurchasePage() {
     <Container className="page-container checkout-page">
       <PageHeader
         title="4회권 구매"
-        description="원데이 다음 단계로, 정규 공예 수업을 원하는 날짜에 네 번 예약할 수 있습니다."
+        description="정규 공예 수업을 원하는 날짜에 네 번 예약할 수 있는 이용권입니다."
       />
 
       <CheckoutLayout
@@ -77,7 +78,6 @@ export function PassPurchasePage() {
             mobileTotal={policy ? { label: "결제 금액", amount: formatKRW(policy.totalPrice) } : undefined}
             note="결제 전 금액과 이용 기간을 확인해 주세요."
           >
-            <p className="checkout-summary-kicker">정규 공예 클래스</p>
             <h2 className="checkout-summary-title">정규 공예 4회권</h2>
             {policy && (
               <CheckoutAmounts
@@ -100,7 +100,7 @@ export function PassPurchasePage() {
             retrying={policyQuery.isFetching}
           />
           <p className="text-muted-soft mb-3">
-            향수를 제외한 정규 공예 클래스 중 ‘이용권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
+            향수를 제외한 정규 공예 클래스 중 ‘4회권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
             예약할 때 이용권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
           </p>
           <LinkButton to="/classes?passEligible=true" variant="outline-primary">
@@ -116,7 +116,7 @@ export function PassPurchasePage() {
                 마지막 사용 가능일 다음 날 00:00에 남은 횟수는 환불 없이 소멸합니다.
               </li>
             ) : (
-              <li>이용 기간을 확인하고 있습니다.</li>
+              <li>{policyQuery.isError ? "이용 기간을 불러오지 못했습니다." : "이용 기간을 확인하고 있습니다."}</li>
             )}
             <li>예약마다 1회가 차감됩니다. 결석해도 차감한 횟수는 복구되지 않으며, 보강 수업은 없습니다.</li>
             <li>취소 마감 전 취소하면 1회가 복구됩니다. 마감 후에는 복구되지 않습니다.</li>

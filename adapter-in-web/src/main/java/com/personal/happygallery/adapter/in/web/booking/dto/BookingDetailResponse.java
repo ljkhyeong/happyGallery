@@ -41,7 +41,7 @@ public record BookingDetailResponse(
         String maskedPhone = maskPhoneMiddle(guestPhone);
         return new BookingDetailResponse(
                 booking.getId(),
-                "BK-%08d".formatted(booking.getId()),
+                booking.bookingNumber(),
                 booking.getBookingClass().getId(),
                 booking.getSlot().getId(),
                 booking.getSlot().getStartAt(),

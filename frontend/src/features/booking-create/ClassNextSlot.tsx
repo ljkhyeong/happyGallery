@@ -1,6 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { PublicSlotResponse } from "@/generated/api/booking";
-import { formatSlotStart, nextOpenSlot, remainingSeatLabel, UPCOMING_SLOT_DAYS } from "./upcomingSlots";
+import { formatSlotStart, isFewSeats, nextOpenSlot, remainingSeatLabel, UPCOMING_SLOT_DAYS } from "./upcomingSlots";
 
 /** 클래스 카드 아래에 가장 가까운 예약 가능 일정과 남은 자리를 보여 준다. */
 export function ClassNextSlot({
@@ -23,7 +23,7 @@ export function ClassNextSlot({
   return (
     <p className={className}>
       <span>다음 수업 {formatSlotStart(next)}</span>
-      <b className={next.remainingCapacity <= 2 ? "is-few" : undefined}>{remainingSeatLabel(next.remainingCapacity)}</b>
+      <b className={isFewSeats(next.remainingCapacity) ? "is-few" : undefined}>{remainingSeatLabel(next.remainingCapacity)}</b>
     </p>
   );
 }

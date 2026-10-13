@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -85,12 +84,13 @@ public class NotificationOutboxDispatcher {
         NotificationOutboxDeliveryRequest delivery = preparation.delivery();
         NotificationDeliveryAttempt attempt;
         try {
-            attempt = switch (delivery.recipientType()) {
-                case GUEST -> notificationService.sendByGuestIdWithOutcome(
-                        delivery.guestId(), delivery.eventType(), delivery.idempotencyKey(), null);
-                case USER -> notificationService.sendByUserIdWithOutcome(
-                        delivery.userId(), delivery.eventType(), delivery.idempotencyKey(), null);
-            };
+            attempt = notificationService.deliver(
+                    delivery.recipientType(),
+                    delivery.guestId(),
+                    delivery.userId(),
+                    delivery.eventType(),
+                    delivery.idempotencyKey(),
+                    null);
         } catch (NotificationAuditPersistenceException exception) {
             return switch (exception.deliveryResult()) {
                 case SUCCESS -> transactionService.markSentWithAuditFailure(
@@ -121,8 +121,7 @@ public class NotificationOutboxDispatcher {
                     reservation.processingToken(),
                     attempt.channel(),
                     attempt.providerRequestId(),
-                    attempt.providerRecipientSeq(),
-                    null)
+                    attempt.providerRecipientSeq())
                     ? DispatchOutcome.DELIVERY_PENDING
                     : DispatchOutcome.STALE;
             case SUCCESS -> transactionService.markSent(

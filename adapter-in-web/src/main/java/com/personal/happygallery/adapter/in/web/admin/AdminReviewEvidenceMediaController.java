@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
+import com.personal.happygallery.adapter.in.web.media.ImageHttp;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewEvidenceMediaUseCase;
@@ -12,8 +13,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
-import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,9 +55,6 @@ public class AdminReviewEvidenceMediaController {
         admin.requireBearerAdminUserId();
         ImageContent image =
                 evidenceMediaUseCase.getImage(evidenceId, sortOrder);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(image.contentType()))
-                .cacheControl(CacheControl.noStore())
-                .body(image.bytes());
+        return ImageHttp.noStore(image);
     }
 }

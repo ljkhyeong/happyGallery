@@ -3,12 +3,13 @@ import { Badge, Button, Card } from "react-bootstrap";
 import { Link } from "react-router";
 import {
   cancelMyVacancyAlert,
-  fetchMyVacancyAlerts,
+  myVacancyAlertsQuery,
   type VacancyAlertResponse,
 } from "@/features/vacancy-alert/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
+import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
 export function MyVacancyAlertsSection() {
   const queryClient = useQueryClient();
@@ -19,10 +20,7 @@ export function MyVacancyAlertsSection() {
     isFetching,
     error,
     refetch,
-  } = useQuery({
-    queryKey: queryKeys.member.vacancyAlerts,
-    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyVacancyAlerts(signal)),
-  });
+  } = useQuery(myVacancyAlertsQuery());
   const cancelMutation = useMutation({
     mutationFn: (alert: VacancyAlertResponse) => runForCurrentCustomer(
       () => cancelMyVacancyAlert(alert.slotId),
@@ -42,7 +40,7 @@ export function MyVacancyAlertsSection() {
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <p className="text-muted-soft small mb-0">
-            신청한 일정의 잔여 좌석을 확인할 수 있습니다. 알림으로 자리가 확보되지는 않습니다.
+            남은 자리는 ‘예약 가능 여부 확인’에서 볼 수 있습니다. 알림을 받아도 자리가 잡히지는 않습니다.
           </p>
         </div>
         {alerts && <span className="text-muted-soft small text-nowrap">
@@ -68,7 +66,7 @@ export function MyVacancyAlertsSection() {
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 px-3">
               <div>
                 <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                  <span className="fw-semibold small">{alert.className}</span>
+                  <Link to={`/classes/${alert.classId}`} className="fw-semibold small">{alert.className}</Link>
                   <Badge bg={alert.status === "WAITING" ? "secondary" : "info"} className="badge-sm">
                     {alert.status === "WAITING" ? "알림 대기" : "빈자리 발생"}
                   </Badge>
@@ -78,13 +76,14 @@ export function MyVacancyAlertsSection() {
                 </small>
               </div>
               <div className="d-flex flex-wrap gap-2">
-                <Link
-                  to={`/bookings/new?classId=${alert.classId}&slotId=${alert.slotId}`}
-                  className="btn btn-outline-primary btn-sm"
+                <LinkButton
+                  to={bookingCreateHref(alert.classId, alert.slotId)}
+                  variant="outline-primary"
+                  size="sm"
                   aria-label={`${alert.className} 예약 가능 여부 확인`}
                 >
                   예약 가능 여부 확인
-                </Link>
+                </LinkButton>
                 {alert.status === "WAITING" && (
                   <Button
                     type="button"

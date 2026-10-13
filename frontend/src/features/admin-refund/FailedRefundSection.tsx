@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Modal, Table } from "react-bootstrap";
+import { Alert, Button, Table } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
+import { CursorPager } from "@/shared/ui/CursorPager";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
@@ -46,7 +48,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error instanceof ApiError && error.status === 401) return null;
+  if (isAdminSessionUnauthorized(error)) return null;
   if (error && page === undefined && !hasPreviousPage) {
     return (
       <ErrorAlert
@@ -120,82 +122,49 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       ) : !error && refunds !== undefined ? (
         <EmptyState message="이 페이지에 확인이 필요한 환불이 없습니다." />
       ) : null}
-      {(hasPreviousPage || page?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mb-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={!hasPreviousPage || isLoading}
-            onClick={showPreviousPage}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            disabled={!page?.hasMore || isLoading}
-            onClick={() => showNextPage(page?.nextCursor)}
-          >
-            다음
-          </Button>
-        </div>
-      )}
-      <Modal
+      <CursorPager
+        className="d-flex justify-content-center gap-2 mb-3"
+        hasPreviousPage={hasPreviousPage}
+        page={page}
+        busy={isLoading}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
+      <ConfirmModal
         show={retryTarget !== null}
-        aria-labelledby="admin-failed-refund-retry-title"
-        onHide={() => {
-          if (pendingId === null) setRetryTarget(null);
-        }}
-        centered
+        title="환불 처리 다시 확인"
+        pending={pendingId !== null}
+        onClose={() => setRetryTarget(null)}
+        confirmLabel={pendingId !== null
+          ? "확인 중..."
+          : retryTarget?.status === "RECONCILIATION_REQUIRED"
+            ? "결제사에서 상태 확인"
+            : "기존 환불 다시 요청"}
+        confirmVariant="warning"
+        confirmDisabled={!retryTarget}
+        onConfirm={() => retryTarget && retry.mutate(retryTarget.refundId)}
       >
-        <Modal.Header closeButton={pendingId === null}>
-          <Modal.Title id="admin-failed-refund-retry-title" className="fs-6">
-            환불 처리 다시 확인
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={retry.error} />
-          {retryTarget && (
-            <>
-              <dl className="row small mb-3">
-                <dt className="col-5">환불 대상</dt>
-                <dd className="col-7">{refundTarget(retryTarget)}</dd>
-                <dt className="col-5">환불 금액</dt>
-                <dd className="col-7 fw-semibold">{formatKRW(retryTarget.amount)}</dd>
-                <dt className="col-5">현재 상태</dt>
-                <dd className="col-7">{refundStatusLabel(retryTarget.status)}</dd>
-                <dt className="col-5">기존 시도</dt>
-                <dd className="col-7">{retryTarget.attemptCount}회</dd>
-              </dl>
-              <Alert variant="warning" className="small mb-0">
-                {retryTarget.status === "RECONCILIATION_REQUIRED"
-                  ? "결제사에 이미 환불됐는지 먼저 확인합니다. 결과를 확인할 수 없으면 새 환불을 요청하지 않고 이 목록에 남깁니다."
-                  : "새 환불 건을 만들지 않고 기존 환불 건으로 결제사에 다시 요청합니다. 결과를 확인할 수 없으면 결제사 확인 필요 상태로 남깁니다."}
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={pendingId !== null}
-            onClick={() => setRetryTarget(null)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="warning"
-            disabled={!retryTarget || pendingId !== null}
-            onClick={() => retryTarget && retry.mutate(retryTarget.refundId)}
-          >
-            {pendingId !== null
-              ? "확인 중..."
-              : retryTarget?.status === "RECONCILIATION_REQUIRED"
-                ? "결제사에서 상태 확인"
-                : "기존 환불 다시 요청"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={retry.error} />
+        {retryTarget && (
+          <>
+            <dl className="row small mb-3">
+              <dt className="col-5">환불 대상</dt>
+              <dd className="col-7">{refundTarget(retryTarget)}</dd>
+              <dt className="col-5">환불 금액</dt>
+              <dd className="col-7 fw-semibold">{formatKRW(retryTarget.amount)}</dd>
+              <dt className="col-5">현재 상태</dt>
+              <dd className="col-7">{refundStatusLabel(retryTarget.status)}</dd>
+              <dt className="col-5">기존 시도</dt>
+              <dd className="col-7">{retryTarget.attemptCount}회</dd>
+            </dl>
+            <Alert variant="warning" className="small mb-0">
+              {retryTarget.status === "RECONCILIATION_REQUIRED"
+                ? "결제사에 이미 환불됐는지 먼저 확인합니다. 결과를 확인할 수 없으면 새 환불을 요청하지 않고 이 목록에 남깁니다."
+                : "새 환불 건을 만들지 않고 기존 환불 건으로 결제사에 다시 요청합니다. 결과를 확인할 수 없으면 결제사 확인 필요 상태로 남깁니다."}
+            </Alert>
+          </>
+        )}
+      </ConfirmModal>
     </>
   );
 }

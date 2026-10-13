@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.review.port.out;
 
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewOpportunity;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
@@ -34,7 +35,7 @@ public interface ReviewEligibilityPort {
 
     Optional<ReviewSourceReservationView> findClassSourceReservation(Long bookingId);
 
-    List<ReviewOpportunityView> findReviewOpportunities(
+    List<ReviewOpportunity> findReviewOpportunities(
             Long userId,
             LocalDateTime cursorCompletedAt,
             ReviewTargetType cursorTargetType,

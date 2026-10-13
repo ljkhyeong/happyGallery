@@ -22,7 +22,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.event.Event;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -116,9 +116,9 @@ class EventUseCaseIT {
     void adminEventCrud_persistsRelatedProductsAndRejectsStaleVersion() {
         LocalDateTime now = LocalDateTime.now(clock);
         Product firstProduct = productRepository.save(
-                new Product("연관 상품 1", ProductType.READY_STOCK, 10_000L));
+                TestFixtures.readyStockProduct("연관 상품 1", 10_000L));
         Product secondProduct = productRepository.save(
-                new Product("연관 상품 2", ProductType.READY_STOCK, 20_000L));
+                TestFixtures.readyStockProduct("연관 상품 2", 20_000L));
         CouponDefinition coupon = couponDefinitionRepository.saveAndFlush(new CouponDefinition(
                 "이벤트 쿠폰",
                 CouponDiscountType.FIXED,

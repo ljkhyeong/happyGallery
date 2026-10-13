@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { EMPTY_CART_VERSION, installCsrfCookie } from "./mock-support";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
 const GUEST_CART_LOCK_NAME = "hg_guest_cart";
-const EMPTY_CART_VERSION = "0".repeat(64);
 
 interface MergeRequest {
   expectedCustomerId: number;
@@ -26,38 +26,31 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
   if (!baseURL) {
     throw new Error("Playwright baseURL이 필요합니다.");
   }
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-merge-test-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route(/\/api\/v1\/me$/, async (route) => {
     if (!authenticated) {
       await route.fulfill({
         status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }),
+        json: { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
       });
       return;
     }
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         id: 101,
         email: "cart-merge@example.com",
         name: "장바구니 회원",
         phone: "01012345678",
         phoneVerified: true,
         localPasswordEnabled: true,
-      }),
+      },
     });
   });
   await context.route(/\/api\/v1\/me\/cart$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
+      json: { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 },
     });
   });
   await context.route(/\/api\/v1\/me\/cart\/merge$/, async (route) => {
@@ -70,15 +63,13 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
   await context.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0 }),
+      json: { count: 0 },
     });
   });
   await context.route(/\/api\/v1\/workshop$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ name: "해피갤러리" }),
+      json: { name: "해피갤러리" },
     });
   });
 
@@ -89,7 +80,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     localStorage.setItem(storageKey, value);
   }, [
     GUEST_CART_STORAGE_KEY,
-    JSON.stringify([{ productId: 11, qty: 2, lineageId: "shared-lineage" }]),
+    JSON.stringify([{ productId: 11, productVariantId: null, textInputs: [], qty: 2, lineageId: "shared-lineage" }]),
   ] as const);
   await expect(secondPage.locator('a[href="/cart"] .badge')).toHaveText("2");
 
@@ -105,7 +96,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
         : [];
       localStorage.setItem(storageKey, JSON.stringify([
         ...items,
-        { productId: 22, qty: 1, lineageId: "queued-lineage" },
+        { productId: 22, productVariantId: null, textInputs: [], qty: 1, lineageId: "queued-lineage" },
       ]));
     });
   }, [GUEST_CART_LOCK_NAME, GUEST_CART_STORAGE_KEY] as const);
@@ -186,16 +177,12 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
   });
   const mergeRequests: MergeRequest[] = [];
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-account-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(([storageKey, items]) => {
     localStorage.setItem(storageKey, JSON.stringify(items));
   }, [
     GUEST_CART_STORAGE_KEY,
-    [{ productId: 31, qty: 2, lineageId: "account-a-lineage" }],
+    [{ productId: 31, productVariantId: null, textInputs: [], qty: 2, lineageId: "account-a-lineage" }],
   ] as const);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -204,8 +191,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     if (pathname === "/api/v1/me" && request.method() === "GET") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(currentCustomer),
+        json: currentCustomer,
       });
       return;
     }
@@ -213,8 +199,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
       currentCustomer = customerB;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(customerB),
+        json: customerB,
       });
       return;
     }
@@ -227,35 +212,31 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     if (pathname === "/api/v1/me/cart") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        json: {
           cartVersion: EMPTY_CART_VERSION,
           items: [],
           totalAmount: 0,
-        }),
+        },
       });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ count: 0 }),
+        json: { count: 0 },
       });
       return;
     }
     if (pathname === "/api/v1/workshop") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ name: "해피갤러리" }),
+        json: { name: "해피갤러리" },
       });
       return;
     }
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([]),
+      json: [],
     });
   });
 
@@ -280,7 +261,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
 
     await expect(
       page.getByRole("main").getByText(
-        "다른 계정으로 로그인하기 전에 담은 상품이 남아 있습니다.",
+        "다른 계정으로 로그인하기 전에 담은 작품이 남아 있습니다.",
       ),
     ).toBeVisible();
     await expect.poll(() => page.evaluate(

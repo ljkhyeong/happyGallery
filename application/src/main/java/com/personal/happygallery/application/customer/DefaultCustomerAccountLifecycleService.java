@@ -54,12 +54,8 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
     public void withdraw(WithdrawCommand command) {
         User user = userReader.findByIdForUpdate(command.userId())
                 .orElseThrow(NotFoundException.supplier("회원"));
-        if (user.getCredentialVersion() != command.credentialVersion()) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!command.recentlyReauthenticated()) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
-        }
+        ProtectedAccountChange.requireCurrentSession(
+                user, command.credentialVersion(), command.recentlyReauthenticated());
         LocalDateTime now = LocalDateTime.now(clock);
         var blockingActivities = accountActivity.findBlockingActivities(command.userId(), now);
         if (!blockingActivities.isEmpty()) {

@@ -3,7 +3,6 @@ package com.personal.happygallery.application.qna.port.in;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 상품 Q&A 유스케이스.
@@ -30,16 +29,10 @@ public interface ProductQnaUseCase {
     ProductQna createQuestion(Long productId, Long userId, String title, String content,
                               boolean secret);
 
-    List<OwnedQnaListView> listOwnedByProduct(Long productId, Long userId);
-
     CursorPage<OwnedQnaListView> listOwnedByProduct(
             Long productId, Long userId, String cursor, int size);
 
-    List<PublicQnaListView> listByProduct(Long productId);
-
     CursorPage<PublicQnaListView> listByProduct(Long productId, String cursor, int size);
-
-    List<QnaWithAuthor> listByProductForAdmin(Long productId);
 
     CursorPage<QnaWithAuthor> listByProductForAdmin(
             Long productId, String cursor, int size);

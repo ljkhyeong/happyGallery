@@ -1,6 +1,18 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationFailure;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
@@ -25,6 +37,8 @@ import org.springframework.web.client.RestClientResponseException;
 public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private static final int PAGE_SIZE = 300;
+    private static final String PRODUCT_ORDER_PATH =
+            "/external/v1/pay-order/seller/product-orders/{productOrderId}";
 
     private final RestClient restClient;
     private final SmartStoreProperties properties;
@@ -118,7 +132,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 throw new IllegalStateException("스마트스토어 상품 주문 상세 항목이 비어 있습니다.");
             }
             ShippingAddressInfo address = productOrder.shippingAddress();
-            DeliveryInfo deliveryInfo = address == null ? null : new DeliveryInfo(
+            SmartStoreDeliveryInfo deliveryInfo = address == null ? null : new SmartStoreDeliveryInfo(
                     address.name(), address.tel1(), address.zipCode(), address.baseAddress(),
                     address.detailedAddress(), productOrder.shippingMemo());
             DeliveryResponse delivery = item.delivery();
@@ -153,7 +167,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public OperationResult confirmAll(List<String> productOrderIds) {
+    public SmartStoreOperationResult confirmAll(List<String> productOrderIds) {
         OperationResponse response = executeBulk(
                 "/external/v1/pay-order/seller/product-orders/confirm",
                 new ConfirmRequest(productOrderIds));
@@ -161,7 +175,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public OperationResult dispatchAll(List<DispatchCommand> commands) {
+    public SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands) {
         OperationResponse response = executeBulk(
                 "/external/v1/pay-order/seller/product-orders/dispatch",
                 new DispatchRequest(commands.stream()
@@ -171,108 +185,95 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                                 format(command.dispatchDate())))
                         .toList()));
         return operationResult(response, commands.stream()
-                .map(DispatchCommand::productOrderId)
+                .map(SmartStoreDispatchCommand::productOrderId)
                 .toList());
     }
 
     @Override
-    public void delay(DelayCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/delay",
+    public void delay(SmartStoreDelayCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/delay", command.productOrderId(),
                 new DelayRequest(
                         format(command.dispatchDueDate()), command.reasonCode(),
-                        command.detailedReason()), command.productOrderId());
+                        command.detailedReason()));
     }
 
     @Override
     public void approveCancel(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/cancel/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/cancel/approve", productOrderId);
     }
 
     @Override
     public void approveReturn(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/approve", productOrderId);
     }
 
     @Override
     public void rejectReturn(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/reject", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/reject", productOrderId);
     }
 
     @Override
-    public void holdReturn(ReturnHoldCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/return/holdback",
+    public void holdReturn(SmartStoreReturnHoldCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/return/holdback", command.productOrderId(),
                 new ReturnHoldRequest(command.holdbackClassType(), command.detailedReason(),
-                        command.extraReturnFeeAmount()), command.productOrderId());
+                        command.extraReturnFeeAmount()));
     }
 
     @Override
     public void releaseReturnHold(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/holdback/release", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/holdback/release", productOrderId);
     }
 
     @Override
-    public void requestSellerReturn(SellerReturnCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/return/request",
+    public void requestSellerReturn(SmartStoreSellerReturnCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/return/request", command.productOrderId(),
                 new SellerReturnRequest(
                         command.returnReason(), command.collectDeliveryMethod(),
                         command.collectDeliveryCompany(), command.collectTrackingNumber(),
-                        command.returnQuantity()), command.productOrderId());
+                        command.returnQuantity()));
     }
 
     @Override
-    public void dispatchExchange(ExchangeDispatchCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/dispatch",
+    public void dispatchExchange(SmartStoreExchangeDispatchCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/dispatch", command.productOrderId(),
                 new ExchangeDispatchRequest(
                         command.deliveryMethod(), command.deliveryCompanyCode(),
-                        command.trackingNumber()), command.productOrderId());
+                        command.trackingNumber()));
     }
 
     @Override
     public void completeExchangeCollect(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/exchange/collect/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/exchange/collect/approve", productOrderId);
     }
 
     @Override
-    public void rejectExchange(ExchangeRejectCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/reject",
-                new ExchangeRejectRequest(command.reason()), command.productOrderId());
+    public void rejectExchange(SmartStoreExchangeRejectCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/reject", command.productOrderId(),
+                new ExchangeRejectRequest(command.reason()));
     }
 
     @Override
-    public void holdExchange(ExchangeHoldCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/holdback",
+    public void holdExchange(SmartStoreExchangeHoldCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/holdback", command.productOrderId(),
                 new ExchangeHoldRequest(command.holdbackClassType(), command.detailedReason(),
-                        command.extraExchangeFeeAmount()), command.productOrderId());
+                        command.extraExchangeFeeAmount()));
     }
 
     @Override
     public void releaseExchangeHold(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/exchange/holdback/release", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/exchange/holdback/release", productOrderId);
     }
 
     @Override
-    public void requestSellerCancel(SellerCancelCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/cancel/request",
+    public void requestSellerCancel(SmartStoreSellerCancelCommand command) {
+        execute(PRODUCT_ORDER_PATH + "/claim/cancel/request", command.productOrderId(),
                 new SellerCancelRequest(command.reason(), command.detailedReason(),
-                        command.quantity()), command.productOrderId());
+                        command.quantity()));
     }
 
-    private void execute(String path, Object body, String productOrderId) {
+    private void execute(String uriTemplate, String productOrderId, Object body) {
         OperationResponse response = authorizedWrite(token -> restClient.post()
-                .uri(path)
+                .uri(uriTemplate, productOrderId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
@@ -291,9 +292,9 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .body(OperationResponse.class));
     }
 
-    private void executeWithoutBody(String path, String productOrderId) {
+    private void executeWithoutBody(String uriTemplate, String productOrderId) {
         OperationResponse response = authorizedWrite(token -> restClient.post()
-                .uri(path)
+                .uri(uriTemplate, productOrderId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentLength(0)
                 .retrieve()
@@ -372,12 +373,12 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         throw new OperationRejectedException(failure.code(), failure.message());
     }
 
-    private static OperationResult operationResult(
+    private static SmartStoreOperationResult operationResult(
             OperationResponse response, List<String> requestedIds) {
         OperationData data = response == null ? null : response.data();
         if (data == null) {
-            return new OperationResult(List.of(), requestedIds.stream()
-                    .map(id -> new OperationFailure(
+            return new SmartStoreOperationResult(List.of(), requestedIds.stream()
+                    .map(id -> new SmartStoreOperationFailure(
                             id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                     .toList());
         }
@@ -388,24 +389,24 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     .map(OperationSuccess::productOrderId)
                     .toList();
         }
-        List<OperationFailure> failures = data.failProductOrderInfos() == null
+        List<SmartStoreOperationFailure> failures = data.failProductOrderInfos() == null
                 ? List.of() : data.failProductOrderInfos().stream()
-                        .map(failure -> new OperationFailure(
+                        .map(failure -> new SmartStoreOperationFailure(
                                 failure.productOrderId(), failure.code(), failure.message()))
                         .toList();
         List<String> completedIds = successIds;
         List<String> failedIds = failures.stream()
-                .map(OperationFailure::productOrderId)
+                .map(SmartStoreOperationFailure::productOrderId)
                 .toList();
-        List<OperationFailure> missing = requestedIds.stream()
+        List<SmartStoreOperationFailure> missing = requestedIds.stream()
                 .filter(id -> !completedIds.contains(id) && !failedIds.contains(id))
-                .map(id -> new OperationFailure(
+                .map(id -> new SmartStoreOperationFailure(
                         id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                 .toList();
         if (!missing.isEmpty()) {
             failures = Stream.concat(failures.stream(), missing.stream()).toList();
         }
-        return new OperationResult(successIds, failures);
+        return new SmartStoreOperationResult(successIds, failures);
     }
 
     private static String format(LocalDateTime value) {
@@ -463,16 +464,16 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         if (!StringUtils.hasText(claimId) || quantity == null || quantity <= 0 || completedAt == null) {
             throw new IllegalStateException("스마트스토어 완료 반품의 번호·수량·완료일이 필요합니다.");
         }
-        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity, toLocalDateTime(completedAt)));
+        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity));
     }
 
-    private static ClaimDetail claimDetail(CurrentClaim currentClaim) {
+    private static SmartStoreClaimDetail claimDetail(CurrentClaim currentClaim) {
         if (currentClaim == null) {
             return null;
         }
         if (currentClaim.cancel() != null) {
             CancelClaim claim = currentClaim.cancel();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "CANCEL", claim.claimStatus(), claim.cancelReason(),
                     claim.cancelDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), null, null, null,
@@ -480,7 +481,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         }
         if (currentClaim.returned() != null) {
             ReturnClaim claim = currentClaim.returned();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "RETURN", claim.claimStatus(), claim.returnReason(),
                     claim.returnDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),
@@ -490,7 +491,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         }
         if (currentClaim.exchange() != null) {
             ExchangeClaim claim = currentClaim.exchange();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "EXCHANGE", claim.claimStatus(), claim.exchangeReason(),
                     claim.exchangeDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),

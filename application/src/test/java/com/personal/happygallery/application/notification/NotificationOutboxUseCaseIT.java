@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.out.persistence.notification.Notificati
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationLogRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -73,7 +74,7 @@ class NotificationOutboxUseCaseIT {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                         user.getId(),
                         NotificationEventType.ORDER_PAID,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         1L)));
 
         awaitLogCount(notificationLogProbe, 1);
@@ -94,7 +95,7 @@ class NotificationOutboxUseCaseIT {
         NotificationOutbox outbox = new TransactionTemplate(transactionManager).execute(status -> {
             NotificationOutbox saved = outboxRepository.save(NotificationOutbox.from(
                     NotificationRequestedEvent.forUser(
-                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 10L),
+                            user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 10L),
                     now));
             String token = saved.markProcessing(now);
             saved.markSent(token, now);
@@ -107,7 +108,7 @@ class NotificationOutboxUseCaseIT {
                 null, user.getId(), NotificationChannel.SMS,
                 NotificationEventType.ORDER_PAID, now));
 
-        var notifications = notificationQueryUseCase.listNotifications(user.getId(), null, 0, 20, false);
+        var notifications = notificationQueryUseCase.listNotifications(user.getId(), 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(notifications)
@@ -115,16 +116,16 @@ class NotificationOutboxUseCaseIT {
                     .satisfies(notification -> {
                         softly.assertThat(notification.id()).isEqualTo(outbox.getId());
                         softly.assertThat(notification.eventType()).isEqualTo(NotificationEventType.ORDER_PAID);
-                        softly.assertThat(notification.aggregateType()).isEqualTo("ORDER");
+                        softly.assertThat(notification.aggregateType()).isEqualTo(NotificationAggregateType.ORDER);
                         softly.assertThat(notification.aggregateId()).isEqualTo(10L);
                         softly.assertThat(notification.isRead()).isFalse();
                     });
-            softly.assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isOne();
+            softly.assertThat(notificationQueryUseCase.countUnread(user.getId())).isOne();
         });
 
-        notificationQueryUseCase.markAsRead(outbox.getId(), user.getId(), null);
+        notificationQueryUseCase.markAsRead(outbox.getId(), user.getId());
 
-        assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isZero();
+        assertThat(notificationQueryUseCase.countUnread(user.getId())).isZero();
     }
 
     @Test
@@ -136,19 +137,19 @@ class NotificationOutboxUseCaseIT {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             for (int index = 0; index < 4; index++) {
                 var row = outboxRepository.save(NotificationOutbox.from(NotificationRequestedEvent.forUser(
-                        index == 3 ? other.getId() : owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", (long) index), now));
+                        index == 3 ? other.getId() : owner.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, (long) index), now));
                 var at = now.plusSeconds(index);
                 row.markSent(row.markProcessing(at), at);
                 if (index == 2) row.markRead(at);
             }
         });
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 1, true))
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 1, true))
                 .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(1L);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 1, 1, true))
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 1, 1, true))
                 .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(0L);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, false)).hasSize(3);
-        notificationQueryUseCase.markAllAsRead(owner.getId(), null);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, true)).isEmpty();
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 20, false)).hasSize(3);
+        notificationQueryUseCase.markAllAsRead(owner.getId());
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 20, true)).isEmpty();
     }
 
     @DisplayName("알림 이벤트가 발행된 트랜잭션이 롤백되면 outbox도 생성되지 않는다")
@@ -158,7 +159,7 @@ class NotificationOutboxUseCaseIT {
         NotificationRequestedEvent rolledBackEvent = NotificationRequestedEvent.forUser(
                 user.getId(),
                 NotificationEventType.ORDER_PAID,
-                "ORDER",
+                NotificationAggregateType.ORDER,
                 2L);
 
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
@@ -186,7 +187,7 @@ class NotificationOutboxUseCaseIT {
         User user = userStorePort.save(new User(
                 "outbox-concurrent@example.com", "hash", "회원", "01022223333"));
         NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
-                user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 20L);
+                user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 20L);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
         Callable<Boolean> enqueue = () -> {
@@ -233,7 +234,7 @@ class NotificationOutboxUseCaseIT {
                 "outbox-exception@example.com", "hash", "회원", "01011112222"));
         NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 3L),
+                        user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 3L),
                 LocalDateTime.now(clock)));
         jdbcTemplate.update("UPDATE users SET phone_enc = 'invalid' WHERE id = ?", user.getId());
 
@@ -265,10 +266,10 @@ class NotificationOutboxUseCaseIT {
         List<Long> ids = new TransactionTemplate(transactionManager).execute(status -> {
             NotificationOutbox older = outboxRepository.save(NotificationOutbox.from(
                     NotificationRequestedEvent.forUser(
-                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 5L),
+                            user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 5L),
                     now.minusMinutes(10)));
             older.markDeliveryPending(older.markProcessing(now.minusMinutes(10)),
-                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9), null);
+                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9));
             String token = older.markDeliveryChecking(now.minusMinutes(2));
             if (!interrupted) {
                 older.rescheduleDeliveryCheck(token, now.minusMinutes(1), "UNAVAILABLE");
@@ -276,10 +277,10 @@ class NotificationOutboxUseCaseIT {
 
             NotificationOutbox waiting = outboxRepository.save(NotificationOutbox.from(
                     NotificationRequestedEvent.forUser(
-                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 6L),
+                            user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 6L),
                     now.minusMinutes(8)));
             waiting.markDeliveryPending(waiting.markProcessing(now.minusMinutes(8)),
-                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7), null);
+                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7));
             return List.of(older.getId(), waiting.getId());
         });
 
@@ -297,7 +298,7 @@ class NotificationOutboxUseCaseIT {
                 "outbox-fencing@example.com", "hash", "회원", "01033334444"));
         NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 4L),
+                        user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 4L),
                 LocalDateTime.now(clock)));
 
         NotificationOutboxReservation first = outboxTransactionService

@@ -2,6 +2,7 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationReminderEligibilityPort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -11,9 +12,6 @@ import org.springframework.stereotype.Service;
 @Service
 class NotificationReminderEligibility {
 
-    private static final String BOOKING = "BOOKING";
-    private static final String PASS_PURCHASE = "PASS_PURCHASE";
-    private static final String ORDER = "ORDER";
     private static final LocalTime SAME_DAY_REMINDER_START = LocalTime.of(7, 0);
 
     private final NotificationReminderEligibilityPort eligibilityPort;
@@ -57,7 +55,7 @@ class NotificationReminderEligibility {
 
     private Optional<NotificationReminderRecipient> findD1BookingRecipient(
             NotificationOutbox outbox, LocalDateTime now) {
-        if (!hasAggregate(outbox, BOOKING)) {
+        if (!hasAggregate(outbox, NotificationAggregateType.BOOKING)) {
             return Optional.empty();
         }
         LocalDateTime tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay();
@@ -68,7 +66,7 @@ class NotificationReminderEligibility {
     private Optional<NotificationReminderRecipient> findSameDayBookingRecipient(
             NotificationOutbox outbox, LocalDateTime now) {
         if (now.toLocalTime().isBefore(SAME_DAY_REMINDER_START)
-                || !hasAggregate(outbox, BOOKING)) {
+                || !hasAggregate(outbox, NotificationAggregateType.BOOKING)) {
             return Optional.empty();
         }
         return eligibilityPort.findSameDayBookingRecipient(
@@ -77,7 +75,7 @@ class NotificationReminderEligibility {
 
     private Optional<NotificationReminderRecipient> findPassExpiryRecipient(
             NotificationOutbox outbox, LocalDateTime now) {
-        return hasAggregate(outbox, PASS_PURCHASE)
+        return hasAggregate(outbox, NotificationAggregateType.PASS_PURCHASE)
                 ? eligibilityPort.findPassExpiryRecipient(
                         outbox.getAggregateId(), now, now.plusDays(7))
                 : Optional.empty();
@@ -85,13 +83,13 @@ class NotificationReminderEligibility {
 
     private Optional<NotificationReminderRecipient> findPickupDeadlineRecipient(
             NotificationOutbox outbox, LocalDateTime now) {
-        return hasAggregate(outbox, ORDER)
+        return hasAggregate(outbox, NotificationAggregateType.ORDER)
                 ? eligibilityPort.findPickupDeadlineRecipient(
                         outbox.getAggregateId(), now, now.plusHours(2))
                 : Optional.empty();
     }
 
-    private boolean hasAggregate(NotificationOutbox outbox, String aggregateType) {
-        return aggregateType.equals(outbox.getAggregateType()) && outbox.getAggregateId() != null;
+    private boolean hasAggregate(NotificationOutbox outbox, NotificationAggregateType aggregateType) {
+        return outbox.getAggregateType() == aggregateType && outbox.getAggregateId() != null;
     }
 }

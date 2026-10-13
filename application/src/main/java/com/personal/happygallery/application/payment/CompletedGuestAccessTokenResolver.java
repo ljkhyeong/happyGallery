@@ -5,12 +5,9 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -47,12 +44,10 @@ class CompletedGuestAccessTokenResolver {
 
         try {
             String rawToken = fieldEncryptor.decrypt(attempt.getFulfilledAccessTokenEnc());
-            String tokenHash = guestTokenService.resolveTokenHash(rawToken);
-            if (matchesCurrentGuestDomain(attempt, tokenHash)) {
+            // 만료되거나 서명이 맞지 않는 토큰은 일치하지 않는 것으로 보고 휴대폰 재인증으로 복구한다.
+            if (matchesCurrentGuestDomain(attempt, rawToken)) {
                 return new ResolvedAccess(rawToken, false);
             }
-        } catch (NotFoundException ignored) {
-            // 만료되거나 서명이 맞지 않는 토큰은 휴대폰 재인증으로 복구한다.
         } catch (RuntimeException exception) {
             log.warn("완료 결제 접근 토큰 복구 실패 [attemptId={}, type={}]",
                     attempt.getId(), exception.getClass().getSimpleName());
@@ -60,34 +55,28 @@ class CompletedGuestAccessTokenResolver {
         return ResolvedAccess.requiresRecovery();
     }
 
-    private boolean matchesCurrentGuestDomain(PaymentAttempt attempt, String tokenHash) {
+    private boolean matchesCurrentGuestDomain(PaymentAttempt attempt, String rawToken) {
         return switch (attempt.getContext()) {
             case ORDER -> orderReader.findById(attempt.getFulfilledDomainId())
-                    .filter(order -> isCurrentGuestOrder(order, tokenHash))
+                    .filter(order -> isCurrentGuestOrder(order, rawToken))
                     .isPresent();
             case BOOKING -> bookingReader.findById(attempt.getFulfilledDomainId())
-                    .filter(booking -> isCurrentGuestBooking(booking, tokenHash))
+                    .filter(booking -> isCurrentGuestBooking(booking, rawToken))
                     .isPresent();
             case PASS -> false;
         };
     }
 
-    private boolean isCurrentGuestOrder(Order order, String tokenHash) {
+    private boolean isCurrentGuestOrder(Order order, String rawToken) {
         return order.getUserId() == null
                 && order.getGuestId() != null
-                && hashesMatch(tokenHash, order.getAccessToken());
+                && guestTokenService.matches(rawToken, order.getAccessToken());
     }
 
-    private boolean isCurrentGuestBooking(Booking booking, String tokenHash) {
+    private boolean isCurrentGuestBooking(Booking booking, String rawToken) {
         return booking.getUserId() == null
                 && booking.getGuest() != null
-                && hashesMatch(tokenHash, booking.getAccessToken());
-    }
-
-    private boolean hashesMatch(String expected, String actual) {
-        return StringUtils.hasText(actual) && MessageDigest.isEqual(
-                expected.getBytes(StandardCharsets.UTF_8),
-                actual.getBytes(StandardCharsets.UTF_8));
+                && guestTokenService.matches(rawToken, booking.getAccessToken());
     }
 
     record ResolvedAccess(String accessToken, boolean recoveryRequired) {

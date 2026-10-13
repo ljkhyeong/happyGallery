@@ -4,6 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, installTossRequestRecorder, productDetailFixture, readTossRequests } from "./mock-support";
 
 interface Customer {
   id: number;
@@ -14,46 +15,12 @@ interface Customer {
   localPasswordEnabled: boolean;
 }
 
-const EMPTY_CART_VERSION = "0".repeat(64);
-const EMPTY_REVIEW_PAGE = {
-  content: [],
-  filteredCount: 0,
-  hasMore: false,
-  nextCursor: null,
-  summary: {
-    averageRating: 0,
-    histogram: {
-      rating1: 0,
-      rating2: 0,
-      rating3: 0,
-      rating4: 0,
-      rating5: 0,
-    },
-    reviewCount: 0,
-  },
-};
-
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
 
 function productFixture(name: string) {
-  return {
-    id: 42,
-    name,
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 30000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  return productDetailFixture({ name, price: 30000 });
 }
 
 const customerA: Customer = {
@@ -73,14 +40,6 @@ const customerB: Customer = {
   phoneVerified: true,
   localPasswordEnabled: true,
 };
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 /** 작품 상세·주문서가 함께 부르는 회원 주문 혜택 조회. 기본 응답 `{}` 대신 실제 형태를 준다. */
 async function fulfillMemberBenefits(route: Route, pathname: string): Promise<boolean> {
@@ -228,29 +187,8 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
     releasePrepare = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-payment-boundary-token",
-    url: baseURL,
-  }]);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installCsrfCookie(page.context(), baseURL);
+  await installTossRequestRecorder(page);
 
   const product = productFixture("지연 결제 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -354,12 +292,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
   await prepareResponse;
   await flushBrowserTasks(page);
 
-  await expect.poll(() => page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-    };
-    return browserGlobal.accountBoundaryTossRequests.length;
-  })).toBe(0);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
   await expect.poll(() => page.evaluate(() => ({
     statusToken: sessionStorage.getItem("hg_payment_status_token:payment-A"),
     returnHint: sessionStorage.getItem("hg_payment_return_hint"),
@@ -382,29 +315,8 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
     releasePrepare = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-payment-boundary-token",
-    url: baseURL,
-  }]);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installCsrfCookie(page.context(), baseURL);
+  await installTossRequestRecorder(page);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -449,22 +361,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       return;
     }
     if (pathname === "/api/v1/products") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "비회원 지연 결제 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        stockQuantity: 10,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-        optionGroups: [],
-        variants: [],
-      }]);
+      await fulfillJson(route, [productFixture("비회원 지연 결제 작품")]);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -509,7 +406,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await page.getByLabel("인증번호").fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   await page.getByLabel("주문자 이름").fill("비회원 주문자");
-  await expect(page.getByLabel("상품")).toContainText("비회원 지연 결제 작품");
+  await expect(page.getByLabel("작품", { exact: true })).toContainText("비회원 지연 결제 작품");
   await page.getByRole("button", { name: "매장 수령" }).click();
   await page.locator("#guest-order-policy-consent").check();
   await expect(page.getByRole("button", { name: "결제 진행하기" }))
@@ -537,12 +434,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await prepareResponse;
   await flushBrowserTasks(page);
 
-  await expect.poll(() => page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-    };
-    return browserGlobal.accountBoundaryTossRequests.length;
-  })).toBe(0);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
   await expect.poll(() => page.evaluate(() => ({
     statusToken: sessionStorage.getItem("hg_payment_status_token:guest-payment"),
     returnHint: sessionStorage.getItem("hg_payment_return_hint"),
@@ -564,11 +456,7 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
     releaseFirstMe = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-refresh-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -600,7 +488,6 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
       pathname === "/api/v1/me/orders"
       || pathname === "/api/v1/me/bookings"
       || pathname === "/api/v1/me/passes"
-      || pathname === "/api/v1/me/inquiries"
     ) {
       await fulfillJson(route, []);
       return;
@@ -688,29 +575,8 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     releasePrepare = resolve;
   });
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cross-tab-customer-boundary-token",
-    url: baseURL,
-  }]);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installCsrfCookie(context, baseURL);
+  await installTossRequestRecorder(page);
 
   const product = productFixture("탭 경계 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -831,12 +697,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     await prepareResponse;
     await flushBrowserTasks(page);
 
-    await expect.poll(() => page.evaluate(() => {
-      const browserGlobal = globalThis as unknown as {
-        accountBoundaryTossRequests: unknown[];
-      };
-      return browserGlobal.accountBoundaryTossRequests.length;
-    })).toBe(0);
+    await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
     await expect.poll(() => page.evaluate(() => ({
       statusToken: sessionStorage.getItem(
         "hg_payment_status_token:cross-tab-payment-A",
@@ -868,11 +729,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
   const context = page.context();
   let currentCustomer: Customer = customerA;
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-recovery-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -897,13 +754,6 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       await fulfillJson(route, {
         accessToken: "guest-token-A",
         expiresAt: "2099-07-29T12:00:00",
-        orders: [{
-          orderId: 701,
-          status: "PAID_APPROVAL_PENDING",
-          totalAmount: 30000,
-          createdAt: "2026-07-29T12:00:00",
-        }],
-        bookings: [],
       });
       return;
     }
@@ -999,11 +849,7 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
     releaseConfirm = resolve;
   });
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "payment-result-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -1168,11 +1014,7 @@ test("@identity 소셜 재인증 뒤 실제 연결 callback에도 같은 회원 
     throw new Error("Playwright baseURL이 필요합니다.");
   }
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-social-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.addInitScript((customerId) => {
     if (sessionStorage.getItem("account_boundary_social_initialized")) return;
     sessionStorage.setItem("account_boundary_social_initialized", "true");
@@ -1240,11 +1082,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
   let currentCustomer: Customer | null = customerA;
   const product = productFixture("계정 경계 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-boundary-test-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -1419,7 +1257,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await page.goto("/orders/new");
   await page.getByLabel("주문자 이름").fill("B 주문자 정보");
-  await page.getByLabel("상품").selectOption("42");
+  await page.getByLabel("작품", { exact: true }).selectOption("42");
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByRole("button", { name: "택배 배송" }).click();
   await page.getByLabel("기본 주소").fill("B 계정 배송지");
@@ -1427,8 +1265,8 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("B 주문자 정보")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요.");
-  await expect(page.getByRole("link", { name: "상품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
+  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요.");
+  await expect(page.getByRole("link", { name: "작품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
 
   await page.goto(`/login?redirect=${encodeURIComponent("/orders/new")}`);
   await page.getByLabel("이메일").fill(customerA.email);

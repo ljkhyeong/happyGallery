@@ -12,6 +12,7 @@ import {
   retrySmartStoreSync,
   saveSmartStoreMapping,
 } from "./api";
+import { productVariantLabel } from "./productVariantLabel";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ApiError } from "@/shared/api";
@@ -580,10 +581,5 @@ function enabledLabel(enabled: boolean | null): string {
 
 function variantLabel(product: ProductResponse, variantId: number): string {
   const variant = product.variants.find((candidate) => candidate.id === variantId);
-  if (!variant || variant.selections.length === 0) return "기본 조합";
-  return variant.selections.map((selection) => {
-    const group = product.optionGroups.find((candidate) => candidate.key === selection.groupKey);
-    const value = group?.values.find((candidate) => candidate.key === selection.valueKey);
-    return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
-  }).join(" / ");
+  return variant ? productVariantLabel(product, variant) : "기본 조합";
 }

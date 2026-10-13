@@ -43,8 +43,11 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { ADMIN_FOCUS_PARAMS, type AdminFocusParam } from "@/shared/lib/adminLinks";
+import { parseEnumValue } from "@/shared/lib/enum";
 import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
-import type { BookingStatus, OrderStatus } from "@/shared/types";
+import { ListBookingsStatus } from "@/generated/api/adminBooking";
+import { AdminOrderListItemResponseStatus } from "@/generated/api/adminOrder";
 
 const ADMIN_VIEWS = [
   {
@@ -101,28 +104,6 @@ const REQUIRE_ADMIN_MFA_ENROLLMENT =
   import.meta.env.PROD
   || import.meta.env.VITE_REQUIRE_ADMIN_MFA_ENROLLMENT === "true";
 
-const ORDER_STATUSES: readonly OrderStatus[] = [
-  "PAID_APPROVAL_PENDING",
-  "APPROVED_FULFILLMENT_PENDING",
-  "REJECTED",
-  "CUSTOMER_CANCELED",
-  "AUTO_REFUND_TIMEOUT",
-  "IN_PRODUCTION",
-  "DELAY_CONSENT_PENDING",
-  "DELAY_ACCEPTED",
-  "DELAY_REJECTED_CANCELED",
-  "SHIPPING_PREPARING",
-  "SHIPPED",
-  "DELIVERED",
-  "PICKUP_READY",
-  "PICKED_UP",
-  "PICKUP_EXPIRED",
-  "PICKUP_FORFEITED",
-  "COMPLETED",
-];
-
-const BOOKING_STATUSES: readonly BookingStatus[] = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"];
-
 function isAdminView(value: string | null): value is AdminView {
   return ADMIN_VIEWS.some((view) => view.value === value);
 }
@@ -131,14 +112,6 @@ function parsePositiveId(value: string | null): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function parseOrderStatus(value: string | null): OrderStatus | undefined {
-  return ORDER_STATUSES.find((status) => status === value);
-}
-
-function parseBookingStatus(value: string | null): BookingStatus | undefined {
-  return BOOKING_STATUSES.find((status) => status === value);
 }
 
 /** 한 작업 영역의 화면 오류가 관리자 화면 전체를 막지 않게 영역마다 따로 감싼다. 다시 시도하면 관리자 조회를 새로 받는다. */
@@ -157,6 +130,30 @@ function AdminPanel({ title, children }: { title: string; children: ReactNode })
       <h5>{title}</h5>
       <AdminSectionBoundary>{children}</AdminSectionBoundary>
     </section>
+  );
+}
+
+function AdminWorkspaceHeader({
+  title,
+  loggingOut,
+  onLogout,
+}: {
+  title: string;
+  loggingOut: boolean;
+  onLogout: () => void;
+}) {
+  return (
+    <header className="admin-workspace-header">
+      <h4 className="mb-0">{title}</h4>
+      <Button
+        size="sm"
+        variant="outline-secondary"
+        onClick={onLogout}
+        disabled={loggingOut}
+      >
+        {loggingOut ? "로그아웃 중..." : "로그아웃"}
+      </Button>
+    </header>
   );
 }
 
@@ -197,15 +194,17 @@ export function AdminPage() {
   const requestedView = searchParams.get("view");
   const activeView: AdminView = isAdminView(requestedView) ? requestedView : "today";
   const activeViewInfo = ADMIN_VIEWS.find((view) => view.value === activeView)!;
-  const focusedOrderId = parsePositiveId(searchParams.get("orderId"));
-  const focusedOrderStatus = parseOrderStatus(searchParams.get("orderStatus"));
-  const focusedBookingId = parsePositiveId(searchParams.get("bookingId"));
-  const focusedBookingStatus = parseBookingStatus(searchParams.get("bookingStatus"));
-  const focusedBookingDate = searchParams.get("bookingDate") ?? undefined;
-  const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
-  const focusedProductId = parsePositiveId(searchParams.get("productId"));
-  const focusedVariantId = parsePositiveId(searchParams.get("variantId"));
-  const focusedSmartStoreOrderId = searchParams.get("smartstoreOrderId")?.trim() || undefined;
+  // 메뉴를 바꿀 때 지울 값과 같은 목록에서 이름을 고르게 해 새 값이 지우기 목록에서 빠지지 않게 한다.
+  const focusParam = (name: AdminFocusParam) => searchParams.get(name);
+  const focusedOrderId = parsePositiveId(focusParam("orderId"));
+  const focusedOrderStatus = parseEnumValue(AdminOrderListItemResponseStatus, focusParam("orderStatus"));
+  const focusedBookingId = parsePositiveId(focusParam("bookingId"));
+  const focusedBookingStatus = parseEnumValue(ListBookingsStatus, focusParam("bookingStatus"));
+  const focusedBookingDate = focusParam("bookingDate") ?? undefined;
+  const focusedReviewId = parsePositiveId(focusParam("reviewId"));
+  const focusedProductId = parsePositiveId(focusParam("productId"));
+  const focusedVariantId = parsePositiveId(focusParam("variantId"));
+  const focusedSmartStoreOrderId = focusParam("smartstoreOrderId")?.trim() || undefined;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -214,16 +213,16 @@ export function AdminPage() {
     toast.show("인증이 만료되었습니다. 다시 로그인해 주세요.", "warning");
   }, [adminKey, clearAdminKey, toast]);
 
-  const handlePasswordChanged = useCallback(() => {
-    clearAdminKey();
-    toast.show("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.", "success");
-  }, [clearAdminKey, toast]);
-
   const handleAdminCredentialsChanged = useCallback((message: string) => {
     clearAdminKey();
     toast.show(message, "success");
   }, [clearAdminKey, toast]);
 
+  const handlePasswordChanged = useCallback(() => {
+    handleAdminCredentialsChanged("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
+  }, [handleAdminCredentialsChanged]);
+
+  // 운영 빌드(또는 설정)에서만 조회한다. 조회하지 않으면 isLoading·error·data가 모두 비어 아래 등록 안내 분기도 건너뛴다.
   const productionMfaStatus = useAdminQuery(handleAuthError, {
     queryKey: ["admin", "auth", "mfa", "enrollment-gate"],
     queryFn: () => getAdminMfaStatus(adminKey),
@@ -247,11 +246,7 @@ export function AdminPage() {
   function selectView(view: AdminView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", view);
-    [
-      "orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId",
-      "productId", "variantId", "smartstoreOrderId",
-    ]
-      .forEach((name) => next.delete(name));
+    ADMIN_FOCUS_PARAMS.forEach((name) => next.delete(name));
     setSearchParams(next);
   }
 
@@ -267,11 +262,11 @@ export function AdminPage() {
     return <AdminLoginGate onLogin={login} onVerifyMfa={verifyMfa} />;
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.isLoading) {
+  if (productionMfaStatus.isLoading) {
     return <LoadingSpinner text="관리자 보안 상태 확인 중..." />;
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.error) {
+  if (productionMfaStatus.error) {
     return (
       <Container className="page-container admin-workspace">
         <ErrorAlert error={productionMfaStatus.error} />
@@ -279,20 +274,14 @@ export function AdminPage() {
     );
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.data?.enabled === false) {
+  if (productionMfaStatus.data?.enabled === false) {
     return (
       <Container className="page-container admin-workspace">
-        <header className="admin-workspace-header">
-          <h4 className="mb-0">관리자 2단계 인증 등록</h4>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            onClick={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? "로그아웃 중..." : "로그아웃"}
-          </Button>
-        </header>
+        <AdminWorkspaceHeader
+          title="관리자 2단계 인증 등록"
+          loggingOut={loggingOut}
+          onLogout={handleLogout}
+        />
         <AdminPanel title="2단계 인증">
           <AdminMfaSettings
             adminKey={adminKey}
@@ -306,17 +295,7 @@ export function AdminPage() {
 
   return (
     <Container className="page-container admin-workspace">
-      <header className="admin-workspace-header">
-        <h4 className="mb-0">관리자</h4>
-        <Button
-          size="sm"
-          variant="outline-secondary"
-          onClick={handleLogout}
-          disabled={loggingOut}
-        >
-          {loggingOut ? "로그아웃 중..." : "로그아웃"}
-        </Button>
-      </header>
+      <AdminWorkspaceHeader title="관리자" loggingOut={loggingOut} onLogout={handleLogout} />
 
       {productionMfaStatus.data?.recoveryResetAvailable && (
         <Alert

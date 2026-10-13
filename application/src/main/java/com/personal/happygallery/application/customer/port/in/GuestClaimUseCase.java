@@ -1,10 +1,5 @@
 package com.personal.happygallery.application.customer.port.in;
 
-import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.order.Order;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -19,27 +14,11 @@ public interface GuestClaimUseCase {
     ClaimResult claim(Long userId, List<Long> orderIds, List<Long> bookingIds);
 
     record ClaimPreview(boolean phoneVerified,
-                        List<ClaimOrderSummary> orders,
-                        List<ClaimBookingSummary> bookings) {
+                        List<GuestOrderSummary> orders,
+                        List<GuestBookingSummary> bookings) {
         public ClaimPreview {
             orders = orders == null ? List.of() : List.copyOf(orders);
             bookings = bookings == null ? List.of() : List.copyOf(bookings);
-        }
-    }
-
-    record ClaimOrderSummary(Long orderId, String status, long totalAmount, OffsetDateTime createdAt) {
-        public static ClaimOrderSummary from(Order order) {
-            return new ClaimOrderSummary(order.getId(), order.getStatus().name(),
-                    order.getTotalAmount(), order.getCreatedAt().atOffset(ZoneOffset.UTC));
-        }
-    }
-
-    record ClaimBookingSummary(Long bookingId, String status, String className,
-                               LocalDateTime startAt, LocalDateTime endAt) {
-        public static ClaimBookingSummary from(Booking booking) {
-            return new ClaimBookingSummary(booking.getId(), booking.getStatus().name(),
-                    booking.getBookingClass().getName(), booking.getSlot().getStartAt(),
-                    booking.getSlot().getEndAt());
         }
     }
 

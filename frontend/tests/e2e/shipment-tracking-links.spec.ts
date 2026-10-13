@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 test("배송조회는 공식 사이트로 연결하고 복사 실패 시 직접 복사를 안내한다 @payment", async ({ page }) => {
   let carrierCode = "CJ_LOGISTICS";
@@ -9,11 +10,10 @@ test("배송조회는 공식 사이트로 연결하고 복사 실패 시 직접 
   });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/me") return json({ id: 501, name: "회원", email: "tracking@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
-    if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/orders/200") return json({
+    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "tracking@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
+    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+    if (path === "/api/v1/me/orders/200") return fulfillJson(route, {
       orderId: 200, orderNumber: "배송 주문", status: "SHIPPED", items: [],
       productAmount: 10000, shippingFee: 0, totalAmount: 10000, pgPaidAmount: 10000,
       couponDiscountAmount: 0, rewardUsedAmount: 0, refund: null, receiptUrl: null,
@@ -22,8 +22,8 @@ test("배송조회는 공식 사이트로 연결하고 복사 실패 시 직접 
         trackingNumber: "1234-5678-9012", shippedAt: "2026-09-06T10:00:00", deliveredAt: null,
         pickupDeadlineAt: null, trackingStatusText: null, trackingUpdatedAt: null, trackingEvents: [] },
     });
-    if (path === "/api/v1/me/reviews/orders/200") return json([]);
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
+    if (path === "/api/v1/me/reviews/orders/200") return fulfillJson(route, []);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     return route.fulfill({ status: 404 });
   });
   for (const [code, label, origin] of [

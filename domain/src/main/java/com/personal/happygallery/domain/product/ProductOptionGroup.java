@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.product;
 
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -78,7 +79,7 @@ public class ProductOptionGroup {
 
     private void apply(String name, boolean required, int sortOrder, String inputPlaceholder,
                        Integer inputMaxLength, Long inputPriceAdjustment) {
-        this.name = ProductOptionPolicy.requireName(name, "옵션명");
+        this.name = ProductOptionPolicy.requireName(name, "옵션명은");
         this.required = required;
         this.sortOrder = ProductOptionPolicy.requireSortOrder(sortOrder);
         if (type == ProductOptionType.SELECT) {
@@ -97,8 +98,8 @@ public class ProductOptionGroup {
                     "직접입력형 옵션 최대 글자 수는 1자 이상 "
                             + ProductOptionPolicy.MAX_INPUT_LENGTH + "자 이하여야 합니다.");
         }
-        this.inputPlaceholder = ProductOptionPolicy.optionalText(
-                inputPlaceholder, "직접입력 안내", ProductOptionPolicy.MAX_PLACEHOLDER_LENGTH);
+        this.inputPlaceholder = DomainText.optional(
+                inputPlaceholder, "직접입력 안내는", ProductOptionPolicy.MAX_PLACEHOLDER_LENGTH);
         this.inputMaxLength = inputMaxLength;
         this.inputPriceAdjustment = ProductOptionPolicy.requireTextPriceAdjustment(
                 inputPriceAdjustment == null ? 0L : inputPriceAdjustment);

@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.personal.happygallery.application.product.port.out.SmartStoreProductNoticeProvider.SaveCommand;
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSaveCommand;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,8 +25,8 @@ class NaverCommerceProductNoticeProviderTest {
 
     private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
             true, "client-id", "$2a$10$abcdefghijklmnopqrstuv", "SELF", "",
-            "https://api.commerce.naver.com", Duration.ofSeconds(5), Duration.ofSeconds(1),
-            Duration.ofMillis(500), 5, Duration.ofSeconds(30));
+            "https://api.commerce.naver.com", new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1),
+            Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 
@@ -84,7 +85,7 @@ class NaverCommerceProductNoticeProviderTest {
 
         var page = provider.list(1, 100);
         var notice = provider.get(77L);
-        Long sellerNoticeId = provider.create(new SaveCommand(
+        Long sellerNoticeId = provider.create(new SmartStoreNoticeSaveCommand(
                 "DELIVERY", "추석 배송 안내", false, null, null, false,
                 null, null, false, null, null, "연휴 뒤 순차 발송합니다."));
         provider.apply(sellerNoticeId, List.of(987654321L));

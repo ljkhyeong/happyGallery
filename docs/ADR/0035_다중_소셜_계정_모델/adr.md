@@ -28,7 +28,7 @@ Naver와 Kakao 로그인을 추가하면 비밀번호 회원이 Google, Naver, K
 12. Kakao는 REST OAuth2 UserInfo의 숫자 `id`를 문자열 provider ID로 정규화한다. `is_email_valid=true`, `is_email_verified=true`인 이메일과 `profile.nickname`을 모두 요구하며, 조건을 만족하지 않으면 일반 로그인과 신규 가입을 거절한다.
 13. 소셜 신규 회원은 전화번호 없이 생성한다. OAuth 제공자의 전화번호를 서비스 소유권 확인으로 간주하지 않고, 마이페이지에서 기존 SMS 인증 정책으로 직접 확인한 번호만 등록한다.
 14. 전화번호 최초 등록과 변경은 현재 자격 버전에 결합된 최근 본인 확인, 회원 행 잠금, 용도별 새 번호 인증 코드 소비, 전화번호 암호화·HMAC 저장, `phoneVerified=true` 전이를 한 트랜잭션에서 처리한다. `phone_hmac`은 회원 전체에서 유일하며 비회원 이력 가져오기는 이 흐름에 섞지 않는다.
-15. 주문·예약·8회권은 연락과 결과 통지가 필요한 거래이므로 전화번호가 없거나 인증되지 않은 회원의 결제 준비를 거절한다.
+15. 주문·예약·이용권은 연락과 결과 통지가 필요한 거래이므로 전화번호가 없거나 인증되지 않은 회원의 결제 준비를 거절한다.
 16. 신규 가입 정책 동의는 CSRF 보호 POST로 5분짜리 가입 의도와 시도 ID를 만든 뒤, 해당 시도로 생성한 OAuth authorization request의 provider·`state`에 한 번 결합한다. 기존 회원 로그인과 공개 authorization GET query는 신규 가입 동의를 만들지 못한다.
 17. 기존 회원의 추가 연결은 최근 10분 안에 현재 비밀번호 또는 이미 연결된 동일 소셜 계정으로 본인을 다시 확인한 회원이 CSRF 보호 요청으로 5분짜리 연결 의도와 일회성 시도 ID를 만든 뒤, 해당 시도로 생성한 OAuth authorization request의 `state`를 연결 의도에 한 번 결합한다. 같은 provider의 일반 로그인이나 다른 시도에서 생성한 `state`는 연결에 사용할 수 없다.
 18. callback에서는 결합된 `state`, provider, 연결 의도의 자격 버전과 현재 HTTP 세션·회원 행의 회원 ID와 자격 버전을 다시 확인한다. 연결에는 provider ID만 필요하다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름, Kakao의 유효·검증 이메일과 닉네임을 요구한다. 외부 계정이 다른 회원에 연결되어 있거나 같은 provider의 다른 계정이 이미 연결되어 있으면 자동 교체하지 않고 충돌로 종료한다.
@@ -48,6 +48,7 @@ Naver와 Kakao 로그인을 추가하면 비밀번호 회원이 Google, Naver, K
 - V45는 기존 `users.provider != LOCAL` 계정을 `user_social_accounts`로 이전하면서 롤링 배포 호환을 위해 `users.provider`, `users.provider_id`와 기존 복합 인덱스를 임시 유지했다.
 - V46은 소셜 식별자를 `provider_id_hmac`로 전환하고 `users.provider`, `users.provider_id`와 기존 인덱스를 제거해 과도기를 종료했다.
 - V46은 전환한 `(provider, provider_id_hmac)`가 충돌하면 자동 병합하지 않고 마이그레이션을 중단한다.
+- 2026-10-07 migration 기준선 재작성으로 V46 전환은 삭제했다. 기준선의 `user_social_accounts`는 `provider_id_hmac`과 필수 `provider_id_enc`만 가진다.
 - V82는 검증된 기준 이메일이 없는 회원을 표현하도록 `users.email_enc/email_hmac`을 nullable로 변경한다. 이메일 HMAC 유일 제약은 null이 아닌 값에 계속 적용된다.
 - V147은 `user_social_accounts.provider` CHECK 제약에 `KAKAO`를 추가한다.
 - `LOCAL`은 소셜 제공자가 아니므로 새 테이블에 저장하지 않는다. 비밀번호 존재 여부가 로컬 로그인 가능 여부를 나타낸다.

@@ -26,14 +26,12 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
@@ -45,7 +43,6 @@ import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.cart.CartItem;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -57,7 +54,6 @@ import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.pass.PassPlan;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
@@ -65,12 +61,14 @@ import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -87,11 +85,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -135,8 +133,6 @@ class PaymentConfirmUseCaseIT {
     @Autowired CartItemRepository cartItemRepository;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired JdbcTemplate jdbcTemplate;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired FieldEncryptor fieldEncryptor;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
     @MockitoBean PaymentPort paymentProvider;
@@ -164,13 +160,13 @@ class PaymentConfirmUseCaseIT {
         User user = userStorePort.save(new User("cart-payment@example.com", "hashed", "회원", "01067896789"));
         Product product = productStorePort.save(readyStockProduct("장바구니 결제 상품", 31_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem cartItem = cartItemStorePort.save(new CartItem(
+        CartItem cartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 2, LocalDateTime.of(2026, 7, 19, 10, 0)));
         AuthContext auth = AuthContext.member(user.getId());
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                PaymentPayloads.order(user.getId(), null, null, null, List.of(), true),
                 auth));
         cartItem.addQty(1, LocalDateTime.of(2026, 7, 19, 10, 1));
         cartItemStorePort.save(cartItem);
@@ -179,11 +175,11 @@ class PaymentConfirmUseCaseIT {
                 customerCommand("cart-payment-key", prepared, auth));
 
         var order = orderReader.findById(result.domainId()).orElseThrow();
-        var remainingCartItem = cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId());
+        var remainingCartItems = cartItemRepository.findAllWithTextInputsByUserId(user.getId());
         assertSoftly(softly -> {
             softly.assertThat(prepared.amount()).isEqualTo(62_000L);
             softly.assertThat(order.getTotalAmount()).isEqualTo(62_000L);
-            softly.assertThat(remainingCartItem).hasValueSatisfying(item ->
+            softly.assertThat(remainingCartItems).singleElement().satisfies(item ->
                     softly.assertThat(item.getQty()).isEqualTo(1));
         });
     }
@@ -195,17 +191,17 @@ class PaymentConfirmUseCaseIT {
                 "cart-recreated@example.com", "hashed", "장바구니 회원", "01078907890"));
         Product product = productStorePort.save(readyStockProduct("다시 담은 상품", 28_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem preparedCartItem = cartItemStorePort.save(new CartItem(
+        CartItem preparedCartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 0)));
         AuthContext auth = AuthContext.member(user.getId());
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                PaymentPayloads.order(user.getId(), null, null, null, List.of(), true),
                 auth));
         cartItemRepository.deleteById(preparedCartItem.getId());
         cartItemRepository.flush();
-        CartItem recreatedCartItem = cartItemStorePort.save(new CartItem(
+        CartItem recreatedCartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 1)));
 
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
@@ -213,8 +209,9 @@ class PaymentConfirmUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(orderReader.findById(result.domainId())).isPresent();
-            softly.assertThat(cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId()))
-                    .hasValueSatisfying(item -> {
+            softly.assertThat(cartItemRepository.findAllWithTextInputsByUserId(user.getId()))
+                    .singleElement()
+                    .satisfies(item -> {
                         softly.assertThat(item.getId()).isEqualTo(recreatedCartItem.getId());
                         softly.assertThat(item.getQty()).isEqualTo(1);
                     });
@@ -230,7 +227,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         jdbcTemplate.update(
                 "UPDATE products SET name = ?, price = ? WHERE id = ?",
@@ -273,7 +271,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_selectedCartCheckout_checksOnlySelectedSkuQuantity() {
         User user = userStorePort.save(new User(
                 "selected-stock@example.com", "hashed", "선택 구매 회원", "01033335556"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 키링", ProductType.MADE_TO_ORDER, null,
                         20_000L, 2, null, null, "소가죽 키링", null, 5,
@@ -283,10 +281,9 @@ class PaymentConfirmUseCaseIT {
                         List.of()));
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
-        cartUseCase.addItem(user.getId(), productId, variantId,
-                List.of(new TextInput("engraving", "HAPPY")), 1);
-        cartUseCase.addItem(user.getId(), productId, variantId,
-                List.of(new TextInput("engraving", "GALLERY")), 1);
+        cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), List.of(
+                new CartUseCase.MergeItem(productId, variantId, List.of(new TextInput("engraving", "HAPPY")), 1),
+                new CartUseCase.MergeItem(productId, variantId, List.of(new TextInput("engraving", "GALLERY")), 1)));
         productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
                 productId, variantId, InventoryAdjustmentType.DECREASE, 1,
                 "오프라인 판매", null, "local-api-key"));
@@ -336,7 +333,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_madeToOrder_requiresAndSnapshotsConsent() {
         User user = userStorePort.save(new User(
                 "made-to-order-consent@example.com", "hashed", "제작 동의 회원", "01033335555"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "주문제작 가죽 소품", ProductType.MADE_TO_ORDER, null,
                         120_000L, 1, null, null,
@@ -352,7 +349,7 @@ class PaymentConfirmUseCaseIT {
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
@@ -363,7 +360,7 @@ class PaymentConfirmUseCaseIT {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
@@ -417,113 +414,6 @@ class PaymentConfirmUseCaseIT {
         });
     }
 
-    @DisplayName("V97 이전 기성품 payload는 READY_STOCK 주문 항목으로 확정한다")
-    @Test
-    void confirm_legacyReadyStockPayload_normalizesProductType() {
-        User user = userStorePort.save(new User(
-                "legacy-ready-stock@example.com", "hashed", "구형 기성품 회원", "01077772222"));
-        Product product = productStorePort.save(
-                readyStockProduct("구형 기성품 결제", 54_000L));
-        inventoryStorePort.save(inventory(product, 1));
-        AuthContext auth = AuthContext.member(user.getId());
-        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
-                PaymentContext.ORDER,
-                new OrderPayload(
-                        user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1)), false,
-                        FulfillmentType.PICKUP, null),
-                auth));
-
-        PreparedPaymentPayload legacyPayload = new PreparedOrderPayload(
-                user.getId(),
-                null,
-                null,
-                null,
-                List.of(new PreparedOrderItem(
-                        product.getId(), product.getName(), 1, product.getPrice())),
-                false,
-                FulfillmentType.PICKUP,
-                null,
-                0L,
-                null);
-        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
-        jdbcTemplate.update(
-                "UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
-                fieldEncryptor.encrypt(objectMapper.writeValueAsString(legacyPayload)),
-                attemptId);
-
-        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
-                customerCommand("legacy-ready-stock-payment", prepared, auth));
-
-        var order = orderReader.findById(result.domainId()).orElseThrow();
-        assertSoftly(softly -> {
-            softly.assertThat(orderItemPort.findByOrder(order))
-                    .singleElement()
-                    .satisfies(item ->
-                            softly.assertThat(item.getProductType())
-                                    .isEqualTo(ProductType.READY_STOCK));
-            softly.assertThat(attemptReader.findById(attemptId))
-                    .hasValueSatisfying(attempt ->
-                            softly.assertThat(attempt.getStatus())
-                                    .isEqualTo(PaymentAttemptStatus.CONFIRMED));
-        });
-    }
-
-    @DisplayName("구형 주문제작 payload는 구매 조건 없이 PG 승인이나 주문 생성으로 진행하지 않는다")
-    @Test
-    void confirm_legacyMadeToOrderPayloadWithoutPurchaseTerms_rejectedBeforePgCall() {
-        User user = userStorePort.save(new User(
-                "legacy-made-to-order@example.com", "hashed", "구형 결제 회원", "01077773333"));
-        Product product = productAdminUseCase.register(
-                new ProductAdminUseCase.SaveProductCommand(
-                        "구형 주문제작 결제", ProductType.MADE_TO_ORDER, null,
-                        95_000L, 1, null, null,
-                        "재료: 월넛\n크기: 20 x 12 cm\n사양: 오일 마감",
-                        null, 14, List.of(), List.of()))
-                .product();
-        AuthContext auth = AuthContext.member(user.getId());
-        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
-                PaymentContext.ORDER,
-                new OrderPayload(
-                        user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1)), false,
-                        FulfillmentType.PICKUP, null,
-                        MadeToOrderConsent.CURRENT_VERSION, true),
-                auth));
-
-        PreparedPaymentPayload legacyPayload = new PreparedOrderPayload(
-                user.getId(),
-                null,
-                null,
-                null,
-                List.of(new PreparedOrderItem(
-                        product.getId(), product.getName(), 1, product.getPrice())),
-                false,
-                FulfillmentType.PICKUP,
-                null,
-                0L,
-                MadeToOrderConsent.current(LocalDateTime.now(clock)));
-        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
-        jdbcTemplate.update(
-                "UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
-                fieldEncryptor.encrypt(objectMapper.writeValueAsString(legacyPayload)),
-                attemptId);
-
-        assertThatThrownBy(() -> confirmUseCase.confirm(
-                customerCommand("legacy-made-to-order-payment", prepared, auth)))
-                .isInstanceOf(HappyGalleryException.class)
-                .hasMessageContaining("구매 조건이 저장되지 않은 이전 결제");
-
-        assertSoftly(softly -> {
-            softly.assertThat(orderReader.count()).isZero();
-            softly.assertThat(attemptReader.findById(attemptId))
-                    .hasValueSatisfying(attempt ->
-                            softly.assertThat(attempt.getStatus())
-                                    .isEqualTo(PaymentAttemptStatus.PENDING));
-        });
-        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
-    }
-
     @DisplayName("배송 주문 confirm은 주문 시점 배송지를 암호문으로 고정한다")
     @Test
     void confirm_shippingOrder_storesEncryptedAddressSnapshot() {
@@ -536,9 +426,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        List.of(PaymentPayloads.item(product.getId(), 1)), false,
                         FulfillmentType.SHIPPING, address),
                 auth));
 
@@ -645,7 +535,7 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.guest();
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         null, phone, verificationCode, "비회원 예약자",
                         slot.getId(), null, DepositPaymentMethod.EASY_PAY, acceptedPolicies()),
                 auth));
@@ -729,33 +619,6 @@ class PaymentConfirmUseCaseIT {
         });
     }
 
-    @DisplayName("4회권 전환 전에 준비된 결제는 기존 8회권과 당시 금액으로 완료한다")
-    @Test
-    void confirm_legacyPassPayload_preservesEightCredits() {
-        User user = userStorePort.save(
-                new User("legacy-pass@example.com", "hashed", "기존 이용권 회원", "01045675678"));
-        AuthContext auth = AuthContext.member(user.getId());
-        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
-                PaymentContext.PASS, new PassPayload(user.getId()), auth));
-        String legacyPayload = """
-                {"type":"PREPARED_PASS","userId":%d,"totalPrice":%d}
-                """.formatted(user.getId(), prepared.amount());
-        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
-        jdbcTemplate.update("UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
-                fieldEncryptor.encrypt(legacyPayload), attemptId);
-
-        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
-                customerCommand("legacy-pass-payment-key", prepared, auth));
-
-        PassPurchase purchase = passPurchaseReaderPort.findById(result.domainId()).orElseThrow();
-        assertSoftly(softly -> {
-            softly.assertThat(purchase.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_8);
-            softly.assertThat(purchase.getTotalCredits()).isEqualTo(8);
-            softly.assertThat(purchase.getRemainingCredits()).isEqualTo(8);
-            softly.assertThat(purchase.getTotalPrice()).isEqualTo(prepared.amount());
-        });
-    }
-
     @DisplayName("confirm은 결제를 준비한 회원과 다른 회원이면 PG 호출 전에 거부한다")
     @Test
     void confirm_differentMember_rejectsBeforePgCall() {
@@ -812,7 +675,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         AtomicBoolean transactionActiveDuringPgCall = new AtomicBoolean(true);
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
@@ -855,9 +719,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-retryable", prepared, auth);
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
@@ -933,7 +797,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         availableInventory.deduct(1);
         inventoryStorePort.save(availableInventory);
@@ -990,9 +855,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         assertThat(jdbcTemplate.update(
                 "UPDATE users SET withdrawn_at = ? WHERE id = ?",
@@ -1033,7 +898,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-concurrent", prepared, auth);
         CountDownLatch pgEntered = new CountDownLatch(1);
@@ -1087,7 +953,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-stale", prepared, auth);
         CountDownLatch firstPgEntered = new CountDownLatch(1);
@@ -1134,12 +1001,12 @@ class PaymentConfirmUseCaseIT {
     }
 
     private OrderPayload guestOrderPayload(String phone, String verificationCode, Long productId) {
-        return new OrderPayload(
+        return PaymentPayloads.order(
                 null,
                 phone,
                 verificationCode,
                 "비회원",
-                List.of(new OrderItemRef(productId, 1)),
+                List.of(PaymentPayloads.item(productId, 1)),
                 false,
                 FulfillmentType.PICKUP,
                 null,

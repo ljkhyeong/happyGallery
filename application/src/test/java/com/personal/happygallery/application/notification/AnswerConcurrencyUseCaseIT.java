@@ -11,23 +11,19 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.ConcurrentExecution.runSimultaneously;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -60,14 +56,14 @@ class AnswerConcurrencyUseCaseIT {
         Inquiry inquiry = inquiryRepository.save(
                 new Inquiry(user.getId(), "배송 문의", "언제 배송되나요?"));
 
-        ConcurrentResult result = executeSimultaneously(
+        List<Throwable> outcomes = runSimultaneously(List.of(
                 () -> inquiryUseCase.replyAndGet(
                         inquiry.getId(), FIRST_REPLY, FIRST_ADMIN_ID),
                 () -> inquiryUseCase.replyAndGet(
-                        inquiry.getId(), SECOND_REPLY, SECOND_ADMIN_ID));
+                        inquiry.getId(), SECOND_REPLY, SECOND_ADMIN_ID)));
 
         Inquiry persisted = inquiryRepository.findById(inquiry.getId()).orElseThrow();
-        assertSingleAnswer(result, persisted.getReplyContent(), persisted.getRepliedBy(),
+        assertSingleAnswer(outcomes, persisted.getReplyContent(), persisted.getRepliedBy(),
                 "이미 답변이 등록된 문의입니다.");
     }
 
@@ -76,18 +72,18 @@ class AnswerConcurrencyUseCaseIT {
     void concurrentProductQnaReplies_registerOnlyOneAnswer() throws Exception {
         User user = createUser();
         Product product = productRepository.save(
-                new Product("도자기 화병", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("도자기 화병", 30_000L));
         ProductQna qna = productQnaRepository.save(new ProductQna(
                 product.getId(), user.getId(), "크기 문의", "높이가 몇 cm인가요?", false));
 
-        ConcurrentResult result = executeSimultaneously(
+        List<Throwable> outcomes = runSimultaneously(List.of(
                 () -> productQnaUseCase.replyAndGet(
                         qna.getId(), FIRST_REPLY, FIRST_ADMIN_ID),
                 () -> productQnaUseCase.replyAndGet(
-                        qna.getId(), SECOND_REPLY, SECOND_ADMIN_ID));
+                        qna.getId(), SECOND_REPLY, SECOND_ADMIN_ID)));
 
         ProductQna persisted = productQnaRepository.findById(qna.getId()).orElseThrow();
-        assertSingleAnswer(result, persisted.getReplyContent(), persisted.getRepliedBy(),
+        assertSingleAnswer(outcomes, persisted.getReplyContent(), persisted.getRepliedBy(),
                 "이미 답변이 등록된 Q&A입니다.");
     }
 
@@ -96,45 +92,10 @@ class AnswerConcurrencyUseCaseIT {
                 "answer-concurrency@example.com", "password-hash", "답변 대상 회원", "01012345678"));
     }
 
-    private ConcurrentResult executeSimultaneously(Runnable firstCommand,
-                                                   Runnable secondCommand) throws Exception {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch ready = new CountDownLatch(2);
-        CountDownLatch start = new CountDownLatch(1);
-        try {
-            Future<Throwable> first = executor.submit(
-                    () -> executeReply(ready, start, firstCommand));
-            Future<Throwable> second = executor.submit(
-                    () -> executeReply(ready, start, secondCommand));
-
-            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-            start.countDown();
-            return new ConcurrentResult(
-                    first.get(10, TimeUnit.SECONDS),
-                    second.get(10, TimeUnit.SECONDS));
-        } finally {
-            executor.shutdownNow();
-        }
-    }
-
-    private Throwable executeReply(CountDownLatch ready, CountDownLatch start, Runnable command) {
-        ready.countDown();
-        try {
-            if (!start.await(5, TimeUnit.SECONDS)) {
-                return new AssertionError("동시 답변 시작 신호를 기다리지 못했습니다.");
-            }
-            command.run();
-            return null;
-        } catch (Throwable throwable) {
-            return throwable;
-        }
-    }
-
-    private void assertSingleAnswer(ConcurrentResult result,
+    private void assertSingleAnswer(List<Throwable> outcomes,
                                     String persistedReply,
                                     Long persistedAdminId,
                                     String duplicateMessage) {
-        var outcomes = Arrays.asList(result.firstFailure(), result.secondFailure());
         Long expectedAdminId = FIRST_REPLY.equals(persistedReply)
                 ? FIRST_ADMIN_ID
                 : SECOND_ADMIN_ID;
@@ -160,8 +121,5 @@ class AnswerConcurrencyUseCaseIT {
         cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearProductData();
         cleanupSupport.clearUsers();
-    }
-
-    private record ConcurrentResult(Throwable firstFailure, Throwable secondFailure) {
     }
 }

@@ -2,7 +2,6 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -21,28 +20,20 @@ import org.springframework.util.StringUtils;
 class PaymentReconciliationTransactionService {
 
     private final PaymentAttemptReaderPort attemptReader;
-    private final PaymentAttemptStorePort attemptStore;
     private final OrderPaymentBenefitReservationService benefitReservationService;
     private final Clock clock;
 
     PaymentReconciliationTransactionService(PaymentAttemptReaderPort attemptReader,
-                                            PaymentAttemptStorePort attemptStore,
                                             OrderPaymentBenefitReservationService benefitReservationService,
                                             Clock clock) {
         this.attemptReader = attemptReader;
-        this.attemptStore = attemptStore;
         this.benefitReservationService = benefitReservationService;
         this.clock = clock;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    LookupRequest prepareLookup(Long attemptId) {
-        PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
-        return new LookupRequest(
-                attempt.getId(),
-                attempt.getOrderIdExternal(),
-                attempt.getPaymentKey(),
-                attempt.getAmount());
+    String prepareLookup(Long attemptId) {
+        return requireReconciliationAttempt(attemptId).getOrderIdExternal();
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -55,11 +46,9 @@ class PaymentReconciliationTransactionService {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "PG 조회 결과가 저장된 결제 요청과 일치하지 않습니다.");
         }
-        if (!attempt.reconcileLatePgApproval(
-                lookup.paymentKey(), lookup.method(), LocalDateTime.now(clock))) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, "결제 대사 상태가 이미 변경되었습니다.");
-        }
-        attemptStore.save(attempt);
+        // 잠금 아래 RECONCILIATION_REQUIRED임을 확인했으므로 늦은 승인 반영은 항상 APPROVED로 바뀐다.
+        attempt.reconcileLatePgApproval(
+                lookup.paymentKey(), lookup.method(), null, LocalDateTime.now(clock));
         return lookup.paymentKey();
     }
 
@@ -68,12 +57,11 @@ class PaymentReconciliationTransactionService {
         PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
         PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
         attempt.markReconciledNotApproved(reason);
-        PaymentAttempt savedAttempt = attemptStore.save(attempt);
         if (payload != null) {
             benefitReservationService.release(
-                    savedAttempt, payload, LocalDateTime.now(clock));
+                    attempt, payload, LocalDateTime.now(clock));
         }
-        return savedAttempt;
+        return attempt;
     }
 
     private PaymentAttempt requireReconciliationAttempt(Long attemptId) {
@@ -85,5 +73,4 @@ class PaymentReconciliationTransactionService {
         return attempt;
     }
 
-    record LookupRequest(Long attemptId, String orderId, String paymentKey, long amount) {}
 }

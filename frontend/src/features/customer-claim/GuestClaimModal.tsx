@@ -10,21 +10,17 @@ import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
-  show: boolean;
   onClose: () => void;
   phone: string;
   phoneVerified: boolean;
   onPhoneVerified: () => Promise<void>;
-  monitoringSource?: string | null;
 }
 
 export function GuestClaimModal({
-  show,
   onClose,
   phone,
   phoneVerified,
   onPhoneVerified,
-  monitoringSource,
 }: Props) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -36,16 +32,8 @@ export function GuestClaimModal({
   const previewQuery = useQuery({
     queryKey: queryKeys.member.guestClaimPreview,
     queryFn: getGuestClaimPreview,
-    enabled: show && phoneVerified,
+    enabled: phoneVerified,
   });
-
-  useEffect(() => {
-    if (!show) {
-      setPreviewOverride(null);
-      setSelectedOrderIds([]);
-      setSelectedBookingIds([]);
-    }
-  }, [show]);
 
   const preview = previewOverride ?? previewQuery.data;
 
@@ -103,25 +91,16 @@ export function GuestClaimModal({
   const needsPhoneVerification =
     !phoneVerified && !(previewOverride?.phoneVerified ?? false);
 
+  // 화면을 열 때만 mount되므로 개발 모드의 effect 재실행에서도 한 번만 기록한다.
   useEffect(() => {
-    if (!show) {
-      openTrackedRef.current = false;
-      return;
-    }
     if (openTrackedRef.current) return;
-
     openTrackedRef.current = true;
-    trackClientEvent({
-      event: "GUEST_CLAIM_MODAL_OPENED",
-      path: "/my",
-      source: monitoringSource ?? "unknown",
-      target: needsPhoneVerification ? "phone_verification" : "preview",
-    });
-  }, [monitoringSource, needsPhoneVerification, show]);
+    trackClientEvent("GUEST_CLAIM_MODAL_OPENED");
+  }, []);
 
   return (
     <Modal
-      show={show}
+      show
       aria-labelledby="guest-claim-title"
       onHide={onClose}
       centered

@@ -6,8 +6,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.function.Function;
-import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -99,7 +99,6 @@ class NaverCommerceAccessTokenProvider {
 
     private record TokenResponse(
             @JsonProperty("access_token") String accessToken,
-            @JsonProperty("expires_in") long expiresIn,
-            @JsonProperty("token_type") String tokenType
+            @JsonProperty("expires_in") long expiresIn
     ) {}
 }

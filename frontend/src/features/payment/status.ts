@@ -1,7 +1,15 @@
+import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import type { CustomerPaymentStatus } from "./types";
+
+/** 결제 확인·환불 진행 중인 상태를 다시 조회하는 간격. */
+export const PAYMENT_STATUS_POLL_INTERVAL_MS = 3_000;
 
 export function shouldPollPaymentStatus(status: CustomerPaymentStatus | undefined): boolean {
   return status === "CONFIRMING" || status === "REFUNDING";
+}
+
+export function paymentStatusPollingInterval(status: CustomerPaymentStatus | undefined): number | false {
+  return shouldPollPaymentStatus(status) ? PAYMENT_STATUS_POLL_INTERVAL_MS : false;
 }
 
 export function isTerminalPaymentStatus(status: CustomerPaymentStatus): boolean {
@@ -9,4 +17,9 @@ export function isTerminalPaymentStatus(status: CustomerPaymentStatus): boolean 
     || status === "REFUNDED"
     || status === "FAILED"
     || status === "EXPIRED";
+}
+
+/** 결제가 끝나 주문·예약·이용권이 만들어진 상태. 결과 화면의 다음 행동을 이 값으로 정한다. */
+export function isCompletedPayment(status: PaymentStatusResponse): boolean {
+  return status.status === "COMPLETED" && status.domainId != null;
 }

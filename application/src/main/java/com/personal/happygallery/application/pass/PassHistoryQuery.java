@@ -9,10 +9,6 @@ public record PassHistoryQuery(String keyword, PassHistoryStatus status, PassHis
         sort = sort == null ? PassHistorySort.PURCHASE_DESC : sort;
     }
 
-    public boolean isDefault() {
-        return keyword == null && status == null && sort == PassHistorySort.PURCHASE_DESC;
-    }
-
     public enum PassHistorySort { PURCHASE_DESC, EXPIRY_ASC, CREDITS_DESC }
     public enum PassHistoryStatus { ACTIVE, USED_UP, EXPIRED }
 }

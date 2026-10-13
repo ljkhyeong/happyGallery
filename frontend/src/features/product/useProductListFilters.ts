@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
-import { readProductFilters } from "./productFilters";
+import { normalizeProductKeyword, readProductFilters } from "./productFilters";
 
 export function useProductListFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,7 +17,7 @@ export function useProductListFilters() {
 
   useEffect(() => {
     if (input.urlKeyword !== urlKeyword || input.value !== debouncedKeyword) return;
-    const normalized = debouncedKeyword.trim().slice(0, 100);
+    const normalized = normalizeProductKeyword(debouncedKeyword);
     if (normalized === urlKeyword) return;
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -27,14 +27,23 @@ export function useProductListFilters() {
     }, { replace: true, preventScrollReset: true });
   }, [debouncedKeyword, input, setSearchParams, urlKeyword]);
 
-  function updateFilter(name: "type" | "category" | "sort", value: string) {
+  function updateFilter(name: "type" | "sort", value: string) {
     const next = new URLSearchParams(searchParams);
     if (value === "ALL" || value === "newest") next.delete(name);
     else next.set(name, value);
-    const normalized = keyword.trim().slice(0, 100);
+    const normalized = normalizeProductKeyword(keyword);
     if (normalized) next.set("keyword", normalized);
     else next.delete("keyword");
     setSearchParams(next, { replace: true, preventScrollReset: true });
+  }
+
+  /** 카테고리 탭 링크. 검색어·판매 방식·정렬은 그대로 두고 카테고리만 바꾼다. */
+  function categoryHref(value: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("category", value);
+    else next.delete("category");
+    const query = next.toString();
+    return query ? `/products?${query}` : "/products";
   }
 
   function resetFilters() {
@@ -49,6 +58,7 @@ export function useProductListFilters() {
     keyword,
     setKeyword: (value: string) => setInput({ urlKeyword, value }),
     updateFilter,
+    categoryHref,
     resetFilters,
   };
 }

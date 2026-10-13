@@ -1,8 +1,8 @@
 interface Props {
-  message?: string;
+  message: string;
 }
 
-export function EmptyState({ message = "데이터가 없습니다." }: Props) {
+export function EmptyState({ message }: Props) {
   return (
     <div className="empty-state">
       <p className="mb-0">{message}</p>

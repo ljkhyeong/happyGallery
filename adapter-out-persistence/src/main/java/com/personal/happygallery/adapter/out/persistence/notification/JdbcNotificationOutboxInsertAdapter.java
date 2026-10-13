@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxInsertPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -17,6 +18,7 @@ class JdbcNotificationOutboxInsertAdapter implements NotificationOutboxInsertPor
 
     @Override
     public boolean insertIfAbsent(NotificationOutbox outbox) {
+        NotificationAggregateType aggregateType = outbox.getAggregateType();
         try {
             jdbc.sql("""
                             INSERT INTO notification_outbox (
@@ -33,7 +35,7 @@ class JdbcNotificationOutboxInsertAdapter implements NotificationOutboxInsertPor
                     .param("guestId", outbox.getGuestId())
                     .param("userId", outbox.getUserId())
                     .param("eventType", outbox.getEventType().name())
-                    .param("aggregateType", outbox.getAggregateType())
+                    .param("aggregateType", aggregateType == null ? null : aggregateType.name())
                     .param("aggregateId", outbox.getAggregateId())
                     .param("idempotencyKey", outbox.getIdempotencyKey())
                     .param("status", outbox.getStatus().name())

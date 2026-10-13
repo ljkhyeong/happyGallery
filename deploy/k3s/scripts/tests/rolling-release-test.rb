@@ -493,6 +493,53 @@ class RollingReleaseTest < Minitest::Test
     assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '적용 이력이 있는 migration 수정·삭제'
   end
 
+  def squash_into_baseline(id: '20261007-baseline')
+    applied = 'bootstrap/src/main/resources/db/migration/V185__expand.sql'
+    change(applied, 'CREATE TABLE samples (id BIGINT);')
+    write_manifest(@old, commit)
+    git('rm', '-q', applied)
+    change('bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql', 'CREATE TABLE samples (id INT);')
+    change('docs/PRD/0004_API_계약/openapi3.json', 'incompatible')
+    change(RollingRelease::SCHEMA_RESET_PATH, JSON.generate(
+      'id' => id, 'baseline' => 'bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql'
+    ))
+    write_manifest(@new, commit)
+  end
+
+  def with_schema_reset_env(value)
+    previous = ENV['HAPPYGALLERY_SCHEMA_RESET']
+    ENV['HAPPYGALLERY_SCHEMA_RESET'] = value
+    yield
+  ensure
+    ENV['HAPPYGALLERY_SCHEMA_RESET'] = previous
+  end
+
+  def test_schema_reset_marker_replaces_migration_and_openapi_compatibility
+    squash_into_baseline
+    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    assert_includes error.message, 'HAPPYGALLERY_SCHEMA_RESET=20261007-baseline'
+    refute_includes error.message, '적용 이력이 있는 migration'
+    with_schema_reset_env('20261007-other') { assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) } }
+    output, = capture_io { with_schema_reset_env('20261007-baseline') { RollingRelease.check(@dir, @old, @new) } }
+    assert_equal "SCHEMA_RESET=20261007-baseline\n", output
+  end
+
+  def test_schema_reset_marker_cannot_be_reused_or_point_to_missing_baseline
+    squash_into_baseline
+    @old = @new
+    change(RollingRelease::SCHEMA_RESET_PATH, JSON.generate(
+      'id' => '20261007-baseline', 'baseline' => 'bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql',
+      'reason' => 'edited'
+    ))
+    write_manifest(@new = File.join(@dir, 'edited.yaml'), commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '수정할 수 없습니다'
+    change(RollingRelease::SCHEMA_RESET_PATH, JSON.generate(
+      'id' => '20261008-missing', 'baseline' => 'bootstrap/src/main/resources/db/migration/V1__missing.sql'
+    ))
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '기준선이 없습니다'
+  end
+
   def test_rendered_workloads_keep_ready_pods_and_shared_assets
     base = File.expand_path('../../base', __dir__)
     %w[app frontend frontend-assets].each do |name|

@@ -39,20 +39,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
         return findByIdAndStatus(id, ProductStatus.ACTIVE);
     }
 
-    /** ACTIVE 상품 목록 — 최신 등록순 */
-    List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
-
     @Override
-    default List<Product> findActiveProductsByCreatedAtDesc() {
-        return findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE);
-    }
-
     List<Product> findAllByOrderByCreatedAtDesc();
-
-    @Override
-    default List<Product> findAllProductsByCreatedAtDesc() {
-        return findAllByOrderByCreatedAtDesc();
-    }
 
     /** ACTIVE 상품의 카테고리 목록 (distinct, non-null). */
     @Override

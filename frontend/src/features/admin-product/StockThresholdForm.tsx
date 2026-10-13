@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Form, InputGroup } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { listAdminStockLevels, updateAdminStockThreshold, type StockLevelResponse } from "@/generated/api/adminCatalog";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -36,7 +36,7 @@ function StockThresholdEditor({ row, adminKey, onAuthError }: Props & { row: Sto
     }, { headers: adminHeaders(adminKey) }),
     onSuccess: () => {
       toast.show("최소 보유 수량을 저장했습니다.");
-      void client.invalidateQueries({ queryKey: ["admin", "products"] });
+      void client.invalidateQueries({ queryKey: queryKeys.admin.products });
     },
   });
   const valid = minimum.trim() === "" || (Number.isInteger(Number(minimum)) && Number(minimum) >= 0 && Number(minimum) <= 2147483647);
@@ -50,7 +50,7 @@ function StockThresholdEditor({ row, adminKey, onAuthError }: Props & { row: Sto
         </InputGroup>
         <Form.Text>이 수량 이하이면 오늘 할 일에 표시합니다. 비워서 저장하면 품절만 표시합니다.</Form.Text>
       </Form.Group>
-      <ErrorAlert error={mutation.error} onRetry={() => { void client.invalidateQueries({ queryKey: ["admin", "products"] }); }} />
+      <ErrorAlert error={mutation.error} onRetry={() => { void client.invalidateQueries({ queryKey: queryKeys.admin.products }); }} />
     </Form>
   );
 }

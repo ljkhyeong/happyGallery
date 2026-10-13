@@ -11,6 +11,7 @@ export function BookingDetail({ booking }: Props) {
     <BookingInfoCard
       label={booking.bookingNumber}
       status={booking.status}
+      classId={booking.classId}
       className={booking.className}
       startAt={booking.startAt}
       endAt={booking.endAt}

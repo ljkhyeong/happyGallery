@@ -56,20 +56,10 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
-        List<Order> orders;
-
-        if (cursor == null) {
-            orders = (status != null)
-                    ? orderReaderPort.findByStatusOrderByCreatedAtDesc(status, fetchSize)
-                    : orderReaderPort.findAllOrderByCreatedAtDesc(fetchSize);
-        } else {
-            var param = CursorUtils.decode(cursor);
-            orders = (status != null)
-                    ? orderReaderPort.findByStatusOrderByCreatedAtDescAfterCursor(
-                            status, param.timestamp(), param.id(), fetchSize)
-                    : orderReaderPort.findAllOrderByCreatedAtDescAfterCursor(
-                            param.timestamp(), param.id(), fetchSize);
-        }
+        var after = CursorUtils.decodeOrFirst(cursor);
+        List<Order> orders = status != null
+                ? orderReaderPort.findAdminOrdersByStatus(status, after.timestamp(), after.id(), fetchSize)
+                : orderReaderPort.findAdminOrders(after.timestamp(), after.id(), fetchSize);
 
         List<AdminOrderResponse> items = toResponses(orders);
 
@@ -82,7 +72,6 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         OrderLookups.requireOrder(orderReaderPort, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         var shippingAddress = fulfillment.getType() == FulfillmentType.SHIPPING
-                && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
         return AdminOrderFulfillmentResponse.from(

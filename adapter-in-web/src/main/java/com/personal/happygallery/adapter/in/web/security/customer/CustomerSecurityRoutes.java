@@ -1,5 +1,9 @@
 package com.personal.happygallery.adapter.in.web.security.customer;
 
+import com.personal.happygallery.domain.user.SocialProvider;
+import java.util.Locale;
+import org.springframework.web.util.UriComponentsBuilder;
+
 public final class CustomerSecurityRoutes {
 
     public static final String AUTH_API_PATTERN = "/api/v1/auth/**";
@@ -22,5 +26,16 @@ public final class CustomerSecurityRoutes {
             SOCIAL_CALLBACK_ROOT + "/{provider}";
 
     private CustomerSecurityRoutes() {
+    }
+
+    /** 소셜 제공자 인가 시작 경로에 연결·재인증·가입 시도 ID를 query parameter로 붙인다. */
+    public static String socialAuthorizationUrl(
+            SocialProvider provider, String attemptParameter, String attemptId) {
+        return UriComponentsBuilder.fromPath(SOCIAL_AUTHORIZATION_BASE_URI)
+                .pathSegment(provider.name().toLowerCase(Locale.ROOT))
+                .queryParam(attemptParameter, attemptId)
+                .build()
+                .encode()
+                .toUriString();
     }
 }

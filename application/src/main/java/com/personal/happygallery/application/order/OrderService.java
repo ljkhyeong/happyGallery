@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -23,7 +22,6 @@ import com.personal.happygallery.domain.product.ProductType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +39,7 @@ public class OrderService {
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final OrderStockService orderStockService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderNotificationSupport notificationSupport;
     private final GuestTokenService guestTokenService;
     private final ShippingAddressProtector shippingAddressProtector;
     private final MemberAccountGuard memberAccountGuard;
@@ -51,7 +49,7 @@ public class OrderService {
                         OrderItemPort orderItemPort,
                         FulfillmentPort fulfillmentPort,
                         OrderStockService orderStockService,
-                        ApplicationEventPublisher eventPublisher,
+                        OrderNotificationSupport notificationSupport,
                         GuestTokenService guestTokenService,
                         ShippingAddressProtector shippingAddressProtector,
                         MemberAccountGuard memberAccountGuard,
@@ -60,7 +58,7 @@ public class OrderService {
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.orderStockService = orderStockService;
-        this.eventPublisher = eventPublisher;
+        this.notificationSupport = notificationSupport;
         this.guestTokenService = guestTokenService;
         this.shippingAddressProtector = shippingAddressProtector;
         this.memberAccountGuard = memberAccountGuard;
@@ -82,20 +80,6 @@ public class OrderService {
      */
     public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
                                                FulfillmentType fulfillmentType,
-                                               ShippingAddress shippingAddress) {
-        return createPaidOrder(guestId, items, fulfillmentType, shippingAddress, 0L);
-    }
-
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
-                                               FulfillmentType fulfillmentType,
-                                               ShippingAddress shippingAddress,
-                                               long shippingFee) {
-        return createPaidOrder(
-                guestId, items, fulfillmentType, shippingAddress, shippingFee, null);
-    }
-
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
-                                               FulfillmentType fulfillmentType,
                                                ShippingAddress shippingAddress,
                                                long shippingFee,
                                                MadeToOrderConsent madeToOrderConsent) {
@@ -115,11 +99,7 @@ public class OrderService {
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
 
-        eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                guestId,
-                NotificationEventType.ORDER_PAID,
-                "ORDER",
-                order.getId()));
+        notificationSupport.notifyCustomer(order, NotificationEventType.ORDER_PAID);
 
         return new OrderCreationResult(order, rawToken);
     }
@@ -127,30 +107,6 @@ public class OrderService {
     /**
      * 회원 주문 생성. guest 대신 user_id를 설정한다. accessToken 없음.
      */
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress) {
-        return createMemberOrder(userId, items, fulfillmentType, shippingAddress, 0L);
-    }
-
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress,
-                                   long shippingFee) {
-        return createMemberOrder(
-                userId, items, fulfillmentType, shippingAddress, shippingFee, null);
-    }
-
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress,
-                                   long shippingFee,
-                                   MadeToOrderConsent madeToOrderConsent) {
-        return createMemberOrder(
-                userId, items, fulfillmentType, shippingAddress, madeToOrderConsent,
-                OrderPricingSnapshot.fullPrice(productAmount(items), shippingFee));
-    }
-
     public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
                                    FulfillmentType fulfillmentType,
                                    ShippingAddress shippingAddress,
@@ -169,23 +125,9 @@ public class OrderService {
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
 
-        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                userId,
-                NotificationEventType.ORDER_PAID,
-                "ORDER",
-                order.getId()));
+        notificationSupport.notifyCustomer(order, NotificationEventType.ORDER_PAID);
 
         return order;
-    }
-
-    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
-        return createPaidOrder(guestId, items, FulfillmentType.PICKUP, null);
-    }
-
-    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
-        return createMemberOrder(userId, items, FulfillmentType.PICKUP, null);
     }
 
     private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
@@ -275,60 +217,6 @@ public class OrderService {
             Integer productionLeadDays,
             OrderItemPricing pricing
     ) {
-        public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
-            this(productId, null, productName, ProductType.READY_STOCK,
-                    qty, unitPrice, unitPrice, 0L, 0L, List.of(), null, null, null,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays
-        ) {
-            this(productId, null, productName,
-                    productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
-                    qty, unitPrice, unitPrice, 0L, 0L, List.of(),
-                    specification, careInstructions, productionLeadDays,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                ProductType productType,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays
-        ) {
-            this(productId, null, productName, productType, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(),
-                    specification, careInstructions, productionLeadDays,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                ProductType productType,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays,
-                OrderItemPricing pricing
-        ) {
-            this(productId, null, productName, productType, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
-                    productionLeadDays, pricing);
-        }
-
         public OrderItemRequest {
             if (productType == null) {
                 throw new IllegalArgumentException("신규 주문 상품의 상품 유형은 필수입니다.");

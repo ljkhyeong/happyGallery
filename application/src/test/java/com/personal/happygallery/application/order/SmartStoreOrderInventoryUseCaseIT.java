@@ -11,7 +11,7 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.InventoryResolutionCommand;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
@@ -294,7 +294,7 @@ class SmartStoreOrderInventoryUseCaseIT {
         inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
                 madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()));
         orderService.synchronize(detail("returned", optionId, 5), change("returned"));
-        var firstReturns = List.of(new CompletedReturn("return-1", 2, CHANGED_AT.plusMinutes(1)));
+        var firstReturns = List.of(new CompletedReturn("return-1", 2));
         ProductOrderDetail returned = claimDetail(optionId, "DELIVERING", "RETURN", 3, firstReturns);
         ProductOrderChange returnChange = new ProductOrderChange(
                 "returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1));
@@ -322,7 +322,7 @@ class SmartStoreOrderInventoryUseCaseIT {
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason()).isNull();
 
         var allReturns = List.of(firstReturns.getFirst(),
-                new CompletedReturn("return-2", 2, CHANGED_AT.plusMinutes(4)));
+                new CompletedReturn("return-2", 2));
         orderService.synchronize(claimDetail(optionId, "RETURNED", "RETURN", 0, allReturns), new ProductOrderChange(
                 "returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(4)));
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason())
@@ -355,14 +355,14 @@ class SmartStoreOrderInventoryUseCaseIT {
         Long productId = registered.product().getId();
         inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
         orderService.synchronize(detail("returned", null, 5), change("returned"));
-        var first = new CompletedReturn("return-1", 2, CHANGED_AT.plusMinutes(1));
+        var first = new CompletedReturn("return-1", 2);
         orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 3, List.of(first)),
                 new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1)));
         String previousVersion = orderRepository.findById("returned").orElseThrow().returnReviewVersion();
         if (previousReviewed) {
             orderService.resolveReturn("returned", false, previousVersion);
         }
-        var second = new CompletedReturn("return-2", 2, CHANGED_AT.plusMinutes(2));
+        var second = new CompletedReturn("return-2", 2);
         orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 1, List.of(first, second)),
                 new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(2)));
 
@@ -377,51 +377,6 @@ class SmartStoreOrderInventoryUseCaseIT {
         orderService.resolveReturn("returned", restoreStock, current.returnReviewVersion());
         assertThat(quantity(productId, null)).isEqualTo(restoreStock ? current.pendingReturnQuantity() : 0);
         assertThat(orderRepository.findById("returned").orElseThrow().pendingReturnQuantity()).isZero();
-    }
-
-    @ParameterizedTest
-    @CsvSource({"false, true", "false, false", "true, false"})
-    @DisplayName("기존 반품 주문의 검수 대기와 복원 여부는 완료 이력으로 전환한 뒤에도 유지한다")
-    void legacyReturn_initializationPreservesInventoryAndReview(boolean restored, boolean pendingReview) {
-        var registered = productAdminUseCase.register(new SaveProductCommand(
-                "기존 반품", ProductType.READY_STOCK, null, 35000L, 5, null, null,
-                null, null, null, List.of(), List.of()));
-        Long productId = registered.product().getId();
-        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
-        orderService.synchronize(detail("returned", null, 5), change("returned"));
-        orderService.synchronize(claimDetail(null, "PAYED", "CANCEL", 2, List.of()),
-                new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1)));
-        if (restored) {
-            inventoryService.restore(productId, 2);
-        }
-        jdbc.update("""
-                UPDATE smartstore_product_orders
-                SET product_order_status = 'RETURNED', claim_type = 'RETURN', claim_status = 'RETURN_DONE',
-                    remain_quantity = 0, inventory_applied_quantity = ?, attention_reason = ?,
-                    return_reviewed_remain_quantity = ?, completed_return_quantity = NULL,
-                    last_changed_at = ?
-                WHERE product_order_id = 'returned'
-                """, restored ? 0 : 2, pendingReview ? "RETURN_REVIEW" : null,
-                pendingReview ? null : 0, CHANGED_AT.plusMinutes(2));
-
-        var returned = claimDetail(null, "RETURNED", "RETURN", 0,
-                List.of(new CompletedReturn("legacy-return", 2, CHANGED_AT.plusMinutes(2))));
-        orderService.synchronize(returned,
-                new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(3)));
-        orderService.retryInventory("returned");
-
-        assertThat(quantity(productId, null)).isEqualTo(restored ? 5 : 3);
-        assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason())
-                .isEqualTo(pendingReview ? SmartStoreOrderAttentionReason.RETURN_REVIEW : null);
-        assertThat(jdbc.queryForMap("""
-                SELECT completed_return_quantity, reviewed_return_quantity, restored_return_quantity,
-                       return_reviewed_remain_quantity
-                FROM smartstore_product_orders WHERE product_order_id = 'returned'
-                """))
-                .containsEntry("completed_return_quantity", 2)
-                .containsEntry("reviewed_return_quantity", pendingReview ? 0 : 2)
-                .containsEntry("restored_return_quantity", restored ? 2 : 0)
-                .containsEntry("return_reviewed_remain_quantity", null);
     }
 
     private static ProductOrderDetail detail(String id, Long optionId, int quantity) {

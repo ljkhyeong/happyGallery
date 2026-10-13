@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchFailedNotifications, retryNotification } from "./api";
-import { ApiError } from "@/shared/api";
 import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import type { FailedNotificationResponse } from "@/shared/types";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -37,7 +37,7 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} />;
   }
   if (!data?.length) return <EmptyState message="다시 보낼 알림이 없습니다." />;
@@ -95,17 +95,23 @@ function recipientLabel(notification: FailedNotificationResponse): string {
   return `${notification.recipientType === "USER" ? "회원" : "비회원"} ${notification.recipientId}`;
 }
 
+const AGGREGATE_LABEL: Record<NonNullable<FailedNotificationResponse["aggregateType"]>, string> = {
+  ORDER: "주문",
+  ORDER_CLAIM: "환불·교환 요청",
+  BOOKING: "예약",
+  VACANCY_ALERT: "빈자리 알림",
+  PASS_PURCHASE: "이용권",
+  REFUND: "환불",
+  INQUIRY: "1:1 문의",
+  PRODUCT_QNA: "상품 문의",
+  RESTOCK_ALERT: "재입고 알림",
+  REVIEW: "후기",
+  REVIEW_MODERATION_ACTION: "후기 공개 상태 변경",
+};
+
 function aggregateLabel(notification: FailedNotificationResponse): string {
   if (!notification.aggregateType || notification.aggregateId == null) return "-";
-  const labels: Record<string, string> = {
-    ORDER: "주문",
-    BOOKING: "예약",
-    PASS: "이용권",
-    INQUIRY: "1:1 문의",
-    PRODUCT_QNA: "상품 문의",
-    REVIEW: "후기",
-  };
-  return `${labels[notification.aggregateType] ?? "관련 항목"} #${notification.aggregateId}`;
+  return `${AGGREGATE_LABEL[notification.aggregateType]} #${notification.aggregateId}`;
 }
 
 function notificationFailureLabel(reason: string | null | undefined): string {

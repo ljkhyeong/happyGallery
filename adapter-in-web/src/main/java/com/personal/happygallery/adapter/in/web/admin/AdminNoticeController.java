@@ -53,8 +53,9 @@ public class AdminNoticeController {
     @Operation(operationId = "createAdminNotice")
     @ResponseStatus(HttpStatus.CREATED)
     public NoticeDetailResponse create(@RequestBody @Valid CreateNoticeRequest request) {
-        return NoticeDetailResponse.from(
-                noticeAdminUseCase.create(request.title(), request.content(), request.pinned()));
+        var created = noticeAdminUseCase.create(request.title(), request.content(), request.pinned());
+        // 작성 시각은 DB 기본값이라 저장한 엔티티에는 비어 있다. 저장이 끝난 뒤 다시 읽어 응답한다.
+        return NoticeDetailResponse.from(noticeAdminUseCase.getForEdit(created.getId()));
     }
 
     @PutMapping("/{id}")

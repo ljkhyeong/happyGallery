@@ -10,7 +10,7 @@ import { loadEvents } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "이벤트 | 해피갤러리";
-const DESCRIPTION = "해피갤러리에서 진행 중이거나 곧 시작할 이벤트를 확인하세요.";
+const DESCRIPTION = "해피갤러리에서 진행 중이거나 곧 시작하는 이벤트입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   return { events: await loadEvents(request.signal) };

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.order.port.in.OrderShippingAddressUseCase;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
@@ -13,15 +14,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.booking.Guest;
@@ -44,7 +40,6 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,11 +52,7 @@ class OrderCustomerActionUseCaseIT {
 
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired OrderService orderService;
     @Autowired OrderApprovalUseCase orderApprovalUseCase;
     @Autowired OrderProductionUseCase orderProductionUseCase;
@@ -76,7 +67,7 @@ class OrderCustomerActionUseCaseIT {
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactionManager;
 
-    OrderTestHelper orderHelper;
+    @Autowired OrderTestHelper orderHelper;
 
     private static final ShippingAddress UPDATED_ADDRESS = new ShippingAddress(
             "새 수령인", "01012345678", "12345", "서울시 변경 주소 12", "201호");
@@ -154,18 +145,6 @@ class OrderCustomerActionUseCaseIT {
                 .isEqualTo(original.getShippingAddressEnc());
     }
 
-
-    @BeforeEach
-    void setUp() {
-        orderHelper = new OrderTestHelper(
-                productStorePort,
-                inventoryStorePort,
-                inventoryReaderPort,
-                orderStorePort,
-                orderItemPort,
-                userStorePort,
-                orderService);
-    }
 
     @AfterEach
     void tearDown() {
@@ -286,13 +265,10 @@ class OrderCustomerActionUseCaseIT {
                 "물에 젖지 않게 보관하세요.",
                 14));
         inventoryStorePort.save(new Inventory(product, 1));
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원 주문자", "01055556666"));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원 주문자", "01055556666"));
         OrderService.OrderCreationResult result = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), product.getType(), 1, price,
-                        product.getSpecification(), product.getCareInstructions(),
-                        product.getProductionLeadDays())),
+                List.of(OrderTestHelper.item(product, 1, price)),
                 type,
                 type == FulfillmentType.SHIPPING ? UPDATED_ADDRESS : null,
                 0L,

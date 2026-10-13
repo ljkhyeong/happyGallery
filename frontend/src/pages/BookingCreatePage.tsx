@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Form, Button } from "react-bootstrap";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import { splitBookingAmount } from "@/features/booking-create/bookingAmounts";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
-import { formatSlotStart } from "@/features/booking-create/upcomingSlots";
-import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
+import { bookingCreateHref, classAcceptsPass, formatSlotStart } from "@/features/booking-create/upcomingSlots";
+import { AuthGateModal, type GuestInfo } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
@@ -13,10 +14,10 @@ import {
   PaymentMethodFields,
   PaymentErrorAlert,
   useCheckoutSelection,
-  type BookingPayload,
 } from "@/features/payment";
+import type { BookingPayload } from "@/generated/api/payment";
 import { ApiError, queryKeys } from "@/shared/api";
-import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel } from "@/shared/lib";
+import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel, parsePositiveId } from "@/shared/lib";
 import {
   CheckoutAmounts,
   CheckoutLayout,
@@ -26,16 +27,8 @@ import {
   PageHeader,
 } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
-import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type PaymentPath = "deposit" | "pass";
-
-interface GuestInfo {
-  phone: string;
-  verificationCode: string;
-  name: string;
-  policyAcceptance: PolicyAcceptance;
-}
 
 interface PaymentActor {
   guest?: GuestInfo;
@@ -178,19 +171,17 @@ function BookingCreateContent({
     queryFn: ({ signal }) => fetchAllMyPasses(signal),
     enabled: isAuthenticated,
   });
-  const availablePasses = (passes ?? [])
-    .filter(isPassAvailableForBooking)
-    .filter((pass) => pass.planCode === "LEGACY_ALL_CLASSES"
-      || (selectedClass?.passEligible === true && selectedClass.category !== "PERFUME"));
-  const requestedPassId = Number(searchParams.get("passId"));
-  const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
-  const requestedClassId = Number(searchParams.get("classId"));
-  const requestedSlotId = Number(searchParams.get("slotId"));
+  const passAccepted = selectedClass !== null && classAcceptsPass(selectedClass);
+  const availablePasses = useMemo(
+    () => (passAccepted ? (passes ?? []).filter(isPassAvailableForBooking) : []),
+    [passAccepted, passes],
+  );
+  const requestedPassId = parsePositiveId(searchParams.get("passId"));
+  const hasRequestedPass = requestedPassId !== null;
+  const requestedClassId = parsePositiveId(searchParams.get("classId"));
+  const requestedSlotId = parsePositiveId(searchParams.get("slotId"));
   const selectRequestedSlot = searchParams.get("selectSlot") === "1";
-  const initialClassId = selectedClass?.id
-    ?? (Number.isSafeInteger(requestedClassId) && requestedClassId > 0
-      ? requestedClassId
-      : null);
+  const initialClassId = selectedClass?.id ?? requestedClassId;
   const requestedPassCompatible = hasRequestedPass
     && availablePasses.some((pass) => pass.passId === requestedPassId);
   const requestedPassNeedsFallback = hasRequestedPass
@@ -270,8 +261,7 @@ function BookingCreateContent({
     && !requestedPassIntentBlocked;
   const classPrice = selectedClass?.price ?? 0;
   const totalAmount = classPrice * participantCount;
-  const depositAmount = Math.floor(totalAmount / 10);
-  const balanceAmount = totalAmount - depositAmount;
+  const { depositAmount, balanceAmount } = splitBookingAmount(totalAmount);
 
   const startPayment = useMutation({
     mutationFn: async (actor?: PaymentActor) => {
@@ -308,14 +298,15 @@ function BookingCreateContent({
         onPrepared: guest ? () => resetGuestVerification(
           "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
-        orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
+        orderName: `${selectedClass?.name ?? "클래스"} 예약 ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: member ? `member_${member.id}` : undefined,
         customerName: guest?.name ?? member?.name,
         customerPhone: guest?.phone ?? member?.phone ?? undefined,
         returnHint: {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
-          returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
+          // 결제를 마치지 못하고 돌아오면 고른 일정을 다시 선택해 둔다.
+          returnPath: bookingCreateHref(selectedSlot!.classId, selectedSlot!.id, { selectSlot: true }),
         },
       });
     },
@@ -365,8 +356,10 @@ function BookingCreateContent({
   return (
     <Container className="page-container checkout-page">
       <PageHeader
-        title="체험 예약"
-        description="수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."
+        title={hasRequestedPass ? "이용권으로 예약" : "체험 예약"}
+        description={hasRequestedPass
+          ? "이용권을 쓸 수 있는 수업만 보여 드립니다. 예약하면 이용권 1회가 차감됩니다."
+          : "수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."}
       />
 
       <CheckoutLayout
@@ -387,10 +380,10 @@ function BookingCreateContent({
           >
             {selectedClass ? (
               <>
-                <p className="checkout-summary-kicker">
+                <h2 className="checkout-summary-title">{selectedClass.name}</h2>
+                <p className="checkout-summary-meta">
                   {getClassCategoryLabel(selectedClass.category)} · {selectedClass.durationMin}분
                 </p>
-                <h2 className="checkout-summary-title">{selectedClass.name}</h2>
               </>
             ) : (
               <h2 className="checkout-summary-title">수업을 선택해 주세요</h2>
@@ -428,10 +421,10 @@ function BookingCreateContent({
       >
         <SlotSelectionStep
           initialClassId={initialClassId}
-          initialSlotId={initialClassId === requestedClassId
-            && Number.isSafeInteger(requestedSlotId) && requestedSlotId > 0
+          initialSlotId={requestedClassId !== null && initialClassId === requestedClassId
             ? requestedSlotId : null}
           selectInitialSlot={selectRequestedSlot}
+          passOnly={hasRequestedPass}
           selectedSlot={selectedSlot}
           onSelect={(slot) => setSelectedSlot(slot)}
           onDeselect={() => setSelectedSlot(null)}
@@ -439,7 +432,7 @@ function BookingCreateContent({
         />
 
         {selectedSlot && (
-          <CheckoutPanel step={3} title="인원과 결제 방식">
+          <CheckoutPanel title="인원과 결제 방식">
             <Form.Group controlId="booking-participant-count" className="checkout-field-row">
               <div>
                 <Form.Label>예약 인원</Form.Label>
@@ -500,7 +493,7 @@ function BookingCreateContent({
               <Alert variant="warning">
                 <p className="mb-2">
                   링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
-                  이용권 상태를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
+                  <Link to="/my/passes?status=ACTIVE">이용권 상태</Link>를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
                 </p>
                 <Button
                   type="button"
@@ -552,7 +545,7 @@ function BookingCreateContent({
         )}
 
         {paymentPath === "deposit" && (
-          <CheckoutPanel step={selectedSlot ? 4 : 3} title="결제 수단">
+          <CheckoutPanel title="결제 수단">
             <PaymentMethodFields
               value={checkoutSelection}
               onChange={setCheckoutSelection}

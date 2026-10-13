@@ -2,6 +2,7 @@ package com.personal.happygallery.application.product;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
+import static com.personal.happygallery.support.TestFixtures.smartStoreProductOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -28,7 +29,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
@@ -40,7 +41,6 @@ import com.personal.happygallery.application.product.port.out.SmartStoreInventor
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
-import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
@@ -291,9 +291,8 @@ class SmartStoreProductSyncUseCaseIT {
         inventoryRepository.save(inventory(other, 3));
         smartStoreInventoryUseCase.saveMapping(other.getId(), new SaveMappingCommand(456L, true, List.of()));
         LocalDateTime now = LocalDateTime.now(clock);
-        var order = new SmartStoreProductOrder(
-                "pending-stock", "order-pending", 123L, null, "재고 미반영 주문", null,
-                "PAYED", null, null, 2, 2, "PAYED", now.minusMinutes(1), now);
+        var order = smartStoreProductOrder(
+                "pending-stock", "order-pending", "재고 미반영 주문", "PAYED", 2, now.minusMinutes(1), now);
         if (mapped) order.mapTo(productId, null);
         order.requireAttention(mapped ? SmartStoreOrderAttentionReason.STOCK_SHORTAGE
                 : SmartStoreOrderAttentionReason.MAPPING_REQUIRED);
@@ -376,7 +375,7 @@ class SmartStoreProductSyncUseCaseIT {
         var product = productRepository.save(readyStockProduct("연동 이력 상품", 35000L));
         inventoryRepository.save(inventory(product, 5));
         Long productId = product.getId();
-        MappingActor actor = new MappingActor(7L, "운영 관리자");
+        AdminActor actor = new AdminActor(7L, "운영 관리자");
 
         var created = smartStoreInventoryUseCase.saveMapping(
                 productId, new SaveMappingCommand(123L, true, List.of()), actor);
@@ -440,9 +439,9 @@ class SmartStoreProductSyncUseCaseIT {
         smartStoreInventoryUseCase.saveMapping(productId,
                 mappingCommand(productId, 456L, true, List.of()));
         LocalDateTime now = LocalDateTime.now(clock);
-        var order = new SmartStoreProductOrder(
-                "previous-origin-shortage", "previous-order", 123L, null, "기존 원상품 재고 부족", null,
-                "PAYED", null, null, 2, 2, "PAYED", now.minusMinutes(1), now);
+        var order = smartStoreProductOrder(
+                "previous-origin-shortage", "previous-order", "기존 원상품 재고 부족", "PAYED", 2,
+                now.minusMinutes(1), now);
         if (mapped) {
             order.mapTo(productId, null);
         }

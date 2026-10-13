@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -8,8 +9,7 @@ public record BookingSettlementResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"BOOKED", "COMPLETED"})
         String status,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"UNPAID", "PAID"})
-        String balanceStatus,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BalanceStatus balanceStatus,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime balancePaidAt,
@@ -20,7 +20,7 @@ public record BookingSettlementResponse(
         return new BookingSettlementResponse(
                 booking.getId(),
                 booking.getStatus().name(),
-                booking.getBalanceStatus().name(),
+                booking.getBalanceStatus(),
                 booking.getParticipantCount(),
                 booking.getBalancePaidAt(),
                 booking.isArrearsFlag());

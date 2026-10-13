@@ -1,12 +1,15 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogPage;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
+import com.personal.happygallery.application.product.dto.SmartStoreInspectionPage;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
-import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ChannelOption;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
@@ -48,7 +51,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor) {
+    public MappingResult saveMapping(Long productId, SaveMappingCommand command, AdminActor actor) {
         var plan = mappingService.planChange(productId, command);
         if (plan.originChanged()) {
             synchronizePreviousOriginOrders();
@@ -64,7 +67,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor) {
+    public void deleteMapping(Long productId, DeleteMappingCommand command, AdminActor actor) {
         mappingService.planDelete(productId, command);
         synchronizePreviousOriginOrders();
         mappingService.deleteMapping(productId, command, actor);
@@ -90,32 +93,16 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public CatalogPageResult listChannelProducts(int page, int size) {
+    public SmartStoreCatalogPage listChannelProducts(int page, int size) {
         requireProviderEnabled();
-        var catalog = inventoryProvider.listProducts(page, size);
-        return new CatalogPageResult(
-                catalog.products().stream()
-                        .map(product -> new CatalogProductResult(
-                                product.originProductNo(), product.channelProductNo(),
-                                product.name(), product.status(),
-                                product.salePrice(), product.stockQuantity(), product.imageUrl()))
-                        .toList(),
-                catalog.page(), catalog.size(), catalog.totalElements(), catalog.totalPages());
+        return inventoryProvider.listProducts(page, size);
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public InspectionPageResult listInspectionProducts(int page, int size) {
+    public SmartStoreInspectionPage listInspectionProducts(int page, int size) {
         requireProviderEnabled();
-        var inspections = inventoryProvider.listInspectionProducts(page, size);
-        return new InspectionPageResult(
-                inspections.products().stream()
-                        .map(product -> new InspectionProductResult(
-                                product.channelProductNo(), product.reason(), product.action(),
-                                product.restorationRequestAvailable()))
-                        .toList(),
-                inspections.page(), inspections.size(),
-                inspections.totalElements(), inspections.totalPages());
+        return inventoryProvider.listInspectionProducts(page, size);
     }
 
     @Override
@@ -131,12 +118,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         requireProviderEnabled();
         var product = inventoryProvider.getProduct(originProductNo);
         return new ChannelProductResult(
-                originProductNo, product.salePrice(), product.status(),
-                product.options().stream()
-                        .map(option -> new ChannelOptionResult(
-                                option.optionId(), option.name(), option.stockQuantity(),
-                                option.price(), option.usable()))
-                        .toList());
+                originProductNo, product.salePrice(), product.status(), product.options());
     }
 
     @Override
@@ -145,11 +127,11 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         requireProviderEnabled();
         var local = transactionService.productSnapshot(productId);
         var channel = inventoryProvider.getProduct(local.originProductNo());
-        Map<Long, ChannelOption> channelOptions = channel.options().stream()
-                .collect(Collectors.toMap(ChannelOption::optionId, Function.identity()));
+        Map<Long, SmartStoreChannelOption> channelOptions = channel.options().stream()
+                .collect(Collectors.toMap(SmartStoreChannelOption::optionId, Function.identity()));
         List<ProductOptionPreview> options = local.options().stream()
                 .map(option -> {
-                    ChannelOption remote = channelOptions.get(option.optionId());
+                    SmartStoreChannelOption remote = channelOptions.get(option.optionId());
                     boolean different = remote == null
                             || option.price() != remote.price()
                             || option.usable() != remote.usable();
@@ -203,8 +185,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     private void requireProviderEnabled() {
         if (!inventoryProvider.isEnabled()) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT, "스마트스토어 연동이 비활성화되어 있습니다.");
+            throw new HappyGalleryException(ErrorCode.SMARTSTORE_DISABLED);
         }
     }
 

@@ -1,5 +1,16 @@
 package com.personal.happygallery.application.order.port.out;
 
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,18 +27,18 @@ public interface SmartStoreOrderProvider {
     List<ProductOrderDetail> fetchDetails(List<String> productOrderIds);
 
     default void confirm(String productOrderId) {
-        confirmAll(List.of(productOrderId)).requireSuccess(productOrderId);
+        requireSuccess(confirmAll(List.of(productOrderId)), productOrderId);
     }
 
-    OperationResult confirmAll(List<String> productOrderIds);
+    SmartStoreOperationResult confirmAll(List<String> productOrderIds);
 
-    default void dispatch(DispatchCommand command) {
-        dispatchAll(List.of(command)).requireSuccess(command.productOrderId());
+    default void dispatch(SmartStoreDispatchCommand command) {
+        requireSuccess(dispatchAll(List.of(command)), command.productOrderId());
     }
 
-    OperationResult dispatchAll(List<DispatchCommand> commands);
+    SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands);
 
-    void delay(DelayCommand command);
+    void delay(SmartStoreDelayCommand command);
 
     void approveCancel(String productOrderId);
 
@@ -35,23 +46,23 @@ public interface SmartStoreOrderProvider {
 
     void rejectReturn(String productOrderId);
 
-    void holdReturn(ReturnHoldCommand command);
+    void holdReturn(SmartStoreReturnHoldCommand command);
 
     void releaseReturnHold(String productOrderId);
 
-    void requestSellerReturn(SellerReturnCommand command);
+    void requestSellerReturn(SmartStoreSellerReturnCommand command);
 
-    void dispatchExchange(ExchangeDispatchCommand command);
+    void dispatchExchange(SmartStoreExchangeDispatchCommand command);
 
     void completeExchangeCollect(String productOrderId);
 
-    void rejectExchange(ExchangeRejectCommand command);
+    void rejectExchange(SmartStoreExchangeRejectCommand command);
 
-    void holdExchange(ExchangeHoldCommand command);
+    void holdExchange(SmartStoreExchangeHoldCommand command);
 
     void releaseExchangeHold(String productOrderId);
 
-    void requestSellerCancel(SellerCancelCommand command);
+    void requestSellerCancel(SmartStoreSellerCancelCommand command);
 
     record ChangeCursor(LocalDateTime changedFrom, String moreSequence) {}
 
@@ -74,12 +85,12 @@ public interface SmartStoreOrderProvider {
             Long itemNo,
             String productName,
             String productOption,
-            DeliveryInfo deliveryInfo,
+            SmartStoreDeliveryInfo deliveryInfo,
             String productOrderStatus,
             String placeOrderStatus,
             String claimType,
             String claimStatus,
-            ClaimDetail claimDetail,
+            SmartStoreClaimDetail claimDetail,
             int initialQuantity,
             int remainQuantity,
             LocalDateTime paymentDate,
@@ -98,120 +109,22 @@ public interface SmartStoreOrderProvider {
         public int completedReturnQuantity() {
             return completedReturns.stream().mapToInt(CompletedReturn::quantity).sum();
         }
-
-        public int completedReturnQuantityAt(LocalDateTime changedAt) {
-            return completedReturns.stream()
-                    .filter(returned -> !returned.completedAt().isAfter(changedAt))
-                    .mapToInt(CompletedReturn::quantity).sum();
-        }
     }
 
-    record CompletedReturn(String claimId, int quantity, LocalDateTime completedAt) {}
+    record CompletedReturn(String claimId, int quantity) {}
 
-    record ClaimDetail(
-            String claimId,
-            String claimType,
-            String claimStatus,
-            String reason,
-            String detailedReason,
-            Integer requestQuantity,
-            LocalDateTime requestedAt,
-            String collectStatus,
-            String collectDeliveryCompany,
-            String collectTrackingNumber,
-            Long claimDeliveryFeeDemandAmount,
-            String holdbackStatus,
-            List<String> imageUrls
-    ) {
-        public ClaimDetail {
-            imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
-        }
+    /** 단건 처리 결과에서 요청한 상품 주문이 실패했으면 결과 미확인 또는 거절 예외로 바꾼다. */
+    private static void requireSuccess(SmartStoreOperationResult result, String productOrderId) {
+        result.failures().stream()
+                .filter(failure -> productOrderId.equals(failure.productOrderId()))
+                .findFirst()
+                .ifPresent(failure -> {
+                    if ("UNKNOWN_RESULT".equals(failure.code())) {
+                        throw new OperationResultUnknownException(failure.message());
+                    }
+                    throw new OperationRejectedException(failure.code(), failure.message());
+                });
     }
-
-    record DeliveryInfo(
-            String recipientName,
-            String phone,
-            String postalCode,
-            String addressLine1,
-            String addressLine2,
-            String shippingMemo
-    ) {}
-
-    record DispatchCommand(
-            String productOrderId,
-            String deliveryMethod,
-            String deliveryCompanyCode,
-            String trackingNumber,
-            LocalDateTime dispatchDate
-    ) {}
-
-    record DelayCommand(
-            String productOrderId,
-            LocalDateTime dispatchDueDate,
-            String reasonCode,
-            String detailedReason
-    ) {}
-
-    record ExchangeDispatchCommand(
-            String productOrderId,
-            String deliveryMethod,
-            String deliveryCompanyCode,
-            String trackingNumber
-    ) {}
-
-    record ExchangeRejectCommand(String productOrderId, String reason) {}
-
-    record ExchangeHoldCommand(
-            String productOrderId,
-            String holdbackClassType,
-            String detailedReason,
-            Long extraExchangeFeeAmount
-    ) {}
-
-    record ReturnHoldCommand(
-            String productOrderId,
-            String holdbackClassType,
-            String detailedReason,
-            Long extraReturnFeeAmount
-    ) {}
-
-    record SellerReturnCommand(
-            String productOrderId,
-            String returnReason,
-            String collectDeliveryMethod,
-            String collectDeliveryCompany,
-            String collectTrackingNumber,
-            Integer returnQuantity
-    ) {}
-
-    record SellerCancelCommand(
-            String productOrderId,
-            String reason,
-            String detailedReason,
-            Integer quantity
-    ) {}
-
-    record OperationResult(List<String> successProductOrderIds, List<OperationFailure> failures) {
-        public OperationResult {
-            successProductOrderIds = successProductOrderIds == null
-                    ? List.of() : List.copyOf(successProductOrderIds);
-            failures = failures == null ? List.of() : List.copyOf(failures);
-        }
-
-        public void requireSuccess(String productOrderId) {
-            failures.stream()
-                    .filter(failure -> productOrderId.equals(failure.productOrderId()))
-                    .findFirst()
-                    .ifPresent(failure -> {
-                        if ("UNKNOWN_RESULT".equals(failure.code())) {
-                            throw new OperationResultUnknownException(failure.message());
-                        }
-                        throw new OperationRejectedException(failure.code(), failure.message());
-                    });
-        }
-    }
-
-    record OperationFailure(String productOrderId, String code, String message) {}
 
     class OperationRejectedException extends RuntimeException {
         private final String code;

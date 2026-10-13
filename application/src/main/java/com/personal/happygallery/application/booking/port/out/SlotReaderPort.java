@@ -7,10 +7,6 @@ import java.util.Optional;
 
 public interface SlotReaderPort {
 
-    Optional<Slot> findById(Long id);
-
-    List<Slot> findAllById(Iterable<Long> ids);
-
     Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(Long id);
 
     List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(Iterable<Long> ids);

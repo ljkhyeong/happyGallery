@@ -22,7 +22,15 @@ function RestockAlertButtonContent({ productId, productVariantId }: Props) {
   const needsStatusCheck = mutation.isSuccess && query.isError;
   if (isLoading) return null;
   if (!isAuthenticated) return <LinkButton to={buildAuthPageHref("/login", { redirectTo: productDetailHref(productId, productVariantId) })} variant="outline-primary">로그인하고 재입고 알림 받기</LinkButton>;
-  if (!user?.phoneVerified) return <LinkButton to="/my" variant="outline-primary">휴대폰 인증 후 재입고 알림 받기</LinkButton>;
+  if (!user?.phoneVerified) {
+    // 내 정보에서 휴대폰을 인증한 뒤 이 작품으로 돌아온다.
+    const returnTo = productDetailHref(productId, productVariantId);
+    return (
+      <LinkButton to={`/my?${new URLSearchParams({ phone: "1", returnTo })}`} variant="outline-primary">
+        휴대폰 인증 후 재입고 알림 받기
+      </LinkButton>
+    );
+  }
   return (
     <div className="my-2">
       <Button variant="outline-primary" disabled={busy || query.isPending || query.isError} onClick={() => {
@@ -33,7 +41,7 @@ function RestockAlertButtonContent({ productId, productVariantId }: Props) {
       }}>
         {mutation.isPending ? "처리 중..." : needsStatusCheck ? "신청 상태 확인 필요" : registration ? "재입고 알림 해지" : "재입고 알림 받기"}
       </Button>
-      <p className="small text-muted mt-1 mb-0">선택한 상품·옵션이 입고되면 한 번 안내합니다. 알림은 재고 예약을 보장하지 않습니다.</p>
+      <p className="small text-muted mt-1 mb-0">선택한 작품·옵션이 입고되면 한 번 안내합니다. 알림은 재고 예약을 보장하지 않습니다.</p>
       {needsStatusCheck && <p className="small mt-2 mb-2" role="status">요청을 처리했습니다. 최신 신청 상태를 확인해 주세요.</p>}
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }}
         retrying={busy} retryLabel="신청 상태 다시 확인" />

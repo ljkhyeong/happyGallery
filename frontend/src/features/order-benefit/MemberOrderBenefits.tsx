@@ -1,12 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
-import { fetchMyCoupons, type MyCouponResponse } from "@/features/coupon/api";
+import type { MyCouponResponse } from "@/features/coupon/api";
+import { couponDiscountLabel } from "@/features/coupon/presentation";
+import { myCouponsQuery } from "@/features/coupon/queries";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
 import { queryKeys } from "@/shared/api";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, parsePositiveId } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
   calculateCouponDiscount,
@@ -25,9 +27,7 @@ interface Props {
 }
 
 function couponLabel(coupon: MyCouponResponse): string {
-  const discount = coupon.discountType === "FIXED"
-    ? `${formatKRW(coupon.discountValue)} 할인`
-    : `${coupon.discountValue}% 할인 (최대 ${formatKRW(coupon.maxDiscountAmount ?? 0)})`;
+  const discount = couponDiscountLabel(coupon);
   const minimum = coupon.minOrderAmount > 0
     ? ` · ${formatKRW(coupon.minOrderAmount)} 이상`
     : "";
@@ -43,10 +43,7 @@ export function MemberOrderBenefits({
   onCouponChange,
   onRewardPointsChange,
 }: Props) {
-  const couponsQuery = useQuery({
-    queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }) => fetchMyCoupons(signal),
-  });
+  const couponsQuery = useQuery(myCouponsQuery());
   const rewardQuery = useQuery({
     queryKey: queryKeys.member.rewards,
     queryFn: ({ signal }) => fetchMyRewardWallet(signal),
@@ -55,7 +52,6 @@ export function MemberOrderBenefits({
   const selectableCoupons = useMemo(
     () => couponsQuery.data?.filter((coupon) => (
       coupon.status === "AVAILABLE"
-      && productAmount >= coupon.minOrderAmount
       && calculateCouponDiscount(coupon, productAmount) > 0
     )) ?? [],
     [couponsQuery.data, productAmount],
@@ -83,7 +79,7 @@ export function MemberOrderBenefits({
     <div>
       <h6 className="mb-1">쿠폰·적립금</h6>
       <p className="text-muted-soft small mb-3">
-        회원 상품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
+        회원 작품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
       </p>
 
       {isLoading && <LoadingSpinner text="쿠폰·적립금 조회 중..." />}
@@ -104,10 +100,7 @@ export function MemberOrderBenefits({
           aria-label="사용할 쿠폰"
           value={selectedCouponId ?? ""}
           disabled={disabled || couponsQuery.isLoading || couponsQuery.isError}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            onCouponChange(Number.isSafeInteger(value) && value > 0 ? value : null);
-          }}
+          onChange={(event) => onCouponChange(parsePositiveId(event.target.value))}
         >
           <option value="">쿠폰을 사용하지 않음</option>
           {selectableCoupons.map((coupon) => (

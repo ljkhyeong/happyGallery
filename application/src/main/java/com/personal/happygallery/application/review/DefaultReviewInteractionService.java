@@ -2,7 +2,6 @@ package com.personal.happygallery.application.review;
 
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.HelpfulResult;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewEvidenceItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReaction;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportItem;
 import com.personal.happygallery.application.review.port.out.ReviewHelpfulPort;
@@ -68,7 +67,7 @@ class DefaultReviewInteractionService implements ReviewInteractionUseCase {
                 review.getStatus(),
                 evidence.getId(),
                 LocalDateTime.now(clock));
-        return toReportItem(reportPort.save(report), evidence);
+        return ReviewViewAssembler.toReportItem(reportPort.save(report), evidence);
     }
 
     @Override
@@ -119,35 +118,5 @@ class DefaultReviewInteractionService implements ReviewInteractionUseCase {
                             canInteract);
                 })
                 .toList();
-    }
-
-    private static ReviewReportItem toReportItem(
-            ReviewReport report, ReviewEvidenceSnapshot evidence) {
-        return new ReviewReportItem(
-                report.getId(),
-                report.getReviewId(),
-                report.getReporterUserId(),
-                report.getReason(),
-                report.getDetail(),
-                report.getSnapshotStatus(),
-                toEvidenceItem(evidence),
-                report.getStatus(),
-                report.getDecisionNote(),
-                report.getDecidedByAdminId(),
-                report.getDecidedAt(),
-                report.getCreatedAt());
-    }
-
-    private static ReviewEvidenceItem toEvidenceItem(ReviewEvidenceSnapshot evidence) {
-        return new ReviewEvidenceItem(
-                evidence.getId(),
-                evidence.getContentRevision(),
-                evidence.getRating(),
-                evidence.getContent(),
-                evidence.getEditedAt(),
-                evidence.getProvenance(),
-                evidence.isImagesComplete(),
-                evidence.getImageUrls(),
-                evidence.getCapturedAt());
     }
 }

@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,7 +34,6 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import tools.jackson.core.JacksonException;
 
 import static java.util.stream.Collectors.joining;
 
@@ -87,10 +88,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request
     ) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .collect(joining(", "));
-        return mvcErrorResponse(ErrorCode.INVALID_INPUT, message, headers, status);
+        return mvcErrorResponse(
+                ErrorCode.INVALID_INPUT, fieldErrorMessage(e.getBindingResult().getFieldErrors()), headers, status);
     }
 
     @Override
@@ -148,7 +147,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request
     ) {
-        return invalidRequestParameter(headers, status);
+        // 경로·쿼리 제약이 있는 메서드는 @Valid 본문 오류도 이 예외로 온다. 본문 오류는 필드별 문구를 유지한다.
+        List<FieldError> fieldErrors = e.getBeanResults().stream()
+                .flatMap(result -> result.getFieldErrors().stream())
+                .toList();
+        if (fieldErrors.isEmpty()) {
+            return invalidRequestParameter(headers, status);
+        }
+        return mvcErrorResponse(ErrorCode.INVALID_INPUT, fieldErrorMessage(fieldErrors), headers, status);
     }
 
     @Override
@@ -165,19 +171,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             Sentry.captureException(e);
         }
         return mvcErrorResponse(errorCode, errorCode.message, headers, status);
-    }
-
-    /**
-     * 서버 내부 직렬화/역직렬화 실패.
-     * 요청 JSON 파싱 오류는 Spring의 HttpMessageNotReadableException 경로에서 400으로 처리한다.
-     */
-    @ExceptionHandler(JacksonException.class)
-    public ResponseEntity<ErrorResponse> handleJacksonException(JacksonException e) {
-        log.error("JSON 처리 중 내부 오류", e);
-        Sentry.captureException(e);
-        return ResponseEntity
-                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
     }
 
     /** DB 제약 위반. 이름과 의미를 아는 제약만 클라이언트 오류로 번역한다. */
@@ -198,9 +191,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             log.warn("DB 제약 위반 [constraint={}, code={}]",
                     constraintName.orElseThrow(), errorCode);
         }
-        return ResponseEntity
-                .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
+        return error(errorCode);
     }
 
     /**
@@ -210,19 +201,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
         log.warn("낙관적 락 충돌");
-        ErrorCode errorCode = resolveOptimisticLockErrorCode(e);
-        return ResponseEntity
-                .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
+        return error(resolveOptimisticLockErrorCode(e));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
         log.error("처리되지 않은 예외", e);
         Sentry.captureException(e);
+        return error(ErrorCode.INTERNAL_ERROR);
+    }
+
+    /** 오류 코드의 기본 문구와 현재 요청 추적 ID로 응답을 만든다. */
+    private static ResponseEntity<ErrorResponse> error(ErrorCode errorCode) {
         return ResponseEntity
-                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
     }
 
     private static String requestId() {
@@ -248,17 +241,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return Optional.empty();
     }
 
-    private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof ObjectOptimisticLockingFailureException objectFailure
-                    && (Booking.class.equals(objectFailure.getPersistentClass())
-                    || Booking.class.getName().equals(objectFailure.getPersistentClassName()))) {
-                return ErrorCode.BOOKING_CONFLICT;
-            }
-            current = current.getCause();
-        }
-        return ErrorCode.CONFLICT;
+    private static ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
+        return e instanceof ObjectOptimisticLockingFailureException failure
+                && Booking.class.getName().equals(failure.getPersistentClassName())
+                ? ErrorCode.BOOKING_CONFLICT
+                : ErrorCode.CONFLICT;
+    }
+
+    private static String fieldErrorMessage(List<FieldError> fieldErrors) {
+        return fieldErrors.stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(joining(", "));
     }
 
     private ResponseEntity<Object> invalidRequestParameter(

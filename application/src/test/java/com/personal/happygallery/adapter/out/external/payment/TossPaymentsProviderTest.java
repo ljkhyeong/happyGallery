@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
@@ -35,11 +36,11 @@ class TossPaymentsProviderTest {
     private static final TossPaymentsProperties PROPERTIES = new TossPaymentsProperties(
             "test_secret",
             "https://api.tosspayments.com",
-            Duration.ofSeconds(3),
+            new HttpPool(Duration.ofSeconds(3),
             Duration.ofSeconds(1),
             Duration.ofMillis(500),
             10,
-            Duration.ofSeconds(30));
+            Duration.ofSeconds(30)));
 
     @DisplayName("Toss 결제 확정은 Basic 인증과 서버 금액으로 confirm 요청을 보낸다")
     @Test

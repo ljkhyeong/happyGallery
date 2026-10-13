@@ -33,8 +33,9 @@ public class NotificationLog {
     @Enumerated(EnumType.STRING)
     private NotificationEventType eventType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
-    private String status;
+    private NotificationLogStatus status;
 
     @Column(name = "fail_reason", length = 500)
     private String failReason;
@@ -59,7 +60,7 @@ public class NotificationLog {
         log.userId = userId;
         log.channel = channel;
         log.eventType = eventType;
-        log.status = "SUCCESS";
+        log.status = NotificationLogStatus.SUCCESS;
         log.sentAt = sentAt;
         return log;
     }
@@ -74,7 +75,7 @@ public class NotificationLog {
         log.userId = userId;
         log.channel = channel;
         log.eventType = eventType;
-        log.status = "FAILED";
+        log.status = NotificationLogStatus.FAILED;
         log.failReason = failReason;
         log.sentAt = sentAt;
         return log;
@@ -93,7 +94,7 @@ public class NotificationLog {
         log.userId = userId;
         log.channel = channel;
         log.eventType = eventType;
-        log.status = "REQUESTED";
+        log.status = NotificationLogStatus.REQUESTED;
         log.providerRequestId = providerRequestId;
         log.providerRecipientSeq = providerRecipientSeq;
         log.sentAt = requestedAt;
@@ -101,13 +102,13 @@ public class NotificationLog {
     }
 
     public void markDelivered(LocalDateTime deliveredAt) {
-        status = "SUCCESS";
+        status = NotificationLogStatus.SUCCESS;
         failReason = null;
         sentAt = deliveredAt;
     }
 
     public void markFailed(String reason, LocalDateTime failedAt) {
-        status = "FAILED";
+        status = NotificationLogStatus.FAILED;
         failReason = reason == null || reason.length() <= 500
                 ? reason
                 : reason.substring(0, 500);
@@ -119,7 +120,7 @@ public class NotificationLog {
     public Long getUserId() { return userId; }
     public NotificationChannel getChannel() { return channel; }
     public NotificationEventType getEventType() { return eventType; }
-    public String getStatus() { return status; }
+    public NotificationLogStatus getStatus() { return status; }
     public String getFailReason() { return failReason; }
     public String getProviderRequestId() { return providerRequestId; }
     public Long getProviderRecipientSeq() { return providerRecipientSeq; }

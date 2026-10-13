@@ -8,7 +8,6 @@ public interface PassExpiryReminderCandidatePort {
     List<PassExpiryReminderTarget> findUnnotifiedExpiringAfterId(
             LocalDateTime now,
             LocalDateTime latestExpiry,
-            int minimumCredits,
             Long afterId,
             int limit);
 }

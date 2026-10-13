@@ -1,6 +1,7 @@
 import { Alert } from "react-bootstrap";
 import { formatKRW } from "@/shared/lib";
-import type { PaymentStatusResponse } from "./types";
+import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
+import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 
 function paymentContextCopy(context: PaymentStatusResponse["context"]) {
   switch (context) {
@@ -9,7 +10,7 @@ function paymentContextCopy(context: PaymentStatusResponse["context"]) {
         completedHeading: "결제가 완료되었습니다",
         creationFailed: "주문을 만들지 못해",
         notCreated: "주문이 생성되지 않았으며",
-        restartLocation: "상품 화면",
+        restartLocation: "작품 화면",
       };
     case "BOOKING":
       return {
@@ -66,6 +67,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
         <Alert variant="warning" className="mb-0">
           <Alert.Heading className="fs-5">결제사 결과를 확인하고 있습니다</Alert.Heading>
           <p className="mb-0">중복 결제를 피하기 위해 새로 결제하지 마세요. 공방에 결제 결과를 문의한 뒤 새로고침해 주세요.</p>
+          <WorkshopContactLinks />
         </Alert>
       );
     case "SUPPORT_REQUIRED":
@@ -73,6 +75,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
         <Alert variant="warning" className="mb-0">
           <Alert.Heading className="fs-5">환불 확인이 필요합니다</Alert.Heading>
           <p className="mb-0">자동 환불을 완료하지 못해 공방에서 확인 중입니다. 새로 결제하지 말고 해피갤러리로 문의해 주세요.</p>
+          <WorkshopContactLinks />
         </Alert>
       );
     case "FAILED":

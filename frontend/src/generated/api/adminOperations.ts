@@ -216,6 +216,26 @@ export interface InquiryReplyRequest {
   replyContent: string;
 }
 
+/**
+ * @nullable
+ */
+export type FailedNotificationResponseAggregateType = typeof FailedNotificationResponseAggregateType[keyof typeof FailedNotificationResponseAggregateType] | null;
+
+
+export const FailedNotificationResponseAggregateType = {
+  ORDER: 'ORDER',
+  ORDER_CLAIM: 'ORDER_CLAIM',
+  BOOKING: 'BOOKING',
+  VACANCY_ALERT: 'VACANCY_ALERT',
+  PASS_PURCHASE: 'PASS_PURCHASE',
+  REFUND: 'REFUND',
+  INQUIRY: 'INQUIRY',
+  PRODUCT_QNA: 'PRODUCT_QNA',
+  RESTOCK_ALERT: 'RESTOCK_ALERT',
+  REVIEW: 'REVIEW',
+  REVIEW_MODERATION_ACTION: 'REVIEW_MODERATION_ACTION',
+} as const;
+
 export type FailedNotificationResponseEventType = typeof FailedNotificationResponseEventType[keyof typeof FailedNotificationResponseEventType];
 
 
@@ -268,7 +288,7 @@ export interface FailedNotificationResponse {
   /** @nullable */
   aggregateId: number | null;
   /** @nullable */
-  aggregateType: string | null;
+  aggregateType: FailedNotificationResponseAggregateType;
   attemptCount: number;
   createdAt: string;
   eventType: FailedNotificationResponseEventType;
@@ -848,27 +868,6 @@ export const getListAdminInquiriesUrl = (params?: ListAdminInquiriesParams,) => 
 export const listAdminInquiries = async (params?: ListAdminInquiriesParams, options?: RequestInit): Promise<AdminInquiryPageResponse> => {
 
   return generatedApiClient<AdminInquiryPageResponse>(getListAdminInquiriesUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-export const getGetAdminInquiryUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/admin/inquiries/${id}`
-}
-
-export const getAdminInquiry = async (id: number, options?: RequestInit): Promise<AdminInquiryResponse> => {
-
-  return generatedApiClient<AdminInquiryResponse>(getGetAdminInquiryUrl(id),
   {
     ...options,
     method: 'GET'

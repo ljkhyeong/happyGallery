@@ -1,5 +1,10 @@
 import type { QueryKey } from "@tanstack/react-query";
 
+type ReviewTargetType = "PRODUCT" | "CLASS";
+
+const reviewTargetSegment = (targetType: ReviewTargetType) =>
+  targetType === "PRODUCT" ? "products" : "classes";
+
 export const queryKeys = {
   admin: {
     all: ["admin"] as const,
@@ -29,6 +34,7 @@ export const queryKeys = {
           ["admin", "reviews", "reports", "detail", reportId] as const,
       },
     },
+    products: ["admin", "products"] as const,
     classes: ["admin", "classes"] as const,
     slots: {
       all: ["admin", "slots"] as const,
@@ -45,6 +51,10 @@ export const queryKeys = {
     productDetail: (productId: number) => ["products", productId] as const,
     classes: ["classes"] as const,
     classDetail: (classId: number) => ["classes", classId] as const,
+    /** 조건이 없으면 전체 목록(products)과 같은 캐시를 쓴다. */
+    productList: (filters: object) => Object.keys(filters).length > 0
+      ? ["products", filters] as const
+      : ["products"] as const,
   },
   workshop: ["workshop-profile"] as const,
   notices: {
@@ -56,7 +66,6 @@ export const queryKeys = {
     detail: (eventId: number) => ["events", eventId] as const,
   },
   productQna: {
-    all: ["product-qna"] as const,
     byProduct: (productId: number) => ["product-qna", productId] as const,
     history: (productId: number) =>
       ["product-qna", productId, "history"] as const,
@@ -64,19 +73,21 @@ export const queryKeys = {
       ["product-qna", productId, qnaId] as const,
   },
   reviews: {
-    all: ["reviews"] as const,
     products: {
-      all: ["reviews", "products"] as const,
       byProduct: (productId: number) => ["reviews", "products", productId] as const,
       history: (productId: number, rating?: number, sort = "LATEST") =>
         ["reviews", "products", productId, "history", rating, sort] as const,
     },
     classes: {
-      all: ["reviews", "classes"] as const,
       byClass: (classId: number) => ["reviews", "classes", classId] as const,
       history: (classId: number, rating?: number, sort = "LATEST") =>
         ["reviews", "classes", classId, "history", rating, sort] as const,
     },
+    /** 작품·클래스 후기를 대상 종류와 무관하게 다룰 때 쓴다. products·classes 키와 값이 같다. */
+    byTarget: (targetType: ReviewTargetType, targetId: number) =>
+      ["reviews", reviewTargetSegment(targetType), targetId] as const,
+    historyByTarget: (targetType: ReviewTargetType, targetId: number, rating?: number, sort = "LATEST") =>
+      ["reviews", reviewTargetSegment(targetType), targetId, "history", rating, sort] as const,
   },
   member: {
     all: ["me"] as const,
@@ -102,8 +113,36 @@ export const queryKeys = {
     inquiries: ["me", "inquiries"] as const,
     inquiryHistory: ["me", "inquiries", "history"] as const,
     guestClaimPreview: ["me", "guest-claims", "preview"] as const,
+    restockAlerts: ["me", "restock-alerts"] as const,
+    socialAccounts: ["me", "social-accounts"] as const,
+    defaultShippingAddress: ["me", "default-shipping-address"] as const,
+    favorites: {
+      all: ["me", "favorites"] as const,
+      lists: ["me", "favorites", "list"] as const,
+      list: (type: string) => ["me", "favorites", "list", type] as const,
+      status: (type: string, targetId: number) =>
+        ["me", "favorites", "status", type, targetId] as const,
+    },
+    groupInquiries: {
+      all: ["me", "group-inquiries"] as const,
+      lists: ["me", "group-inquiries", "list"] as const,
+      list: (cursor: string | undefined) =>
+        ["me", "group-inquiries", "list", cursor] as const,
+      detail: (inquiryId: number) =>
+        ["me", "group-inquiries", "detail", inquiryId] as const,
+    },
+    notifications: {
+      all: ["me", "notifications"] as const,
+      page: (page: number, unreadOnly: boolean) =>
+        ["me", "notifications", page, unreadOnly] as const,
+      unreadCount: ["me", "notifications", "unread-count"] as const,
+    },
+    paymentAbandonStatus: (
+      sessionVersion: number,
+      boundaryEpoch: string | null,
+      orderId: string | undefined,
+    ) => ["me", "payment-abandon-status", sessionVersion, boundaryEpoch, orderId] as const,
     productQna: {
-      all: ["me", "product-qna"] as const,
       byProduct: (productId: number) => ["me", "product-qna", productId] as const,
       history: (productId: number) =>
         ["me", "product-qna", productId, "history"] as const,
@@ -125,7 +164,8 @@ export const queryKeys = {
     },
     guestRecovery: {
       all: ["me", "guest-recovery"] as const,
-      orders: (
+      records: (
+        kind: "orders" | "bookings",
         boundaryEpoch: string | null,
         boundaryCustomerId: number | null,
         sessionVersion: number,
@@ -133,21 +173,7 @@ export const queryKeys = {
       ) => [
         "me",
         "guest-recovery",
-        "orders",
-        boundaryEpoch,
-        boundaryCustomerId,
-        sessionVersion,
-        expiresAt,
-      ] as const,
-      bookings: (
-        boundaryEpoch: string | null,
-        boundaryCustomerId: number | null,
-        sessionVersion: number,
-        expiresAt: string,
-      ) => [
-        "me",
-        "guest-recovery",
-        "bookings",
+        kind,
         boundaryEpoch,
         boundaryCustomerId,
         sessionVersion,
@@ -167,6 +193,37 @@ export const queryKeys = {
         ["reschedule-slots", classId, date] as const,
     },
   },
+  /** 비회원 조회는 접근 토큰 대신 조회마다 만든 요청 ID로 캐시를 나눈다. */
+  guest: {
+    record: (
+      kind: "order" | "booking",
+      recordId: number | undefined,
+      requestId: string | undefined,
+    ) => ["guest", kind, recordId, requestId] as const,
+    orderClaims: (orderId: number, requestKey: string) =>
+      ["guest", "order", orderId, "claims", requestKey] as const,
+    paymentStatus: (
+      sessionVersion: number,
+      boundaryEpoch: string | null,
+      boundaryCustomerId: number | null,
+      orderId: string,
+      statusToken: string | null,
+    ) => [
+      "guest",
+      "payment-status",
+      sessionVersion,
+      boundaryEpoch,
+      boundaryCustomerId,
+      orderId,
+      statusToken,
+    ] as const,
+  },
+  policies: {
+    consent: ["policy-consent", "current"] as const,
+    orderPrice: ["orders", "price-policy"] as const,
+    passPayment: ["payment", "pass-policy"] as const,
+  },
+  botProtection: ["bot-protection"] as const,
 } as const;
 
 export function isCustomerQueryKey(queryKey: QueryKey): boolean {

@@ -29,7 +29,7 @@ export interface GuestCartMergeRequest {
 export type CartAddition = Pick<GuestCartItem, "productId" | "productVariantId" | "textInputs" | "qty">;
 
 export class CartQuantityError extends Error {
-  constructor(message = `같은 상품·옵션 조합의 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`) {
+  constructor(message = `같은 작품·옵션 조합의 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`) {
     super(message);
     this.name = "CartQuantityError";
   }
@@ -48,34 +48,34 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     typeof item.productId !== "number"
     || !Number.isSafeInteger(item.productId)
     || item.productId <= 0
-    || (item.productVariantId !== undefined
-      && item.productVariantId !== null
-      && (!Number.isSafeInteger(item.productVariantId) || item.productVariantId <= 0))
-    || (item.textInputs !== undefined && !Array.isArray(item.textInputs))
+    || (item.productVariantId !== null
+      && (typeof item.productVariantId !== "number"
+        || !Number.isSafeInteger(item.productVariantId)
+        || item.productVariantId <= 0))
+    || !Array.isArray(item.textInputs)
     || typeof item.qty !== "number"
     || !Number.isSafeInteger(item.qty)
     || item.qty <= 0
     || item.qty > MAX_PRODUCT_QUANTITY
-    || (item.lineageId !== undefined
-      && (typeof item.lineageId !== "string" || item.lineageId.length === 0))
+    || typeof item.lineageId !== "string"
+    || item.lineageId.length === 0
   ) {
     return undefined;
   }
-  const textInputs = (item.textInputs ?? []).filter((input) => (
+  const textInputs = item.textInputs.filter((input) => (
     typeof input === "object"
     && input !== null
     && typeof input.groupKey === "string"
     && (input.value === undefined || typeof input.value === "string")
   )) as ProductTextInputRequest[];
-  if (textInputs.length !== (item.textInputs ?? []).length) return undefined;
-  const productVariantId = item.productVariantId ?? null;
+  if (textInputs.length !== item.textInputs.length) return undefined;
   return {
     productId: item.productId,
-    productVariantId,
+    productVariantId: item.productVariantId,
     textInputs,
-    lineKey: productOptionLineKey(item.productId, productVariantId, textInputs),
+    lineKey: productOptionLineKey(item.productId, item.productVariantId, textInputs),
     qty: item.qty,
-    lineageId: item.lineageId ?? `legacy:${item.productId}`,
+    lineageId: item.lineageId,
   };
 }
 
@@ -198,7 +198,7 @@ function requirePurchasableAdditions(items: GuestCartItem[], changed: readonly C
   for (const item of changed) {
     const product = productsById.get(item.productId)!;
     if (!productSelectionView(product, item).configurationValid) {
-      throw new CartQuantityError(`${product.name}의 선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요.`);
+      throw new CartQuantityError(`${product.name}의 선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요.`);
     }
   }
   for (const item of new Map(changed.map((item) => [productSkuKey(item), item])).values()) {

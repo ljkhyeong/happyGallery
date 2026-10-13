@@ -65,13 +65,6 @@ public class MePassController {
                 passQueryUseCase.listMyPasses(customer.userId(), new PassHistoryQuery(keyword, status, sort), cursor, size));
     }
 
-    @GetMapping("/{id}")
-    @Operation(operationId = "getMyPass")
-    public MyPassSummary myPass(@PathVariable Long id,
-                                @AuthenticationPrincipal CustomerPrincipal customer) {
-        return MyPassSummary.from(passQueryUseCase.findMyPass(id, customer.userId()));
-    }
-
     @PostMapping("/{id}/refund")
     @Operation(operationId = "refundMyPass")
     public MemberPassRefundResponse refundMyPass(

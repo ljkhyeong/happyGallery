@@ -1,4 +1,4 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type {
   CartResponse,
   OrderDetailResponse,
@@ -9,20 +9,11 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 const guestCustomerError = {
   code: "UNAUTHORIZED",
@@ -42,11 +33,7 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
   let paymentStatusToken: string | undefined;
 
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "frontend-resilience-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.addInitScript(() => {
     const originalSetItem = Storage.prototype.setItem;
@@ -141,11 +128,7 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
   page,
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "payment-recovery-boundary-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function setItem(key: string, value: string) {
@@ -343,22 +326,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
   page,
 }) => {
   let qnaAttempts = 0;
-  const product = {
-    id: 42,
-    name: "오류 복구 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "오류 복구 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
@@ -389,17 +357,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
       return;
     }
     if (pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -442,7 +400,6 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
     "/api/v1/me/orders",
     "/api/v1/me/bookings",
     "/api/v1/me/passes",
-    "/api/v1/me/inquiries",
     "/api/v1/me/inquiries/page",
     "/api/v1/me/social-accounts",
   ]);
@@ -485,7 +442,6 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
       pathname === "/api/v1/me/orders"
       || pathname === "/api/v1/me/bookings"
       || pathname === "/api/v1/me/passes"
-      || pathname === "/api/v1/me/inquiries"
     ) {
       await fulfillJson(route, []);
       return;
@@ -741,18 +697,18 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   await page.goto("/my/orders/75");
   const orderCard = page.locator(".card").filter({ hasText: "HG-BENEFIT-75" }).first();
   await expect(orderCard.getByText("카드·간편결제 금액", { exact: true }).first().locator("..")).toContainText(
-    "₩7,000",
+    "7,000원",
   );
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("₩12,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-₩2,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-₩3,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("₩7,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("12,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-2,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-3,000원");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("7,000원");
 
   const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
-  await expect(refundAlert).toContainText("₩10,000 환불이 완료되었습니다.");
-  await expect(refundAlert.getByText(/결제사 환불 ₩7,000 · 완료/)).toBeVisible();
-  await expect(refundAlert.getByText(/적립금 복원 3,000P · 완료/)).toBeVisible();
-  await expect(refundAlert.getByText(/지급 적립금 회수 70P · 완료/)).toBeVisible();
+  await expect(refundAlert).toContainText("10,000원 환불이 완료되었습니다.");
+  await expect(refundAlert.getByText(/결제사 환불 7,000원 · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/적립금 복원 3,000원 · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/지급 적립금 회수 70원 · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/쿠폰을 다시 사용할 수 있습니다./)).toBeVisible();
 
   await page.goto("/my/orders/76");
@@ -771,11 +727,7 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
   page,
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "order-cancel-resilience-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -883,11 +835,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   });
 
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "frontend-resilience-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

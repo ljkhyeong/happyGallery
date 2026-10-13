@@ -1,21 +1,20 @@
 import { useMemo, useState } from "react";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
-import { Button } from "react-bootstrap";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import {
-  fetchClassReviews,
   fetchMyReviewReactions,
-  fetchProductReviews,
+  fetchTargetReviews,
   type ReviewSort,
 } from "./api";
 import { PublicReviewCard } from "./PublicReviewCard";
 import { ReviewFilters } from "./ReviewFilters";
 import { ReviewHistogram } from "./ReviewHistogram";
 import { chunkReviewIdsByPage } from "./reviewUiPolicy";
+import { reviewTargetHref } from "./reviewTarget";
 
 interface Props {
   targetType: "PRODUCT" | "CLASS";
@@ -32,23 +31,14 @@ function PublicReviewContent({ targetType, targetId }: Props) {
   const [rating, setRating] = useState<number | undefined>();
   const [sort, setSort] = useState<ReviewSort>("LATEST");
   const query = useInfiniteQuery({
-    queryKey: targetType === "PRODUCT"
-      ? queryKeys.reviews.products.history(targetId, rating, sort)
-      : queryKeys.reviews.classes.history(targetId, rating, sort),
-    queryFn: ({ pageParam, signal }) => targetType === "PRODUCT"
-      ? fetchProductReviews(targetId, { rating, sort }, pageParam, signal)
-      : fetchClassReviews(targetId, { rating, sort }, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore
-      ? lastPage.nextCursor ?? undefined
-      : undefined,
+    queryKey: queryKeys.reviews.historyByTarget(targetType, targetId, rating, sort),
+    queryFn: ({ pageParam, signal }) =>
+      fetchTargetReviews(targetType, targetId, { rating, sort }, pageParam, signal),
+    ...cursorPageParams,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
-  const reviews = useMemo(
-    () => query.data?.pages.flatMap((page) => page.content) ?? [],
-    [query.data?.pages],
-  );
+  const reviews = useMemo(() => flattenCursorPages(query.data), [query.data]);
   // 후기가 하나도 없으면 0점 분포·필터 대신 빈 상태 안내만 보여 준다.
   const firstPageSummary = query.data?.pages[0]?.summary;
   const summary = firstPageSummary && firstPageSummary.reviewCount > 0 ? firstPageSummary : undefined;
@@ -79,17 +69,16 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     reviewIds.forEach((reviewId) => reactionLoadingByReviewId.set(reviewId, isLoading));
   });
   const reactionErrorQuery = reactionQueries.find(({ error }) => error);
+  // 로그인 뒤 후기 칸으로 돌아온다. 작품 상세는 위에 붙는 탭 아래에 멈추는 #product-reviews를 쓴다.
+  const reviewsAnchor = targetType === "PRODUCT" ? "product-reviews" : `${targetType}-${targetId}-reviews`;
   const loginHref = buildAuthPageHref("/login", {
-    redirectTo: targetType === "PRODUCT" ? `/products/${targetId}` : `/classes/${targetId}`,
+    redirectTo: `${reviewTargetHref(targetType, targetId)}#${reviewsAnchor}`,
   });
 
   return (
     <section className="review-section" aria-labelledby={`${targetType}-${targetId}-reviews`}>
       <header className="review-section-header">
-        <div>
-          <p className="store-section-kicker mb-1">구매·수강 후기</p>
-          <h3 id={`${targetType}-${targetId}-reviews`} className="mb-1">이용 후기</h3>
-        </div>
+        <h2 id={`${targetType}-${targetId}-reviews`}>후기</h2>
         {summary && (
           <div className="review-summary" aria-label={`평균 별점 ${summary.averageRating.toFixed(1)}점, 후기 ${summary.reviewCount}개`}>
             <strong>{summary.averageRating.toFixed(1)}</strong>
@@ -119,12 +108,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
 
       {query.isLoading && <LoadingSpinner text="후기를 불러오는 중입니다" />}
       <ErrorAlert
-        error={query.data === undefined ? query.error : null}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
-      <ErrorAlert
-        error={query.data !== undefined && !query.isFetchNextPageError ? query.error : null}
+        error={query.isFetchNextPageError ? null : query.error}
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}
       />
@@ -138,7 +122,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
       {query.data !== undefined && reviews.length === 0 && (
         <EmptyState
           message={rating
-            ? `${rating}점 후기가 아직 없습니다. 다른 별점을 선택해 보세요.`
+            ? `${rating}점 후기가 없습니다.`
             : "아직 등록된 후기가 없습니다."}
         />
       )}
@@ -158,26 +142,12 @@ function PublicReviewContent({ targetType, targetId }: Props) {
         ))}
       </div>
 
-      {query.isFetchNextPageError && (
-        <ErrorAlert
-          error={query.error}
-          onRetry={() => void query.fetchNextPage()}
-          retrying={query.isFetchingNextPage}
-        />
-      )}
-
-      {query.hasNextPage && (
-        <div className="text-center mt-3">
-          <Button
-            type="button"
-            variant="outline-dark"
-            disabled={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            {query.isFetchingNextPage ? "불러오는 중..." : "후기 더 보기"}
-          </Button>
-        </div>
-      )}
+      <CursorLoadMore
+        query={query}
+        label="후기 더 보기"
+        variant="outline-dark"
+        wrapperClassName="text-center mt-3"
+      />
     </section>
   );
 }

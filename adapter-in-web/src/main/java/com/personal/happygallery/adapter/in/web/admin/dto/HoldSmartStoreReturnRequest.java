@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -9,8 +9,8 @@ public record HoldSmartStoreReturnRequest(
         @NotBlank String detailedReason,
         @PositiveOrZero Long extraReturnFeeAmount
 ) {
-    public SmartStoreChannelOrderUseCase.ReturnHoldCommand toCommand(String productOrderId) {
-        return new SmartStoreChannelOrderUseCase.ReturnHoldCommand(
+    public SmartStoreReturnHoldCommand toCommand(String productOrderId) {
+        return new SmartStoreReturnHoldCommand(
                 productOrderId, holdbackClassType, detailedReason, extraReturnFeeAmount);
     }
 }

@@ -7,11 +7,13 @@ import com.personal.happygallery.application.qna.port.out.ProductQnaListView;
 import com.personal.happygallery.application.qna.port.out.ProductQnaReaderPort;
 import com.personal.happygallery.application.qna.port.out.ProductQnaStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.qna.ProductQna;
@@ -62,17 +64,12 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OwnedQnaListView> listOwnedByProduct(Long productId, Long userId) {
-        return listOwnedByProduct(productId, userId, null, PageParams.MAX_SIZE).content();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<OwnedQnaListView> listOwnedByProduct(
             Long productId, Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ProductQnaListView> qnaList = findOwnedList(
-                productId, userId, cursor, pageSize + 1);
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<ProductQnaListView> qnaList = qnaReader.findOwnedByProduct(
+                productId, userId, after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(
                 qnaList.stream().map(DefaultProductQnaService::toOwnedView).toList(),
                 pageSize,
@@ -81,16 +78,12 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PublicQnaListView> listByProduct(Long productId) {
-        return listByProduct(productId, null, PageParams.MAX_SIZE).content();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<PublicQnaListView> listByProduct(
             Long productId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ProductQnaListView> qnaList = findPublicList(productId, cursor, pageSize + 1);
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<ProductQnaListView> qnaList = qnaReader.findByProductId(
+                productId, after.timestamp(), after.id(), pageSize + 1);
         Map<Long, User> userMap = batchFetchListUsers(qnaList);
         List<PublicQnaListView> items = qnaList.stream()
                 .map(qna -> new PublicQnaListView(
@@ -105,24 +98,12 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QnaWithAuthor> listByProductForAdmin(Long productId) {
-        return listByProductForAdmin(productId, null, PageParams.MAX_SIZE).content();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<QnaWithAuthor> listByProductForAdmin(
             Long productId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<ProductQna> qnaList;
-        if (cursor == null) {
-            qnaList = qnaReader.findByProductIdForAdmin(productId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            qnaList = qnaReader.findByProductIdForAdminAfter(
-                    productId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<ProductQna> qnaList = qnaReader.findByProductIdForAdmin(
+                productId, after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(
                 withAuthors(qnaList),
                 pageSize,
@@ -133,15 +114,8 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional(readOnly = true)
     public CursorPage<QnaWithAuthor> listUnanswered(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<ProductQna> qnaList;
-        if (cursor == null) {
-            qnaList = qnaReader.findUnanswered(fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            qnaList = qnaReader.findUnansweredAfter(
-                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<ProductQna> qnaList = qnaReader.findUnanswered(after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(
                 withAuthors(qnaList),
                 pageSize,
@@ -179,7 +153,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 qna.getUserId(),
                 NotificationEventType.PRODUCT_QNA_ANSWERED,
-                "PRODUCT_QNA",
+                NotificationAggregateType.PRODUCT_QNA,
                 qna.getId()));
         String authorName = userReader.findById(qna.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
@@ -205,25 +179,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 .toList();
         return userReader.findAllById(userIds).stream()
                 .collect(toMap(User::getId, Function.identity()));
-    }
-
-    private List<ProductQnaListView> findOwnedList(
-            Long productId, Long userId, String cursor, int limit) {
-        if (cursor == null) {
-            return qnaReader.findOwnedByProduct(productId, userId, limit);
-        }
-        var cursorParam = CursorUtils.decode(cursor);
-        return qnaReader.findOwnedByProductAfter(
-                productId, userId, cursorParam.timestamp(), cursorParam.id(), limit);
-    }
-
-    private List<ProductQnaListView> findPublicList(Long productId, String cursor, int limit) {
-        if (cursor == null) {
-            return qnaReader.findByProductId(productId, limit);
-        }
-        var cursorParam = CursorUtils.decode(cursor);
-        return qnaReader.findByProductIdAfter(
-                productId, cursorParam.timestamp(), cursorParam.id(), limit);
     }
 
     private static OwnedQnaListView toOwnedView(ProductQnaListView qna) {

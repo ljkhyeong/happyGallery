@@ -60,6 +60,6 @@ export function refundCouponMessage(status: RefundProgress["status"], couponStat
     case "RESERVED": return "쿠폰을 다른 결제에 사용 중입니다.";
     case "REDEEMED": return "이미 사용한 쿠폰입니다.";
     case "CANCELED": return "사용이 중지된 쿠폰입니다.";
-    default: return "쿠폰 상태는 내 쿠폰에서 확인해 주세요.";
+    default: return "쿠폰 상태는 내 정보의 쿠폰·적립금에서 확인해 주세요.";
   }
 }

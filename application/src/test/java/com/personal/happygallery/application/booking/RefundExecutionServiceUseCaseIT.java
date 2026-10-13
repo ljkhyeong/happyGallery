@@ -36,6 +36,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -77,7 +78,7 @@ class RefundExecutionServiceUseCaseIT {
         User member = userStorePort.save(new User(
                 "refund-owner@test.local", "password-hash", "환불 테스트 회원", "01099998888"));
         return orderRepository.save(
-                Order.forMember(member.getId(), 55_000L, paidAt, paidAt.plusHours(24)));
+                memberOrder(member.getId(), 55_000L, paidAt, paidAt.plusHours(24)));
     }
 
     @DisplayName("외부 트랜잭션이 롤백되면 환불 PG 호출과 이력 생성이 실행되지 않는다")
@@ -91,7 +92,7 @@ class RefundExecutionServiceUseCaseIT {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-            refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key");
+            refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, "payment-key");
             throw new RuntimeException("outer rollback");
         }))
                 .isInstanceOf(RuntimeException.class)
@@ -119,7 +120,7 @@ class RefundExecutionServiceUseCaseIT {
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
-                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key"));
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, "payment-key"));
 
         var refunds = await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
@@ -157,7 +158,7 @@ class RefundExecutionServiceUseCaseIT {
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
-                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, null));
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, null));
 
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
@@ -348,7 +349,7 @@ class RefundExecutionServiceUseCaseIT {
         IntStream.range(0, 10)
                 .mapToObj(index -> {
                     Order order = orderRepository.save(
-                            Order.forMember(member.getId(), 55_000L, now, now.plusHours(24)));
+                            memberOrder(member.getId(), 55_000L, now, now.plusHours(24)));
                     return refundRepository.save(
                             Refund.forOrder(order.getId(), 55_000L, "payment-key-" + index));
                 })
@@ -360,7 +361,7 @@ class RefundExecutionServiceUseCaseIT {
 
         var firstRun = refundRecoveryUseCase.recoverPendingRefunds();
         Order newOrder = orderRepository.save(
-                Order.forMember(member.getId(), 55_000L, now, now.plusHours(24)));
+                memberOrder(member.getId(), 55_000L, now, now.plusHours(24)));
         Refund newRefund = refundRepository.save(
                 Refund.forOrder(newOrder.getId(), 55_000L, "new-payment-key"));
         jdbcTemplate.update("""
@@ -386,7 +387,7 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         Order firstOrder = saveMemberOrder(now);
         Order secondOrder = orderRepository.save(
-                Order.forMember(firstOrder.getUserId(), 55_000L, now, now.plusHours(24)));
+                memberOrder(firstOrder.getUserId(), 55_000L, now, now.plusHours(24)));
         Refund firstRefund = succeededRefund(firstOrder.getId(), "payment-key-1", now);
         Refund secondRefund = succeededRefund(secondOrder.getId(), "payment-key-2", now);
 

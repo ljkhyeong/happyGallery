@@ -3,6 +3,7 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
+import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -41,18 +42,17 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     switch (pathname) {
-      case "/api/v1/auth/csrf": return route.fulfill({ contentType: "application/json",
-        headers: { "Set-Cookie": "XSRF-TOKEN=restock-option; Path=/" }, body: "{}" });
-      case "/api/v1/auth/login": state.loggedIn = true; return json(member);
-      case "/api/v1/me": return state.loggedIn ? json(member) : json({ code: "UNAUTHORIZED" }, 401);
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/coupons": return json([]);
-      case "/api/v1/me/rewards": return json({ availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
-      case "/api/v1/me/favorites/PRODUCT/42": return json({ saved: false });
+      case "/api/v1/auth/csrf": return route.fulfill({
+        headers: { "Set-Cookie": "XSRF-TOKEN=restock-option; Path=/" }, json: {} });
+      case "/api/v1/auth/login": state.loggedIn = true; return fulfillJson(route, member);
+      case "/api/v1/me": return state.loggedIn ? fulfillJson(route, member) : fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/coupons": return fulfillJson(route, []);
+      case "/api/v1/me/rewards": return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
+      case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/me/restock-alerts": {
         if (request.method() === "POST") {
           const input = request.postDataJSON();
@@ -60,14 +60,13 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
           alerts.push({ ...alerts[0]!, id: 902, productVariantId: input.productVariantId, status: "WAITING", notifiedAt: null });
           return route.fulfill({ status: 204 });
         }
-        return json(alerts);
+        return fulfillJson(route, alerts);
       }
-      case "/api/v1/products/42": state.productReads += 1; return json(product);
+      case "/api/v1/products/42": state.productReads += 1; return fulfillJson(route, product);
       case "/api/v1/products/42/qna/page":
-      case "/api/v1/me/products/42/qna/page": return json({ content: [], hasMore: false, nextCursor: null });
-      case "/api/v1/products/42/reviews": return json({ content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
-      case "/api/v1/orders/policy": return json({ shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
+      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
       default: throw new Error(`정의하지 않은 재입고 옵션 테스트 요청: ${request.method()} ${pathname}`);
     }
   });
@@ -149,7 +148,7 @@ test("삭제·판매 중지된 옵션 링크는 안내를 표시하고 다른 �
   await mockRestockProduct(page);
   for (const variantId of [999, 803]) {
     await page.goto(`/products/42?variantId=${variantId}`);
-    await expect(page.getByText("해당 옵션은 현재 판매하지 않습니다. 현재 상품의 옵션과 가격을 확인해 주세요.")).toBeVisible();
+    await expect(page.getByText("해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.")).toBeVisible();
     await expect(page.getByRole("combobox", { name: /색상/ })).toHaveValue("");
     await expect(page.getByRole("combobox", { name: /크기/ })).toHaveValue("");
     await expect(page.locator(".store-option-form tbody tr")).toHaveCount(0);

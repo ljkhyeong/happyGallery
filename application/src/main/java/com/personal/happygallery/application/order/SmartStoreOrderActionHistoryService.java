@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ActionHistoryResult;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
@@ -52,28 +52,24 @@ class SmartStoreOrderActionHistoryService {
     public void succeed(long historyId) {
         SmartStoreOrderActionHistory history = history(historyId);
         history.succeed(LocalDateTime.now(clock));
-        historyPort.save(history);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void reject(long historyId, String resultCode, String resultMessage) {
         SmartStoreOrderActionHistory history = history(historyId);
         history.reject(resultCode, resultMessage, LocalDateTime.now(clock));
-        historyPort.save(history);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markResultUnknown(long historyId, String resultMessage) {
         SmartStoreOrderActionHistory history = history(historyId);
         history.markResultUnknown(resultMessage, LocalDateTime.now(clock));
-        historyPort.save(history);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markNotSent(long historyId, String resultCode, String resultMessage) {
         SmartStoreOrderActionHistory history = history(historyId);
         history.markNotSent(resultCode, resultMessage, LocalDateTime.now(clock));
-        historyPort.save(history);
     }
 
     @Transactional(readOnly = true)
@@ -86,11 +82,11 @@ class SmartStoreOrderActionHistoryService {
     @Transactional(readOnly = true)
     public CursorPage<ActionHistoryResult> listUnresolved(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        CursorUtils.CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        CursorUtils.CursorParam cursorParam = CursorUtils.decodeOrFirst(cursor);
         List<ActionHistoryResult> results = historyPort.findUnresolvedPage(
                         staleRequestedBefore(),
-                        cursorParam == null ? null : cursorParam.timestamp(),
-                        cursorParam == null ? null : cursorParam.id(),
+                        cursorParam.timestamp(),
+                        cursorParam.id(),
                         pageSize + 1)
                 .stream()
                 .map(SmartStoreOrderActionHistoryService::result)
@@ -115,7 +111,7 @@ class SmartStoreOrderActionHistoryService {
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT, "이미 처리됐거나 아직 진행 중인 스마트스토어 주문 요청입니다.");
         }
-        return result(historyPort.save(history));
+        return result(history);
     }
 
     private SmartStoreOrderActionHistory history(long historyId) {

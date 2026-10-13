@@ -9,12 +9,11 @@ import type { ShippingAddress } from "@/features/payment";
 import { ShippingAddressFields } from "@/features/order/ShippingAddressFields";
 import { isFulfillmentComplete } from "@/features/order/fulfillmentSelection";
 import {
-  ApiError, captureCustomerSession, requireCurrentCustomerSession, runForCurrentCustomer,
+  ApiError, captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer,
   type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
-const addressKey = ["me", "default-shipping-address"] as const;
 interface AddressChange {
   version: number;
   shippingAddress: ShippingAddress | null;
@@ -26,7 +25,7 @@ function useDefaultAddress() {
   const client = useQueryClient();
   const toast = useToast();
   const query = useQuery({
-    queryKey: addressKey, enabled: isAuthenticated,
+    queryKey: queryKeys.member.defaultShippingAddress, enabled: isAuthenticated,
     queryFn: ({ signal }) => runForCurrentCustomer(() => getMyDefaultShippingAddress({ signal })),
   });
   const mutation = useMutation({
@@ -36,7 +35,7 @@ function useDefaultAddress() {
         ? saveMyDefaultShippingAddress({ version: change.version, shippingAddress: change.shippingAddress })
         : deleteMyDefaultShippingAddress({ version: change.version });
     }, async (_, requireCurrent) => {
-      await client.invalidateQueries({ queryKey: addressKey });
+      await client.invalidateQueries({ queryKey: queryKeys.member.defaultShippingAddress });
       requireCurrent();
       toast.show(change.shippingAddress ? "기본 배송지를 저장했습니다." : "기본 배송지를 삭제했습니다.");
     }),

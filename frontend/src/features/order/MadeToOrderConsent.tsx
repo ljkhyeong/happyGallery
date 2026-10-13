@@ -1,31 +1,15 @@
 import { useId } from "react";
 import { Alert, Badge, Form } from "react-bootstrap";
-import type { OrderPricePolicyResponse } from "@/shared/types";
+import type { useMadeToOrderConsent } from "./useMadeToOrderConsent";
 
 interface Props {
-  required: boolean;
-  policy: OrderPricePolicyResponse | undefined;
-  isLoading: boolean;
-  isFetching: boolean;
-  error: unknown;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  versionMismatch: boolean;
-  refreshRequired: boolean;
+  consent: ReturnType<typeof useMadeToOrderConsent>;
 }
 
-export function MadeToOrderConsent({
-  required,
-  policy,
-  isLoading,
-  isFetching,
-  error,
-  checked,
-  onChange,
-  versionMismatch,
-  refreshRequired,
-}: Props) {
+export function MadeToOrderConsent({ consent }: Props) {
   const checkboxId = useId();
+  const { required, checked, setChecked, versionMismatch, refreshRequired } = consent;
+  const { data: policy, isLoading, isFetching, error } = consent.policyQuery;
   if (!required) return null;
   const version = policy?.madeToOrderConsentVersion.trim() || null;
 
@@ -66,7 +50,7 @@ export function MadeToOrderConsent({
             type="checkbox"
             checked={checked}
             disabled={refreshRequired}
-            onChange={(event) => onChange(event.target.checked)}
+            onChange={(event) => setChecked(event.target.checked)}
             label={policy.madeToOrderConsentText}
           />
           <Form.Text className="text-muted-soft">

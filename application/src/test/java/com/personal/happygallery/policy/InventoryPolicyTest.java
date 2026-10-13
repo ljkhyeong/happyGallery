@@ -2,8 +2,7 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
-import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.support.TestFixtures;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InventoryPolicyTest {
 
     private Inventory inventory(int quantity) {
-        return new Inventory(new Product("테스트 상품", ProductType.READY_STOCK, 10_000L), quantity);
+        return new Inventory(TestFixtures.readyStockProduct("테스트 상품", 10_000L), quantity);
     }
 
     @DisplayName("재고 차감은 요청 수량이 가용 재고 이내일 때만 허용된다")

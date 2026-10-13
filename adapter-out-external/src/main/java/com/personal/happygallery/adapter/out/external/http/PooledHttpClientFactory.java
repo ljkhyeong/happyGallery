@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PooledHttpClientFactory {
 
-    public CloseableHttpClient create(HttpPoolProperties props) {
+    public CloseableHttpClient create(HttpPool props) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
                 .setConnectTimeout(Timeout.of(props.connectTimeout()))
                 .setSocketTimeout(Timeout.of(props.timeout()))

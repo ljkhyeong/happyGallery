@@ -29,7 +29,7 @@ public class SocialAccount {
     @Transient
     private String providerId;
 
-    @Column(name = "provider_id_enc", length = 1024)
+    @Column(name = "provider_id_enc", nullable = false, length = 1024)
     private String providerIdEnc;
 
     @Column(name = "provider_id_hmac", nullable = false, length = 64)

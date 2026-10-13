@@ -2,6 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { productDetailHref } from "@/features/product/navigation";
 import { Alert, Container, Button, Modal, Table, Form } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -21,10 +22,7 @@ import {
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
@@ -40,7 +38,7 @@ export function CartPage() {
   if (status === "error") {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" />
         <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
       </Container>
     );
@@ -114,7 +112,7 @@ function CartContent() {
         }),
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
-        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        issuedCouponId,
         rewardAmount,
         ...fulfillmentPayload(fulfillment),
       };
@@ -123,8 +121,8 @@ function CartContent() {
         context: "ORDER",
         payload,
         orderName: selectedItems.length === 1
-          ? `${selectedItems[0]?.productName ?? "장바구니 상품"} 주문`
-          : `장바구니 상품 ${selectedItems.length}건`,
+          ? `${selectedItems[0]?.productName ?? "장바구니 작품"} 주문`
+          : `장바구니 작품 ${selectedItems.length}건`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
         returnHint: { customerName: user.name, returnPath: "/cart" },
@@ -144,7 +142,6 @@ function CartContent() {
     checkout.reset();
   };
   const selectionDisabled = checkout.isPending || isItemMutationPending || isRefetching;
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(checkout.error);
   const cartSnapshotConflict = isCartSnapshotConflict(checkout.error);
   const mergeRecovery = guestCartMergeIssue && (
     <Alert variant="warning" className="mb-4">
@@ -161,11 +158,11 @@ function CartContent() {
           variant="outline-danger"
           onClick={() => setShowDiscardConfirm(true)}
         >
-          이 기기에서 해당 상품 제거
+          이 기기에서 해당 작품 제거
         </Button>
       </div>
       <small className="d-block mt-2">
-        제거하면 로그인 전에 담은 해당 상품 수량만 이 기기에서 사라집니다.
+        제거하면 로그인 전에 담은 해당 작품 수량만 이 기기에서 사라집니다.
       </small>
     </Alert>
   );
@@ -178,11 +175,11 @@ function CartContent() {
     >
       <Modal.Header closeButton>
         <Modal.Title id="held-cart-discard-title" className="fs-6">
-          로그인 전에 담은 상품 제거
+          로그인 전에 담은 작품 제거
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        다른 계정으로 로그인하기 전에 담은 상품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+        다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
@@ -195,7 +192,7 @@ function CartContent() {
             setShowDiscardConfirm(false);
           }}
         >
-          상품 제거
+          작품 제거
         </Button>
       </Modal.Footer>
     </Modal>
@@ -208,7 +205,7 @@ function CartContent() {
   if (cartError && isAuthenticated) {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
         <ErrorAlert
@@ -223,13 +220,12 @@ function CartContent() {
   if (items.length === 0) {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
         <section className="cart-empty">
           <ShoppingBag size={36} strokeWidth={1.4} aria-hidden="true" />
           <h2>장바구니가 비어 있습니다.</h2>
-          <p>공방에서 만든 작품을 둘러보고 마음에 드는 작품을 담아 보세요.</p>
           <div className="cart-empty-actions">
             <LinkButton to="/products" variant="primary">작품 둘러보기</LinkButton>
             <LinkButton to="/classes" variant="outline-dark">클래스 둘러보기</LinkButton>
@@ -279,7 +275,7 @@ function CartContent() {
 
   return (
     <Container className="page-container checkout-page">
-      <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+      <PageHeader title="장바구니" />
       {mergeRecovery}
       {discardConfirmModal}
       {!isAuthenticated && cartError != null && (
@@ -323,7 +319,7 @@ function CartContent() {
               <>
                 {selectedItems.length === 0 && <Alert variant="info">구매할 작품을 선택해 주세요.</Alert>}
                 {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
-                  {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
+                  {item.productName}: 같은 작품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
                   현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
                 </Alert>)}
                 <MemberOrderBenefits
@@ -336,7 +332,7 @@ function CartContent() {
                   onRewardPointsChange={setRewardAmount}
                 />
                 <PaymentErrorAlert
-                  error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
+                  error={cartSnapshotConflict ? null : consent.paymentError(checkout.error)}
                 />
                 {cartSnapshotConflict && (
                   <Alert variant="warning" role="alert" className="mb-3">
@@ -365,7 +361,7 @@ function CartContent() {
           </CheckoutSummary>
         )}
       >
-        <CheckoutPanel step={isAuthenticated ? 1 : undefined} title="담은 작품" meta={`${items.length}종`}>
+        <CheckoutPanel title="담은 작품" meta={`${items.length}종`}>
           {isAuthenticated && (
             <div className="cart-select-all">
               <Form.Check id="cart-select-all" label={`전체 선택 (${selectedItems.length}/${availableItems.length})`}
@@ -401,8 +397,8 @@ function CartContent() {
                           changeSelection(next);
                         }} />}
                       <div>
-                        <Link to={`/products/${item.productId}`}>
-                          {item.productName || `상품 #${item.productId}`}
+                        <Link to={productDetailHref(item.productId, item.productVariantId)}>
+                          {item.productName || `작품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted-soft">{formatKRW(item.price)}</div>
                       </div>
@@ -476,10 +472,10 @@ function CartContent() {
 
         {isAuthenticated && (
           <>
-            <CheckoutPanel step={2} title="수령 방법">
+            <CheckoutPanel title="수령 방법">
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
             </CheckoutPanel>
-            <CheckoutPanel step={3} title="결제 수단">
+            <CheckoutPanel title="결제 수단">
               <PaymentMethodFields
                 value={checkoutSelection}
                 onChange={setCheckoutSelection}
@@ -488,18 +484,8 @@ function CartContent() {
               />
             </CheckoutPanel>
             {requiresMadeToOrderConsent && (
-              <CheckoutPanel step={4} title="동의">
-                <MadeToOrderConsent
-                  required={requiresMadeToOrderConsent}
-                  policy={consent.policyQuery.data}
-                  isLoading={consent.policyQuery.isLoading}
-                  isFetching={consent.policyQuery.isFetching}
-                  error={consent.policyQuery.error}
-                  checked={consent.checked}
-                  onChange={consent.setChecked}
-                  versionMismatch={consent.versionMismatch}
-                  refreshRequired={consent.refreshRequired}
-                />
+              <CheckoutPanel title="동의">
+                <MadeToOrderConsent consent={consent} />
               </CheckoutPanel>
             )}
           </>

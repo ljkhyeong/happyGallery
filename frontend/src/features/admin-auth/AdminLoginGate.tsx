@@ -1,8 +1,9 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Card, Form, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 import type { AdminAuthResponse } from "./api";
 
 interface Props {
@@ -15,56 +16,50 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
   const [password, setPassword] = useState("");
   const [challengeToken, setChallengeToken] = useState<string>();
   const [code, setCode] = useState("");
-  const [error, setError] = useState<unknown>(null);
-  const [loading, setLoading] = useState(false);
   const normalizedUsername = username.trim();
   const normalizedCode = code.trim();
 
-  async function submitCredentials(event: React.FormEvent) {
+  // 로그인 전 화면이라 세션 만료 처리가 없다. INVALID_CREDENTIALS 등 실패는 오류 안내로만 보인다.
+  const credentialLogin = useMutation({
+    mutationFn: () => onLogin(normalizedUsername, password),
+    onSuccess: (result) => {
+      if (result.status === "MFA_REQUIRED" && result.challengeToken) {
+        setChallengeToken(result.challengeToken);
+        setPassword("");
+      }
+    },
+  });
+  const mfaVerification = useMutation({
+    mutationFn: (token: string) => onVerifyMfa(token, normalizedCode),
+    onSuccess: (result) => {
+      if (result.status === "MFA_REQUIRED" && result.challengeToken) {
+        setChallengeToken(result.challengeToken);
+        setCode("");
+      }
+    },
+  });
+  const loading = credentialLogin.isPending || mfaVerification.isPending;
+  const error = challengeToken ? mfaVerification.error : credentialLogin.error;
+
+  function submitCredentials(event: React.FormEvent) {
     event.preventDefault();
     if (!normalizedUsername
       || !password
       || !isPasswordWithinByteLimit(password)
       || loading) return;
-
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await onLogin(normalizedUsername, password);
-      if (result.status === "MFA_REQUIRED" && result.challengeToken) {
-        setChallengeToken(result.challengeToken);
-        setPassword("");
-      }
-    } catch (requestError) {
-      setError(requestError);
-    } finally {
-      setLoading(false);
-    }
+    credentialLogin.mutate();
   }
 
-  async function submitMfa(event: React.FormEvent) {
+  function submitMfa(event: React.FormEvent) {
     event.preventDefault();
     if (!challengeToken || !normalizedCode || loading) return;
-
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await onVerifyMfa(challengeToken, normalizedCode);
-      if (result.status === "MFA_REQUIRED" && result.challengeToken) {
-        setChallengeToken(result.challengeToken);
-        setCode("");
-      }
-    } catch (requestError) {
-      setError(requestError);
-    } finally {
-      setLoading(false);
-    }
+    mfaVerification.mutate(challengeToken);
   }
 
   function returnToCredentials() {
     setChallengeToken(undefined);
     setCode("");
-    setError(null);
+    mfaVerification.reset();
   }
 
   return (
@@ -136,7 +131,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="비밀번호"
                   autoComplete="current-password"
-                  maxLength={72}
+                  maxLength={PASSWORD_MAX_UTF8_BYTES}
                   disabled={loading}
                 />
                 <PasswordLengthFeedback value={password} />

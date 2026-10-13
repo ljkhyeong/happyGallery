@@ -37,7 +37,7 @@ class EmailVerificationIssueTransactionService {
     ) {
         User user = userReader.findByIdForUpdate(userId)
                 .orElseThrow(NotFoundException.supplier("회원"));
-        requireCurrentAuthentication(user, credentialVersion, recentlyReauthenticated);
+        ProtectedAccountChange.requireCurrentSession(user, credentialVersion, recentlyReauthenticated);
         requireEmailAvailable(user, email);
         return verificationStore.save(new EmailVerification(
                 userId, credentialVersion, email, code, expiresAt));
@@ -66,19 +66,6 @@ class EmailVerificationIssueTransactionService {
     private void requireEmailAvailable(User user, String email) {
         if (user.getEmail() != null || userReader.existsByEmail(email)) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
-        }
-    }
-
-    private static void requireCurrentAuthentication(
-            User user,
-            long credentialVersion,
-            boolean recentlyReauthenticated
-    ) {
-        if (user.getCredentialVersion() != credentialVersion) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!recentlyReauthenticated) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
         }
     }
 }

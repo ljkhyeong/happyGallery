@@ -9,14 +9,14 @@
 ## 컨텍스트
 
 기존 `DefaultPaymentConfirmService.confirm()`은 하나의 DB 트랜잭션 안에서 Toss confirm과
-주문·예약·8회권 생성을 모두 실행했다. 이 구조에는 다음 문제가 있었다.
+주문·예약·이용권 생성을 모두 실행했다. 이 구조에는 다음 문제가 있었다.
 
 - 외부 PG 응답을 기다리는 동안 DB 트랜잭션과 커넥션을 점유한다.
 - PG 실패 시 `PaymentAttempt`를 `FAILED`로 `saveAndFlush()`한 뒤 예외를 던져도 전체 트랜잭션이 롤백된다.
 - PG 승인 후 로컬 도메인 생성이 실패하면 외부 결제만 승인된 상태가 남는다.
 - 동시 confirm 요청이 같은 `PENDING` 시도를 중복 처리할 수 있다.
 - Toss POST 요청에 멱등키가 없어 타임아웃 재시도가 안전하지 않다.
-- prepare와 confirm 사이에 상품·클래스·8회권 가격이 바뀌면 PG 승인 금액과 저장 도메인 금액이 달라질 수 있다.
+- prepare와 confirm 사이에 상품·클래스·이용권 가격이 바뀌면 PG 승인 금액과 저장 도메인 금액이 달라질 수 있다.
 
 Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며, 같은 API 키·주소·HTTP 메서드와
 같은 멱등키 조합의 최초 응답을 15일간 재사용한다.
@@ -69,7 +69,7 @@ confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING
 `resolveConfirmationStep()`은 nullable 값과 boolean 조합 대신 `Completed`, `ReadyForFulfillment`,
 `PgConfirmationRequired`, `ZeroAmountApprovalRequired` 중 하나를 반환한다. 이 단계 결정 시
 저장 전용 `PreparedPaymentPayload.userId()`와 현재 `AuthContext.userId()`를 공통 비교한다. 각
-`PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·8회권은 저장된
+`PaymentFulfiller.validateStoredPayload()`는 컨텍스트별 저장 payload 불변식을 검증하고, 주문·예약·이용권은 저장된
 가격 스냅샷과 `PaymentAttempt.amount`까지 비교한다. fulfillment는
 현재 인증 정보를 다시 받지 않고 검증된 저장 payload의 `userId`를 사용한다. 비회원 주문·예약은
 비회원 prepare의 전화번호별 Redis 시도 제한은 DB 트랜잭션을 열기 전에 확인한다. 그 뒤 prepare
@@ -86,13 +86,13 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 - `OrderPreparer`는 같은 상품·SKU·직접입력 요청을 먼저 합산해 SKU별 1~99개 제한을 적용하고, `ACTIVE` 상품과 옵션 구성을 ID 목록으로 일괄 조회한다. 서버는 기본가·조합 추가금·직접입력 추가금, SKU·옵션·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, SKU별 재고 요구량을 합산해 확인하고 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
 - 공개 prepare 입력은 `PaymentPayload`의 `ORDER/BOOKING/PASS`만 허용한다. 서버 확정 스냅샷은 별도
   `PreparedPaymentPayload`의 `PREPARED_ORDER/PREPARED_BOOKING/PREPARED_PASS`로 분리한다. 내부 스냅샷은
-  HTTP schema에 노출하지 않고, 공개 요청 타입은 fulfiller 계약에 전달하지 않는다. 저장 JSON의 기존 subtype
-  이름은 유지해 암호화된 레코드와 키 회전 호환성을 보존한다.
+  HTTP schema에 노출하지 않고, 공개 요청 타입은 fulfiller 계약에 전달하지 않는다. 필수 값이 빠진 스냅샷은
+  역직렬화 기본값으로 보정하지 않고 fulfiller 검증에서 `INVALID_INPUT`으로 거절해 새 prepare를 요구한다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. 비회원 공개 입력의 인증 코드 원문은 저장하지 않고 결제 귀속 HMAC 증거로 교체한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 가격 구성과 옵션 스냅샷으로 `OrderItemRequest`를 만들며, 주문·SKU 재고 차감과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
 - `BookingPreparer`는 예약금과 잔금을 `PreparedBookingPayload`에, `PassPreparer`는 총 가격을 `PreparedPassPayload`에 저장한다.
-- 예약과 8회권 fulfillment도 현재 가격을 다시 계산하지 않고 저장된 스냅샷으로 생성한다.
+- 예약과 이용권 fulfillment도 현재 가격을 다시 계산하지 않고 저장된 스냅샷으로 생성한다.
 - 변경 전 생성되어 서버 가격이 없는 미확정 결제 시도는 confirm하지 않고 새 prepare를 요구한다.
 
 `OrderItemRequest`가 결제 입력 항목과 `Product`를 받는 팩토리는 두지 않는다. confirm 경로가 `Product`에
@@ -125,7 +125,7 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 5. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
 
-0원 주문과 8회권 사용 예약의 프론트엔드 확정도 공통 `/payments/success` 화면을 사용한다.
+0원 주문과 이용권 사용 예약의 프론트엔드 확정도 공통 `/payments/success` 화면을 사용한다.
 화면별 confirm 콜백은 두지 않고, prepare 응답에서 받은 결제 번호와 `paymentKey=null`, `amount=0`을
 기존 고객 세션 귀속 저장소에 기록한 뒤 이동한다. 확정 응답 유실과 새로고침은 같은 요청을 재사용한다.
 미확인 0원 요청이 있으면 이후 구매 버튼도 새 prepare 대신 기존 결과 화면으로 연결한다.
@@ -229,8 +229,8 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 
 ### 8. 고객 영수증과 PG 정산 대사는 결제 원장에 연결한다
 
-- Toss 승인 응답의 `receipt.url`은 `payment_attempt.confirmed_receipt_url`에 저장하고 결제 완료·상태 조회와 주문 상세·회원 예약 상세·8회권 목록/상세 응답에 포함한다. 주문·예약·8회권에 같은 값을 복제하지 않는다.
-- 거래 소유권을 확인한 뒤 `context + fulfilled_domain_id`로 유료 `CONFIRMED` 영수증만 읽는다. 회원에게 귀속된 비회원 거래도 현재 거래 소유권을 따르며, 8회권 목록은 ID 목록으로 일괄 조회한다. `V161` 복합 인덱스로 조회를 지원한다.
+- Toss 승인 응답의 `receipt.url`은 `payment_attempt.confirmed_receipt_url`에 저장하고 결제 완료·상태 조회와 주문 상세·회원 예약 상세·이용권 목록/상세 응답에 포함한다. 주문·예약·이용권에 같은 값을 복제하지 않는다.
+- 거래 소유권을 확인한 뒤 `context + fulfilled_domain_id`로 유료 `CONFIRMED` 영수증만 읽는다. 회원에게 귀속된 비회원 거래도 현재 거래 소유권을 따르며, 이용권 목록은 ID 목록으로 일괄 조회한다. `V161` 복합 인덱스로 조회를 지원한다.
 - Toss 정산 API는 최대 60초가 걸릴 수 있으므로 confirm·cancel의 3초 풀과 분리한 전용 커넥션 풀을 사용한다. 인증 키와 base URL만 공유한다.
 - 매시간 최근 7일 정산을 다시 읽고 거래키로 upsert한다. 승인 거래는 `paymentKey`·`orderId`·금액, 취소 거래는 취소 `transactionKey`·금액을 로컬 원장과 비교한다.
 - 정산 조회는 모든 페이지를 받은 뒤 저장한다. [Toss 정산 API](https://docs.tosspayments.com/reference#정산-조회)의 빈 배열은 조회 완료로 처리하지만, 응답 본문 누락은 실패로 처리해 부분 결과를 저장하지 않는다. 다음 정기 실행에서 최근 7일을 다시 조회한다.
@@ -245,7 +245,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 | 장점 | 동시 confirm은 한 요청만 PG 호출을 수행한다 |
 | 장점 | 성공 응답 유실 뒤 같은 confirm을 재호출해도 동일 도메인 ID와 비회원 접근 토큰을 반환한다 |
 | 장점 | 타임아웃 재시도가 같은 Toss 멱등키를 사용한다 |
-| 장점 | prepare 이후 상품·클래스·8회권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
+| 장점 | prepare 이후 상품·클래스·이용권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
 | 장점 | 저장에 성공한 PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
 | 장점 | 고객이 재결제하지 않고 승인·보상환불 진행 결과를 안전하게 확인할 수 있다 |
 | 장점 | 비회원이 브라우저 저장소 전체를 잃어도 SMS 인증으로 결제 orderId와 상태 조회 자격을 함께 복구한다 |
@@ -258,7 +258,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - 회원 결제 prepare는 `users` 행을 잠그고 활성 회원인지 확인한 뒤 `payment_attempt.owner_user_id`를 저장한다.
 - 회원 탈퇴도 같은 회원 행을 잠그고 미종결 결제 시도를 포함한 차단 활동을 다시 확인한다. 따라서 새 prepare와 탈퇴 중 하나만 먼저 커밋한다.
 - prepare가 먼저 커밋되면 미종결 결제 시도가 탈퇴를 차단한다. 탈퇴가 먼저 커밋되면 이후 prepare는 탈퇴 회원으로 거절된다.
-- 이미 prepare된 시도와 탈퇴가 예외적으로 엇갈려 PG 승인이 도착하더라도 fulfillment는 현재 회원 상태를 다시 확인한다. 탈퇴 회원의 주문·예약·8회권을 만들지 않고 기존 `payment_attempt_id` 보상 환불 경계로 종결한다.
+- 이미 prepare된 시도와 탈퇴가 예외적으로 엇갈려 PG 승인이 도착하더라도 fulfillment는 현재 회원 상태를 다시 확인한다. 탈퇴 회원의 주문·예약·이용권을 만들지 않고 기존 `payment_attempt_id` 보상 환불 경계로 종결한다.
 
 ## 구현 반영
 
@@ -278,15 +278,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`
 - `TossPaymentSettlementProvider`, `DefaultPaymentSettlementService`, `PaymentSettlement`
-- `V155__store_payment_receipt_url.sql`, `V156__reconcile_payment_settlements.sql`
-- `V41__harden_payment_confirm_boundary.sql`
-- `V46__ProtectPlaintextPersonalData`
-- `V49__persist_payment_confirm_result.sql`
-- `V50__fence_payment_confirm_processing.sql`
-- `V51__track_payment_confirm_recovery.sql`
-- `V58__track_refund_success_time.sql`
-- `V60__normalize_revenue_timestamps_to_seoul.sql`
-- `V76__secure_payment_attempt_status_lookup.sql`
+- `V1__baseline_schema.sql`의 `payment_attempt`·`payment_settlements`·`refunds` 정의 (재작성 전 V41·V46·V49~V51·V58·V60·V76·V155·V156)
 
 ## 장바구니 선택 구매
 

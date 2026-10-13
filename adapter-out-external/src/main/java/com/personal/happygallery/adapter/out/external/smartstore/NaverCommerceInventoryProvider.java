@@ -1,5 +1,10 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogPage;
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogProduct;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
+import com.personal.happygallery.application.product.dto.SmartStoreInspectionPage;
+import com.personal.happygallery.application.product.dto.SmartStoreInspectionProduct;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +59,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
     }
 
     @Override
-    public CatalogPage listProducts(int page, int size) {
+    public SmartStoreCatalogPage listProducts(int page, int size) {
         ProductSearchResponse response = accessTokenProvider.authorized(token -> restClient.post()
                 .uri("/external/v1/products/search")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -65,7 +70,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         if (response == null) {
             throw new IllegalStateException("스마트스토어 상품 목록 응답이 비어 있습니다.");
         }
-        List<CatalogProduct> products = response.contents() == null
+        List<SmartStoreCatalogProduct> products = response.contents() == null
                 ? List.of()
                 : response.contents().stream()
                         .flatMap(content -> content.channelProducts() == null
@@ -73,13 +78,13 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                                 : content.channelProducts().stream()
                                         .flatMap(channel -> catalogProduct(content, channel).stream()))
                         .toList();
-        return new CatalogPage(
+        return new SmartStoreCatalogPage(
                 products, response.page(), response.size(),
                 response.totalElements(), response.totalPages());
     }
 
     @Override
-    public InspectionPage listInspectionProducts(int page, int size) {
+    public SmartStoreInspectionPage listInspectionProducts(int page, int size) {
         InspectionSearchResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path("/external/v1/product-inspections/channel-products")
                         .queryParam("page", page)
@@ -91,14 +96,14 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         if (response == null) {
             throw new IllegalStateException("스마트스토어 상품 검수 응답이 비어 있습니다.");
         }
-        List<InspectionProduct> products = response.contents() == null
+        List<SmartStoreInspectionProduct> products = response.contents() == null
                 ? List.of()
                 : response.contents().stream()
-                        .map(product -> new InspectionProduct(
+                        .map(product -> new SmartStoreInspectionProduct(
                                 product.channelProductNo(), product.reason(), product.action(),
                                 product.restorationRequestAvailable()))
                         .toList();
-        return new InspectionPage(
+        return new SmartStoreInspectionPage(
                 products, response.page(), response.size(),
                 response.totalElements(), response.totalPages());
     }
@@ -133,10 +138,10 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         RemoteOriginProduct product = response.originProduct();
         RemoteOptionInfo optionInfo = product.detailAttribute() == null
                 ? null : product.detailAttribute().optionInfo();
-        List<ChannelOption> options = optionInfo == null || optionInfo.optionCombinations() == null
+        List<SmartStoreChannelOption> options = optionInfo == null || optionInfo.optionCombinations() == null
                 ? List.of()
                 : optionInfo.optionCombinations().stream()
-                        .map(option -> new ChannelOption(
+                        .map(option -> new SmartStoreChannelOption(
                                 option.id(), optionName(option), option.stockQuantity(),
                                 option.price(), option.usable()))
                         .toList();
@@ -216,9 +221,9 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
 
     private SyncResult send(StockCommand command, String accessToken) {
         if (command.optionProduct()) {
-            Map<Long, ChannelOption> currentOptions = getProduct(command.originProductNo(), accessToken)
+            Map<Long, SmartStoreChannelOption> currentOptions = getProduct(command.originProductNo(), accessToken)
                     .options().stream()
-                    .collect(Collectors.toMap(ChannelOption::optionId, Function.identity()));
+                    .collect(Collectors.toMap(SmartStoreChannelOption::optionId, Function.identity()));
             if (command.options().stream().anyMatch(option -> !currentOptions.containsKey(option.optionId()))) {
                 return SyncResult.failure("스마트스토어에서 연결한 옵션을 찾을 수 없습니다. 옵션 연결을 확인해 주세요.");
             }
@@ -230,7 +235,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                     .body(new OptionStockRequest(new ProductOptionInfo(
                             command.options().stream()
                                     .map(option -> {
-                                        ChannelOption current = currentOptions.get(option.optionId());
+                                        SmartStoreChannelOption current = currentOptions.get(option.optionId());
                                         return new ProductOptionCombination(
                                                 option.optionId(), option.stockQuantity(),
                                                 current.price(), current.usable());
@@ -267,7 +272,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         return SyncResult.failure("스마트스토어에 연결하지 못했습니다.");
     }
 
-    private static Optional<CatalogProduct> catalogProduct(
+    private static Optional<SmartStoreCatalogProduct> catalogProduct(
             ProductSearchContent content, RemoteChannelProduct channel) {
         if (!"STOREFARM".equals(channel.channelServiceType())) {
             return Optional.empty();
@@ -277,7 +282,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         if (originProductNo == null) {
             return Optional.empty();
         }
-        return Optional.of(new CatalogProduct(
+        return Optional.of(new SmartStoreCatalogProduct(
                 originProductNo,
                 channel.channelProductNo(),
                 Objects.requireNonNullElse(channel.name(), "상품명 없음"),

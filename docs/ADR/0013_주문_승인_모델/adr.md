@@ -63,7 +63,7 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 
 - 수동 승인/거절과 배치 자동환불이 같은 주문을 동시에 수정하면 `ObjectOptimisticLockingFailureException`으로 감지한다.
 - 자동환불/픽업 만료 배치는 건별 `REQUIRES_NEW` 트랜잭션으로 처리한다.
-- 충돌은 `@Retryable(maxAttempts=3)`로 최대 3회 재시도하고, 모두 실패하면 해당 건만 스킵한다.
+- 충돌은 Spring Framework `@Retryable(maxRetries=2)`로 첫 시도 포함 최대 3회 실행하고, 모두 실패하면 해당 건만 스킵한다.
 
 이 결정은 재고처럼 경쟁이 빈번한 row에는 비관적 락을 유지하면서,
 운영성 상태 전이만 가볍게 충돌 감지하려는 목적이다.
@@ -115,7 +115,7 @@ dispatch 준비 트랜잭션에서는 주문이 `PICKUP_READY`이고 픽업 마�
 - `order_items.product_name`과 `unit_price`는 prepare에서 확정한 상품 표시와 단가를 저장한다. 상품명이 바뀌어도 과거 주문에는 결제 당시 이름을 보여준다.
 - 배송 주문은 서버 설정 `app.order.shipping-fee`를 결제 금액에 한 번 더하고 `orders.shipping_fee`에 저장한다. 픽업 주문의 배송비는 항상 0원이다.
 - 주문 거절·고객 취소·자동 환불·지연 거절의 전액 환불은 배송비가 포함된 `order.totalAmount`를 사용한다.
-- 배송 출발 시 `carrier_code`, `carrier`, `tracking_number`를 함께 받아 fulfillment에 저장하고 고객·관리자 상세에 같은 운송 정보를 반환한다. 신규 관리자 화면은 지원 택배사를 선택하게 하되 기존 자유 문자열 `carrier` 계약은 호환을 위해 유지한다.
+- 배송 출발 시 지원 택배사 코드(`carrier_code`)와 `tracking_number`를 받아 fulfillment에 저장하고, 표시명 `carrier`는 코드에서 파생해 함께 저장한다. 고객·관리자 상세에 같은 운송 정보를 반환한다. 자유 문자열 택배사 입력과 표시명 별칭 추론은 두지 않는다.
 - 외부 배송조회 등록은 출고 트랜잭션 밖의 매분 배치가 처리한다. 처리 중 중단된 작업은 5분 뒤 회수하며 지수 지연으로 최대 10회 재시도한다.
 - 외부 배송 상태와 진행 이력은 서명 검증을 통과한 웹훅으로 갱신한다. 택배사 `DELIVERED`는 배송조회 상태만 완료하며, 적립과 후기 요청을 수반하는 주문 `DELIVERED`는 관리자가 별도로 확정한다.
 - 현재 배송비 정책은 주문 금액과 무관한 고정액이며 `GET /api/v1/orders/policy`로 공개한다. 무료 배송 임계값은 두지 않는다.

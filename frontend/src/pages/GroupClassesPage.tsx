@@ -6,11 +6,12 @@ import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
+import { telHref } from "@/shared/lib";
 
 const PROCESS = [
-  ["01", "수업 문의", "참여 인원과 장소, 희망 일정과 관심 공예를 알려주세요."],
-  ["02", "수업 구성", "참여자와 수업 시간에 맞춰 재료·작품 난이도·진행 방법을 정합니다."],
-  ["03", "함께 만들기", "준비한 재료로 각자의 작품을 완성하는 시간을 진행합니다."],
+  ["문의", "인원, 대상 연령, 장소, 희망 날짜와 관심 있는 공예를 알려 주세요."],
+  ["수업 정하기", "참여자와 수업 시간에 맞춰 재료, 작품 난이도, 진행 방법을 정합니다."],
+  ["수업", "정한 날짜에 재료와 도구를 챙겨 가서 수업합니다."],
 ] as const;
 
 export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: WorkshopProfileResponse }) {
@@ -18,12 +19,11 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
   const {
     data: workshop,
     error,
-    isLoading,
     query: { isFetching, refetch },
   } = useWorkshopProfile(initialWorkshop);
-  const inquiryHref = workshop?.naverTalkUrl;
-  const kakaoTalkId = workshop?.kakaoTalkId;
-  const phone = workshop?.phone;
+  const inquiryHref = workshop.naverTalkUrl;
+  const kakaoTalkId = workshop.kakaoTalkId;
+  const phone = workshop.phone;
 
   const copyKakaoTalkId = async () => {
     if (!kakaoTalkId) return;
@@ -41,9 +41,8 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
         <img src={groupResinClass} alt="해피갤러리 단체 레진아트 수업" />
         <Container className="group-class-hero-inner">
           <div>
-            <p className="store-section-kicker">단체·기관 수업</p>
-            <h1>함께 만드는 경험을<br />원하는 곳에서</h1>
-            <p>학교, 기관, 모임의 목적과 참여자에 맞는 공예 수업을 함께 준비합니다.</p>
+            <h1>단체·출강 수업</h1>
+            <p>학교, 기관, 회사, 동아리 모임에 공예 수업을 엽니다. 인원과 장소에 맞춰 재료와 도구를 준비해 찾아갑니다.</p>
           </div>
         </Container>
       </section>
@@ -51,11 +50,10 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
       <Container className="page-container group-class-page">
         <section className="group-class-intro">
           <div>
-            <p className="store-section-kicker">맞춤 수업</p>
-            <h2>같은 재료로도 저마다 다른 작품이 완성됩니다</h2>
+            <h2>할 수 있는 수업</h2>
             <p>
-              레진아트와 업사이클링 공예를 비롯해 해피갤러리가 운영하는 여러 공예 중에서
-              참여 대상과 수업 시간에 어울리는 과정을 제안합니다.
+              레진아트와 양말목 업사이클링을 비롯해 공방에서 여는 공예 가운데
+              참여 연령과 수업 시간에 맞는 과정을 골라 드립니다.
             </p>
           </div>
           <figure>
@@ -65,13 +63,11 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
 
         <section className="group-class-process">
           <header>
-            <p className="store-section-kicker">진행 방법</p>
-            <h2>문의부터 수업까지</h2>
+            <h2>진행 순서</h2>
           </header>
           <ol>
-            {PROCESS.map(([number, title, description]) => (
-              <li key={number}>
-                <span>{number}</span>
+            {PROCESS.map(([title, description]) => (
+              <li key={title}>
                 <h3>{title}</h3>
                 <p>{description}</p>
               </li>
@@ -79,11 +75,10 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
           </ol>
         </section>
 
-        <section className="group-class-inquiry">
+        <section id="group-inquiry" className="group-class-inquiry">
           <div>
-            <p className="store-section-kicker">수업 문의</p>
-            <h2>원하는 수업을<br />함께 정해 보세요</h2>
-            <p>인원, 대상 연령, 장소와 희망 일정을 보내주시면 확인 후 안내합니다.</p>
+            <h2>단체 수업 문의</h2>
+            <p>인원, 대상 연령, 장소와 희망 날짜를 남겨 주시면 확인한 뒤 연락드립니다.</p>
           </div>
           <div className="group-class-inquiry-actions">
             <GroupInquirySection />
@@ -98,7 +93,7 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
               </a>
             )}
             {phone && (
-              <a className="btn btn-outline-dark btn-lg" href={`tel:${phone.replace(/\D/g, "")}`}>
+              <a className="btn btn-outline-dark btn-lg" href={telHref(phone)}>
                 전화 문의 {phone}
               </a>
             )}
@@ -107,16 +102,12 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
                 카카오톡 ID {kakaoTalkId} 복사
               </Button>
             )}
-            {isLoading && <span>수업 문의 채널을 확인하고 있습니다.</span>}
             <ErrorAlert
               error={error}
               onRetry={() => { void refetch(); }}
               retrying={isFetching}
             />
-            {!isLoading && !error && !inquiryHref && !phone && !kakaoTalkId && (
-              <span>수업 문의 채널을 준비하고 있습니다.</span>
-            )}
-            <Link to="/classes" className="store-section-link">개인 클래스 보기 →</Link>
+            <Link to="/classes" className="store-section-link">개인 클래스 보기</Link>
           </div>
         </section>
       </Container>

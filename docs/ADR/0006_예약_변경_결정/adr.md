@@ -30,7 +30,7 @@
 
 **이유**: 감사 로그(ADR-0001 §12 비기능 요구사항) 충족. 이력 삭제/수정 불가.
 
-**초기 예약 이력**: `GuestBookingService.createGuestBooking()`에도 `BOOKED` 이력 추가. §5.2 미완 항목 해소.
+**초기 예약 이력**: 회원·비회원 예약은 `BookingCreationSupport.complete()`에서, 관리자 예약 등록은 등록 서비스에서 `BOOKED` 이력을 남긴다. §5.2 미완 항목 해소.
 
 ---
 
@@ -74,8 +74,8 @@
 - 고객 화면은 예약 상세의 `classId`로 같은 클래스의 공개 예약 가능 슬롯만 조회한다.
 - 새 슬롯 정원을 먼저 확보한 뒤 기존 슬롯을 반납하는 업무 순서를 유지한다.
 
-**잠금 순서**: 8회권 예약 변경은 `pass_purchases → class → slots(PK ASC)`, 일반 예약 변경은
-`class → slots(PK ASC)`이다. 여러 클래스의 미래 예약을 취소하는 8회권 전체 환불은 기존처럼 클래스 행을
+**잠금 순서**: 이용권 예약 변경은 `pass_purchases → class → slots(PK ASC)`, 일반 예약 변경은
+`class → slots(PK ASC)`이다. 여러 클래스의 미래 예약을 취소하는 이용권 전체 환불은 기존처럼 클래스 행을
 PK 오름차순으로 잠근다.
 
 ---

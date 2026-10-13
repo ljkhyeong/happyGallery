@@ -1,14 +1,15 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationOutboxDispatcher;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -31,9 +32,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestFixtures.accessToken;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -44,7 +45,7 @@ class PickupDeadlineReminderUseCaseIT {
     @Autowired NotificationOutboxDispatcher notificationOutboxDispatcher;
     @Autowired OrderStorePort orderStorePort;
     @Autowired FulfillmentPort fulfillmentPort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired NotificationQueryUseCase notificationQueryUseCase;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
@@ -66,7 +67,7 @@ class PickupDeadlineReminderUseCaseIT {
         User user = userStorePort.save(new User(
                 "pickup-reminder-legacy@example.com", "hashed-password", "회원", "01067676767"));
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), 35_000L, now, now.plusDays(1));
         order.approve();
         order.markPickupReady();
@@ -78,7 +79,7 @@ class PickupDeadlineReminderUseCaseIT {
                 NotificationRequestedEvent.forUser(
                         user.getId(),
                         NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         order.getId()),
                 now);
         String processingToken = legacyOutbox.markProcessing(now);
@@ -107,7 +108,7 @@ class PickupDeadlineReminderUseCaseIT {
         User user = userStorePort.save(new User(
                 "pickup-reminder-obsolete@example.com", "hashed-password", "회원", "01078787878"));
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(user.getId(), 35_000L, now, now.plusDays(1));
+        Order order = memberOrder(user.getId(), 35_000L, now, now.plusDays(1));
         order.approve();
         order.markPickupReady();
         order = orderStorePort.saveAndFlush(order);
@@ -118,7 +119,7 @@ class PickupDeadlineReminderUseCaseIT {
                 NotificationRequestedEvent.forUserOncePerAggregate(
                         user.getId(),
                         NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         order.getId()),
                 now));
         order.confirmPickup();
@@ -140,11 +141,11 @@ class PickupDeadlineReminderUseCaseIT {
     @Test
     void dispatchPickupReminder_afterOrderClaim_refreshesLogAndInboxOwner() {
         LocalDateTime now = LocalDateTime.now(clock);
-        Guest previousOwner = guestStorePort.save(guest("비회원 주문자", "01089898989"));
+        Guest previousOwner = guestRepository.save(guest("비회원 주문자", "01089898989"));
         User currentOwner = userStorePort.save(new User(
                 "claimed-pickup@example.com", "hashed-password", "귀속 회원", "01089898989"));
         Order order = Order.forGuest(
-                previousOwner.getId(), accessToken(), 35_000L, now, now.plusDays(1));
+                previousOwner.getId(), accessToken(), 35_000L, 0L, now, now.plusDays(1), null);
         order.approve();
         order.markPickupReady();
         order = orderStorePort.saveAndFlush(order);
@@ -156,7 +157,7 @@ class PickupDeadlineReminderUseCaseIT {
                         NotificationRequestedEvent.forGuestOncePerAggregate(
                                 previousOwner.getId(),
                                 NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                                "ORDER",
+                                NotificationAggregateType.ORDER,
                                 order.getId()),
                         now));
         order.claimToUser(currentOwner.getId());
@@ -180,9 +181,7 @@ class PickupDeadlineReminderUseCaseIT {
                 .filter(candidate -> candidate.getGuestId() == null)
                 .toList();
         var currentOwnerInbox = notificationQueryUseCase.listNotifications(
-                currentOwner.getId(), null, 0, 20, false);
-        var previousOwnerInbox = notificationQueryUseCase.listNotifications(
-                null, previousOwner.getId(), 0, 20, false);
+                currentOwner.getId(), 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(sent.getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
@@ -198,9 +197,7 @@ class PickupDeadlineReminderUseCaseIT {
                     });
             softly.assertThat(currentOwnerInbox).singleElement()
                     .satisfies(item -> softly.assertThat(item.id()).isEqualTo(outbox.getId()));
-            softly.assertThat(previousOwnerInbox).isEmpty();
-            softly.assertThat(notificationQueryUseCase.countUnread(currentOwner.getId(), null)).isOne();
-            softly.assertThat(notificationQueryUseCase.countUnread(null, previousOwner.getId())).isZero();
+            softly.assertThat(notificationQueryUseCase.countUnread(currentOwner.getId())).isOne();
         });
     }
 }

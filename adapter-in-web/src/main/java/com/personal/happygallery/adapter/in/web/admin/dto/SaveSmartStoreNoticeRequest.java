@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.product.port.in.SmartStoreProductNoticeUseCase.SaveCommand;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSaveCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,8 +20,8 @@ public record SaveSmartStoreNoticeRequest(
         OffsetDateTime popupEndDate,
         @NotBlank String detailContents
 ) {
-    public SaveCommand toCommand() {
-        return new SaveCommand(
+    public SmartStoreNoticeSaveCommand toCommand() {
+        return new SmartStoreNoticeSaveCommand(
                 postCategoryType.name(), title, importantNotice,
                 importantNoticeStartDate, importantNoticeEndDate, wholeNotice,
                 displayStartDate, displayEndDate, popup, popupStartDate, popupEndDate,

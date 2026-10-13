@@ -1,16 +1,16 @@
 package com.personal.happygallery.application.batch;
 
-import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
-import com.personal.happygallery.application.booking.BookingVacancyAlertRetentionService;
-import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
-import com.personal.happygallery.application.customer.EmailVerificationRetentionService;
-import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
+import com.personal.happygallery.application.admin.port.out.AdminAuthHistoryPort;
+import com.personal.happygallery.application.booking.port.out.BookingVacancyAlertRetentionPort;
+import com.personal.happygallery.application.cart.port.out.CartMergeRequestStorePort;
+import com.personal.happygallery.application.customer.port.out.EmailVerificationStorePort;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.media.ImageMediaRetentionService;
-import com.personal.happygallery.application.notification.NotificationRetentionService;
+import com.personal.happygallery.application.notification.port.out.NotificationRetentionPort;
 import com.personal.happygallery.application.payment.PaymentAttemptSensitiveDataCleanupProcessor;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.review.ReviewEvidenceRetentionService;
-import com.personal.happygallery.application.review.ReviewTombstoneRetentionService;
+import com.personal.happygallery.application.review.port.out.ReviewTombstoneRetentionPort;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -22,6 +22,9 @@ import java.util.function.IntSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class DefaultPersonalDataRetentionBatchService implements PersonalDataRetentionBatchUseCase {
@@ -34,6 +37,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     public static final Duration NOTIFICATION_RETENTION = Duration.ofDays(180);
     public static final Duration ADMIN_AUTH_HISTORY_RETENTION = Duration.ofDays(180);
     public static final Duration VACANCY_ALERT_TERMINAL_RETENTION = Duration.ofDays(30);
+    public static final Duration REVIEW_TOMBSTONE_RETENTION = Duration.ofDays(30);
     private static final int PAGE_SIZE = 100;
     private static final String PAYMENT_ATTEMPT = "payment_attempt";
     private static final String PHONE_VERIFICATION = "phone_verification";
@@ -49,45 +53,50 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor;
-    private final PhoneVerificationRetentionService verificationRetentionService;
-    private final EmailVerificationRetentionService emailVerificationRetentionService;
-    private final CartMergeRequestRetentionService cartMergeRequestRetentionService;
+    private final PhoneVerificationStorePort phoneVerificationStore;
+    private final EmailVerificationStorePort emailVerificationStore;
+    private final CartMergeRequestStorePort cartMergeRequestStore;
     private final ImageMediaRetentionService imageMediaRetentionService;
-    private final NotificationRetentionService notificationRetentionService;
-    private final AdminAuthHistoryRetentionService adminAuthHistoryRetentionService;
+    private final NotificationRetentionPort notificationRetentionPort;
+    private final AdminAuthHistoryPort adminAuthHistoryPort;
     private final ReviewEvidenceRetentionService reviewEvidenceRetentionService;
-    private final ReviewTombstoneRetentionService reviewTombstoneRetentionService;
-    private final BookingVacancyAlertRetentionService vacancyAlertRetentionService;
+    private final ReviewTombstoneRetentionPort reviewTombstoneRetentionPort;
+    private final BookingVacancyAlertRetentionPort vacancyAlertRetentionPort;
     private final GuestTokenProperties guestTokenProperties;
     private final Clock clock;
+    /** 삭제 묶음마다 독립 커밋하도록 새 트랜잭션을 연다. */
+    private final TransactionTemplate requiresNew;
 
     public DefaultPersonalDataRetentionBatchService(
             PaymentAttemptReaderPort attemptReader,
             PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor,
-            PhoneVerificationRetentionService verificationRetentionService,
-            EmailVerificationRetentionService emailVerificationRetentionService,
-            CartMergeRequestRetentionService cartMergeRequestRetentionService,
+            PhoneVerificationStorePort phoneVerificationStore,
+            EmailVerificationStorePort emailVerificationStore,
+            CartMergeRequestStorePort cartMergeRequestStore,
             ImageMediaRetentionService imageMediaRetentionService,
-            NotificationRetentionService notificationRetentionService,
-            AdminAuthHistoryRetentionService adminAuthHistoryRetentionService,
+            NotificationRetentionPort notificationRetentionPort,
+            AdminAuthHistoryPort adminAuthHistoryPort,
             ReviewEvidenceRetentionService reviewEvidenceRetentionService,
-            ReviewTombstoneRetentionService reviewTombstoneRetentionService,
-            BookingVacancyAlertRetentionService vacancyAlertRetentionService,
+            ReviewTombstoneRetentionPort reviewTombstoneRetentionPort,
+            BookingVacancyAlertRetentionPort vacancyAlertRetentionPort,
             GuestTokenProperties guestTokenProperties,
-            Clock clock) {
+            Clock clock,
+            PlatformTransactionManager transactionManager) {
         this.attemptReader = attemptReader;
         this.attemptCleanupProcessor = attemptCleanupProcessor;
-        this.verificationRetentionService = verificationRetentionService;
-        this.emailVerificationRetentionService = emailVerificationRetentionService;
-        this.cartMergeRequestRetentionService = cartMergeRequestRetentionService;
+        this.phoneVerificationStore = phoneVerificationStore;
+        this.emailVerificationStore = emailVerificationStore;
+        this.cartMergeRequestStore = cartMergeRequestStore;
         this.imageMediaRetentionService = imageMediaRetentionService;
-        this.notificationRetentionService = notificationRetentionService;
-        this.adminAuthHistoryRetentionService = adminAuthHistoryRetentionService;
+        this.notificationRetentionPort = notificationRetentionPort;
+        this.adminAuthHistoryPort = adminAuthHistoryPort;
         this.reviewEvidenceRetentionService = reviewEvidenceRetentionService;
-        this.reviewTombstoneRetentionService = reviewTombstoneRetentionService;
-        this.vacancyAlertRetentionService = vacancyAlertRetentionService;
+        this.reviewTombstoneRetentionPort = reviewTombstoneRetentionPort;
+        this.vacancyAlertRetentionPort = vacancyAlertRetentionPort;
         this.guestTokenProperties = guestTokenProperties;
         this.clock = clock;
+        this.requiresNew = new TransactionTemplate(transactionManager);
+        this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Override
@@ -106,43 +115,48 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         BatchResult result = cleanUpPaymentAttempts(paymentCutoff);
         result = result.merge(deleteInBatches(
                 PHONE_VERIFICATION,
-                () -> verificationRetentionService.deleteBatchBefore(
-                        verificationCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> phoneVerificationStore.deleteExpiredBefore(
+                        verificationCutoff, PAGE_SIZE))));
         result = result.merge(deleteInBatches(
                 EMAIL_VERIFICATION,
-                () -> emailVerificationRetentionService.deleteBatchBefore(
-                        emailVerificationCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> emailVerificationStore.deleteExpiredBefore(
+                        emailVerificationCutoff, PAGE_SIZE))));
         result = result.merge(deleteInBatches(
                 CART_MERGE_REQUEST,
-                () -> cartMergeRequestRetentionService.deleteBatchBefore(
-                        cartMergeCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> cartMergeRequestStore.deleteCreatedBefore(
+                        cartMergeCutoff, PAGE_SIZE))));
         result = result.merge(isolateCountSource(
                 IMAGE_MEDIA,
                 imageMediaRetentionService::deleteUnreferencedImages));
         result = result.merge(deleteInBatches(
                 NOTIFICATION_LOG,
-                () -> notificationRetentionService.deleteChannelLogsBefore(
-                        notificationCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> notificationRetentionPort.deleteChannelLogsBefore(
+                        notificationCutoff, PAGE_SIZE))));
         result = result.merge(deleteInBatches(
                 NOTIFICATION_OUTBOX,
-                () -> notificationRetentionService.deleteTerminalOutboxesBefore(
-                        notificationCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> notificationRetentionPort.deleteTerminalOutboxesBefore(
+                        notificationCutoff, PAGE_SIZE))));
         result = result.merge(deleteInBatches(
                 ADMIN_AUTH_HISTORY,
-                () -> adminAuthHistoryRetentionService.deleteBatchBefore(
-                        adminAuthHistoryCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> adminAuthHistoryPort.deleteCreatedBefore(
+                        adminAuthHistoryCutoff, PAGE_SIZE))));
         result = result.merge(deleteInBatches(
                 BOOKING_VACANCY_ALERT,
-                () -> vacancyAlertRetentionService.deleteExpiredBatch(
-                        now, vacancyAlertTerminalCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> vacancyAlertRetentionPort.deleteExpiredBatch(
+                        now, vacancyAlertTerminalCutoff, PAGE_SIZE))));
+        // 후기 증거 정리는 자체 트랜잭션과 파일 삭제 순서를 가지므로 바깥 트랜잭션을 열지 않는다.
         result = result.merge(deleteInBatches(
                 REVIEW_EVIDENCE,
                 () -> reviewEvidenceRetentionService.deleteExpiredBatch(now, PAGE_SIZE)));
-        LocalDateTime reviewTombstoneCutoff = now.minus(ReviewTombstoneRetentionService.RETENTION);
+        LocalDateTime reviewTombstoneCutoff = now.minus(REVIEW_TOMBSTONE_RETENTION);
         return result.merge(deleteInBatches(
                 REVIEW_TOMBSTONE,
-                () -> reviewTombstoneRetentionService.deleteBatchBefore(
-                        reviewTombstoneCutoff, PAGE_SIZE)));
+                inNewTransaction(() -> reviewTombstoneRetentionPort.deleteUnblockedBefore(
+                        reviewTombstoneCutoff, PAGE_SIZE))));
+    }
+
+    private IntSupplier inNewTransaction(IntSupplier deleteBatch) {
+        return () -> requiresNew.execute(status -> deleteBatch.getAsInt());
     }
 
     private BatchResult deleteInBatches(String source, IntSupplier deleteBatch) {

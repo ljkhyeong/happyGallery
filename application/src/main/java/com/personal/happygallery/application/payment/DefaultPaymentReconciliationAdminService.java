@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.payment.PaymentReconciliationTransactionService.LookupRequest;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
 import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
@@ -45,15 +44,15 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public ReconciliationResult reconcile(Long attemptId) {
-        LookupRequest request = reconciliationTransactionService.prepareLookup(attemptId);
+        String orderId = reconciliationTransactionService.prepareLookup(attemptId);
         PaymentLookupResult lookup = requireNonNull(
-                paymentPort.lookupByOrderId(request.orderId()),
+                paymentPort.lookupByOrderId(orderId),
                 "PaymentPort.lookupByOrderId는 null을 반환할 수 없습니다.");
         return switch (lookup.status()) {
-            case APPROVED -> completeApprovedPayment(request, lookup);
-            case NOT_APPROVED -> completeWithoutApproval(request, lookup);
+            case APPROVED -> completeApprovedPayment(attemptId, lookup);
+            case NOT_APPROVED -> completeWithoutApproval(attemptId, lookup);
             case REVIEW_REQUIRED, UNAVAILABLE -> new ReconciliationResult(
-                    request.attemptId(),
+                    attemptId,
                     PaymentAttemptStatus.RECONCILIATION_REQUIRED,
                     null,
                     lookup.reason(),
@@ -61,14 +60,14 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
         };
     }
 
-    private ReconciliationResult completeApprovedPayment(LookupRequest request,
+    private ReconciliationResult completeApprovedPayment(Long attemptId,
                                                          PaymentLookupResult lookup) {
         String confirmedPaymentKey = reconciliationTransactionService.recordApproved(
-                request.attemptId(), lookup);
+                attemptId, lookup);
         try {
-            ConfirmResult result = fulfillmentTransactionService.fulfillAndConfirm(request.attemptId());
+            ConfirmResult result = fulfillmentTransactionService.fulfillAndConfirm(attemptId);
             return new ReconciliationResult(
-                    request.attemptId(),
+                    attemptId,
                     PaymentAttemptStatus.CONFIRMED,
                     result.domainId(),
                     "PG 승인 확인 후 서비스 처리를 완료했습니다.",
@@ -76,7 +75,7 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
         } catch (RuntimeException fulfillmentFailure) {
             try {
                 fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
-                        request.attemptId(),
+                        attemptId,
                         confirmedPaymentKey,
                         "PG 대사 승인 후 도메인 생성에 실패했습니다.");
             } catch (RuntimeException compensationFailure) {
@@ -86,10 +85,10 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
         }
     }
 
-    private ReconciliationResult completeWithoutApproval(LookupRequest request,
+    private ReconciliationResult completeWithoutApproval(Long attemptId,
                                                          PaymentLookupResult lookup) {
         PaymentAttempt attempt = reconciliationTransactionService.recordNotApproved(
-                request.attemptId(), lookup.reason());
+                attemptId, lookup.reason());
         return new ReconciliationResult(
                 attempt.getId(),
                 attempt.getStatus(),

@@ -28,10 +28,7 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
     try {
       const user = await completeSocialSignup(attemptId, consent.acceptance);
       removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
-      navigate(user.phone === null ? "/my" : returnTo, {
-        replace: true,
-        state: user.phone === null ? { phoneOnboarding: true } : null,
-      });
+      navigate(user.phone === null ? "/my" : returnTo, { replace: true });
     } catch (requestError) {
       if (requestError instanceof CustomerSessionChangedError) {
         navigate("/my", { replace: true });
@@ -54,9 +51,7 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
       <Form onSubmit={(event) => void submit(event)}>
         {expired ? <p role="alert">가입 시간이 만료되었거나 이미 처리되었습니다. 다시 로그인해 주세요.</p>
           : <ErrorAlert error={error} />}
-        <PolicyConsentFields id="social-signup-consent" policy={consent.policyQuery.data}
-          checked={consent.accepted} onChange={consent.setAccepted}
-          isLoading={consent.policyQuery.isLoading || pending} error={consent.policyQuery.error} />
+        <PolicyConsentFields id="social-signup-consent" consent={consent} disabled={pending} />
         {consent.policyQuery.isError && (
           <Button variant="link" onClick={() => void consent.policyQuery.refetch()}>약관 다시 불러오기</Button>
         )}

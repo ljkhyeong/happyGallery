@@ -19,7 +19,7 @@ class PublicHolidayRestClientConfig {
 
     @Bean
     CloseableHttpClient publicHolidayHttpClient(PublicHolidayApiProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+        return pooledHttpClientFactory.create(properties.http());
     }
 
     @Bean

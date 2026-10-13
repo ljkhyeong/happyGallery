@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
@@ -13,9 +15,7 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
@@ -26,6 +26,7 @@ import com.personal.happygallery.domain.booking.BookingCancellationTaskStatus;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
@@ -82,13 +83,13 @@ class AdminSlotSessionCancelUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired BookingStorePort bookingStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired UserReaderPort userReaderPort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
-    @Autowired PassLedgerReaderPort passLedgerReaderPort;
+    @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -201,20 +202,20 @@ class AdminSlotSessionCancelUseCaseIT {
             softly.assertThat(refunds).extracting(Refund::getStatus).containsOnly(RefundStatus.SUCCEEDED);
             softly.assertThat(passPurchaseReaderPort.findById(validPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())
-                    .isEqualTo(8);
+                    .isEqualTo(4);
             softly.assertThat(passPurchaseReaderPort.findById(expiredPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())
                     .isZero();
-            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(validPass.pass().getId()))
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(validPass.pass().getId()))
                     .extracting(ledger -> ledger.getType())
                     .containsExactly(PassLedgerType.REFUND);
-            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(expiredPass.pass().getId()))
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(expiredPass.pass().getId()))
                     .extracting(ledger -> ledger.getType())
                     .containsExactly(PassLedgerType.EXPIRE);
             softly.assertThat(histories).hasSize(4)
                     .allSatisfy(history -> {
                         assertThat(history.getAction()).isEqualTo(BookingHistoryAction.CANCELED);
-                        assertThat(history.getActor()).isEqualTo("ADMIN");
+                        assertThat(history.getActor()).isEqualTo(BookingHistoryActor.ADMIN);
                         assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID);
                         assertThat(history.getReason()).isEqualTo(REASON);
                     });
@@ -251,7 +252,7 @@ class AdminSlotSessionCancelUseCaseIT {
     }
 
     private Booking saveGuestDepositBooking(Slot slot, String suffix, boolean balancePaid) {
-        Guest guest = guestStorePort.save(guest("예약자" + suffix, "010100000" + suffix));
+        Guest guest = guestRepository.save(guest("예약자" + suffix, "010100000" + suffix));
         Booking booking = booking(
                 guest,
                 slot,
@@ -272,13 +273,13 @@ class AdminSlotSessionCancelUseCaseIT {
         PassPurchase pass = passPurchase(user.getId(), expiresAt, 320_000L);
         pass.useCredit(expiresAt.minusDays(1));
         pass = passPurchaseStorePort.save(pass);
-        Booking booking = bookingStorePort.save(Booking.forMemberPass(user, slot, pass));
+        Booking booking = bookingStorePort.save(Booking.forMemberPass(user, slot, pass, 1));
         return new PassBooking(booking, pass);
     }
 
     private void occupy(Slot slot, int count) {
         for (int i = 0; i < count; i++) {
-            slot.incrementBookedCount();
+            slot.incrementBookedCount(1);
         }
         slotStorePort.save(slot);
     }

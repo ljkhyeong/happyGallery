@@ -1,17 +1,15 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Alert, Button, Card, Col, ListGroup, Row } from "react-bootstrap";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, Card, Col, ListGroup, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import {
-  captureCustomerSession,
   queryKeys,
   runForCustomerSession,
-  runForCurrentCustomer,
-  type CustomerSessionSnapshot,
+  cursorPageParams,
+  flattenCursorPages,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, StatusBadge } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore } from "@/shared/ui";
 import {
   fetchRecoveredGuestBookings,
   fetchRecoveredGuestOrders,
@@ -23,114 +21,69 @@ import {
   saveGuestRecordRecovery,
   type GuestRecordRecoverySession,
 } from "./session";
+import { useOwnedRecoveryResult, type OwnedRecoveryView } from "./useOwnedRecoveryResult";
 
-interface RecoveryView {
-  customerSession: CustomerSessionSnapshot;
-  storage: GuestRecordRecoverySession;
+type RecoveryView = OwnedRecoveryView<GuestRecordRecoverySession>;
+
+interface RecoveredPage {
+  content: unknown[];
+  hasMore: boolean;
+  nextCursor: string | null;
 }
 
-function loadRecoveryView(): RecoveryView | null {
-  const storage = loadGuestRecordRecovery();
-  return storage
-    ? { customerSession: captureCustomerSession(), storage }
-    : null;
+/** 재발급한 조회 코드로 비회원 주문·예약 이력을 이어 받는다. 키에는 토큰 대신 소유자·만료 시각을 쓴다. */
+function useRecoveredRecords<TPage extends RecoveredPage>(
+  kind: "orders" | "bookings",
+  recoveryView: RecoveryView | null,
+  fetchPage: (accessToken: string, cursor?: string, signal?: AbortSignal) => Promise<TPage>,
+) {
+  const owner = recoveryView?.storage.owner;
+  return useInfiniteQuery({
+    queryKey: queryKeys.member.guestRecovery.records(
+      kind,
+      owner?.boundaryEpoch ?? null,
+      owner?.boundaryCustomerId ?? null,
+      recoveryView?.customerSession.version ?? -1,
+      recoveryView?.storage.value.expiresAt ?? "inactive",
+    ),
+    queryFn: ({ pageParam, signal }): Promise<TPage> => {
+      if (!recoveryView) {
+        return Promise.reject(new Error("휴대폰 번호를 인증하고 조회 코드를 다시 발급받아 주세요."));
+      }
+      return runForCustomerSession(
+        recoveryView.customerSession,
+        () => fetchPage(recoveryView.storage.value.accessToken, pageParam, signal),
+      );
+    },
+    ...cursorPageParams,
+    enabled: recoveryView !== null,
+  });
 }
 
 export function GuestRecordRecoverySection() {
   const queryClient = useQueryClient();
-  const [recoveryView, setRecoveryView] = useState(loadRecoveryView);
-  const recovery = useMutation({
-    mutationFn: async ({ phone, code }: { phone: string; code: string }) => {
-      let storedRecovery: GuestRecordRecoverySession | null = null;
-      try {
-        return await runForCurrentCustomer(
-          () => recoverGuestRecords(phone, code),
-          async (result, requireCurrent) => {
-            requireCurrent();
-            const customerSession = captureCustomerSession();
-            storedRecovery = saveGuestRecordRecovery(result, customerSession);
-            requireCurrent();
-            if (storedRecovery) {
-              await queryClient.cancelQueries({
-                queryKey: queryKeys.member.guestRecovery.all,
-              });
-              queryClient.removeQueries({
-                queryKey: queryKeys.member.guestRecovery.all,
-              });
-              requireCurrent();
-              setRecoveryView({ customerSession, storage: storedRecovery });
-            }
-            return result;
-          },
-        );
-      } catch (error) {
-        if (storedRecovery) {
-          const expectedRecovery = storedRecovery;
-          clearGuestRecordRecovery(expectedRecovery);
-          setRecoveryView((current) =>
-            current?.storage === expectedRecovery ? null : current);
-        }
-        throw error;
-      }
+  // 새 조회 코드를 보이기 전·지운 뒤에는 이전 코드로 받은 이력 캐시를 남기지 않는다.
+  const recoveredRecords = { queryKey: queryKeys.member.guestRecovery.all };
+  const { view: recoveryView, mutation: recovery, reset } = useOwnedRecoveryResult({
+    load: loadGuestRecordRecovery,
+    save: saveGuestRecordRecovery,
+    clear: clearGuestRecordRecovery,
+    request: recoverGuestRecords,
+    beforeShow: async () => {
+      await queryClient.cancelQueries(recoveredRecords);
+      queryClient.removeQueries(recoveredRecords);
+    },
+    afterClear: () => {
+      void queryClient.cancelQueries(recoveredRecords);
+      queryClient.removeQueries(recoveredRecords);
     },
   });
 
   const result = recoveryView?.storage.value ?? null;
-  const owner = recoveryView?.storage.owner;
-  const recoverySessionVersion = recoveryView?.customerSession.version ?? -1;
-  const recoveryExpiresAt = result?.expiresAt ?? "inactive";
-  const ordersQuery = useInfiniteQuery({
-    queryKey: queryKeys.member.guestRecovery.orders(
-      owner?.boundaryEpoch ?? null,
-      owner?.boundaryCustomerId ?? null,
-      recoverySessionVersion,
-      recoveryExpiresAt,
-    ),
-    queryFn: ({ pageParam, signal }) => {
-      if (!recoveryView) {
-        return Promise.reject(new Error("휴대폰 번호를 인증하고 조회 코드를 다시 발급받아 주세요."));
-      }
-      return runForCustomerSession(
-        recoveryView.customerSession,
-        () => fetchRecoveredGuestOrders(
-          recoveryView.storage.value.accessToken,
-          pageParam,
-          signal,
-        ),
-      );
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
-    enabled: recoveryView !== null,
-  });
-  const bookingsQuery = useInfiniteQuery({
-    queryKey: queryKeys.member.guestRecovery.bookings(
-      owner?.boundaryEpoch ?? null,
-      owner?.boundaryCustomerId ?? null,
-      recoverySessionVersion,
-      recoveryExpiresAt,
-    ),
-    queryFn: ({ pageParam, signal }) => {
-      if (!recoveryView) {
-        return Promise.reject(new Error("휴대폰 번호를 인증하고 조회 코드를 다시 발급받아 주세요."));
-      }
-      return runForCustomerSession(
-        recoveryView.customerSession,
-        () => fetchRecoveredGuestBookings(
-          recoveryView.storage.value.accessToken,
-          pageParam,
-          signal,
-        ),
-      );
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
-    enabled: recoveryView !== null,
-  });
-  const orders = ordersQuery.data?.pages.flatMap((page) => page.content) ?? [];
-  const bookings = bookingsQuery.data?.pages.flatMap((page) => page.content) ?? [];
+  const ordersQuery = useRecoveredRecords("orders", recoveryView, fetchRecoveredGuestOrders);
+  const bookingsQuery = useRecoveredRecords("bookings", recoveryView, fetchRecoveredGuestBookings);
+  const orders = flattenCursorPages(ordersQuery.data);
+  const bookings = flattenCursorPages(bookingsQuery.data);
   const recoveryPagesLoading = recoveryView !== null
     && (ordersQuery.isLoading || bookingsQuery.isLoading);
   const recoveryPagesLoaded = ordersQuery.data !== undefined
@@ -146,17 +99,7 @@ export function GuestRecordRecoverySection() {
           description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
           confirmLabel="조회 코드 재발급"
           confirming={recovery.isPending}
-          onReset={() => {
-            recovery.reset();
-            clearGuestRecordRecovery(recoveryView?.storage);
-            void queryClient.cancelQueries({
-              queryKey: queryKeys.member.guestRecovery.all,
-            });
-            queryClient.removeQueries({
-              queryKey: queryKeys.member.guestRecovery.all,
-            });
-            setRecoveryView(null);
-          }}
+          onReset={reset}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />
 
@@ -169,12 +112,12 @@ export function GuestRecordRecoverySection() {
         )}
 
         <ErrorAlert
-          error={ordersQuery.error}
+          error={ordersQuery.isFetchNextPageError ? null : ordersQuery.error}
           onRetry={() => { void ordersQuery.refetch(); }}
           retrying={ordersQuery.isFetching && !ordersQuery.isFetchingNextPage}
         />
         <ErrorAlert
-          error={bookingsQuery.error}
+          error={bookingsQuery.isFetchNextPageError ? null : bookingsQuery.error}
           onRetry={() => { void bookingsQuery.refetch(); }}
           retrying={bookingsQuery.isFetching && !bookingsQuery.isFetchingNextPage}
         />
@@ -219,20 +162,12 @@ export function GuestRecordRecoverySection() {
                       </ListGroup.Item>
                     ))}
                   </ListGroup>
-                  {ordersQuery.hasNextPage && (
-                    <div className="d-grid mt-2">
-                      <Button
-                        type="button"
-                        variant="outline-primary"
-                        disabled={ordersQuery.isFetchingNextPage}
-                        onClick={() => { void ordersQuery.fetchNextPage(); }}
-                      >
-                        {ordersQuery.isFetchingNextPage
-                          ? "주문 불러오는 중..."
-                          : "비회원 주문 더 보기"}
-                      </Button>
-                    </div>
-                  )}
+                  <CursorLoadMore
+                    query={ordersQuery}
+                    label="비회원 주문 더 보기"
+                    loadingLabel="주문 불러오는 중..."
+                    wrapperClassName="d-grid mt-2"
+                  />
                 </Col>
               )}
 
@@ -263,20 +198,12 @@ export function GuestRecordRecoverySection() {
                       </ListGroup.Item>
                     ))}
                   </ListGroup>
-                  {bookingsQuery.hasNextPage && (
-                    <div className="d-grid mt-2">
-                      <Button
-                        type="button"
-                        variant="outline-primary"
-                        disabled={bookingsQuery.isFetchingNextPage}
-                        onClick={() => { void bookingsQuery.fetchNextPage(); }}
-                      >
-                        {bookingsQuery.isFetchingNextPage
-                          ? "예약 불러오는 중..."
-                          : "비회원 예약 더 보기"}
-                      </Button>
-                    </div>
-                  )}
+                  <CursorLoadMore
+                    query={bookingsQuery}
+                    label="비회원 예약 더 보기"
+                    loadingLabel="예약 불러오는 중..."
+                    wrapperClassName="d-grid mt-2"
+                  />
                 </Col>
               )}
             </Row>

@@ -8,7 +8,6 @@ import {
   isCurrentCustomerSession,
   queryKeys,
   runForCustomerSession,
-  runForCurrentCustomer,
   type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
@@ -16,7 +15,7 @@ import { PhoneVerificationStep } from "./PhoneVerificationStep";
 import {
   cancelGuestVacancyAlert,
   cancelMyVacancyAlert,
-  fetchMyVacancyAlerts,
+  myVacancyAlertsQuery,
   registerGuestVacancyAlert,
   registerMyVacancyAlert,
 } from "@/features/vacancy-alert/api";
@@ -55,8 +54,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
     () => findGuestVacancyAlert(slotId),
   );
   const memberAlertsQuery = useQuery({
-    queryKey: queryKeys.member.vacancyAlerts,
-    queryFn: () => runForCurrentCustomer(fetchMyVacancyAlerts),
+    ...myVacancyAlertsQuery(),
     enabled: isAuthenticated,
   });
 
@@ -116,7 +114,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         return;
       }
       setShowGuestForm(false);
-      toast.show("빈자리가 생기면 한 번 알려드릴게요.");
+      toast.show("빈자리가 생기면 한 번 알려 드립니다.");
     },
   });
 

@@ -38,14 +38,14 @@ class DefaultPublicReviewService implements PublicReviewUseCase {
         productReader.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         int pageSize = PageParams.requireSize(size);
-        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, sort, rating);
+        ReviewPublicCursor.CursorParam cursorParam = ReviewPublicCursor.decodeOrFirst(cursor, sort, rating);
         List<ReviewListView> fetched = reviewReader.findPublishedByProduct(
                 productId,
                 rating,
                 sort,
-                cursorParam == null ? null : cursorParam.rating(),
-                cursorParam == null ? null : cursorParam.createdAt(),
-                cursorParam == null ? null : cursorParam.id(),
+                cursorParam.rating(),
+                cursorParam.createdAt(),
+                cursorParam.id(),
                 pageSize + 1);
         return viewAssembler.publicPage(
                 reviewReader.summarizePublishedProduct(productId),
@@ -63,14 +63,14 @@ class DefaultPublicReviewService implements PublicReviewUseCase {
                 .orElseThrow(NotFoundException.supplier("클래스"))
                 .requireActive();
         int pageSize = PageParams.requireSize(size);
-        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, sort, rating);
+        ReviewPublicCursor.CursorParam cursorParam = ReviewPublicCursor.decodeOrFirst(cursor, sort, rating);
         List<ReviewListView> fetched = reviewReader.findPublishedByClass(
                 classId,
                 rating,
                 sort,
-                cursorParam == null ? null : cursorParam.rating(),
-                cursorParam == null ? null : cursorParam.createdAt(),
-                cursorParam == null ? null : cursorParam.id(),
+                cursorParam.rating(),
+                cursorParam.createdAt(),
+                cursorParam.id(),
                 pageSize + 1);
         return viewAssembler.publicPage(
                 reviewReader.summarizePublishedClass(classId),
@@ -79,10 +79,5 @@ class DefaultPublicReviewService implements PublicReviewUseCase {
                 pageSize,
                 sort,
                 rating);
-    }
-
-    private static ReviewPublicCursor.CursorParam decodeCursor(
-            String cursor, ReviewSort sort, Integer ratingFilter) {
-        return cursor == null ? null : ReviewPublicCursor.decode(cursor, sort, ratingFilter);
     }
 }

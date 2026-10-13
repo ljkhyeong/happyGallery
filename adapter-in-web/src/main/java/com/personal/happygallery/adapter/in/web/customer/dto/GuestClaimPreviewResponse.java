@@ -1,6 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer.dto;
 
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.order.OrderStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,14 +24,11 @@ public record GuestClaimPreviewResponse(
 
     public record OrderSummary(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long orderId,
-            @Schema(
-                    requiredMode = Schema.RequiredMode.REQUIRED,
-                    implementation = OrderStatus.class)
-            String status,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OrderStatus status,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long totalAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt
     ) {
-        private static OrderSummary from(GuestClaimUseCase.ClaimOrderSummary summary) {
+        private static OrderSummary from(GuestOrderSummary summary) {
             return new OrderSummary(
                     summary.orderId(),
                     summary.status(),
@@ -40,15 +39,12 @@ public record GuestClaimPreviewResponse(
 
     public record BookingSummary(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
-            @Schema(
-                    requiredMode = Schema.RequiredMode.REQUIRED,
-                    implementation = BookingStatus.class)
-            String status,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BookingStatus status,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String className,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt
     ) {
-        private static BookingSummary from(GuestClaimUseCase.ClaimBookingSummary summary) {
+        private static BookingSummary from(GuestBookingSummary summary) {
             return new BookingSummary(
                     summary.bookingId(),
                     summary.status(),

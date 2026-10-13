@@ -1,21 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Row } from "react-bootstrap";
-import {
-  claimCoupon,
-  fetchClaimableCoupons,
-  fetchMyCoupons,
-  type MyCouponResponse,
-} from "@/features/coupon/api";
-import { couponDiscountLabel } from "@/features/coupon/presentation";
+import { Link } from "react-router";
+import type { MyCouponResponse } from "@/features/coupon/api";
+import { couponConditionLabel, couponDiscountLabel } from "@/features/coupon/presentation";
+import { claimableCouponsQuery, myCouponsQuery, useClaimCoupon } from "@/features/coupon/queries";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import {
   fetchMyRewardWallet,
   type RewardHistoryResponse,
 } from "@/features/reward/api";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
+import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast, PageHeader } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
   AVAILABLE: { label: "사용 가능", bg: "success" },
@@ -33,64 +31,32 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
   RESTORE: "사용 적립금 복원",
   EXPIRE: "유효기간 만료",
   REVOKE: "적립 취소",
-  ADJUST: "관리자 조정",
 };
 
 export function MyBenefitsPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyBenefitsContent key={sessionVersion} />;
-}
-
-function MyBenefitsContent() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const { isAuthenticated } = useCustomerAuth();
-  const couponsQuery = useQuery({
-    queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }) => fetchMyCoupons(signal),
-    enabled: isAuthenticated,
-  });
-  const claimableQuery = useQuery({
-    queryKey: queryKeys.member.claimableCoupons,
-    queryFn: ({ signal }) => fetchClaimableCoupons(signal),
-    enabled: isAuthenticated,
-  });
+  const couponsQuery = useQuery({ ...myCouponsQuery(), enabled: isAuthenticated });
+  const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
   const rewardsQuery = useQuery({
     queryKey: queryKeys.member.rewards,
     queryFn: ({ signal }) => fetchMyRewardWallet(signal),
     enabled: isAuthenticated,
   });
-  const claimMutation = useMutation({
-    mutationFn: (definitionId: number) => runForCurrentCustomer(
-      () => claimCoupon(definitionId),
-      async (claimed, requireCurrent) => {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.claimableCoupons }),
-        ]);
-        requireCurrent();
-        toast.show(`${claimed.name} 쿠폰을 받았습니다.`, "success");
-      },
-    ),
-  });
+  const claimMutation = useClaimCoupon();
+  // 이벤트의 "받은 쿠폰 확인"은 #owned-coupons로 보유 쿠폰 칸을 연다.
+  useHashScroll("owned-coupons");
 
   const coupons = couponsQuery.data ?? [];
   const availableCoupons = coupons.filter((coupon) => coupon.status === "AVAILABLE");
   const wallet = rewardsQuery.data;
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/benefits")}
-        description="보유 쿠폰과 적립금 내역을 확인하세요."
-      />
-
+    <MySectionPage
+      path="/my/benefits"
+    >
       <section className="mb-5" aria-labelledby="reward-wallet-heading">
         <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
-          <div>
-            <div className="my-section-kicker mb-1">적립금</div>
-            <h5 id="reward-wallet-heading" className="mb-0">적립금 잔액</h5>
-          </div>
+          <h5 id="reward-wallet-heading" className="mb-0">적립금</h5>
           <small className="text-muted-soft">1원 단위로 상품 금액 내에서 사용</small>
         </div>
         {rewardsQuery.isLoading && <LoadingSpinner text="적립금 조회 중..." />}
@@ -137,7 +103,9 @@ function MyBenefitsContent() {
                     <strong className="small">{REWARD_HISTORY_LABEL[history.type]}</strong>
                     <div className="text-muted-soft small">
                       {formatDateTime(history.createdAt)}
-                      {history.orderId !== null ? ` · 주문 #${history.orderId}` : ""}
+                      {history.orderId !== null && (
+                        <> · <Link to={`/my/orders/${history.orderId}`}>주문 #{history.orderId}</Link></>
+                      )}
                     </div>
                   </div>
                   <div className="text-end">
@@ -154,7 +122,6 @@ function MyBenefitsContent() {
       </section>
 
       <section className="mb-5" aria-labelledby="claimable-coupons-heading">
-        <div className="my-section-kicker mb-1">쿠폰 발급</div>
         <h5 id="claimable-coupons-heading" className="mb-3">받을 수 있는 쿠폰</h5>
         <ErrorAlert error={claimMutation.error} />
         {claimableQuery.isLoading && <LoadingSpinner text="발급 가능 쿠폰 조회 중..." />}
@@ -172,10 +139,7 @@ function MyBenefitsContent() {
               <div>
                 <strong>{coupon.name}</strong>
                 <div className="small mt-1">{couponDiscountLabel(coupon)}</div>
-                <small className="text-muted-soft">
-                  {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
-                  {formatDateTime(coupon.validUntil)}까지
-                </small>
+                <small className="text-muted-soft">{couponConditionLabel(coupon)}</small>
               </div>
               <Button
                 type="button"
@@ -190,7 +154,7 @@ function MyBenefitsContent() {
         ))}
       </section>
 
-      <section aria-labelledby="owned-coupons-heading">
+      <section id="owned-coupons" className="my-anchor-section" aria-labelledby="owned-coupons-heading">
         <div className="d-flex flex-wrap justify-content-between gap-2 align-items-end mb-3">
           <div>
             <h5 id="owned-coupons-heading" className="mb-0">보유 쿠폰</h5>
@@ -217,10 +181,7 @@ function MyBenefitsContent() {
                     <Badge bg={status.bg}>{status.label}</Badge>
                   </div>
                   <div className="small">{couponDiscountLabel(coupon)}</div>
-                  <small className="text-muted-soft">
-                    {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
-                    {formatDateTime(coupon.validUntil)}까지
-                  </small>
+                  <small className="text-muted-soft">{couponConditionLabel(coupon)}</small>
                 </div>
                 <small className="text-muted-soft">쿠폰 #{coupon.id}</small>
               </Card.Body>
@@ -228,6 +189,6 @@ function MyBenefitsContent() {
           );
         })}
       </section>
-    </>
+    </MySectionPage>
   );
 }

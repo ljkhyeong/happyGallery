@@ -158,13 +158,18 @@ public class PassPurchase {
         return OptionalInt.of(expiredCredits);
     }
 
-    /** 크레딧 단가 = total_price / total_credits */
-    public long unitPrice() {
-        return totalCredits == 0 ? 0 : totalPrice / totalCredits;
-    }
-
     /** 지정 크레딧을 총 결제액에 비례해 정산한다. 전 횟수 환불은 원결제액과 같다. */
     public long calculateRefundAmount(int refundCredits) {
+        return refundAmount(totalPrice, refundCredits, totalCredits);
+    }
+
+    /** 남은 크레딧에 취소할 미래 예약 크레딧을 더하되 0~총 크레딧 범위를 넘지 않게 한다. */
+    public static int refundableCredits(int remainingCredits, int cancelledFutureBookings, int totalCredits) {
+        return Math.clamp(remainingCredits + cancelledFutureBookings, 0, totalCredits);
+    }
+
+    /** 환불 크레딧을 총 결제액에 비례해 원 단위 버림으로 정산한다. 관리자 예상 환불액도 이 식을 쓴다. */
+    public static long refundAmount(long totalPrice, int refundCredits, int totalCredits) {
         return Math.multiplyExact(totalPrice, refundCredits) / totalCredits;
     }
 

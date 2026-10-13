@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Card, Form, Modal } from "react-bootstrap";
@@ -8,11 +8,12 @@ import {
 } from "@/generated/api/customerStore";
 import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import {
-  ApiError, captureCustomerSession, requireCurrentCustomerSession, runForCurrentCustomer,
+  ApiError, captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer,
   runForCustomerSession, type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 
 interface InquiryDraft {
   version: number;
@@ -25,13 +26,16 @@ type InquiryChange = { customerSession: CustomerSessionSnapshot } & (
 );
 
 export function MyGroupInquiryDetail({ id }: { id: number }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  // 상세는 목록 아래에 열리므로 고른 문의가 보이도록 그 위치로 옮긴다.
+  useEffect(() => { cardRef.current?.scrollIntoView({ block: "start" }); }, []);
   const [draft, setDraft] = useState<InquiryDraft | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const leaveTitleId = useId();
   const cancelTitleId = useId();
   const client = useQueryClient();
   const toast = useToast();
-  const detailKey = ["me", "group-inquiries", "detail", id] as const;
+  const detailKey = queryKeys.member.groupInquiries.detail(id);
   const query = useQuery({
     queryKey: detailKey,
     queryFn: ({ signal }) => runForCurrentCustomer(() => getMyGroupInquiry(id, { signal })),
@@ -50,7 +54,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
       setDraft(null);
       setConfirmCancel(false);
       toast.show(change.action === "cancel" ? "문의가 취소되었습니다." : "희망 일정과 참여 인원을 저장했습니다.", "success");
-      await client.invalidateQueries({ queryKey: ["me", "group-inquiries", "list"] });
+      await client.invalidateQueries({ queryKey: queryKeys.member.groupInquiries.lists });
     }),
   });
 
@@ -103,7 +107,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   );
 
   return (
-    <Card className="mt-4"><Card.Body>
+    <Card ref={cardRef} className="mt-4 my-anchor-section"><Card.Body>
       <h2 className="h6">문의 상세 · 접수 번호 {id}</h2>
       <Button size="sm" variant="link" disabled={busy} onClick={() => { void query.refetch(); }}>문의 새로고침</Button>
       {query.isLoading && <LoadingSpinner />}
@@ -140,6 +144,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             </fieldset>
           </Form>
           <p className="small text-muted mt-3">일정과 인원은 수업 확정 전까지 변경할 수 있습니다. 확정 후 변경은 공방에 문의해 주세요.</p>
+          {detail.summary.status === "CONFIRMED" && <WorkshopContactLinks className="d-flex flex-wrap gap-2 mb-3" />}
           <h3 className="h6 mt-4">내 변경 이력</h3>
           {detail.changes.length === 0 ? <p className="small text-muted">변경 이력이 없습니다.</p> : (
             <ul className="ps-3 small">{detail.changes.map((change) => <li key={change.id} className="mb-2">

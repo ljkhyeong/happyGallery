@@ -36,11 +36,6 @@ class JpaRewardPersistenceAdapter implements RewardPersistencePort {
     }
 
     @Override
-    public Optional<RewardAccount> findAccount(Long userId) {
-        return accountRepository.findById(userId);
-    }
-
-    @Override
     public Optional<RewardAccount> findAccountForUpdate(Long userId) {
         return accountRepository.findByUserIdForUpdate(userId);
     }

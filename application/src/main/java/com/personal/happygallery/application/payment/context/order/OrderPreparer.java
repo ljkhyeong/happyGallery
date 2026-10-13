@@ -126,7 +126,7 @@ public class OrderPreparer implements PaymentPreparer {
                     ErrorCode.INVALID_INPUT, "장바구니 버전과 선택 항목은 장바구니 결제에만 사용할 수 있습니다.");
         }
 
-        List<ItemToPrepare> items;
+        List<CartPurchaseItem> items;
         if (op.cartCheckout()) {
             items = cartItems(auth.userId(), op.expectedCartVersion(), op.selectedCartItemIds());
         } else if (CollectionUtils.isEmpty(op.items())) {
@@ -139,7 +139,7 @@ public class OrderPreparer implements PaymentPreparer {
         }
 
         List<Long> productIds = items.stream()
-                .map(ItemToPrepare::productId)
+                .map(CartPurchaseItem::productId)
                 .distinct()
                 .toList();
         Map<Long, Product> productsById = productReader.findAllById(productIds)
@@ -224,7 +224,7 @@ public class OrderPreparer implements PaymentPreparer {
                     item.productName(),
                     item.qty(),
                     item.unitPrice(),
-                    item.effectiveBasePrice(),
+                    item.basePrice(),
                     item.variantPriceAdjustment(),
                     item.textOptionPriceAdjustment(),
                     item.optionSnapshots(),
@@ -259,7 +259,7 @@ public class OrderPreparer implements PaymentPreparer {
         return MadeToOrderConsent.current(LocalDateTime.now(clock));
     }
 
-    private List<ItemToPrepare> cartItems(Long userId, String expectedCartVersion, List<Long> selectedCartItemIds) {
+    private List<CartPurchaseItem> cartItems(Long userId, String expectedCartVersion, List<Long> selectedCartItemIds) {
         if (selectedCartItemIds != null && (expectedCartVersion == null
                 || selectedCartItemIds.isEmpty() || selectedCartItemIds.size() > 100
                 || selectedCartItemIds.stream().anyMatch(id -> id == null || id < 1)
@@ -275,11 +275,12 @@ public class OrderPreparer implements PaymentPreparer {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "선택한 항목 중 현재 장바구니에서 구매할 수 없는 상품이 있습니다.");
         }
-        return cart.items().stream().map(ItemToPrepare::from).toList();
+        return cart.items();
     }
 
-    private List<ItemToPrepare> mergeDirectItems(List<OrderItemRef> requestedItems) {
-        List<ItemToPrepare> items = new ArrayList<>(requestedItems.size());
+    /** 직접 구매 항목은 장바구니 행이 없으므로 cartItemId 없이 장바구니 구매 항목과 같은 형식으로 맞춘다. */
+    private List<CartPurchaseItem> mergeDirectItems(List<OrderItemRef> requestedItems) {
+        List<CartPurchaseItem> items = new ArrayList<>(requestedItems.size());
         for (OrderItemRef item : requestedItems) {
             if (item == null || item.productId() == null) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
@@ -288,14 +289,14 @@ public class OrderPreparer implements PaymentPreparer {
             List<TextInput> textInputs = item.textInputs().stream()
                     .map(input -> new TextInput(input.groupKey(), input.value()))
                     .toList();
-            items.add(new ItemToPrepare(
+            items.add(new CartPurchaseItem(
                     null, item.productId(), item.productVariantId(), textInputs, item.qty()));
         }
         return List.copyOf(items);
     }
 
     private PreparedOrderItem prepareItem(
-            ItemToPrepare item, ResolvedLine resolvedLine, Map<Long, Product> productsById) {
+            CartPurchaseItem item, ResolvedLine resolvedLine, Map<Long, Product> productsById) {
         Product product = productsById.get(item.productId());
         if (product == null || resolvedLine == null) {
             throw new NotFoundException("상품");
@@ -322,10 +323,10 @@ public class OrderPreparer implements PaymentPreparer {
                 null);
     }
 
-    private static List<PurchaseRequest> purchaseRequests(List<ItemToPrepare> items) {
+    private static List<PurchaseRequest> purchaseRequests(List<CartPurchaseItem> items) {
         List<PurchaseRequest> requests = new ArrayList<>(items.size());
         for (int index = 0; index < items.size(); index++) {
-            ItemToPrepare item = items.get(index);
+            CartPurchaseItem item = items.get(index);
             requests.add(new PurchaseRequest(
                     index, item.productId(), item.productVariantId(), item.textInputs()));
         }
@@ -333,12 +334,12 @@ public class OrderPreparer implements PaymentPreparer {
     }
 
     private static void requireAvailableQuantity(
-            List<ItemToPrepare> items,
+            List<CartPurchaseItem> items,
             Map<Integer, ResolvedLine> resolvedByIndex,
             Map<Long, Inventory> inventoriesByProductId) {
         Map<StockKey, Integer> requestedByStock = new HashMap<>();
         for (int index = 0; index < items.size(); index++) {
-            ItemToPrepare item = items.get(index);
+            CartPurchaseItem item = items.get(index);
             ResolvedLine resolved = resolvedByIndex.get(index);
             if (resolved == null) {
                 throw new NotFoundException("상품");
@@ -376,22 +377,4 @@ public class OrderPreparer implements PaymentPreparer {
     }
 
     private record StockKey(Long productId, Long variantId) {}
-
-    private record ItemToPrepare(
-            Long cartItemId,
-            Long productId,
-            Long productVariantId,
-            List<TextInput> textInputs,
-            int qty) {
-
-        private ItemToPrepare {
-            textInputs = List.copyOf(textInputs);
-        }
-
-        private static ItemToPrepare from(CartPurchaseItem item) {
-            return new ItemToPrepare(
-                    item.cartItemId(), item.productId(), item.productVariantId(),
-                    item.textInputs(), item.qty());
-        }
-    }
 }

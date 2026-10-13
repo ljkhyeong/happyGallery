@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
 
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
@@ -28,6 +29,8 @@ import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
@@ -49,6 +52,7 @@ import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -57,6 +61,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.review.ReviewSort;
 import com.personal.happygallery.domain.store.WorkshopProfile;
@@ -145,7 +150,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
         paymentWebhookUseCase = mock(PaymentWebhookUseCase.class);
 
-        ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
+        ProductView product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
         ProductQnaUseCase.PublicQnaListView publicQna =
                 new ProductQnaUseCase.PublicQnaListView(
@@ -168,7 +173,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(product));
         when(productQueryUseCase.listActiveCategories()).thenReturn(List.of("CANDLE", "PERFUME"));
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
-        when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(publicQna));
         when(qnaUseCase.listByProduct(eq(1L), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(publicQna), "cursor-next", true));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
@@ -218,10 +222,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         "pay_20260501_0001", 39000L, PaymentContext.ORDER, "payment-status-token"));
         when(paymentConfirmUseCase.confirm(any()))
                 .thenReturn(new PaymentConfirmUseCase.ConfirmResult(
-                        PaymentContext.ORDER, 200L, "guest-access-token", false));
+                        PaymentContext.ORDER, 200L, "guest-access-token", false, null));
         when(paymentStatusQueryUseCase.getStatus(any(), any(), any()))
                 .thenReturn(new PaymentStatusQueryUseCase.PaymentStatusResult(
-                        PaymentContext.ORDER, 39_000L, CustomerPaymentStatus.REFUNDING, null, null, false));
+                        PaymentContext.ORDER, 39_000L, CustomerPaymentStatus.REFUNDING, null, null, false, null));
         when(paymentStatusRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
                 .thenReturn(new PaymentStatusRecoveryUseCase.RecoveryResult(
                         "recovered-payment-status-token",
@@ -236,26 +240,19 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(guestRecordRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
                 .thenReturn(new GuestRecordRecoveryUseCase.RecoveryResult(
                         "guest-recovery-token",
-                        Instant.parse("2026-05-02T00:00:00Z"),
-                        List.of(new GuestRecordRecoveryUseCase.RecoveredOrder(
-                                200L, "PAID_APPROVAL_PENDING", 39_000L,
-                                OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
-                        List.of(new GuestRecordRecoveryUseCase.RecoveredBooking(
-                                100L, "BOOKED", "향수 클래스",
-                                LocalDateTime.parse("2026-05-07T10:00:00"),
-                                LocalDateTime.parse("2026-05-07T12:00:00")))));
+                        Instant.parse("2026-05-02T00:00:00Z")));
         when(guestRecordRecoveryUseCase.listRecoveredOrders(
                 eq("guest-recovery-token"), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(
-                        new GuestRecordRecoveryUseCase.RecoveredOrder(
-                                200L, "PAID_APPROVAL_PENDING", 39_000L,
+                        new GuestOrderSummary(
+                                200L, OrderStatus.PAID_APPROVAL_PENDING, 39_000L,
                                 OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
                         "cursor-next", true));
         when(guestRecordRecoveryUseCase.listRecoveredBookings(
                 eq("guest-recovery-token"), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(
-                        new GuestRecordRecoveryUseCase.RecoveredBooking(
-                                100L, "BOOKED", "향수 클래스",
+                        new GuestBookingSummary(
+                                100L, BookingStatus.BOOKED, "향수 클래스",
                                 LocalDateTime.parse("2026-05-07T10:00:00"),
                                 LocalDateTime.parse("2026-05-07T12:00:00"))),
                         "cursor-next", true));
@@ -338,13 +335,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/products/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stockQuantity").value(RestDocsFixtures.productWithInventory().quantity()));
-    }
-
-    @Test
-    @DisplayName("공개 상품 QNA 목록 API를 문서화한다")
-    void list_product_qna() throws Exception {
-        mockMvc.perform(get("/api/v1/products/{productId}/qna", 1L))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -598,7 +588,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   "verificationCode": "123456"
                                 }
                                 """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("guest-recovery-token"))
+                .andExpect(jsonPath("$.orders").doesNotExist())
+                .andExpect(jsonPath("$.bookings").doesNotExist());
     }
 
     @Test
@@ -814,10 +807,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
-                                  "event": "GUEST_LOOKUP_HUB_VIEWED",
-                                  "path": "/guest",
-                                  "source": "GuestLookupPage",
-                                  "target": "primary-cta"
+                                  "event": "GUEST_LOOKUP_HUB_VIEWED"
                                 }
                                 """))
                 .andExpect(status().isNoContent());

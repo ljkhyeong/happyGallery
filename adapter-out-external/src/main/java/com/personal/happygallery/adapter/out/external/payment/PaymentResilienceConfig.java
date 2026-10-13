@@ -1,18 +1,16 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import java.time.Duration;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -28,22 +26,16 @@ class PaymentResilienceConfig {
     @Bean
     CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties,
                                          CircuitBreakerRegistry circuitBreakerRegistry) {
-        ExternalCircuitBreakerProperties cb = properties.circuitBreaker();
-        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(cb.waitDurationOpen())
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .recordResult(PaymentResilienceConfig::isFailureResult)
-                .build();
-        return circuitBreakerRegistry.circuitBreaker("paymentProvider", circuitBreakerConfig);
+        return circuitBreakerRegistry.circuitBreaker(
+                "paymentProvider",
+                properties.circuitBreaker().toConfig(PaymentResilienceConfig::isFailureResult));
     }
 
     @Bean
     TimeLimiter paymentTimeLimiter(ExternalPaymentProperties properties,
                                    TossPaymentsProperties tossProperties) {
-        validateTimeoutHierarchy(properties, tossProperties);
+        Assert.isTrue(properties.timeout().compareTo(tossProperties.http().requestBudget()) > 0,
+                "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(properties.timeout())
                 .cancelRunningFuture(true)
@@ -53,7 +45,7 @@ class PaymentResilienceConfig {
     @Bean
     ThreadPoolTaskExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
                                                   BoundedExecutorFactory executorFactory) {
-        ExternalPaymentProperties.ThreadPool threadPool = properties.threadPool();
+        ExecutorPoolProperties threadPool = properties.threadPool();
         return executorFactory.create(
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),
@@ -93,14 +85,5 @@ class PaymentResilienceConfig {
             return lookupResult.status() == RefundLookupResult.Status.UNAVAILABLE;
         }
         return false;
-    }
-
-    private static void validateTimeoutHierarchy(ExternalPaymentProperties resilience,
-                                                 TossPaymentsProperties transport) {
-        Duration transportBudget = transport.acquireTimeout()
-                .plus(transport.connectTimeout())
-                .plus(transport.timeout());
-        Assert.isTrue(resilience.timeout().compareTo(transportBudget) > 0,
-                "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }

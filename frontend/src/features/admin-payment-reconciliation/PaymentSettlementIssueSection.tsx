@@ -1,8 +1,8 @@
 import { Table } from "react-bootstrap";
 import { fetchPaymentSettlementIssues } from "./api";
-import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { PaymentSettlementIssueResponse } from "@/shared/types";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
@@ -22,7 +22,7 @@ export function PaymentSettlementIssueSection({ adminKey, onAuthError }: Props) 
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} />;
   }
   if (!data?.length) return <EmptyState message="결제사 정산과 불일치하는 결제·환불 내역이 없습니다." />;

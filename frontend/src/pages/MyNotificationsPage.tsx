@@ -1,5 +1,6 @@
 import { Button, Card, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
+import { NOTIFICATION_PAGE_SIZE } from "@/features/notification/api";
 import { NotificationContext } from "@/features/notification/NotificationContext";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { useReadNotifications, useNotificationList, useUnreadCount } from "@/features/notification/useNotifications";
@@ -9,7 +10,7 @@ import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function MyNotificationsPage() {
-  return <MySectionPage path="/my/notifications" description="예약·주문·이용권 소식을 모아 봅니다."><NotificationInbox /></MySectionPage>;
+  return <MySectionPage path="/my/notifications"><NotificationInbox /></MySectionPage>;
 }
 
 function NotificationInbox() {
@@ -67,7 +68,7 @@ function NotificationInbox() {
       <nav aria-label="알림 페이지" className="d-flex align-items-center gap-3 mt-3">
         <Button size="sm" variant="outline-secondary" disabled={page === 0 || query.isFetching || pending} onClick={() => update(page - 1)}>이전</Button>
         <span>{page + 1}페이지</span>
-        <Button size="sm" variant="outline-secondary" disabled={query.data?.length !== 20 || query.isFetching || pending} onClick={() => update(page + 1)}>다음</Button>
+        <Button size="sm" variant="outline-secondary" disabled={query.data?.length !== NOTIFICATION_PAGE_SIZE || query.isFetching || pending} onClick={() => update(page + 1)}>다음</Button>
       </nav>
     </>
   );

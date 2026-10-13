@@ -88,7 +88,7 @@ public final class PaymentTestHelper {
                                                     Long passId) throws Exception {
         PreparedPayment prepared = preparePayment(
                 PaymentContext.BOOKING,
-                new BookingPayload(userId, null, null, null, slotId, passId, null),
+                PaymentPayloads.booking(userId, null, null, null, slotId, passId, null),
                 sessionCookie);
         assertThat(prepared.amount()).isZero();
         return confirmPayment(prepared, null, sessionCookie);

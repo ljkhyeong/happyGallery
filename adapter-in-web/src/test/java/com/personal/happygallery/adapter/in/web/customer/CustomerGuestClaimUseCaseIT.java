@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
@@ -9,7 +10,6 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.token.GuestTokenService;
@@ -27,14 +27,16 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.CustomerTestHelper;
+import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
@@ -81,7 +83,7 @@ class CustomerGuestClaimUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired ClassStorePort classStorePort;
@@ -129,14 +131,17 @@ class CustomerGuestClaimUseCaseIT {
     @Test
     void verifyAndClaimGuestRecords() throws Exception {
         String email = "member@example.com";
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", "01012345678"));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원", "01012345678"));
 
-        Product product = productStorePort.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
+        Product product = productStorePort.save(TestFixtures.readyStockProduct("테스트 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 5));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L))).order();
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null).order();
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -197,14 +202,17 @@ class CustomerGuestClaimUseCaseIT {
     @Test
     void claimCompletedGuestRecords_enqueuesReviewRequestsForNewMemberOwner() throws Exception {
         String phone = "01012345678";
-        Guest guest = guestStorePort.save(TestFixtures.guest("완료 비회원", phone));
+        Guest guest = guestRepository.save(TestFixtures.guest("완료 비회원", phone));
         Product product = productStorePort.save(
-                new Product("완료 이력 상품", ProductType.READY_STOCK, 39_000L));
+                TestFixtures.readyStockProduct("완료 이력 상품", 39_000L));
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, product.getPrice())))
+                List.of(OrderTestHelper.item(product, 1, product.getPrice())),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null)
                 .order();
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -229,8 +237,8 @@ class CustomerGuestClaimUseCaseIT {
                     .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.REVIEW_REQUEST)
                     .extracting("userId", "aggregateType", "aggregateId")
                     .containsExactlyInAnyOrder(
-                            tuple(user.getId(), "ORDER", order.getId()),
-                            tuple(user.getId(), "BOOKING", booking.getId()));
+                            tuple(user.getId(), NotificationAggregateType.ORDER, order.getId()),
+                            tuple(user.getId(), NotificationAggregateType.BOOKING, booking.getId()));
         });
     }
 
@@ -238,18 +246,24 @@ class CustomerGuestClaimUseCaseIT {
     @Test
     void recoverGuestRecords_afterPhoneVerification() throws Exception {
         String phone = "01012345678";
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", phone));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원", phone));
 
-        Product product = productStorePort.save(new Product("복구 상품", ProductType.READY_STOCK, 29_000L));
+        Product product = productStorePort.save(TestFixtures.readyStockProduct("복구 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 5));
         OrderService.OrderCreationResult createdOrder = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L)));
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null);
         OrderService.OrderCreationResult secondCreatedOrder = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L)));
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null);
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -292,13 +306,6 @@ class CustomerGuestClaimUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(recovered.accessToken()).isNotBlank();
             softly.assertThat(recovered.expiresAt()).isNotNull();
-            softly.assertThat(recovered.orders())
-                    .extracting(GuestRecordRecoveryResponse.OrderSummary::orderId)
-                    .containsExactly(
-                            secondCreatedOrder.order().getId(), createdOrder.order().getId());
-            softly.assertThat(recovered.bookings())
-                    .extracting(GuestRecordRecoveryResponse.BookingSummary::bookingId)
-                    .containsExactly(secondBooking.getId(), booking.getId());
         });
 
         String firstOrderPage = mockMvc.perform(get("/api/v1/guest-records/recovery/orders")
@@ -307,6 +314,7 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(secondCreatedOrder.order().getId()))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andReturn().getResponse().getContentAsString();
         String orderCursor = objectMapper.readTree(firstOrderPage).get("nextCursor").asText();
@@ -316,6 +324,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("cursor", orderCursor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(createdOrder.order().getId()))
                 .andExpect(jsonPath("$.hasMore").value(false));
 
         String firstBookingPage = mockMvc.perform(get("/api/v1/guest-records/recovery/bookings")
@@ -323,6 +332,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].bookingId").value(secondBooking.getId()))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andReturn().getResponse().getContentAsString();
         String bookingCursor = objectMapper.readTree(firstBookingPage).get("nextCursor").asText();
@@ -332,6 +342,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("cursor", bookingCursor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].bookingId").value(booking.getId()))
                 .andExpect(jsonPath("$.hasMore").value(false));
 
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.order().getId())
@@ -373,7 +384,7 @@ class CustomerGuestClaimUseCaseIT {
     void claimGuestBooking_conflictsWithMemberBooking() throws Exception {
         String email = "claim-conflict@example.com";
         String phone = "01012345678";
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", phone));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원", phone));
         Cookie sessionCookie = customerHelper.signupAndGetSessionCookie(email, "010-1234-5678");
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
@@ -413,17 +424,20 @@ class CustomerGuestClaimUseCaseIT {
     void claimGuestRecords_doesNotRaceWithWithdrawal() throws Exception {
         String email = "claim-withdrawal@example.com";
         String phone = "01012345678";
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원", phone));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원", phone));
         customerHelper.signupAndGetSessionCookie(email, phone);
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
         Product product = productStorePort.save(
-                new Product("탈퇴 경합 상품", ProductType.READY_STOCK, 29_000L));
+                TestFixtures.readyStockProduct("탈퇴 경합 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, product.getPrice())))
+                List.of(OrderTestHelper.item(product, 1, product.getPrice())),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null)
                 .order();
 
         CountDownLatch withdrawalApplied = new CountDownLatch(1);

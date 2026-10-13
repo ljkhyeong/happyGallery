@@ -1,12 +1,18 @@
 import { useEffect } from "react";
 import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { abandonPayment, fetchPaymentStatus } from "@/features/payment/api";
-import { PaymentResultCard, PaymentStatusNotice, PaymentCompletionNext, shouldPollPaymentStatus } from "@/features/payment";
+import {
+  isCompletedPayment,
+  PaymentCompletionNext,
+  PaymentResultCard,
+  paymentStatusPollingInterval,
+  PaymentStatusNotice,
+} from "@/features/payment";
 import { paymentFailureMessage } from "@/features/payment/paymentFailure";
 import { consumePaymentReturnHint, readPaymentReturnHint, readPaymentStatusToken } from "@/features/payment/session";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { captureCustomerSession, requireCurrentCustomerSession, runForCustomerSession } from "@/shared/api";
+import { captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCustomerSession } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Container, Button } from "react-bootstrap";
@@ -40,13 +46,13 @@ export function PaymentFailPage() {
   });
   const orderId = returnHint?.value.orderId;
   const statusQuery = useQuery({
-    queryKey: ["me", "payment-abandon-status", customerSession.version, customerSession.boundaryEpoch, orderId],
+    queryKey: queryKeys.member.paymentAbandonStatus(customerSession.version, customerSession.boundaryEpoch, orderId),
     queryFn: returnMutation.isError && orderId
       ? () => runForCustomerSession(customerSession,
         () => fetchPaymentStatus(orderId, readPaymentStatusToken(orderId, customerSession)))
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) => shouldPollPaymentStatus(state.data?.status) ? 3000 : false,
+    refetchInterval: ({ state }) => paymentStatusPollingInterval(state.data?.status),
   });
 
   useEffect(() => {
@@ -72,7 +78,7 @@ export function PaymentFailPage() {
                 onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
             )}
             <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
-            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>상품 둘러보기</LinkButton>
+            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>작품 둘러보기</LinkButton>
           </>
         )}
       >
@@ -80,8 +86,8 @@ export function PaymentFailPage() {
         {returnHint && statusQuery.data && (
           <div className="mb-3">
             <PaymentStatusNotice status={statusQuery.data} />
-            {statusQuery.data.status === "COMPLETED" && statusQuery.data.domainId != null && (
-              <div className="mt-2"><PaymentCompletionNext result={{ ...statusQuery.data, domainId: statusQuery.data.domainId }} /></div>
+            {isCompletedPayment(statusQuery.data) && (
+              <div className="mt-2"><PaymentCompletionNext result={statusQuery.data} /></div>
             )}
           </div>
         )}

@@ -1,5 +1,1 @@
-export type {
-  CreateQnaRequest,
-  ProductQnaDetail,
-  ProductQnaListItem,
-} from "@/generated/api/productQna";
+export type { ProductQnaListItem } from "@/generated/api/productQna";

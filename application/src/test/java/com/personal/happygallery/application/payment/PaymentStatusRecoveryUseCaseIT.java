@@ -3,8 +3,6 @@ package com.personal.happygallery.application.payment;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
@@ -21,6 +19,7 @@ import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -136,9 +135,9 @@ class PaymentStatusRecoveryUseCaseIT {
                 phone, "111111", PhoneVerificationPurpose.GUEST_ORDER);
         return prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         null, phone, verificationCode, "비회원",
-                        List.of(new OrderItemRef(product.getId(), 1)),
+                        List.of(PaymentPayloads.item(product.getId(), 1)),
                         false,
                         FulfillmentType.PICKUP,
                         null,
@@ -152,7 +151,7 @@ class PaymentStatusRecoveryUseCaseIT {
         var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = attempt.startProcessing(prepared.amount(), "compensation-key", now);
-        attempt.markApproved(processingToken, "compensation-key", "CARD", now);
+        attempt.markApproved(processingToken, "compensation-key", "CARD", null, now);
         attempt.markCompensationRequested("주문 생성 실패");
         attemptStore.save(attempt);
         return refundRepository.save(Refund.forPaymentAttempt(

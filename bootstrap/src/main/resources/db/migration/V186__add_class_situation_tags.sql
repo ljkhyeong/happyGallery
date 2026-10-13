@@ -1,1 +1,0 @@
-ALTER TABLE classes ADD COLUMN situation_tags VARCHAR(100) NULL;

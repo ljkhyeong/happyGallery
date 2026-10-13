@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
 import { BookingDateChips, BookingSlotTime } from "@/features/booking-create/BookingDateChips";
-import { UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import { isFewSeats, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -11,10 +11,11 @@ import {
 } from "@/shared/api";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
+import { formatDateInput } from "@/shared/lib";
 
 interface Props {
   classId: number;
-  className?: string;
+  className: string;
   currentSlotId: number;
   currentStartAt: string;
   participantCount: number;
@@ -55,9 +56,7 @@ export function RescheduleForm({
     queryFn: () => fetchRescheduleSlots(classId, date),
     enabled: date.length > 0,
   });
-  const upcomingQuery = useQuery({
-    ...upcomingSlotsQuery(classId),
-  });
+  const upcomingQuery = useQuery(upcomingSlotsQuery(classId));
 
   const applySuccess = async (requireCurrent: () => void) => {
     requireCurrent();
@@ -120,7 +119,7 @@ export function RescheduleForm({
         <Form.Control
           type="date"
           value={date}
-          min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+          min={formatDateInput(Date.now())}
           onChange={(event) => {
             setDate(event.target.value);
             setSelectedSlotId(null);
@@ -137,7 +136,7 @@ export function RescheduleForm({
       {!slotsLoading && slots && availableSlots.length === 0 && (
         <div className="mb-3">
           <EmptyState message="선택한 날짜에 변경 가능한 시간이 없습니다." />
-          {className && <WorkshopInquiryLink className={className} desiredDate={date} />}
+          <WorkshopInquiryLink className={className} desiredDate={date} />
         </div>
       )}
 
@@ -151,7 +150,7 @@ export function RescheduleForm({
               type="button"
               active={selectedSlotId === slot.id}
               onClick={() => setSelectedSlotId(slot.id)}
-              className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
+              className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
             >
               <BookingSlotTime slot={slot} />
               <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>

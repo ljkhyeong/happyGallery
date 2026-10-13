@@ -34,6 +34,7 @@ import {
   type ReviewReactionResponse,
   type UpdateReviewRequest,
 } from "@/generated/api/review";
+import { assertImageBlob } from "@/shared/hooks/useBlobObjectUrl";
 
 const PAGE_SIZE = 10;
 
@@ -54,22 +55,17 @@ interface PublicReviewFilters {
   sort: ReviewSort;
 }
 
-export function fetchProductReviews(
-  productId: number,
+export function fetchTargetReviews(
+  targetType: "PRODUCT" | "CLASS",
+  targetId: number,
   filters: PublicReviewFilters,
   cursor?: string,
   signal?: AbortSignal,
 ): Promise<PublicReviewPageResponse> {
-  return listProductReviews(productId, { ...filters, cursor, size: PAGE_SIZE }, { signal });
-}
-
-export function fetchClassReviews(
-  classId: number,
-  filters: PublicReviewFilters,
-  cursor?: string,
-  signal?: AbortSignal,
-): Promise<PublicReviewPageResponse> {
-  return listClassReviews(classId, { ...filters, cursor, size: PAGE_SIZE }, { signal });
+  const params = { ...filters, cursor, size: PAGE_SIZE };
+  return targetType === "PRODUCT"
+    ? listProductReviews(targetId, params, { signal })
+    : listClassReviews(targetId, params, { signal });
 }
 
 export function fetchMyReviews(
@@ -178,8 +174,5 @@ export async function fetchMyReviewImage(
     cache: "no-store",
     signal,
   });
-  if (!blob.type.startsWith("image/")) {
-    throw new Error("비공개 후기 사진을 불러오지 못했습니다. 다시 시도해 주세요.");
-  }
-  return blob;
+  return assertImageBlob(blob, "비공개 후기 사진을 불러오지 못했습니다. 다시 시도해 주세요.");
 }

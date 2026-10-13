@@ -1,7 +1,6 @@
-import { ListMyPassesPageSort, ListMyPassesPageStatus } from "@/generated/api/customerStore";
-import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { ListMyPassesPageStatus } from "@/generated/api/customerStore";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Alert, Button, Card, Col, Modal, Row } from "react-bootstrap";
 import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
@@ -11,19 +10,19 @@ import {
   isPassAvailableForBooking,
   isPassRefundable,
 } from "@/features/my/listUtils";
-import { useMyListFilters } from "@/features/my/useMyListFilters";
-import { myNavLabel } from "@/features/my/myNavigation";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { useMyHistoryList } from "@/features/my/useMyHistoryList";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import {
   invalidateSlotAvailability,
   queryKeys,
   runForCurrentCustomer,
+  flattenCursorPages,
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast, PageHeader } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast, CursorLoadMore } from "@/shared/ui";
 import {
-  customerRefundPollingInterval,
+  customerRefundRefetchInterval,
   formatDateTime,
   formatKRW,
   parseApiDateTime,
@@ -34,71 +33,35 @@ const PASS_SORT_OPTIONS = [
   { value: "EXPIRY_ASC", label: "만료 임박순" },
   { value: "PURCHASE_DESC", label: "최근 구매순" },
   { value: "CREDITS_DESC", label: "잔여 횟수 많은순" },
+] as const;
+const PASS_STATUS_OPTIONS = [
+  { value: "ALL", label: "전체 상태" },
+  { value: "ACTIVE", label: "사용 가능" },
+  { value: "USED_UP", label: "사용 완료" },
+  { value: "EXPIRED", label: "만료" },
+];
+const PASS_QUICK_TABS = [
+  { value: "ALL", label: "전체" },
+  { value: "ACTIVE", label: "사용 가능" },
+  { value: "USED_UP", label: "사용 완료" },
+  { value: "EXPIRED", label: "만료" },
 ];
 
 export function MyPassesPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyPassesContent key={sessionVersion} />;
-}
-
-function MyPassesContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { isAuthenticated } = useCustomerAuth();
   const [refundTarget, setRefundTarget] = useState<MyPassSummary | null>(null);
-  const {
-    searchQuery,
-    statusFilter: passFilter,
-    sortValue,
-    updateFilters,
-    resetFilters,
-  } = useMyListFilters({
-    defaultSort: DEFAULT_SORT,
-    legacyStatusParam: "filter",
+  const { filters, query, items: passes } = useMyHistoryList({
+    queryKey: queryKeys.member.passHistory,
+    fetchPage: fetchMyPassesPage,
     statusValues: Object.values(ListMyPassesPageStatus),
-    sortValues: PASS_SORT_OPTIONS.map((option) => option.value),
+    sortOptions: PASS_SORT_OPTIONS,
+    defaultSort: DEFAULT_SORT,
+    refetchInterval: customerRefundRefetchInterval((data) => flattenCursorPages(data)
+      .find(({ refund }) => refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED")
+      ?.refund?.status),
   });
-  const debouncedSearch = useDebouncedValue(searchQuery, 300);
-  const filters = {
-    keyword: debouncedSearch.trim() || undefined,
-    status: passFilter === "ALL" ? undefined : passFilter as ListMyPassesPageStatus,
-    sort: sortValue as ListMyPassesPageSort,
-  };
-  const {
-    data: passesData,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: [...queryKeys.member.passHistory, filters],
-    queryFn: ({ pageParam, signal }) => fetchMyPassesPage(pageParam, signal, filters),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
-    enabled: isAuthenticated,
-    refetchInterval: ({ state }) => {
-      const pendingRefund = state.data?.pages
-        .flatMap((page) => page.content)
-        .find(({ refund }) =>
-        refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED");
-      return customerRefundPollingInterval(
-        pendingRefund?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      );
-    },
-  });
-  const passes = passesData?.pages.flatMap((page) => page.content) ?? [];
-  const hasLoadedPasses = passesData !== undefined;
-  const quickTabs = [
-    { value: "ALL", label: "전체" },
-    { value: "ACTIVE", label: "사용 가능" },
-    { value: "USED_UP", label: "사용 완료" },
-    { value: "EXPIRED", label: "만료" },
-  ];
+  const hasLoadedPasses = query.data !== undefined;
   const expiringSoonCount = passes.filter((pass) => {
     const expiresIn = parseApiDateTime(pass.expiresAt) - Date.now();
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
@@ -128,19 +91,16 @@ function MyPassesContent() {
   });
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/passes")}
-        description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
-        actions={(
-          <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
-        )}
-      />
-
+    <MySectionPage
+      path="/my/passes"
+      actions={(
+        <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
+      )}
+    >
       <ErrorAlert
-        error={error}
-        onRetry={() => { void refetch(); }}
-        retrying={isFetching && !isFetchingNextPage}
+        error={query.isFetchNextPageError ? null : query.error}
+        onRetry={() => { void query.refetch(); }}
+        retrying={query.isFetching && !query.isFetchingNextPage}
       />
       {expiringSoonCount > 0 && (
         <Alert variant="warning" className="mb-3">
@@ -151,29 +111,14 @@ function MyPassesContent() {
         idPrefix="my-passes"
         searchLabel="이용권 번호 검색"
         searchPlaceholder="예: 12"
-        searchValue={searchQuery}
-        onSearchChange={(value) => updateFilters({ q: value })}
-        filterLabel="상태"
-        filterValue={passFilter}
-        filterOptions={[
-          { value: "ALL", label: "전체 상태" },
-          { value: "ACTIVE", label: "사용 가능" },
-          { value: "USED_UP", label: "사용 완료" },
-          { value: "EXPIRED", label: "만료" },
-        ]}
-        onFilterChange={(value) => updateFilters({ status: value })}
-        quickTabs={quickTabs}
-        activeTabValue={passFilter}
-        onTabChange={(value) => updateFilters({ status: value })}
-        sortLabel="정렬"
-        sortValue={sortValue}
+        filters={filters}
+        statusOptions={PASS_STATUS_OPTIONS}
+        quickTabs={PASS_QUICK_TABS}
         sortOptions={PASS_SORT_OPTIONS}
-        onSortChange={(value) => updateFilters({ sort: value })}
-        defaultSortValue={DEFAULT_SORT}
-        resultText={`검색 결과 ${passes.length}건 표시 중${hasNextPage ? " · 더 보기로 계속 조회" : ""}`}
-        onReset={resetFilters}
+        count={passes.length}
+        hasMore={query.hasNextPage}
       />
-      {isLoading && <LoadingSpinner />}
+      {query.isLoading && <LoadingSpinner />}
       {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 이용권 내역이 없습니다." />}
       {passes.length > 0 && passes.map((pass) => (
         <Card key={pass.passId} className="mb-2 my-list-card border-0">
@@ -222,18 +167,7 @@ function MyPassesContent() {
           </Card.Body>
         </Card>
       ))}
-      {hasNextPage && (
-        <div className="d-grid mt-3">
-          <Button
-            type="button"
-            variant="outline-primary"
-            disabled={isFetchingNextPage}
-            onClick={() => { void fetchNextPage(); }}
-          >
-            {isFetchingNextPage ? "이용권 불러오는 중..." : "이용권 더 보기"}
-          </Button>
-        </div>
-      )}
+      <CursorLoadMore query={query} label="이용권 더 보기" loadingLabel="이용권 불러오는 중..." />
 
       <Modal
         show={refundTarget !== null}
@@ -274,6 +208,6 @@ function MyPassesContent() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </>
+    </MySectionPage>
   );
 }

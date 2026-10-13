@@ -2,6 +2,7 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationReminderEligibilityPort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -28,7 +29,7 @@ class NotificationReminderEligibilityTest {
         NotificationReminderEligibility eligibility = new NotificationReminderEligibility(port);
 
         assertThatThrownBy(() -> eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.ORDER_PAID, "ORDER", 10L), NOW))
+                outbox(NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 10L), NOW))
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(port);
     }
@@ -44,7 +45,7 @@ class NotificationReminderEligibilityTest {
                 .thenReturn(Optional.of(currentRecipient));
 
         var result = eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REMINDER_D1, "BOOKING", 10L), NOW);
+                outbox(NotificationEventType.REMINDER_D1, NotificationAggregateType.BOOKING, 10L), NOW);
 
         assertThat(result).contains(currentRecipient);
         verify(port).findD1BookingRecipient(10L, tomorrowStart, tomorrowStart.plusDays(1));
@@ -61,7 +62,7 @@ class NotificationReminderEligibilityTest {
                 .thenReturn(Optional.of(currentRecipient));
 
         var result = eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REMINDER_SAME_DAY, "BOOKING", 10L), NOW);
+                outbox(NotificationEventType.REMINDER_SAME_DAY, NotificationAggregateType.BOOKING, 10L), NOW);
 
         assertThat(result).contains(currentRecipient);
         verify(port).findSameDayBookingRecipient(10L, NOW, tomorrowStart);
@@ -75,9 +76,9 @@ class NotificationReminderEligibilityTest {
         LocalDateTime beforeSeven = LocalDateTime.of(2026, 3, 1, 6, 59);
 
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REMINDER_SAME_DAY, "BOOKING", 10L), beforeSeven)).isEmpty();
+                outbox(NotificationEventType.REMINDER_SAME_DAY, NotificationAggregateType.BOOKING, 10L), beforeSeven)).isEmpty();
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REMINDER_D1, "ORDER", 10L), NOW)).isEmpty();
+                outbox(NotificationEventType.REMINDER_D1, NotificationAggregateType.ORDER, 10L), NOW)).isEmpty();
         verifyNoInteractions(port);
     }
 
@@ -94,17 +95,17 @@ class NotificationReminderEligibilityTest {
                 .thenReturn(Optional.of(orderRecipient));
 
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 10L), NOW))
+                outbox(NotificationEventType.PASS_EXPIRY_SOON, NotificationAggregateType.PASS_PURCHASE, 10L), NOW))
                 .contains(passRecipient);
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.PICKUP_DEADLINE_REMINDER, "ORDER", 20L), NOW))
+                outbox(NotificationEventType.PICKUP_DEADLINE_REMINDER, NotificationAggregateType.ORDER, 20L), NOW))
                 .contains(orderRecipient);
         verify(port).findPassExpiryRecipient(10L, NOW, NOW.plusDays(7));
         verify(port).findPickupDeadlineRecipient(20L, NOW, NOW.plusHours(2));
     }
 
     private static NotificationOutbox outbox(
-            NotificationEventType eventType, String aggregateType, Long aggregateId) {
+            NotificationEventType eventType, NotificationAggregateType aggregateType, Long aggregateId) {
         return NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(1L, eventType, aggregateType, aggregateId),
                 NOW.minusMinutes(1));

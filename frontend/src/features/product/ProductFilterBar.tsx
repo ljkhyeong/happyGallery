@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { Button, Form } from "react-bootstrap";
-import { PRODUCT_TYPE_LABEL, PRODUCT_SORT_LABEL } from "@/shared/lib";
+import { PRODUCT_SALE_TYPE_LABEL, PRODUCT_SORT_LABEL } from "@/shared/lib";
 import type { ProductSortOrder } from "@/shared/types";
 
 interface Props {
@@ -8,9 +8,8 @@ interface Props {
   onKeywordChange: (value: string) => void;
   type: string;
   onTypeChange: (value: string) => void;
-  category: string;
-  onCategoryChange: (value: string) => void;
-  categories: string[];
+  /** 카테고리는 목록 위 탭이 맡고, 검색 칸 안내와 초기화 가능 여부에만 쓴다. */
+  category: string | null;
   sort: ProductSortOrder;
   onSortChange: (value: ProductSortOrder) => void;
   resultText: string;
@@ -18,8 +17,8 @@ interface Props {
 }
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "ALL", label: "전체 타입" },
-  ...Object.entries(PRODUCT_TYPE_LABEL).map(([value, label]) => ({ value, label })),
+  { value: "ALL", label: "판매 방식 전체" },
+  ...Object.entries(PRODUCT_SALE_TYPE_LABEL).map(([value, label]) => ({ value, label })),
 ];
 
 const SORT_OPTIONS: { value: ProductSortOrder; label: string }[] = (
@@ -32,22 +31,15 @@ export function ProductFilterBar({
   type,
   onTypeChange,
   category,
-  onCategoryChange,
-  categories,
   sort,
   onSortChange,
   resultText,
   onReset,
 }: Props) {
-  const categoryOptions = [
-    { value: "ALL", label: "전체 카테고리" },
-    ...categories.map((c) => ({ value: c, label: c })),
-  ];
-
   const hasActiveFilter =
-    keyword.trim() !== "" || type !== "ALL" || category !== "ALL" || sort !== "newest";
+    keyword.trim() !== "" || type !== "ALL" || category !== null || sort !== "newest";
 
-  // 선택 상자는 값("전체 타입"·"최신순" 등)이 스스로 설명하므로 라벨은 보조기기용으로만 둔다.
+  // 선택 상자는 값("판매 방식 전체"·"최신순" 등)이 스스로 설명하므로 라벨은 보조기기용으로만 둔다.
   return (
     <div className="store-filter-bar">
       <div className="store-filter-controls">
@@ -58,23 +50,13 @@ export function ProductFilterBar({
             type="search"
             value={keyword}
             onChange={(e) => onKeywordChange(e.target.value)}
-            placeholder="작품 이름으로 검색"
+            placeholder={category ? `${category} 작품 이름으로 검색` : "작품 이름으로 검색"}
           />
         </Form.Group>
         <Form.Group controlId="product-type" className="store-filter-select">
-          <Form.Label className="visually-hidden">상품 타입</Form.Label>
+          <Form.Label className="visually-hidden">판매 방식</Form.Label>
           <Form.Select value={type} onChange={(e) => onTypeChange(e.target.value)}>
             {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Form.Select>
-        </Form.Group>
-        <Form.Group controlId="product-category" className="store-filter-select">
-          <Form.Label className="visually-hidden">카테고리</Form.Label>
-          <Form.Select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
-            {categoryOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>

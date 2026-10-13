@@ -20,7 +20,7 @@ class DeliveryApiRestClientConfig {
 
     @Bean
     CloseableHttpClient deliveryApiHttpClient(DeliveryApiProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+        return pooledHttpClientFactory.create(properties.http());
     }
 
     @Bean

@@ -58,7 +58,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await page.getByRole("link", { name: /비회원 주문하기/ }).click();
 
   await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2&draftId=`));
-  await expect(page.getByText("선택한 상품과 수량을 주문서에 담았습니다.")).toBeVisible();
+  await expect(page.getByText("선택한 작품과 수량을 주문서에 담았습니다.")).toBeVisible();
 
   await completePhoneVerification(page, phone);
   await page.getByLabel("주문자 이름").fill(ordererName);
@@ -136,10 +136,10 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     });
 
     await page.goto("/orders/new");
-    await page.getByRole("button", { name: "여러 상품 직접 선택" }).click();
+    await page.getByRole("button", { name: "여러 작품 직접 선택" }).click();
     await completePhoneVerification(page, phone);
     await page.getByLabel("주문자 이름").fill(ordererName);
-    await page.getByLabel("상품").selectOption(String(product.id));
+    await page.getByLabel("작품", { exact: true }).selectOption(String(product.id));
     await page.getByLabel("수량").fill("1");
     await page.getByRole("button", { name: "추가" }).click();
     await page.getByRole("button", { name: "매장 수령" }).click();

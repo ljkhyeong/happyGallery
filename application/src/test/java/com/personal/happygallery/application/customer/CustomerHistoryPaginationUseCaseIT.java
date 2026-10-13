@@ -8,10 +8,10 @@ import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,7 +45,7 @@ class CustomerHistoryPaginationUseCaseIT {
     void productQnaLists_continueWithCursor() {
         User user = createUser();
         Product product = productRepository.save(
-                new Product("커서 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("커서 상품", 30_000L));
         ProductQna first = productQnaRepository.save(new ProductQna(
                 product.getId(), user.getId(), "첫 질문", "첫 질문 본문", false));
         ProductQna second = productQnaRepository.save(new ProductQna(

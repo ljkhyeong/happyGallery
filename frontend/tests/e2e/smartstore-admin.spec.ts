@@ -6,55 +6,52 @@ import type {
   GroupInquiryPageResponse,
   SmartStoreAccountingReportResponse,
 } from "../../src/generated/api/adminOperations";
-
-async function json(route: Route, body: unknown, status = 200) {
-  await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-}
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
 function inquiryPage(content: unknown[], page = 0, totalCount = content.length) {
   return { content, page, size: 50, totalCount, totalPages: Math.ceil(totalCount / 50) };
 }
 
 async function prepareAdmin(page: Page) {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "smartstore-admin-test"));
+  await seedAdminSession(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") return json(route, {}, 401);
+    if (pathname === "/api/v1/me") return fulfillJson(route, {}, 401);
     if (pathname === "/api/v1/admin/group-inquiries") {
-      return json(route, {
+      return fulfillJson(route, {
         content: [], hasMore: false, nextCursor: null,
       } satisfies GroupInquiryPageResponse);
     }
     if (pathname === "/api/v1/admin/group-inquiries/follow-ups") {
-      return json(route, {
+      return fulfillJson(route, {
         content: [], hasMore: false, nextCursor: null,
       } satisfies GroupInquiryFollowUpPageResponse);
     }
     if (pathname === "/api/v1/admin/restock-demand") {
-      return json(route, {
+      return fulfillJson(route, {
         content: [], page: 0, size: 20, totalCount: 0, totalPages: 0,
       } satisfies RestockDemandPageResponse);
     }
     if (pathname.includes("smartstore-inquiries") && pathname.endsWith("/page")) {
-      return json(route, inquiryPage([]));
+      return fulfillJson(route, inquiryPage([]));
     }
     if (pathname === "/api/v1/admin/smartstore-notices") {
-      return json(route, { notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
+      return fulfillJson(route, { notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
     }
     if (pathname === "/api/v1/admin/products/smartstore-inspections") {
-      return json(route, { products: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
+      return fulfillJson(route, { products: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
     }
     if (pathname === "/api/v1/admin/smartstore-settlements/accounting") {
-      return json(route, {
+      return fulfillJson(route, {
         from: "2026-08-01", to: "2026-08-30", vatAvailableThrough: "2026-07-31",
         dailySettlements: [], commissionDetails: [], dailyVat: [],
       });
     }
     if (pathname === "/api/v1/admin/orders" || pathname.includes("/page") || pathname.endsWith("/unanswered")) {
-      return json(route, { content: [], hasMore: false, nextCursor: null });
+      return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     }
-    if (pathname === "/api/v1/workshop") return json(route, { name: "해피갤러리", version: 1 });
-    return json(route, []);
+    if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", version: 1 });
+    return fulfillJson(route, []);
   });
 }
 
@@ -72,9 +69,9 @@ async function prepareSmartStoreOrderEditors(page: Page) {
   await page.route("**/api/v1/admin/smartstore-orders**", (route) => {
     if (route.request().method() !== "GET") return route.fallback();
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/actions")) return json(route, []);
+    if (path.endsWith("/actions")) return fulfillJson(route, []);
     const order = orders.find((item) => path.endsWith(`/${item.productOrderId}`));
-    if (order) return json(route, {
+    if (order) return fulfillJson(route, {
       order, placeOrderStatus: "OK", deliveryInfo: null, claimDetail: null,
       channelCommission: null, deliveryCompany: null, expectedDeliveryMethod: "DELIVERY",
       expectedSettlementAmount: null, paymentAmount: null, paymentCommission: null,
@@ -82,11 +79,11 @@ async function prepareSmartStoreOrderEditors(page: Page) {
     } satisfies SmartStoreChannelOrderDetailResponse);
     state.listReads++;
     return state.listUnavailable
-      ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
-      : json(route, { content: orders, hasMore: false, nextCursor: null });
+      ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      : fulfillJson(route, { content: orders, hasMore: false, nextCursor: null });
   });
   await page.route("**/api/v1/admin/order-claims?**", (route) =>
-    json(route, { content: [], hasMore: false, nextCursor: null }));
+    fulfillJson(route, { content: [], hasMore: false, nextCursor: null }));
   await page.goto("/admin?view=orders");
   await expect(page.getByLabel("po-editor-1 선택", { exact: true })).toBeVisible();
   return state;
@@ -102,7 +99,7 @@ for (const mode of ["단건", "일괄"] as const) {
     await page.route("**/api/v1/admin/smartstore-orders/dispatch", handleDispatch);
     async function handleDispatch(route: Route) {
       dispatches.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
-      if (dispatches.length === 1) return json(route, { code: "SMARTSTORE_OPERATION_NOT_SENT" }, 503);
+      if (dispatches.length === 1) return fulfillJson(route, { code: "SMARTSTORE_OPERATION_NOT_SENT" }, 503);
       pending = route;
     }
     async function open(id: string) {
@@ -149,7 +146,7 @@ for (const mode of ["단건", "일괄"] as const) {
     expect(dispatches[1]).toMatchObject(mode === "단건"
       ? { path: "/api/v1/admin/smartstore-orders/po-editor-2/dispatch", body: request }
       : { path: "/api/v1/admin/smartstore-orders/dispatch", body: { orders: [{ productOrderId: "po-editor-2", ...request }] } });
-    await json(pending!, { successProductOrderIds: ["po-editor-2"], failures: [] });
+    await fulfillJson(pending!, { successProductOrderIds: ["po-editor-2"], failures: [] });
     if (mode === "단건") {
       await expect(close).toBeEnabled();
       await close.click();
@@ -195,7 +192,7 @@ test("@admin 스마트스토어 일괄 발주 확인 중에는 대상 주문을 
   await expect(page.getByRole("checkbox", { name: "확인이 필요한 주문만 보기" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "선택 주문 발송", exact: true })).toBeDisabled();
   expect(pending!.request().postDataJSON()).toEqual({ productOrderIds: ["po-editor-1"] });
-  await json(pending!, { successProductOrderIds: ["po-editor-1"], failures: [] });
+  await fulfillJson(pending!, { successProductOrderIds: ["po-editor-1"], failures: [] });
   await expect(page.getByLabel("po-editor-2 선택", { exact: true })).toBeEnabled();
   await expect(page.getByLabel("po-editor-1 선택", { exact: true })).not.toBeChecked();
 });
@@ -217,7 +214,7 @@ test("@admin 스마트스토어 회계 CSV는 수식 형태의 상품명을 보�
     ["＠SUM(1,1)", '"\t＠SUM(1,1)"'],
     ['가죽, "공예"\n수업', '"가죽, ""공예""\n수업"'],
   ];
-  await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => json(route, {
+  await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => fulfillJson(route, {
     from: "2026-08-01", to: "2026-08-31", vatAvailableThrough: "2026-08-31",
     dailySettlements: [], dailyVat: [],
     commissionDetails: names.map(([productName], index) => ({
@@ -230,9 +227,9 @@ test("@admin 스마트스토어 회계 CSV는 수식 형태의 상품명을 보�
     })),
   } satisfies SmartStoreAccountingReportResponse));
   await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
-    json(route, { content: [], hasMore: false, nextCursor: null }));
+    fulfillJson(route, { content: [], hasMore: false, nextCursor: null }));
   await page.route("**/api/v1/admin/order-claims?**", (route) =>
-    json(route, { content: [], hasMore: false, nextCursor: null }));
+    fulfillJson(route, { content: [], hasMore: false, nextCursor: null }));
   await page.goto("/admin?view=orders");
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "CSV 다운로드", exact: true }).click();
@@ -261,17 +258,17 @@ function smartStoreNotice(id: number): SmartStoreNoticeResponse {
 async function prepareSmartStoreNoticeApplication(page: Page) {
   await prepareAdmin(page);
   const state = { secondPageUnavailable: false };
-  await page.route("**/api/v1/admin/smartstore-notices?**", (route) => json(route, {
+  await page.route("**/api/v1/admin/smartstore-notices?**", (route) => fulfillJson(route, {
     notices: [smartStoreNotice(1), smartStoreNotice(2)],
     page: 1, size: 100, totalElements: 2, totalPages: 1,
   }));
   await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => {
     const currentPage = Number(new URL(route.request().url()).searchParams.get("page"));
     if (currentPage === 2 && state.secondPageUnavailable) {
-      return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
     }
     const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : [101];
-    return json(route, {
+    return fulfillJson(route, {
       products: ids.map((id) => ({
         originProductNo: id + 1000, channelProductNo: id, name: `적용 상품 ${id}`,
         imageUrl: null, salePrice: 35000, stockQuantity: 5, status: "SALE",
@@ -314,7 +311,7 @@ test("@admin 스마트스토어 공지 적용은 요청 중 선택을 고정하�
   expect(requests[0]).toEqual({
     path: "/api/v1/admin/smartstore-notices/1/products", body: { channelProductNos: [1] },
   });
-  await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+  await fulfillJson(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
   await expect(dialog.getByRole("alert")).toBeVisible();
   await expect(selection(1)).toBeChecked();
   await dialog.getByRole("button", { name: "취소", exact: true }).click();
@@ -380,13 +377,13 @@ for (const kind of ["공지", "검수"] as const) {
         pending = route;
         return;
       }
-      if (url.pathname !== basePath) return json(route, smartStoreNotice(2));
+      if (url.pathname !== basePath) return fulfillJson(route, smartStoreNotice(2));
       const currentPage = Number(url.searchParams.get("page"));
       reads.push(currentPage);
       expect(url.searchParams.get("size")).toBe("100");
-      if (currentPage === 2 && unavailable) return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      if (currentPage === 2 && unavailable) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
       const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : removed ? [] : [101];
-      return json(route, {
+      return fulfillJson(route, {
         ...(kind === "공지" ? { notices: ids.map(smartStoreNotice) } : {
           products: ids.map((id) => ({
             channelProductNo: id, reason: `검수 사유 ${id}`, action: "상품 정보 수정",
@@ -472,9 +469,9 @@ for (const scenario of [
       await page.route("**/api/v1/admin/smartstore-notices**", (route) => {
         if (route.request().method() === "PUT") {
           saved = route.request().postDataJSON();
-          return json(route, { sellerNoticeId: 1 });
+          return fulfillJson(route, { sellerNoticeId: 1 });
         }
-        return json(route, new URL(route.request().url()).pathname.endsWith("/1") ? notice : {
+        return fulfillJson(route, new URL(route.request().url()).pathname.endsWith("/1") ? notice : {
           notices: [notice], page: 1, size: 100, totalElements: 1, totalPages: 1,
         });
       });
@@ -506,12 +503,12 @@ for (const scenario of [
       let calendarRange: Record<string, string> | undefined;
       await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => {
         accountingRange = Object.fromEntries(new URL(route.request().url()).searchParams);
-        return json(route, { ...accountingRange, vatAvailableThrough: scenario.previousTo,
+        return fulfillJson(route, { ...accountingRange, vatAvailableThrough: scenario.previousTo,
           dailySettlements: [], commissionDetails: [], dailyVat: [] });
       });
       await page.route("**/api/v1/admin/smartstore-settlements/synchronize", (route) => {
         synchronized = route.request().postDataJSON();
-        return json(route, { successCount: 0, issueCount: 0 });
+        return fulfillJson(route, { successCount: 0, issueCount: 0 });
       });
       const order = {
         productOrderId: "po-time", orderId: "order-time", originProductNo: 1,
@@ -522,16 +519,16 @@ for (const scenario of [
         pendingReturnQuantity: 0, returnReviewVersion: "R0:0", inventoryResolutionVersion: "v1",
       } satisfies SmartStoreChannelOrderResponse;
       await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
-        json(route, { content: [order], hasMore: false, nextCursor: null }));
+        fulfillJson(route, { content: [order], hasMore: false, nextCursor: null }));
       await page.route("**/api/v1/admin/smartstore-orders/dispatch", (route) => {
         dispatched = route.request().postDataJSON();
-        return json(route, { successProductOrderIds: ["po-time"], failures: [] });
+        return fulfillJson(route, { successProductOrderIds: ["po-time"], failures: [] });
       });
       await page.route("**/api/v1/admin/order-claims?**", (route) =>
-        json(route, { content: [], hasMore: false, nextCursor: null }));
+        fulfillJson(route, { content: [], hasMore: false, nextCursor: null }));
       await page.route("**/api/v1/admin/slots/calendar?**", (route) => {
         calendarRange = Object.fromEntries(new URL(route.request().url()).searchParams);
-        return json(route, {
+        return fulfillJson(route, {
           settings: { openTime: "10:00", closeTime: "19:00", slotIntervalMin: 30,
             blockPublicHolidays: true, version: 1 },
           days: [{ date: scenario.today, effectiveAvailability: "OPEN", overrideMode: "DEFAULT",
@@ -582,15 +579,15 @@ test("@admin 스마트스토어 공지 조회 실패 시 이전 초안을 저장
     const path = new URL(route.request().url()).pathname;
     if (route.request().method() === "PUT") {
       updates.push({ path, body: route.request().postDataJSON() });
-      return json(route, { sellerNoticeId: 2 });
+      return fulfillJson(route, { sellerNoticeId: 2 });
     }
-    if (path.endsWith("/1")) return json(route, smartStoreNotice(1));
+    if (path.endsWith("/1")) return fulfillJson(route, smartStoreNotice(1));
     if (path.endsWith("/2")) {
       return unavailable
-        ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
-        : json(route, smartStoreNotice(2));
+        ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+        : fulfillJson(route, smartStoreNotice(2));
     }
-    return json(route, {
+    return fulfillJson(route, {
       notices: [smartStoreNotice(1), smartStoreNotice(2)],
       page: 1, size: 100, totalElements: 2, totalPages: 1,
     });
@@ -630,13 +627,13 @@ test("@admin 스마트스토어 공지 저장 실패는 초안을 보존하고 �
   let created: Record<string, unknown> | undefined;
   await page.route("**/api/v1/admin/smartstore-notices**", async (route) => {
     const request = route.request();
-    if (request.method() === "PUT") return json(route, { code: "CONFLICT" }, 409);
+    if (request.method() === "PUT") return fulfillJson(route, { code: "CONFLICT" }, 409);
     if (request.method() === "POST") {
       created = request.postDataJSON();
-      return json(route, { sellerNoticeId: 3 });
+      return fulfillJson(route, { sellerNoticeId: 3 });
     }
-    if (new URL(request.url()).pathname.endsWith("/1")) return json(route, smartStoreNotice(1));
-    return json(route, { notices: [smartStoreNotice(1)], page: 1, size: 100, totalElements: 1, totalPages: 1 });
+    if (new URL(request.url()).pathname.endsWith("/1")) return fulfillJson(route, smartStoreNotice(1));
+    return fulfillJson(route, { notices: [smartStoreNotice(1)], page: 1, size: 100, totalElements: 1, totalPages: 1 });
   });
   await page.goto("/admin?view=support");
   await page.getByRole("row").filter({ hasText: "공지 1" })
@@ -695,12 +692,12 @@ test(`@admin 스마트스토어 ${inquiry.tab} 답변은 기존 내용을 수정
       expect(url.pathname).toBe(inquiry.answerPath);
       expect(route.request().postDataJSON()).toEqual({ content: "내일 출고 예정입니다." });
       attempts += 1;
-      if (attempts === 1) return json(route, { code: "CONFLICT" }, 409);
+      if (attempts === 1) return fulfillJson(route, { code: "CONFLICT" }, 409);
       answer = "내일 출고 예정입니다.";
       return route.fulfill({ status: 204 });
     }
-    if (url.searchParams.get("unansweredOnly") === "true") return json(route, inquiryPage([]));
-    return json(route, inquiryPage([inquiry.item(answer)]));
+    if (url.searchParams.get("unansweredOnly") === "true") return fulfillJson(route, inquiryPage([]));
+    return fulfillJson(route, inquiryPage([inquiry.item(answer)]));
   });
   await page.goto("/admin?view=support");
   await page.getByRole("button", { name: inquiry.tab, exact: true }).click();
@@ -731,7 +728,7 @@ test("@admin 문의 조회 실패 중에도 탭과 조회 조건을 사용하고
   await prepareAdmin(page);
   let unavailable = true;
   await page.route("**/api/v1/admin/smartstore-inquiries/page?**", (route) =>
-    unavailable ? json(route, { code: "CONFLICT" }, 409) : json(route, inquiryPage([])));
+    unavailable ? fulfillJson(route, { code: "CONFLICT" }, 409) : fulfillJson(route, inquiryPage([])));
   await page.goto("/admin?view=support");
   const panel = page.locator(".admin-workspace-panel").filter({
     has: page.getByRole("heading", { name: "스마트스토어 문의", exact: true }),
@@ -754,7 +751,7 @@ test("@admin 반품 택배사 계약은 펼칠 때 조회하고 주문 수거 �
   let reads = 0;
   await page.route("**/api/v1/admin/smartstore-orders/return-delivery-companies", async (route) => {
     reads += 1;
-    return json(route, [{ id: 1001, name: "CJ대한통운", priorityType: "PRIMARY" }]);
+    return fulfillJson(route, [{ id: 1001, name: "CJ대한통운", priorityType: "PRIMARY" }]);
   });
   await page.goto("/admin?view=orders");
   const open = page.getByRole("button", { name: "등록된 반품 택배사 계약 조회", exact: true });
@@ -795,13 +792,13 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   await page.route("**/api/v1/admin/smartstore-orders?**", async (route) => {
     const url = new URL(route.request().url());
     reads.push(Object.fromEntries(url.searchParams));
-    await json(route, {
+    await fulfillJson(route, {
       content: [order],
       nextCursor: url.searchParams.has("cursor") ? null : "next-page",
       hasMore: !url.searchParams.has("cursor"),
     });
   });
-  await page.route("**/api/v1/admin/products", (route) => json(route, [{
+  await page.route("**/api/v1/admin/products", (route) => fulfillJson(route, [{
     id: 1,
     name: "내부 카드지갑",
     type: "READY_STOCK",
@@ -820,9 +817,9 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   }]));
   await page.route("**/api/v1/admin/smartstore-orders/po-manual-1/inventory-resolution", async (route) => {
     resolutionBody = route.request().postDataJSON() as Record<string, unknown>;
-    await json(route, { ...order, productId: 1, inventoryAppliedQuantity: 2, attentionReason: null });
+    await fulfillJson(route, { ...order, productId: 1, inventoryAppliedQuantity: 2, attentionReason: null });
   });
-  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1/actions", (route) => json(route, [{
+  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1/actions", (route) => fulfillJson(route, [{
     id: 71,
     action: "INVENTORY_RESOLVED",
     status: "SUCCEEDED",
@@ -834,7 +831,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
     requestedAt: "2026-09-02T10:10:00",
     completedAt: "2026-09-02T10:10:00",
   }]));
-  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1", (route) => json(route, {
+  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1", (route) => fulfillJson(route, {
     order,
     deliveryInfo: null,
     placeOrderStatus: "OK",
@@ -924,13 +921,13 @@ test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반�
     inventoryResolutionVersion: "resolution-1",
   };
   await page.route("**/api/v1/admin/smartstore-orders/actions/unresolved?**", (route) =>
-    json(route, {
+    fulfillJson(route, {
       content: reconciled ? [] : [history],
       nextCursor: null,
       hasMore: false,
     }));
   await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}/current-status`, (route) =>
-    json(route, {
+    fulfillJson(route, {
       productOrderId,
       productOrderStatus: "PAYED",
       placeOrderStatus: "NOT_YET",
@@ -946,7 +943,7 @@ test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반�
   await page.route("**/api/v1/admin/smartstore-orders/actions/72/reconciliation", async (route) => {
     reconciliationBody = route.request().postDataJSON() as Record<string, unknown>;
     reconciled = true;
-    await json(route, {
+    await fulfillJson(route, {
       ...history,
       reconciliationOutcome: "NOT_APPLIED",
       reconciliationNote: "네이버 발주 상태가 미처리임을 확인",
@@ -956,7 +953,7 @@ test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반�
     });
   });
   await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}/actions`, (route) =>
-    json(route, [{
+    fulfillJson(route, [{
       ...history,
       reconciliationOutcome: "NOT_APPLIED",
       reconciliationNote: "네이버 발주 상태가 미처리임을 확인",
@@ -964,7 +961,7 @@ test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반�
       reconciledBy: "대사 관리자",
       reconciledAt: "2026-09-02T10:10:00",
     }]));
-  await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}`, (route) => json(route, {
+  await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}`, (route) => fulfillJson(route, {
     order,
     deliveryInfo: null,
     placeOrderStatus: "NOT_YET",
@@ -982,7 +979,7 @@ test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반�
   }));
   await page.route(
     (url) => url.pathname === "/api/v1/admin/smartstore-orders",
-    (route) => json(route, {
+    (route) => fulfillJson(route, {
       content: [order],
       nextCursor: null,
       hasMore: false,
@@ -1023,7 +1020,7 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
     const type = url.pathname.includes("/customers/") ? "customer" : "product";
     reads.push({ type, ...Object.fromEntries(url.searchParams) });
     const pageNumber = Number(url.searchParams.get("page"));
-    return json(route, inquiryPage(type === "customer" ? [] : [{
+    return fulfillJson(route, inquiryPage(type === "customer" ? [] : [{
       questionId: 100 + pageNumber, channelProductId: 456, productName: "기간 검색 작품",
       maskedWriterId: "cust***", question: `상품 문의 ${pageNumber + 1}`, answer: null,
       answered: false, createdAt: "2026-03-01T10:00:00",
@@ -1063,7 +1060,7 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
 
 async function prepareSmartStoreInventoryEditor(page: Page) {
   await prepareAdmin(page);
-  await page.route("**/api/v1/admin/products", (route) => json(route, [1, 2].map((id) => ({
+  await page.route("**/api/v1/admin/products", (route) => fulfillJson(route, [1, 2].map((id) => ({
     id,
     name: id === 1 ? "연동 작품" : "다른 작품",
     type: "READY_STOCK",
@@ -1080,7 +1077,7 @@ async function prepareSmartStoreInventoryEditor(page: Page) {
     variants: [],
     optionGroups: [],
   }))));
-  await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => json(route, {
+  await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => fulfillJson(route, {
     products: [
       {
         originProductNo: 123,
@@ -1108,9 +1105,9 @@ async function prepareSmartStoreInventoryEditor(page: Page) {
   }));
   await page.route("**/api/v1/admin/products/smartstore-catalog/*", (route) => {
     const originProductNo = Number(new URL(route.request().url()).pathname.split("/").at(-1));
-    return json(route, { originProductNo, salePrice: 35000, status: "SALE", options: [] });
+    return fulfillJson(route, { originProductNo, salePrice: 35000, status: "SALE", options: [] });
   });
-  await page.route("**/api/v1/admin/products/1/smartstore-product-preview", (route) => json(route, {
+  await page.route("**/api/v1/admin/products/1/smartstore-product-preview", (route) => fulfillJson(route, {
     productId: 1,
     originProductNo: 123,
     localSalePrice: 35000,
@@ -1128,9 +1125,9 @@ async function prepareSmartStoreInventoryEditor(page: Page) {
   };
   await page.route("**/api/v1/admin/products/*/smartstore-inventory**", (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/history")) return json(route, []);
-    if (path.includes("/products/2/")) return json(route, {}, 404);
-    return json(route, mapping);
+    if (path.endsWith("/history")) return fulfillJson(route, []);
+    if (path.includes("/products/2/")) return fulfillJson(route, {}, 404);
+    return fulfillJson(route, mapping);
   });
   return mapping;
 }
@@ -1181,7 +1178,7 @@ for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해
     if (action === "연동 저장") expect(requests[0].body).toMatchObject({
       originProductNo: 456, expectedMappingVersion: mapping.mappingVersion, previousOriginConfirmed: true,
     });
-    await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+    await fulfillJson(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
     await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeEnabled();
     await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
@@ -1192,7 +1189,7 @@ for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해
 test("@admin 스마트스토어 재고 재시도는 작성 중인 설정을 유지하고 다시 열면 초기화한다", async ({ page }) => {
   const mapping = await prepareSmartStoreInventoryEditor(page);
   await page.route("**/api/v1/admin/products/1/smartstore-inventory/retry", (route) =>
-    json(route, { ...mapping, syncStatus: "PENDING", attemptCount: 0, lastError: null }));
+    fulfillJson(route, { ...mapping, syncStatus: "PENDING", attemptCount: 0, lastError: null }));
   await page.goto("/admin?view=products");
   const open = (name: string) => page.getByRole("row").filter({ hasText: name })
     .getByRole("button", { name: "스마트스토어", exact: true }).click();
@@ -1231,7 +1228,7 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
   let deleteParams: Record<string, string> | undefined;
   await page.route("**/api/v1/admin/products/1/smartstore-inventory**", async (route) => {
     if (new URL(route.request().url()).pathname.endsWith("/history")) {
-      return json(route, [{
+      return fulfillJson(route, [{
         id: 21,
         action: "ORIGIN_CHANGED",
         previousOriginProductNo: 111,
@@ -1254,7 +1251,7 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     }
     if (route.request().method() === "PUT") {
       savedBody = route.request().postDataJSON();
-      return json(route, {
+      return fulfillJson(route, {
         productId: 1,
         mappingVersion: 18,
         originProductNo: 456,
@@ -1267,7 +1264,7 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
       });
     }
     await mappingGate;
-    return json(route, {
+    return fulfillJson(route, {
       productId: 1,
       mappingVersion: 17,
       originProductNo: 123,

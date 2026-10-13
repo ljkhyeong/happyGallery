@@ -20,8 +20,4 @@ public record MergeCartItemRequest(
     public MergeCartItemRequest {
         textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
     }
-
-    public MergeCartItemRequest(Long productId, int qty) {
-        this(productId, null, List.of(), qty);
-    }
 }

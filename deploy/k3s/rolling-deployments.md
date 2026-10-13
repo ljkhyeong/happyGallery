@@ -56,6 +56,14 @@ sudo k3s kubectl -n happygallery exec deployment/app -- \
 
 DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 → 구 코드 제거 후 제약/컬럼 정리처럼 expand/contract를 설계한다. 차단 검사를 끄거나 `Recreate`로 자동 전환해서 진행하지 않는다.
 
+예외는 보존할 운영 데이터가 없어 migration 이력을 기준선 하나로 합친 1회 초기화 release뿐이다. `deploy/k3s/schema-reset.json`에 새 `id`와 `V1__` 기준선 경로를 기록하면 그 release에 한해 migration·OpenAPI 호환 검사를 생략한다. 배포한 표식은 수정하지 않고, 다음 초기화가 필요하면 새 `id`를 쓴다. 서버 배포는 같은 값을 `HAPPYGALLERY_SCHEMA_RESET`으로 지정하고, 기존 앱 Pod가 없고 `happygallery` DB에 테이블이 없으며 Redis 키가 하나도 없을 때만 진행한다. 빈 DB는 회원·관리자 ID와 자격 버전을 처음부터 다시 발급하므로, 남은 세션이 새 계정으로 인증되지 않도록 Redis도 비어 있어야 한다. 값이 다르거나 초기화 release가 아닌데 변수가 남아 있으면 앱을 교체하기 전에 멈춘다. 운영 데이터를 지우는 작업은 배포 스크립트가 하지 않으며, 운영자가 백업을 확인한 뒤 결정한다.
+
+초기화 release는 다음 순서로 진행한다. 배포 전 백업은 기존 DB가 있어야 만들 수 있으므로 비우기 전에 끝낸다.
+
+1. 기존 앱과 DB가 그대로인 상태에서 `HAPPYGALLERY_SCHEMA_RESET=<id>`로 `deploy.sh`를 실행한다. 백업·R2 복구 묶음 검증·이미지 반입과 `release.env` 갱신을 마친 뒤, 앱이 실행 중이라 앱 교체 전에 멈춘다. 출력된 복구 묶음 경로를 기록한다.
+2. 운영자가 복구 묶음을 확인하고 앱을 멈춘 뒤 DB와 Redis를 비운다.
+3. 같은 변수와 1단계의 복구 묶음 경로(`VERIFIED_RECOVERY_BUNDLE_OVERRIDE`)를 지정해 `rollout.sh /etc/happygallery/release.env`를 실행한다. 새 앱이 빈 DB에 기준선을 적용하고 나머지 공개 경로 검증을 진행한다.
+
 ## 변경 종류별 호환성 검사
 
 | 대상 | 자동 허용 | 차단 또는 별도 검토 |

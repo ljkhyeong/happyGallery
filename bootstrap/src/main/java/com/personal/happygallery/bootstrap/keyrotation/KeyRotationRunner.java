@@ -34,15 +34,12 @@ public class KeyRotationRunner implements ApplicationRunner {
         var result = keyRotationUseCase.rotate(properties.sourceKeyId());
         log.info("키 회전 완료 [users={}, guests={}, bookings={}, attempts={}, fulfillments={}, shippingAddressChanges={}, "
                         + "groupInquiries={}, groupInquiryActivities={}, smartStoreOrders={}, social={}, "
-                        + "adminMfa={}, deletedPhoneVerifications={}, deletedEmailVerifications={}, "
-                        + "pendingSocial={}, pendingAdminMfa={}]",
+                        + "adminMfa={}, deletedPhoneVerifications={}, deletedEmailVerifications={}]",
                 result.users(), result.guests(), result.bookings(),
                 result.paymentAttempts(), result.fulfillments(), result.shippingAddressChanges(),
                 result.groupInquiries(), result.groupInquiryActivities(), result.smartStoreOrders(),
                 result.socialAccounts(), result.adminMfaSecrets(),
-                result.deletedPhoneVerifications(), result.deletedEmailVerifications(),
-                result.pendingSocialAccounts(),
-                result.pendingAdminMfaSecrets());
+                result.deletedPhoneVerifications(), result.deletedEmailVerifications());
         SpringApplication.exit(context);
     }
 }

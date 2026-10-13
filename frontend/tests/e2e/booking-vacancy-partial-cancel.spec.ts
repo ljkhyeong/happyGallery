@@ -1,14 +1,5 @@
-import { expect, test, type Route } from "@playwright/test";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
+import { expect, test } from "@playwright/test";
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,
@@ -18,11 +9,7 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
   let canceled = false;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "vacancy-alert-restore-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     sessionStorage.setItem("guest_vacancy_alerts", JSON.stringify({
       owner: { boundaryEpoch: null, boundaryCustomerId: null },
@@ -129,11 +116,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
   let cancelCount = 0;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "member-vacancy-alert-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -220,11 +203,7 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
   const bookingId = 990002;
   let participantCount = 3;
   let requestedParticipantCount: number | null = null;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "booking-partial-cancel-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -339,6 +318,66 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
   await expect.poll(() => requestedParticipantCount).toBe(2);
   await expect(page.getByText("2명", { exact: true })).toBeVisible();
   await expect(page.getByText(
-    "1명 부분취소와 ₩10,000 환불 요청이 접수되었습니다.",
+    "1명 부분취소와 10,000원 환불 요청이 접수되었습니다.",
   )).toBeVisible();
+});
+
+test("잔금까지 낸 예약은 취소·인원 변경 대신 공방 문의 안내를 보인다", async ({ page }) => {
+  const bookingId = 990003;
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    switch (pathname) {
+      case "/api/v1/me":
+        return fulfillJson(route, {
+          id: 101,
+          email: "balance-paid@example.com",
+          name: "잔금 결제 회원",
+          phone: "01012345678",
+          phoneVerified: true,
+          localPasswordEnabled: true,
+        });
+      case `/api/v1/me/bookings/${bookingId}`:
+        return fulfillJson(route, {
+          bookingId,
+          classId: 1,
+          slotId: 88,
+          status: "BOOKED",
+          className: "잔금 결제 클래스",
+          startAt: "2099-01-12T18:00:00",
+          endAt: "2099-01-12T19:00:00",
+          participantCount: 3,
+          depositAmount: 30000,
+          balanceAmount: 60000,
+          balanceStatus: "PAID",
+          passBooking: false,
+          receiptUrl: null,
+          refund: null,
+          cancelPolicy: {
+            cancellable: false,
+            refundable: false,
+            deadlineAt: "2099-01-11T00:00:00",
+            passCreditRestorable: false,
+            manualCompensationRequired: false,
+            warningCode: null,
+          },
+        });
+      case "/api/v1/me/cart":
+        return fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count":
+        return fulfillJson(route, { count: 0 });
+      case "/api/v1/workshop":
+        return fulfillJson(route, { name: "해피갤러리", updatedAt: "2026-08-28T12:00:00", version: 1 });
+      case `/api/v1/me/reviews/classes/${bookingId}/creation-state`:
+        return fulfillJson(route, { sourceId: bookingId, sourceType: "BOOKING", targetType: "CLASS", status: "NOT_REVIEWABLE" });
+      default:
+        return fulfillJson(route, []);
+    }
+  });
+
+  await page.goto(`/my/bookings/${bookingId}`);
+  await expect(page.getByText("3명", { exact: true })).toBeVisible();
+  // 고객이 직접 바꿀 수 없는 예약은 누를 수 없는 버튼 대신 사유를 보이고, 인원 변경 칸은 그리지 않는다.
+  await expect(page.getByRole("alert").filter({ hasText: "잔금 결제가 완료된 예약" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "예약 취소", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("변경 후 예약 인원")).toHaveCount(0);
 });

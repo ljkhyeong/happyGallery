@@ -67,35 +67,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             """)
     OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
 
-    /** 회원 — 자기 주문 조회 (최신순) */
-    List<Order> findByUserIdOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
-
-    @Query("""
-            SELECT o FROM Order o
-            WHERE o.userId = :userId
-              AND (o.createdAt < :cursorCreatedAt
-                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
-            ORDER BY o.createdAt DESC, o.id DESC
-            """)
-    List<Order> findByUserIdOrderByCreatedAtDescAfterCursorPage(
-            @Param("userId") Long userId,
-            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
-            @Param("cursorId") Long cursorId,
-            Pageable pageable);
-
-    @Override
-    default List<Order> findByUserIdOrderByCreatedAtDesc(Long userId, int limit) {
-        return findByUserIdOrderByCreatedAtDescIdDesc(
-                userId, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<Order> findByUserIdOrderByCreatedAtDescAfterCursor(
-            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
-        return findByUserIdOrderByCreatedAtDescAfterCursorPage(
-                userId, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
-    }
-
     @Query("""
             SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END
             FROM Order o
@@ -127,80 +98,58 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("guestId") Long guestId,
             @Param("accessToken") String accessToken);
 
-    List<Order> findByAccessTokenOrderByCreatedAtDescIdDesc(
-            String accessToken, Pageable pageable);
-
     @Query("""
             SELECT o FROM Order o
             WHERE o.accessToken = :accessToken
-              AND (o.createdAt < :createdAt
-                   OR (o.createdAt = :createdAt AND o.id < :id))
+              AND (:cursorCreatedAt IS NULL
+                   OR o.createdAt < :cursorCreatedAt
+                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
             ORDER BY o.createdAt DESC, o.id DESC
             """)
-    List<Order> findByAccessTokenAfterPage(
+    List<Order> findPageByAccessToken(
             @Param("accessToken") String accessToken,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
-            Pageable pageable);
-
-    // ── 커서 기반 페이지네이션 ──
-
-    /** 전체 주문 — 첫 페이지 */
-    List<Order> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
-
-    @Override
-    default List<Order> findAllOrderByCreatedAtDesc(int limit) {
-        return findAllByOrderByCreatedAtDescIdDesc(PageRequest.ofSize(limit));
-    }
-
-    /** 전체 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
-    @Override
-    @Query(value = """
-            SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, product_amount, shipping_fee,
-                   coupon_discount_amount, reward_used_amount, pg_paid_amount,
-                   reward_earn_base, issued_coupon_id, paid_at, approval_deadline_at,
-                   made_to_order_consent_version, made_to_order_consent_disclosure,
-                   made_to_order_consent_at, version, created_at
-            FROM orders
-            WHERE (created_at, id) < (:cursorCreatedAt, :cursorId)
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit
-            """, nativeQuery = true)
-    List<Order> findAllOrderByCreatedAtDescAfterCursor(
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
             @Param("cursorId") Long cursorId,
-            @Param("limit") int limit);
+            Pageable pageable);
 
-    /** 상태별 주문 — 첫 페이지 */
-    List<Order> findByStatusOrderByCreatedAtDescIdDesc(
-            OrderStatus status, Pageable pageable);
+    // ── 관리자 커서 기반 페이지네이션 ──
+
+    /** 전체 주문 최신순 페이지. OR 확장 비교로 (created_at, id) 인덱스 범위 조회를 사용한다. */
+    @Query("""
+            SELECT o FROM Order o
+            WHERE (:cursorCreatedAt IS NULL
+                   OR o.createdAt < :cursorCreatedAt
+                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
+            ORDER BY o.createdAt DESC, o.id DESC
+            """)
+    List<Order> findAdminOrderPage(
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
 
     @Override
-    default List<Order> findByStatusOrderByCreatedAtDesc(
-            OrderStatus status, int limit) {
-        return findByStatusOrderByCreatedAtDescIdDesc(
-                status, PageRequest.ofSize(limit));
+    default List<Order> findAdminOrders(LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return findAdminOrderPage(cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 
-    /** 상태별 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
-    @Override
-    @Query(value = """
-            SELECT id, user_id, guest_id, access_token, payment_key, status,
-                   total_amount, product_amount, shipping_fee,
-                   coupon_discount_amount, reward_used_amount, pg_paid_amount,
-                   reward_earn_base, issued_coupon_id, paid_at, approval_deadline_at,
-                   made_to_order_consent_version, made_to_order_consent_disclosure,
-                   made_to_order_consent_at, version, created_at
-            FROM orders
-            WHERE status = :#{#status.name()}
-              AND (created_at, id) < (:cursorCreatedAt, :cursorId)
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit
-            """, nativeQuery = true)
-    List<Order> findByStatusOrderByCreatedAtDescAfterCursor(
+    /** 상태별 주문 최신순 페이지. (status, created_at, id) 인덱스 범위 조회를 사용한다. */
+    @Query("""
+            SELECT o FROM Order o
+            WHERE o.status = :status
+              AND (:cursorCreatedAt IS NULL
+                   OR o.createdAt < :cursorCreatedAt
+                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
+            ORDER BY o.createdAt DESC, o.id DESC
+            """)
+    List<Order> findAdminOrderPageByStatus(
             @Param("status") OrderStatus status,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
             @Param("cursorId") Long cursorId,
-            @Param("limit") int limit);
+            Pageable pageable);
+
+    @Override
+    default List<Order> findAdminOrdersByStatus(
+            OrderStatus status, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return findAdminOrderPageByStatus(status, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
+    }
 }

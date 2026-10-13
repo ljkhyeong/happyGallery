@@ -7,6 +7,5 @@ public enum RewardLedgerType {
     USE,
     RESTORE,
     EXPIRE,
-    REVOKE,
-    ADJUST
+    REVOKE
 }

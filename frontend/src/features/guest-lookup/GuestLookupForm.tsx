@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Form } from "react-bootstrap";
+import { parsePositiveId } from "@/shared/lib";
 
 export type GuestLookupKind = "orders" | "bookings";
 
@@ -20,15 +21,15 @@ export function GuestLookupForm({
   const [touched, setTouched] = useState({ id: false, token: false });
   const label = kind === "orders" ? "주문" : "예약";
   const prefix = kind === "orders" ? "order-detail" : "booking-lookup";
-  const parsedId = Number(id);
-  const validId = Number.isSafeInteger(parsedId) && parsedId > 0;
+  const parsedId = parsePositiveId(id);
+  const validId = parsedId !== null;
   const normalizedToken = token.trim();
 
   return (
     <Form className="guest-lookup-form" aria-busy={isLoading} onSubmit={(event) => {
       event.preventDefault();
       setTouched({ id: true, token: true });
-      if (validId && normalizedToken && !isLoading) onLookup(parsedId, normalizedToken);
+      if (parsedId !== null && normalizedToken && !isLoading) onLookup(parsedId, normalizedToken);
     }}>
       <Form.Group controlId={`${prefix}-id`}>
         <Form.Label>{label} 번호</Form.Label>

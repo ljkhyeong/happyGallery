@@ -46,7 +46,8 @@ class MemberEmailRegistrationTransactionService {
     public void register(RegisterEmailCommand command, String normalizedEmail) {
         User user = userReader.findByIdForUpdate(command.userId())
                 .orElseThrow(NotFoundException.supplier("회원"));
-        requireCurrentAuthentication(user, command);
+        ProtectedAccountChange.requireCurrentSession(
+                user, command.credentialVersion(), command.recentlyReauthenticated());
         if (user.getEmail() != null) {
             throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -68,14 +69,5 @@ class MemberEmailRegistrationTransactionService {
         userStore.saveAndFlush(user);
         eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
                 user.getId(), invalidatedCredentialVersion));
-    }
-
-    private static void requireCurrentAuthentication(User user, RegisterEmailCommand command) {
-        if (user.getCredentialVersion() != command.credentialVersion()) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!command.recentlyReauthenticated()) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
-        }
     }
 }

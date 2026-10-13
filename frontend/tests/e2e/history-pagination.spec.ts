@@ -1,30 +1,14 @@
-import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
-async function installCsrfCookie(context: BrowserContext, baseURL: string | undefined) {
-  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "history-pagination-csrf",
-    url: baseURL,
-  }]);
-}
 
 const member = {
   id: 501,
@@ -34,7 +18,6 @@ const member = {
   phoneVerified: true,
   localPasswordEnabled: true,
 };
-const EMPTY_CART_VERSION = "0".repeat(64);
 
 async function fulfillCommon(route: Route) {
   const { pathname } = new URL(route.request().url());
@@ -117,22 +100,7 @@ test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 �
 test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함께 전진시켜 비밀글 소유권을 판정한다", async ({ page }) => {
   const publicCursors: Array<string | null> = [];
   const ownerCursors: Array<string | null> = [];
-  const product = {
-    id: 42,
-    name: "페이지 Q&A 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "페이지 Q&A 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
@@ -145,17 +113,7 @@ test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함�
       return;
     }
     if (url.pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (url.pathname === "/api/v1/products/42/qna/page") {
@@ -274,13 +232,6 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
       await fulfillJson(route, {
         accessToken: "canonical-recovery-token",
         expiresAt: "2099-08-08T12:00:00",
-        orders: [{
-          orderId: 999,
-          status: "DELIVERED",
-          totalAmount: 99900,
-          createdAt: "2026-08-08T12:00:00",
-        }],
-        bookings: [],
       });
       return;
     }
@@ -331,7 +282,6 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
   await recoveryCard.getByRole("button", { name: "조회 코드 재발급" }).click();
 
   await expect(recoveryCard.getByText("주문 #701")).toBeVisible();
-  await expect(recoveryCard.getByText("주문 #999")).toHaveCount(0);
   await recoveryCard.getByRole("button", { name: "비회원 주문 더 보기" }).click();
   await expect(recoveryCard.getByText("주문 #702")).toBeVisible();
   await expect(recoveryCard.getByText("비회원 주문 · 불러온 2건")).toBeVisible();
@@ -345,9 +295,7 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
 
 test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 연결한다", async ({ page }) => {
   const requestedCursors: Array<string | null> = [];
-  await page.addInitScript(() => {
-    sessionStorage.setItem("hg_admin_token", "admin-qna-page-token");
-  });
+  await seedAdminSession(page);
 
   await page.route("**/api/v1/admin/**", async (route) => {
     const url = new URL(route.request().url());
@@ -484,14 +432,14 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
         content: [{
           expiresAt: "2099-12-31T00:00:00",
           passId,
-          planCode: "REGULAR_CRAFT_8",
-          planName: "정규 공예 8회권",
+          planCode: "REGULAR_CRAFT_4",
+          planName: "정규 공예 4회권",
           purchasedAt: cursor === "passes-next"
             ? "2098-11-01T00:00:00"
             : "2098-12-01T00:00:00",
           refund: null,
-          remainingCredits: 7,
-          totalCredits: 8,
+          remainingCredits: 3,
+          totalCredits: 4,
           totalPrice: 240000,
         }],
         hasMore: cursor !== "passes-next",
@@ -511,21 +459,20 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
   });
 
   await page.goto("/bookings/new?passId=9&classId=42");
-  await page.waitForTimeout(500);
-  expect(pageErrors).toEqual([]);
   await page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ }).click();
   await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
+  expect(pageErrors).toEqual([]);
   expect(requestedCursors[0]).toBeNull();
   expect(requestedCursors.at(-1)).toBe("passes-next");
 });
 
 for (const scenario of [
-  { path: "orders", label: "주문 번호·상품명 검색", more: "주문 더 보기", sort: "AMOUNT_DESC", status: "DELIVERED",
+  { path: "orders", label: "주문 번호·작품명 검색", more: "주문 더 보기", sort: "AMOUNT_DESC", status: "DELIVERED",
     item: { orderId: 9090, status: "DELIVERED", totalAmount: 12000, createdAt: "2026-08-01T12:00:00", paidAt: null } },
   { path: "bookings", label: "예약 검색", more: "예약 더 보기", sort: "LATEST", status: "CANCELED",
     item: { bookingId: 9090, status: "CANCELED", className: "이력 검색 클래스", startAt: "2099-01-01T10:00:00", participantCount: 1, depositAmount: 10000 } },
   { path: "passes", label: "이용권 번호 검색", more: "이용권 더 보기", sort: "CREDITS_DESC", status: "EXPIRED",
-    item: { passId: 9090, planName: "정규 공예 8회권", planCode: "REGULAR_CRAFT_8", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 8, totalPrice: 240000, refund: null, receiptUrl: null } },
+    item: { passId: 9090, planName: "정규 공예 4회권", planCode: "REGULAR_CRAFT_4", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 4, totalPrice: 240000, refund: null, receiptUrl: null } },
 ]) {
   test(`회원 ${scenario.path} 검색은 조건을 서버로 보내고 빈 결과에서도 조건을 바꿀 수 있다`, async ({ page }) => {
     const requests: URL[] = [];

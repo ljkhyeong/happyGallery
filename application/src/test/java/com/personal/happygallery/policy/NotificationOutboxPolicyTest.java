@@ -2,6 +2,7 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -105,7 +106,7 @@ class NotificationOutboxPolicyTest {
     void refreshRecipient_requiresCurrentTokenAndRenewsLease() {
         NotificationOutbox outbox = NotificationOutbox.from(
                 NotificationRequestedEvent.forGuestOncePerAggregate(
-                        10L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                        10L, NotificationEventType.REMINDER_D1, NotificationAggregateType.BOOKING, 20L),
                 NOW.minusMinutes(1));
         String token = outbox.markProcessing(NOW);
 
@@ -130,14 +131,14 @@ class NotificationOutboxPolicyTest {
     void reactivateObsolete_reusesAggregateIdempotencyAndRefreshesRecipient() {
         NotificationOutbox outbox = NotificationOutbox.from(
                 NotificationRequestedEvent.forGuestOncePerAggregate(
-                        10L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                        10L, NotificationEventType.REMINDER_D1, NotificationAggregateType.BOOKING, 20L),
                 NOW);
         String token = outbox.markProcessing(NOW);
         outbox.markObsolete(token, NOW.plusSeconds(1), "REMINDER_NO_LONGER_ELIGIBLE");
 
         boolean reactivated = outbox.reactivateObsolete(
                 NotificationRequestedEvent.forUserOncePerAggregate(
-                        30L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                        30L, NotificationEventType.REMINDER_D1, NotificationAggregateType.BOOKING, 20L),
                 NOW.plusDays(1));
 
         assertSoftly(softly -> {
@@ -156,7 +157,7 @@ class NotificationOutboxPolicyTest {
     private NotificationOutbox newOutbox() {
         return NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        1L, NotificationEventType.PASS_PURCHASED, "PASS_PURCHASE", 1L),
+                        1L, NotificationEventType.PASS_PURCHASED, NotificationAggregateType.PASS_PURCHASE, 1L),
                 NOW);
     }
 

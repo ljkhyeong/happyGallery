@@ -6,7 +6,7 @@ import { Alert, Button, Form } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 import {
   confirmAdminMfaEnrollment,
   disableAdminMfa,
@@ -178,7 +178,7 @@ export function AdminMfaSettings({
                   <Form.Control
                     type="password"
                     autoComplete="current-password"
-                    maxLength={72}
+                    maxLength={PASSWORD_MAX_UTF8_BYTES}
                     value={currentPassword}
                     disabled={recoverMfa.isPending}
                     onChange={(event) => setCurrentPassword(event.target.value)}
@@ -221,7 +221,7 @@ export function AdminMfaSettings({
                 <Form.Control
                   type="password"
                   autoComplete="current-password"
-                  maxLength={72}
+                  maxLength={PASSWORD_MAX_UTF8_BYTES}
                   value={currentPassword}
                   disabled={disableMfa.isPending}
                   onChange={(event) => setCurrentPassword(event.target.value)}

@@ -6,8 +6,10 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.util.Objects;
@@ -65,7 +67,7 @@ class BookingSupport {
 
     @Transactional(propagation = Propagation.MANDATORY)
     void recordHistory(Booking booking, BookingHistoryAction action,
-                       Slot oldSlot, Slot newSlot, String actor, Long adminUserId, String reason) {
+                       Slot oldSlot, Slot newSlot, BookingHistoryActor actor, Long adminUserId, String reason) {
         bookingHistoryPort.save(
                 new BookingHistory(booking, action, oldSlot, newSlot, actor, adminUserId, reason));
     }
@@ -80,21 +82,25 @@ class BookingSupport {
         }
     }
 
+    // 일정 변경은 같은 예약에 여러 번 보낼 수 있다.
     private NotificationRequestedEvent bookerEventForUser(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forUser(booking.getUserId(), eventType);
+            return NotificationRequestedEvent.forUserRepeatable(
+                    booking.getUserId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
         }
-        return NotificationRequestedEvent.forUser(booking.getUserId(), eventType, "BOOKING", booking.getId());
+        return NotificationRequestedEvent.forUser(
+                booking.getUserId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
     }
 
     private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType);
+            return NotificationRequestedEvent.forGuestRepeatable(
+                    booking.getGuest().getId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
         }
         return NotificationRequestedEvent.forGuest(
                 booking.getGuest().getId(),
                 eventType,
-                "BOOKING",
+                NotificationAggregateType.BOOKING,
                 booking.getId());
     }
 }

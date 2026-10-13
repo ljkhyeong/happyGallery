@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.http.PooledHttpClientFactory;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
@@ -36,8 +37,8 @@ class SmartStoreRestClientConfigTest {
 
     private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
             true, "client-id", "$2a$10$abcdefghijklmnopqrstuv", "SELF", "",
-            "https://api.commerce.naver.com", Duration.ofSeconds(5), Duration.ofSeconds(1),
-            Duration.ofMillis(500), 5, Duration.ofSeconds(30));
+            "https://api.commerce.naver.com", new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1),
+            Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
     private MockRestServiceServer server;

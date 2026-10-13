@@ -4,8 +4,9 @@ import { EmptyState, ErrorAlert, LoadingSpinner, StatusBadge } from "@/shared/ui
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { MyOrderSummary } from "./api";
 
+const PREVIEW_SIZE = 3;
+
 interface Props {
-  previewSize?: number;
   orders: MyOrderSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
@@ -13,17 +14,17 @@ interface Props {
   onRetry: () => void;
 }
 
-export function MyOrdersSection({ orders, isLoading, error, isFetching, onRetry, previewSize = 3 }: Props) {
+export function MyOrdersSection({ orders, isLoading, error, isFetching, onRetry }: Props) {
   return (
     <section id="my-orders" className="my-recent" aria-labelledby="my-orders-title">
       <div className="my-recent-head">
         <h2 id="my-orders-title">최근 주문</h2>
-        <Link to="/my/orders">전체 보기 →</Link>
+        <Link to="/my/orders">전체 보기</Link>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {orders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
-      {orders?.slice(0, previewSize).map((order) => (
+      {orders?.slice(0, PREVIEW_SIZE).map((order) => (
         <Link key={order.orderId} to={`/my/orders/${order.orderId}`} className="my-list-card my-recent-item">
           <div className="my-recent-main">
             <strong>주문 #{order.orderId}</strong>

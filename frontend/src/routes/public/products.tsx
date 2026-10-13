@@ -1,6 +1,6 @@
 import type { Route } from "./+types/products";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
-import { readProductFilters } from "@/features/product/productFilters";
+import { productListHeading, readProductFilters } from "@/features/product/productFilters";
 import { ProductListPage } from "@/pages/ProductListPage";
 import {
   buildBreadcrumbJsonLd,
@@ -11,7 +11,7 @@ import { loadProductCategories, loadProducts } from "@/shared/seo/serverApi.serv
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "수공예 작품 | 해피갤러리";
-const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 상품을 둘러보세요.";
+const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 작품입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const filters = readProductFilters(new URL(request.url).searchParams);
@@ -23,9 +23,14 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
+  // 카테고리·주문 제작·검색으로 들어오면 제목만 조건에 맞춘다. 대표 주소는 /products 하나다.
+  const filters = loaderData?.filters ?? {};
+  const { documentName } = productListHeading(filters);
   return buildSeoMeta({
-    title: TITLE,
-    description: DESCRIPTION,
+    title: documentName ? `${documentName} | 해피갤러리` : TITLE,
+    description: filters.category
+      ? `해피갤러리가 직접 만든 ${filters.category} 작품입니다.`
+      : DESCRIPTION,
     pathname: "/products",
     image: heroWorkshop,
     indexable: Boolean(loaderData),

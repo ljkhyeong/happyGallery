@@ -77,6 +77,13 @@ test("후기 키는 공개 대상과 회원·관리자 세션 경계를 각각 �
     queryKeys.reviews.products.history(42, 5, "RATING_HIGH").slice(-2),
     [5, "RATING_HIGH"],
   );
+  // 고객 화면은 대상 종류로, 관리자 화면은 종류별 키로 같은 공개 후기 캐시를 무효화한다.
+  assert.deepEqual(queryKeys.reviews.byTarget("PRODUCT", 42), queryKeys.reviews.products.byProduct(42));
+  assert.deepEqual(queryKeys.reviews.byTarget("CLASS", 7), queryKeys.reviews.classes.byClass(7));
+  assert.deepEqual(
+    queryKeys.reviews.historyByTarget("CLASS", 7, 4, "LATEST"),
+    queryKeys.reviews.classes.history(7, 4, "LATEST"),
+  );
   assert.equal(queryKeys.member.reviews.byOrder(9)[0], queryKeys.member.all[0]);
   assert.equal(queryKeys.member.reviews.byBooking(11)[0], queryKeys.member.all[0]);
   assert.equal(queryKeys.member.reviews.opportunities[0], queryKeys.member.all[0]);
@@ -114,7 +121,8 @@ test("회원 이력 페이지 키는 기존 무효화 접두사 아래에서 sum
 
 test("비회원 복구 이력 키는 회원 세대에 속하고 원문 토큰을 포함하지 않는다", () => {
   const secretToken = "raw-guest-recovery-token";
-  const key = queryKeys.member.guestRecovery.orders(
+  const key = queryKeys.member.guestRecovery.records(
+    "orders",
     "storage-owner-epoch",
     null,
     17,

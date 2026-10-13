@@ -55,7 +55,7 @@ class IndexNowTest < Minitest::Test
     output, = sync
     assert_match(/비교 기준 저장/, output)
     assert_empty submitted_paths
-    assert_equal 10, IndexNow.read_state(@state).size
+    assert_equal 11, IndexNow.read_state(@state).size
     assert_equal 0, File.stat(@state).mode & 0o077
     assert @requests.all? { |uri, body| uri.host == 'happy-gallery.com' && body.nil? }
   end
@@ -67,7 +67,7 @@ class IndexNowTest < Minitest::Test
     @catalogs['events'].clear
     @catalogs['notices'].first['version'] = 1
     sync
-    assert_equal %w[/ /classes /classes/5 /events /events/3 /notices/4 /products /products/1], submitted_paths.sort
+    assert_equal %w[/ /classes /classes/5 /events /events/3 /notices /notices/4 /products /products/1], submitted_paths.sort
     endpoint, payload = @requests.find { |_uri, body| body }
     assert_equal 'https://api.indexnow.org/indexnow', endpoint.to_s
     assert_equal 'happy-gallery.com', payload['host']
@@ -198,13 +198,13 @@ class IndexNowTest < Minitest::Test
     current = (1..10_001).to_h { |id| ["/products/#{id}", 'a' * 64] }
     @post_statuses = [200, 429]
     IndexNow.stub(:snapshot, current) { assert_raises(IndexNow::Error) { sync } }
-    assert_equal [10_000, 10], @requests.map { |_uri, body| body && body['urlList'].size }.compact
+    assert_equal [10_000, 11], @requests.map { |_uri, body| body && body['urlList'].size }.compact
     accepted = submitted_paths.take(10_000)
     @requests.clear
     IndexNow.stub(:snapshot, current) { sync }
     assert_empty accepted & submitted_paths
     assert_equal current, IndexNow.read_state(@state)
-    assert_equal 10, old.size
+    assert_equal 11, old.size
   end
 
   def test_corrupt_state_and_concurrent_run_do_not_send_requests

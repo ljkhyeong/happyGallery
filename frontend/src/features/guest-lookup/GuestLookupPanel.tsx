@@ -16,7 +16,6 @@ export function GuestLookupPanel({ kind, title, children, onKindChange, onHelpRe
     <section className="guest-lookup-panel" aria-labelledby="guest-lookup-title">
       <header className="guest-lookup-heading">
         <h1 id="guest-lookup-title">{title}</h1>
-        <p>회원가입 없이 주문과 수업 예약 내역을 확인하세요.</p>
       </header>
       <div className="guest-lookup-tabs" aria-label="조회 종류">
         {(["orders", "bookings"] as const).map((value) => {
@@ -36,7 +35,11 @@ export function GuestLookupPanel({ kind, title, children, onKindChange, onHelpRe
           {kind === "orders" ? "주문 완료" : "예약 완료"} 화면에서 안내받은 번호와 조회 코드를 입력해 주세요.
         </p>
         {children}
-        <Link className="guest-lookup-help-link" to="/guest#lookup-help" onClick={onHelpRequest}>
+        <Link
+          className="guest-lookup-help-link"
+          to={kind === "bookings" ? "/guest?kind=bookings#lookup-help" : "/guest#lookup-help"}
+          onClick={onHelpRequest}
+        >
           번호나 조회 코드를 잊으셨나요?
         </Link>
       </div>

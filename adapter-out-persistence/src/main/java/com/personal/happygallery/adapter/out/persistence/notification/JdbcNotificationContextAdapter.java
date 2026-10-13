@@ -15,39 +15,54 @@ class JdbcNotificationContextAdapter implements NotificationContextPort {
     }
 
     @Override
-    public List<Context> findContexts(Collection<Long> notificationIds, Long userId, Long guestId) {
+    public List<Context> findContexts(Collection<Long> notificationIds, Long userId) {
         if (notificationIds.isEmpty()) return List.of();
+        // 클레임·환불은 원래 주문·예약으로 잇고, 모든 원본은 수신자 본인 소유일 때만 붙인다.
         return jdbc.sql("""
                 SELECT n.id AS notification_id,
                        CASE WHEN o.id IS NOT NULL THEN oi.product_name
-                            WHEN b.id IS NOT NULL THEN c.name
+                            WHEN b.id IS NOT NULL OR va.id IS NOT NULL THEN c.name
                             WHEN r.id IS NOT NULL THEN CONCAT(p.name,
                                 CASE WHEN r.option_label = '' THEN '' ELSE CONCAT(' · ', r.option_label) END)
+                            WHEN q.id IS NOT NULL THEN p.name
                        END AS name,
                        CASE WHEN o.id IS NOT NULL
                             THEN (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id)
                             ELSE 1 END AS item_count,
-                       s.start_at AS scheduled_at
+                       s.start_at AS scheduled_at,
+                       o.id AS order_id,
+                       b.id AS booking_id,
+                       p.id AS product_id,
+                       r.product_variant_id AS product_variant_id,
+                       CASE WHEN va.id IS NOT NULL THEN s.class_id END AS class_id,
+                       va.slot_id AS slot_id
                 FROM notification_outbox n
-                LEFT JOIN orders o ON n.aggregate_type = 'ORDER' AND o.id = n.aggregate_id
-                    AND ((:userId IS NOT NULL AND o.user_id = :userId)
-                      OR (:userId IS NULL AND o.user_id IS NULL AND o.guest_id = :guestId))
+                LEFT JOIN order_claims oc ON n.aggregate_type = 'ORDER_CLAIM' AND oc.id = n.aggregate_id
+                LEFT JOIN refunds rf ON n.aggregate_type = 'REFUND' AND rf.id = n.aggregate_id
+                LEFT JOIN orders o ON o.user_id = :userId AND o.id = CASE n.aggregate_type
+                        WHEN 'ORDER' THEN n.aggregate_id
+                        WHEN 'ORDER_CLAIM' THEN oc.order_id
+                        WHEN 'REFUND' THEN rf.order_id
+                    END
                 LEFT JOIN order_items oi ON oi.id = (SELECT MIN(i.id) FROM order_items i WHERE i.order_id = o.id)
-                LEFT JOIN bookings b ON n.aggregate_type = 'BOOKING' AND b.id = n.aggregate_id
-                    AND ((:userId IS NOT NULL AND b.user_id = :userId)
-                      OR (:userId IS NULL AND b.user_id IS NULL AND b.guest_id = :guestId))
-                LEFT JOIN classes c ON c.id = b.class_id
-                LEFT JOIN slots s ON s.id = b.slot_id
+                LEFT JOIN bookings b ON b.user_id = :userId AND b.id = CASE n.aggregate_type
+                        WHEN 'BOOKING' THEN n.aggregate_id
+                        WHEN 'REFUND' THEN rf.booking_id
+                    END
+                LEFT JOIN booking_vacancy_alerts va ON n.aggregate_type = 'VACANCY_ALERT'
+                    AND va.id = n.aggregate_id AND va.user_id = :userId
+                LEFT JOIN slots s ON s.id = COALESCE(b.slot_id, va.slot_id)
+                LEFT JOIN classes c ON c.id = COALESCE(b.class_id, s.class_id)
                 LEFT JOIN product_restock_alerts r ON n.aggregate_type = 'RESTOCK_ALERT'
-                    AND r.id = n.aggregate_id AND :userId IS NOT NULL AND r.user_id = :userId
-                LEFT JOIN products p ON p.id = r.product_id
+                    AND r.id = n.aggregate_id AND r.user_id = :userId
+                LEFT JOIN product_qna q ON n.aggregate_type = 'PRODUCT_QNA'
+                    AND q.id = n.aggregate_id AND q.user_id = :userId
+                LEFT JOIN products p ON p.id = COALESCE(r.product_id, q.product_id)
                 WHERE n.id IN (:ids) AND n.status = 'SENT'
-                  AND ((:userId IS NOT NULL AND n.user_id = :userId)
-                    OR (:userId IS NULL AND n.guest_id = :guestId))
+                  AND n.user_id = :userId
                 """)
                 .param("ids", notificationIds)
                 .param("userId", userId)
-                .param("guestId", guestId)
                 .query(Context.class)
                 .list();
     }

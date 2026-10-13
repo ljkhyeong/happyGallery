@@ -1,30 +1,18 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-
-async function json(route: Route, body: unknown) {
-  await route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
-}
+import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests, TOSS_REQUESTS_GLOBAL } from "./mock-support";
 
 async function openCheckout(page: Page, amount = 12000) {
   const prepares: unknown[] = [];
   const confirms: unknown[] = [];
   const abandoned: string[] = [];
-  await page.addInitScript(() => {
-    const app = window as unknown as {
-      tossRequests: unknown[];
-      TossPayments: () => { payment: () => { requestPayment: (request: unknown) => Promise<void> } };
-    };
-    app.tossRequests = [];
-    app.TossPayments = () => ({ payment: () => ({
-      requestPayment: async (request) => { app.tossRequests.push(request); },
-    }) });
-  });
+  await installTossRequestRecorder(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     switch (pathname) {
       case "/api/v1/me":
-        return json(route, { id: 701, name: "결제 테스트", phone: "01012345678", email: "pay@example.com", phoneVerified: true });
+        return fulfillJson(route, { id: 701, name: "결제 테스트", phone: "01012345678", email: "pay@example.com", phoneVerified: true });
       case "/api/v1/me/cart":
-        return json(route, {
+        return fulfillJson(route, {
           cartVersion: "a".repeat(64), totalAmount: 12000,
           items: [{ cartItemId: 42, productId: 42, productVariantId: null, options: [], basePrice: 12000,
             variantPriceAdjustment: 0, textOptionPriceAdjustment: 0, careInstructions: null,
@@ -33,32 +21,28 @@ async function openCheckout(page: Page, amount = 12000) {
             price: 12000, qty: 1, subtotal: 12000, available: true }],
         });
       case "/api/v1/orders/policy":
-        return json(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의" });
+        return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의" });
       case "/api/v1/me/notifications/unread-count":
-        return json(route, { count: 0 });
+        return fulfillJson(route, { count: 0 });
       case "/api/v1/workshop":
-        return json(route, { name: "해피갤러리", updatedAt: "2026-08-30T10:00:00", version: 1 });
+        return fulfillJson(route, { name: "해피갤러리", updatedAt: "2026-08-30T10:00:00", version: 1 });
       case "/api/v1/payments/prepare":
         prepares.push(route.request().postDataJSON());
-        return json(route, { orderId: "easy-pay-test", amount, context: "ORDER", statusToken: "payment-status" });
+        return fulfillJson(route, { orderId: "easy-pay-test", amount, context: "ORDER", statusToken: "payment-status" });
       case "/api/v1/payments/confirm":
         confirms.push(route.request().postDataJSON());
-        return json(route, { domainId: 701, context: "ORDER", accessToken: null });
+        return fulfillJson(route, { domainId: 701, context: "ORDER", accessToken: null });
       case "/api/v1/payments/easy-pay-test/abandon":
         abandoned.push(pathname);
         return route.fulfill({ status: 204 });
       default:
-        return json(route, []);
+        return fulfillJson(route, []);
     }
   });
   await page.goto("/cart");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "easy-pay-test-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.getByRole("button", { name: "매장 수령" }).click();
   return { prepares, confirms, abandoned };
-}
-
-function requests(page: Page) {
-  return page.evaluate(() => (window as unknown as { tossRequests: unknown[] }).tossRequests);
 }
 
 for (const { method, label } of [
@@ -71,10 +55,10 @@ for (const { method, label } of [
     await page.getByRole("button", { name: "결제하기", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("간편결제에 필요한 약관에 동의해 주세요.");
     expect(prepares).toHaveLength(0);
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
     await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
     await page.getByRole("button", { name: "결제하기", exact: true }).click();
-    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+    await expect.poll(() => readTossRequests(page)).toEqual([expect.objectContaining({
       method: "CARD", card: { flowMode: "DIRECT", easyPay: method }, windowTarget: "self",
       amount: { currency: "KRW", value: 12000 }, orderId: "easy-pay-test",
     })]);
@@ -89,7 +73,7 @@ for (const { method, label } of [
     await expect.poll(() => confirms).toEqual([{ orderId: "easy-pay-test", amount: 0 }]);
     await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "내 주문 상세 보기" })).toHaveAttribute("href", "/my/orders/701");
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
   });
 }
 
@@ -104,9 +88,9 @@ test("@payment 0원 확정 응답이 유실되면 새 결제 준비 없이 기�
   await page.route("**/api/v1/payments/easy-pay-test", async (route) => {
     statusReads += 1;
     if (statusReads === 1) {
-      return route.fulfill({ status: 503, contentType: "application/json", body: '{"code":"SERVICE_UNAVAILABLE"}' });
+      return route.fulfill({ status: 503, json: { code: "SERVICE_UNAVAILABLE" } });
     }
-    return json(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
+    return fulfillJson(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
       domainId: 701, accessToken: null, accessRecoveryRequired: false, receiptUrl: null });
   });
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
@@ -143,9 +127,9 @@ test("@payment 0원 완료 화면은 새로고침과 조회 재시도에 승인�
   await page.route("**/api/v1/payments/easy-pay-test", async (route) => {
     statusReads += 1;
     if (statusReads === 1) {
-      return route.fulfill({ status: 503, contentType: "application/json", body: '{"code":"SERVICE_UNAVAILABLE"}' });
+      return route.fulfill({ status: 503, json: { code: "SERVICE_UNAVAILABLE" } });
     }
-    return json(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
+    return fulfillJson(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
       domainId: 701, accessToken: null, accessRecoveryRequired: false, receiptUrl: null });
   });
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
@@ -171,7 +155,7 @@ test("@payment 비회원 유료 결제 완료를 새로고침하면 같은 소�
   const statusTokens: Array<string | undefined> = [];
   const result = { context: "BOOKING", domainId: 702, accessToken: "guest-booking-access",
     accessRecoveryRequired: false, receiptUrl: "https://receipt.example/702" };
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "completion-test", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     if (localStorage.getItem("hg_customer_session_boundary")) return;
     localStorage.setItem("hg_customer_session_boundary", JSON.stringify({ epoch: "guest-completion", customerId: null }));
@@ -182,17 +166,17 @@ test("@payment 비회원 유료 결제 완료를 새로고침하면 같은 소�
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") {
-      return route.fulfill({ status: 401, contentType: "application/json", body: '{"code":"UNAUTHORIZED"}' });
+      return route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } });
     }
     if (pathname === "/api/v1/payments/confirm") {
       confirms.push(route.request().postDataJSON());
-      return json(route, result);
+      return fulfillJson(route, result);
     }
     if (pathname === "/api/v1/payments/guest-completion") {
       statusTokens.push(route.request().headers()["x-payment-status-token"]);
-      return json(route, { ...result, orderId: "guest-completion", amount: 1000, status: "COMPLETED" });
+      return fulfillJson(route, { ...result, orderId: "guest-completion", amount: 1000, status: "COMPLETED" });
     }
-    return json(route, {});
+    return fulfillJson(route, {});
   });
   await page.goto("/payments/success?paymentKey=guest-paid-key&orderId=guest-completion&amount=1000");
   await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
@@ -213,7 +197,7 @@ test("@payment 이전 계정의 0원 확정 요청은 새 구매에 사용하지
     }));
   });
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   expect(prepares).toHaveLength(1);
   expect(confirms).toHaveLength(0);
   await expect(page).toHaveURL(/\/cart$/);
@@ -222,8 +206,8 @@ test("@payment 이전 계정의 0원 확정 요청은 새 구매에 사용하지
 test("@payment 기본 카드 결제는 별도 약관 입력 없이 기존 통합창을 연다", async ({ page }) => {
   await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
-  const [request] = await requests(page);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  const [request] = await readTossRequests(page);
   expect(request).toMatchObject({ method: "CARD", amount: { currency: "KRW", value: 12000 } });
   expect(request).not.toHaveProperty("card");
 });
@@ -239,14 +223,14 @@ test("@payment 간편결제 수단을 바꾸면 약관 동의를 다시 받는�
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("약관에 동의해 주세요.");
   expect(prepares).toHaveLength(0);
-  expect(await requests(page)).toHaveLength(0);
+  expect(await readTossRequests(page)).toHaveLength(0);
 });
 
 test("@payment 결제창 취소는 콜백 주문번호 없이도 기존 결제를 종료한 뒤 장바구니로 복귀한다", async ({ page }) => {
   const { prepares, confirms, abandoned } = await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
-  const [request] = await requests(page) as Array<{ failUrl: string }>;
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  const [request] = await readTossRequests(page) as Array<{ failUrl: string }>;
   await page.goto(`${request!.failUrl}?code=PAY_PROCESS_CANCELED&message=external-message`);
   await expect(page.getByText("결제창에서 결제를 취소했습니다.")).toBeVisible();
   await expect(page).toHaveURL(/\/payments\/fail$/);
@@ -276,12 +260,12 @@ for (const checkout of [
       const { pathname } = new URL(route.request().url());
       if (pathname === "/api/v1/me") {
         return checkout.customerId === null
-          ? route.fulfill({ status: 401, contentType: "application/json", body: '{"code":"UNAUTHORIZED"}' })
-          : json(route, { id: checkout.customerId, name: "결제 테스트", phone: "01012345678", phoneVerified: true });
+          ? route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } })
+          : fulfillJson(route, { id: checkout.customerId, name: "결제 테스트", phone: "01012345678", phoneVerified: true });
       }
-      if (pathname.endsWith("/unread-count")) return json(route, { count: 0 });
-      if (pathname === "/api/v1/me/cart") return json(route, { items: [], totalAmount: 0, cartVersion: "a".repeat(64) });
-      return json(route, {});
+      if (pathname.endsWith("/unread-count")) return fulfillJson(route, { count: 0 });
+      if (pathname === "/api/v1/me/cart") return fulfillJson(route, { items: [], totalAmount: 0, cartVersion: "a".repeat(64) });
+      return fulfillJson(route, {});
     });
     await page.goto("/payments/fail?code=PAY_PROCESS_ABORTED");
     await page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true }).click();
@@ -304,17 +288,17 @@ test("@payment 복귀 정보가 없거나 외부 주소이면 구매 복귀 링�
   await page.reload();
   await expect(page.getByRole("link", { name: "결제 테스트", exact: true })).toBeVisible();
   await expect(back).not.toBeVisible();
-  await expect(page.getByRole("link", { name: "상품 둘러보기", exact: true })).toHaveAttribute("href", "/products");
+  await expect(page.getByRole("link", { name: "작품 둘러보기", exact: true })).toHaveAttribute("href", "/products");
 });
 
 test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
   const back = page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true });
   await expect(back).toBeVisible();
-  await page.route("**/api/v1/me", (route) => json(route, {
+  await page.route("**/api/v1/me", (route) => fulfillJson(route, {
     id: 702, name: "변경된 고객", phone: "01098765432", phoneVerified: true,
   }));
   await page.evaluate(() => {
@@ -331,11 +315,11 @@ test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨�
 test("@payment 승인 중인 결제는 종료하지 못하며 구매 화면 대신 현재 상태를 보여준다", async ({ page }) => {
   const { prepares, confirms } = await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   await page.route("**/api/v1/payments/easy-pay-test/abandon", (route) => route.fulfill({
-    status: 409, contentType: "application/json", body: '{"code":"CONFLICT"}',
+    status: 409, json: { code: "CONFLICT" },
   }));
-  await page.route("**/api/v1/payments/easy-pay-test", (route) => json(route, {
+  await page.route("**/api/v1/payments/easy-pay-test", (route) => fulfillJson(route, {
     context: "ORDER", amount: 12000, status: "CONFIRMING", domainId: null,
     accessToken: null, accessRecoveryRequired: false, receiptUrl: null,
   }));
@@ -383,7 +367,7 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
       }
       return route.fulfill({ contentType: "application/javascript", body: `
         window.TossPayments = () => ({ payment: () => ({
-          requestPayment: async (request) => { window.tossRequests.push(request); },
+          requestPayment: async (request) => { window.${TOSS_REQUESTS_GLOBAL}.push(request); },
         }) });
       ` });
     });
@@ -398,13 +382,13 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
 
     await expect(page.getByRole("alert")).toBeVisible();
     await expect.poll(() => abandoned).toHaveLength(1);
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
     await expect(method).toBeChecked();
     await expect(terms).toBeChecked();
     // 지연된 첫 연결을 종료한 뒤 다음 다운로드가 성공하도록 복구한다.
     await delayedRequest?.abort("failed");
     await pay.click();
-    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+    await expect.poll(() => readTossRequests(page)).toEqual([expect.objectContaining({
       orderId: "easy-pay-test", card: { flowMode: "DIRECT", easyPay: "NAVERPAY" },
     })]);
     expect(sdkRequests).toBe(2);
@@ -416,24 +400,24 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
 test("@payment 회원 주문·예약·이용권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   const receiptUrl = "https://dashboard.tosspayments.com/receipt/member-history";
-  await page.route("**/api/v1/me/orders/701", (route) => json(route, {
+  await page.route("**/api/v1/me/orders/701", (route) => fulfillJson(route, {
     orderId: 701, orderNumber: "ORD-00000701", status: "COMPLETED", totalAmount: 12000,
     productAmount: 12000, shippingFee: 0, couponDiscountAmount: 0, rewardUsedAmount: 0,
     pgPaidAmount: 12000, rewardEarnBase: 12000, issuedCouponId: null,
     paidAt: "2026-08-30T10:00:00", approvalDeadlineAt: null, items: [], fulfillment: null, refund: null, receiptUrl,
   }));
-  await page.route("**/api/v1/me/bookings/702", (route) => json(route, {
+  await page.route("**/api/v1/me/bookings/702", (route) => fulfillJson(route, {
     bookingId: 702, classId: 7, slotId: 70, status: "CANCELED", className: "영수증 클래스",
     startAt: "2026-08-30T10:00:00", endAt: "2026-08-30T12:00:00", participantCount: 1,
     depositAmount: 5000, balanceAmount: 45000, balanceStatus: "UNPAID", passBooking: false,
     cancelPolicy: { cancellable: false, refundable: false, deadlineAt: null, passCreditRestorable: false },
     refund: null, receiptUrl,
   }));
-  await page.route("**/api/v1/me/passes/page**", (route) => json(route, {
+  await page.route("**/api/v1/me/passes/page**", (route) => fulfillJson(route, {
     content: [true, false].map((hasReceipt, index) => ({
-      passId: 703 + index, planCode: "REGULAR_CRAFT_8", planName: "정규 공예 8회권",
+      passId: 703 + index, planCode: "REGULAR_CRAFT_4", planName: "정규 공예 4회권",
       purchasedAt: "2026-08-30T10:00:00", expiresAt: "2099-12-31T23:59:59",
-      totalCredits: 8, remainingCredits: 8, totalPrice: 240000, refund: null,
+      totalCredits: 4, remainingCredits: 4, totalPrice: 240000, refund: null,
       receiptUrl: hasReceipt ? receiptUrl : null,
     })), hasMore: false, nextCursor: null,
   }));

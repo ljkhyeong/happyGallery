@@ -2,8 +2,7 @@ import type { VacancyAlertResponse } from "@/generated/api/booking";
 import type { CustomerSessionSnapshot } from "@/shared/api";
 import {
   currentCustomerSessionStorageOwner,
-  isCurrentCustomerSessionStorageOwner,
-  isCustomerSessionStorageOwner,
+  readOwnedSessionValue,
   type CustomerSessionStorageHandle,
 } from "@/shared/storage/customerSessionOwner";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -22,35 +21,14 @@ function isGuestVacancyAlert(value: unknown): value is VacancyAlertResponse {
     && alert.accessToken.length > 0;
 }
 
-function readGuestVacancyAlerts(raw: string): GuestVacancyAlertSession | null {
-  const parsed = JSON.parse(raw) as Partial<CustomerSessionStorageHandle<unknown>>;
-  if (
-    !isCustomerSessionStorageOwner(parsed.owner)
-    || !Array.isArray(parsed.value)
-    || !parsed.value.every(isGuestVacancyAlert)
-  ) {
-    return null;
-  }
-  return { owner: parsed.owner, value: parsed.value };
+function isGuestVacancyAlertList(value: unknown): value is VacancyAlertResponse[] {
+  return Array.isArray(value) && value.every(isGuestVacancyAlert);
 }
 
 function loadGuestVacancyAlerts(
   expectedSnapshot?: CustomerSessionSnapshot,
 ): GuestVacancyAlertSession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEYS.guestVacancyAlerts);
-    if (!raw) return null;
-    const alerts = readGuestVacancyAlerts(raw);
-    if (
-      !alerts
-      || !isCurrentCustomerSessionStorageOwner(alerts.owner, expectedSnapshot)
-    ) {
-      return null;
-    }
-    return alerts;
-  } catch {
-    return null;
-  }
+  return readOwnedSessionValue(SESSION_KEYS.guestVacancyAlerts, isGuestVacancyAlertList, expectedSnapshot);
 }
 
 export function findGuestVacancyAlert(

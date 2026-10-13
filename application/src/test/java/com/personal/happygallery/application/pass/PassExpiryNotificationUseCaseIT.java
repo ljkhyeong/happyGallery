@@ -7,6 +7,7 @@ import com.personal.happygallery.application.notification.NotificationOutboxDisp
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxInsertPort;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -207,7 +208,7 @@ class PassExpiryNotificationUseCaseIT {
                 NotificationRequestedEvent.forUser(
                         user.getId(),
                         NotificationEventType.PASS_EXPIRY_SOON,
-                        "PASS_PURCHASE",
+                        NotificationAggregateType.PASS_PURCHASE,
                         pass.getId()),
                 now));
         pass.expire();

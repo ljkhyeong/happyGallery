@@ -1,12 +1,12 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationOutboxDispatcher;
 import com.personal.happygallery.domain.booking.Booking;
@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -56,7 +57,7 @@ class BookingReminderBatchUseCaseIT {
     @Autowired NotificationOutboxDispatcher notificationOutboxDispatcher;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -118,7 +119,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuest(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         bookingId),
                 now);
         String processingToken = legacyOutbox.markProcessing(now);
@@ -299,7 +300,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now));
         booking.cancel();
@@ -327,7 +328,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         previousGuestId,
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now));
         User currentOwner = userStorePort.save(
@@ -360,7 +361,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now.minusHours(1));
         String token = outbox.markProcessing(now.minusHours(1));
@@ -412,7 +413,7 @@ class BookingReminderBatchUseCaseIT {
                 bookingClass("테스트 클래스", "TEST", 60, 30_000L, 30));
         Slot slot = slotStorePort.save(
                 slot(cls, slotStart, slotStart.plusHours(1)));
-        Guest guest = guestStorePort.save(guest("홍길동", "01099998888"));
+        Guest guest = guestRepository.save(guest("홍길동", "01099998888"));
         Booking booking = bookingStorePort.save(booking(
                 guest,
                 slot,

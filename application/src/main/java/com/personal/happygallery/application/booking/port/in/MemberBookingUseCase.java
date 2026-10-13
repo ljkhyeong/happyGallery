@@ -10,14 +10,8 @@ public interface MemberBookingUseCase {
 
     Booking createMemberDepositBooking(Long userId, Long slotId,
                                        DepositPaymentMethod paymentMethod,
-                                       long depositAmount, long balanceAmount);
-
-    Booking createMemberDepositBooking(Long userId, Long slotId,
-                                       DepositPaymentMethod paymentMethod,
                                        long depositAmount, long balanceAmount,
                                        int participantCount);
-
-    Booking createMemberPassBooking(Long userId, Long slotId, Long passId);
 
     Booking createMemberPassBooking(Long userId, Long slotId, Long passId, int participantCount);
 }

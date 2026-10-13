@@ -6,7 +6,6 @@ import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Refund;
@@ -48,7 +47,6 @@ class RefundTransactionServiceTest {
         when(refund.getOrderId()).thenReturn(null);
         when(refund.getOrderClaimId()).thenReturn(null);
         when(refund.getPassPurchaseId()).thenReturn(null);
-        when(dependencies.refundPort.save(refund)).thenReturn(refund);
         when(dependencies.paymentAttemptReader.findByIdForUpdate(9L))
                 .thenReturn(Optional.of(attempt));
 
@@ -60,7 +58,6 @@ class RefundTransactionServiceTest {
         order.verify(attempt).markCompensated();
         order.verify(dependencies.benefitReservationService)
                 .release(attempt, LocalDateTime.now(CLOCK));
-        verify(dependencies.paymentAttemptStore).save(attempt);
     }
 
     @DisplayName("보상환불 최종 실패는 결제 혜택 예약을 해제하지 않는다")
@@ -72,7 +69,6 @@ class RefundTransactionServiceTest {
         when(dependencies.refundPort.findByIdForUpdate(7L)).thenReturn(Optional.of(refund));
         when(refund.markFailed("processing-token", "PG 거절")).thenReturn(true);
         when(refund.getPaymentAttemptId()).thenReturn(9L);
-        when(dependencies.refundPort.save(refund)).thenReturn(refund);
         when(dependencies.paymentAttemptReader.findByIdForUpdate(9L))
                 .thenReturn(Optional.of(attempt));
 
@@ -87,8 +83,6 @@ class RefundTransactionServiceTest {
         private final RefundPort refundPort = mock(RefundPort.class);
         private final PaymentAttemptReaderPort paymentAttemptReader =
                 mock(PaymentAttemptReaderPort.class);
-        private final PaymentAttemptStorePort paymentAttemptStore =
-                mock(PaymentAttemptStorePort.class);
         private final BookingReaderPort bookingReader = mock(BookingReaderPort.class);
         private final OrderReaderPort orderReader = mock(OrderReaderPort.class);
         private final OrderClaimPort orderClaimPort = mock(OrderClaimPort.class);
@@ -106,7 +100,6 @@ class RefundTransactionServiceTest {
             return new RefundTransactionService(
                     refundPort,
                     paymentAttemptReader,
-                    paymentAttemptStore,
                     bookingReader,
                     orderReader,
                     orderClaimPort,

@@ -1,7 +1,6 @@
 package com.personal.happygallery.domain.order;
 
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.Optional;
 
 /** 배송조회 연동에서 사용하는 택배사 코드. */
@@ -35,16 +34,6 @@ public enum ShippingCarrier {
         return displayName;
     }
 
-    public static Optional<ShippingCarrier> fromDisplayName(String displayName) {
-        if (displayName == null) {
-            return Optional.empty();
-        }
-        String normalized = displayName.replaceAll("\\s", "").toLowerCase(Locale.ROOT);
-        return Arrays.stream(values())
-                .filter(carrier -> carrier.matches(normalized))
-                .findFirst();
-    }
-
     public static Optional<ShippingCarrier> fromProviderCode(String providerCode) {
         if (providerCode == null) {
             return Optional.empty();
@@ -52,19 +41,5 @@ public enum ShippingCarrier {
         return Arrays.stream(values())
                 .filter(carrier -> carrier.providerCode.equalsIgnoreCase(providerCode.strip()))
                 .findFirst();
-    }
-
-    private boolean matches(String normalized) {
-        String canonical = displayName.replaceAll("\\s", "").toLowerCase(Locale.ROOT);
-        if (canonical.equals(normalized) || name().toLowerCase(Locale.ROOT).equals(normalized)) {
-            return true;
-        }
-        return switch (this) {
-            case CJ_LOGISTICS -> normalized.equals("cj") || normalized.equals("대한통운");
-            case KOREA_POST -> normalized.equals("우체국") || normalized.equals("우편");
-            case GS_POSTBOX -> normalized.equals("gs택배") || normalized.equals("gspostbox");
-            case CU_POST -> normalized.equals("cu택배") || normalized.equals("cupost");
-            default -> false;
-        };
     }
 }

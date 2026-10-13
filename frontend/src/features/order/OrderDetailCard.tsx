@@ -1,4 +1,6 @@
 import { Card, Table, Row, Col, Badge } from "react-bootstrap";
+import { Link } from "react-router";
+import { productDetailHref } from "@/features/product/navigation";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/shared/types";
@@ -35,11 +37,11 @@ export function OrderDetailCard({ order }: Props) {
           </Col>
         </Row>
 
-        <h6>주문 상품</h6>
+        <h6>주문한 작품</h6>
         <Table responsive size="sm" className="mb-3">
           <thead>
             <tr>
-              <th>상품</th>
+              <th>작품</th>
               <th className="text-end">수량</th>
               <th className="text-end">단가</th>
               <th className="text-end">소계</th>
@@ -49,7 +51,9 @@ export function OrderDetailCard({ order }: Props) {
             {order.items.map((item, i) => (
               <tr key={i}>
                 <td>
-                  <div>{item.productName}</div>
+                  <Link to={productDetailHref(item.productId, item.productVariantId)} className="order-item-name">
+                    {item.productName}
+                  </Link>
                   <OrderOptionList options={item.options} />
                   <div className="mt-2">
                     <ProductPurchaseTerms
@@ -60,7 +64,6 @@ export function OrderDetailCard({ order }: Props) {
                       productionLeadDays={item.productionLeadDays}
                       compact
                       showCustomizationInquiry={false}
-                      showLegacySnapshotNotice
                     />
                   </div>
                   <OrderReorderButton item={item} />

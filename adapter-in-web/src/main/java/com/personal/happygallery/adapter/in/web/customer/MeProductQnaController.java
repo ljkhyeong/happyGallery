@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.CreateQnaRequest;
-import com.personal.happygallery.adapter.in.web.customer.dto.MyProductQnaListItem;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyProductQnaPageResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.QnaCreatedResponse;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaDetail;
@@ -11,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,19 +37,11 @@ public class MeProductQnaController {
     public QnaCreatedResponse create(@PathVariable Long productId,
                                      @RequestBody @Valid CreateQnaRequest request,
                                      @AuthenticationPrincipal CustomerPrincipal customer) {
-        return QnaCreatedResponse.from(qnaUseCase.createQuestion(
-                productId, customer.userId(), request.title(), request.content(),
-                request.secret()));
-    }
-
-    @GetMapping
-    @Operation(operationId = "listMyProductQna")
-    public List<MyProductQnaListItem> list(
-            @PathVariable Long productId,
-            @AuthenticationPrincipal CustomerPrincipal customer) {
-        return qnaUseCase.listOwnedByProduct(productId, customer.userId()).stream()
-                .map(MyProductQnaListItem::from)
-                .toList();
+        var created = qnaUseCase.createQuestion(
+                productId, customer.userId(), request.title(), request.content(), request.secret());
+        // 작성 시각은 DB 기본값이라 저장한 엔티티에는 비어 있다. 저장이 끝난 뒤 다시 읽어 응답한다.
+        return QnaCreatedResponse.from(
+                qnaUseCase.getOwnedDetail(productId, created.getId(), customer.userId()).qna());
     }
 
     @GetMapping("/page")

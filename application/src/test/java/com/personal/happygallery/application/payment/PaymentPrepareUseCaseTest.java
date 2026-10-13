@@ -23,6 +23,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.policy.PolicyConsentService;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -55,6 +56,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -73,6 +75,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -134,11 +137,12 @@ class PaymentPrepareUseCaseTest {
 
         PaymentPrepareUseCase.PrepareResult order = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 2))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 2))),
                 auth));
         PaymentPrepareUseCase.PrepareResult booking = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(user.getId(), null, null, null, slot.getId(), null, DepositPaymentMethod.CARD),
+                PaymentPayloads.booking(user.getId(), null, null, null, slot.getId(), null, DepositPaymentMethod.CARD),
                 auth));
         PaymentPrepareUseCase.PrepareResult pass = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.PASS,
@@ -163,7 +167,7 @@ class PaymentPrepareUseCaseTest {
     void prepare_madeToOrderOptionsUsesServerPriceAndVariantStock() {
         User user = userStorePort.save(new User(
                 "option-payment@example.com", "hashed", "옵션 회원", "01023456789"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 가죽 지갑",
                         ProductType.MADE_TO_ORDER,
@@ -227,7 +231,7 @@ class PaymentPrepareUseCaseTest {
                 brownVariantId,
                 List.of(new OrderTextInput("engraving", "HAPPY")),
                 2);
-        OrderPayload payload = new OrderPayload(
+        OrderPayload payload = PaymentPayloads.order(
                 user.getId(), null, null, null,
                 List.of(requested), false, FulfillmentType.PICKUP, null,
                 MadeToOrderConsent.CURRENT_VERSION, true);
@@ -238,7 +242,7 @@ class PaymentPrepareUseCaseTest {
         assertThat(prepared.amount()).isEqualTo(110_000L);
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(requested, new OrderItemRef(
                                 registered.product().getId(), brownVariantId,
@@ -330,12 +334,12 @@ class PaymentPrepareUseCaseTest {
         Product product = productStorePort.save(readyStockProduct("비회원 주체 검증 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 1));
         saveVerification("01012341234", "123456");
-        OrderPayload payload = new OrderPayload(
+        OrderPayload payload = PaymentPayloads.order(
                 999L,
                 "01012341234",
                 "123456",
                 "비회원",
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 false,
                 FulfillmentType.PICKUP,
                 null,
@@ -406,9 +410,9 @@ class PaymentPrepareUseCaseTest {
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 AuthContext.member(user.getId()))))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("판매 중인 상품");
@@ -421,7 +425,7 @@ class PaymentPrepareUseCaseTest {
                 "cart-snapshot@example.com", "hashed", "장바구니 회원", "01012123434"));
         Product product = productStorePort.save(readyStockProduct("스냅샷 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem cartItem = cartItemStorePort.save(new CartItem(
+        CartItem cartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
         String staleVersion = cartUseCase.getCart(user.getId()).cartVersion();
         cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
@@ -458,35 +462,35 @@ class PaymentPrepareUseCaseTest {
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 100))),
+                        List.of(PaymentPayloads.item(product.getId(), 100))),
                 auth)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(
-                                new OrderItemRef(product.getId(), 50),
-                                new OrderItemRef(product.getId(), 50))),
+                                PaymentPayloads.item(product.getId(), 50),
+                                PaymentPayloads.item(product.getId(), 50))),
                 auth)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 2))),
+                        List.of(PaymentPayloads.item(product.getId(), 2))),
                 auth)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(lowStockProduct.getId(), 2))),
+                        List.of(PaymentPayloads.item(lowStockProduct.getId(), 2))),
                 auth)))
                 .isInstanceOf(InventoryNotEnoughException.class);
     }
@@ -617,14 +621,14 @@ class PaymentPrepareUseCaseTest {
         Long slotId = unavailableSlot.getId();
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         user.getId(), null, null, null, slotId, null,
                         DepositPaymentMethod.CARD),
                 auth)))
                 .isInstanceOf(SlotNotAvailableException.class);
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         user.getId(), null, null, null, slotId, 99L, null),
                 auth)))
                 .isInstanceOf(SlotNotAvailableException.class);
@@ -632,7 +636,7 @@ class PaymentPrepareUseCaseTest {
         Long fullSlotId = fullSlot.getId();
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         user.getId(), null, null, null, fullSlotId, 99L, null),
                 auth)))
                 .isInstanceOf(CapacityExceededException.class);
@@ -648,7 +652,7 @@ class PaymentPrepareUseCaseTest {
         Slot conflictingSource = slotStorePort.save(
                 slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot bookedAtWindowStart = slot(cls, FUTURE.plusHours(2), FUTURE.plusHours(4));
-        bookedAtWindowStart.incrementBookedCount();
+        bookedAtWindowStart.incrementBookedCount(1);
         slotStorePort.save(bookedAtWindowStart);
 
         LocalDateTime nextDayStart = FUTURE.plusDays(1);
@@ -658,13 +662,13 @@ class PaymentPrepareUseCaseTest {
                 cls,
                 nextDayStart.plusHours(2).plusMinutes(30),
                 nextDayStart.plusHours(4).plusMinutes(30));
-        bookedAtWindowEnd.incrementBookedCount();
+        bookedAtWindowEnd.incrementBookedCount(1);
         slotStorePort.save(bookedAtWindowEnd);
         AuthContext auth = AuthContext.member(user.getId());
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         user.getId(), null, null, null, conflictingSource.getId(), null,
                         DepositPaymentMethod.CARD),
                 auth)))
@@ -672,7 +676,7 @@ class PaymentPrepareUseCaseTest {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         user.getId(), null, null, null, boundarySource.getId(), null,
                         DepositPaymentMethod.CARD),
                 auth));
@@ -689,7 +693,7 @@ class PaymentPrepareUseCaseTest {
     }
 
     private BookingPayload passBookingPayload(Long userId, Long slotId, Long passId) {
-        return new BookingPayload(
+        return PaymentPayloads.booking(
                 userId, null, null, null, slotId, passId, null);
     }
 
@@ -703,12 +707,12 @@ class PaymentPrepareUseCaseTest {
     }
 
     private OrderPayload guestOrderPayload(Long productId) {
-        return new OrderPayload(
+        return PaymentPayloads.order(
                 null,
                 "01012341234",
                 "123456",
                 "비회원",
-                List.of(new OrderItemRef(productId, 1)),
+                List.of(PaymentPayloads.item(productId, 1)),
                 false,
                 FulfillmentType.PICKUP,
                 null,
@@ -724,11 +728,11 @@ class PaymentPrepareUseCaseTest {
         User other = userStorePort.save(new User("cart-other@example.com", "hashed", "다른 회원", "01012120002"));
         Product product = productStorePort.save(readyStockProduct("선택 상품", 10_000L));
         inventoryStorePort.save(inventory(product, 1));
-        CartItem own = cartItemStorePort.save(new CartItem(user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
-        CartItem foreign = cartItemStorePort.save(new CartItem(other.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        CartItem own = cartItemStorePort.save(cartItem(user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        CartItem foreign = cartItemStorePort.save(cartItem(other.getId(), product.getId(), 1, LocalDateTime.now(clock)));
         Product soldOut = productStorePort.save(readyStockProduct("품절 상품", 20_000L));
         inventoryStorePort.save(inventory(soldOut, 0));
-        CartItem unavailable = cartItemStorePort.save(new CartItem(user.getId(), soldOut.getId(), 1, LocalDateTime.now(clock)));
+        CartItem unavailable = cartItemStorePort.save(cartItem(user.getId(), soldOut.getId(), 1, LocalDateTime.now(clock)));
         String version = cartUseCase.getCart(user.getId()).cartVersion();
         for (List<Long> selection : List.of(List.<Long>of(), List.of(own.getId(), own.getId()),
                 List.of(own.getId(), foreign.getId()), List.of(unavailable.getId()))) {
@@ -747,7 +751,7 @@ class PaymentPrepareUseCaseTest {
     }
 
     private OrderPayload cartOrderPayload(Long userId, String expectedCartVersion) {
-        return new OrderPayload(
+        return PaymentPayloads.order(
                 userId,
                 null,
                 null,

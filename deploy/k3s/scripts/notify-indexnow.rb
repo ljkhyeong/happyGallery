@@ -16,7 +16,7 @@ module IndexNow
   ENDPOINT = URI('https://api.indexnow.org/indexnow')
   SOURCES = %w[products classes events notices].freeze
   BATCH_SIZE = 10_000
-  PAGE_PATH = %r{\A/(?:|business-info|group-classes|(?:products|classes|events)(?:/[1-9][0-9]*)?|notices/[1-9][0-9]*)\z}
+  PAGE_PATH = %r{\A/(?:|business-info|group-classes|(?:products|classes|events|notices)(?:/[1-9][0-9]*)?)\z}
 
   def self.request(uri, body = nil)
     http = Net::HTTP.new(uri.host, uri.port, nil)
@@ -78,7 +78,7 @@ module IndexNow
       end
       raise Error, "#{source}에 중복 ID가 있습니다." unless entries.size == rows.size
       pages.merge!(entries)
-      pages["/#{source}"] = fingerprint(entries) unless source == 'notices'
+      pages["/#{source}"] = fingerprint(entries)
       [source, entries]
     end
     status, body = request(URI("#{ORIGIN}/api/v1/workshop"))

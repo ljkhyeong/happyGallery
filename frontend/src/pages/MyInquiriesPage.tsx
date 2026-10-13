@@ -1,53 +1,39 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Badge, Button } from "react-bootstrap";
+import { Badge } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, ErrorAlert, EmptyState, PageHeader } from "@/shared/ui";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { LoadingSpinner, ErrorAlert, EmptyState, CursorLoadMore } from "@/shared/ui";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
 
 export function MyInquiriesPage() {
   const { isAuthenticated } = useCustomerAuth();
 
-  const {
-    data: inquiriesData,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
+  const inquiriesQuery = useInfiniteQuery({
     queryKey: queryKeys.member.inquiryHistory,
     queryFn: ({ pageParam, signal }) => fetchMyInquiriesPage(pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    ...cursorPageParams,
     enabled: isAuthenticated,
   });
-  const inquiries = inquiriesData?.pages.flatMap((page) => page.content) ?? [];
-  const hasLoadedInquiries = inquiriesData !== undefined;
+  const inquiries = flattenCursorPages(inquiriesQuery.data);
+  const hasLoadedInquiries = inquiriesQuery.data !== undefined;
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/inquiries")}
-        description="상품·예약·이용 관련 문의를 남기고 공방의 답변을 확인하세요."
-        actions={(
-          <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
-            문의 작성
-          </LinkButton>
-        )}
-      />
-
-      {isLoading && <LoadingSpinner />}
+    <MySectionPage
+      path="/my/inquiries"
+      actions={(
+        <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
+          문의 작성
+        </LinkButton>
+      )}
+    >
+      {inquiriesQuery.isLoading && <LoadingSpinner />}
       <ErrorAlert
-        error={error}
-        onRetry={() => { void refetch(); }}
-        retrying={isFetching && !isFetchingNextPage}
+        error={inquiriesQuery.isFetchNextPageError ? null : inquiriesQuery.error}
+        onRetry={() => { void inquiriesQuery.refetch(); }}
+        retrying={inquiriesQuery.isFetching && !inquiriesQuery.isFetchingNextPage}
       />
 
       {hasLoadedInquiries && inquiries.length === 0 && (
@@ -73,18 +59,7 @@ export function MyInquiriesPage() {
         </article>
       ))}
 
-      {hasNextPage && (
-        <div className="d-grid mt-3">
-          <Button
-            type="button"
-            variant="outline-primary"
-            disabled={isFetchingNextPage}
-            onClick={() => { void fetchNextPage(); }}
-          >
-            {isFetchingNextPage ? "문의 불러오는 중..." : "문의 더 보기"}
-          </Button>
-        </div>
-      )}
-    </>
+      <CursorLoadMore query={inquiriesQuery} label="문의 더 보기" loadingLabel="문의 불러오는 중..." />
+    </MySectionPage>
   );
 }

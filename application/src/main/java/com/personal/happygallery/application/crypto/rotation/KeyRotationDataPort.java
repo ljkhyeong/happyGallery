@@ -61,8 +61,6 @@ public interface KeyRotationDataPort {
 
     int deleteEmailVerifications();
 
-    long countSocialAccountsWithoutProviderIdEnc();
-
     record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc, String defaultShippingAddressEnc)
             implements IdentifiedRow {}
 

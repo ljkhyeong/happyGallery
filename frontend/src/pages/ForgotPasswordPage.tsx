@@ -1,10 +1,12 @@
-import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, Container, Form } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { resetPassword } from "@/features/customer-auth/credentialApi";
+import { useAuthPageTarget } from "@/features/customer-auth/AuthPageShell";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { NewPasswordFields } from "@/features/customer-auth/NewPasswordFields";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
@@ -16,6 +18,9 @@ export function ForgotPasswordPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { refresh } = useCustomerAuth();
+  // 로그인 화면에서 넘어온 돌아갈 곳·가져오기 의도를 재설정 뒤 로그인까지 이어 간다.
+  const { returnTo, claimIntent } = useAuthPageTarget();
+  const loginHref = buildAuthPageHref("/login", { redirectTo: returnTo, claim: claimIntent });
   const prefill = location.state as { email?: string; phone?: string | null } | null;
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [newPassword, setNewPassword] = useState("");
@@ -27,7 +32,7 @@ export function ForgotPasswordPage() {
     onSuccess: async () => {
       const currentUser = await refresh();
       toast.show("비밀번호가 설정되었습니다.");
-      navigate(currentUser ? "/my" : "/login", { replace: true });
+      navigate(currentUser ? (returnTo !== "/" ? returnTo : "/my") : loginHref, { replace: true });
     },
   });
 
@@ -58,44 +63,14 @@ export function ForgotPasswordPage() {
               autoFocus
             />
           </Form.Group>
-          <Form.Group className="mb-3" controlId="reset-password">
-            <Form.Label>새 비밀번호</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              minLength={8}
-              maxLength={72}
-              aria-describedby="reset-password-help"
-              required
-            />
-            <PasswordLengthFeedback value={newPassword} />
-            <Form.Text id="reset-password-help" className="text-muted">
-              8자 이상 입력하세요.
-            </Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-4" controlId="reset-password-confirmation">
-            <Form.Label>새 비밀번호 확인</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              maxLength={72}
-              isInvalid={confirmation.length > 0 && !passwordMatches}
-              aria-invalid={confirmation.length > 0 && !passwordMatches}
-              aria-describedby={
-                confirmation.length > 0 && !passwordMatches
-                  ? "reset-password-confirmation-error"
-                  : undefined
-              }
-              required
-            />
-            <Form.Control.Feedback id="reset-password-confirmation-error" type="invalid">
-              새 비밀번호가 일치하지 않습니다.
-            </Form.Control.Feedback>
-          </Form.Group>
+          <NewPasswordFields
+            idPrefix="reset-password"
+            password={newPassword}
+            confirmation={confirmation}
+            onPasswordChange={setNewPassword}
+            onConfirmationChange={setConfirmation}
+            confirmationClassName="mb-4"
+          />
 
           <PhoneVerificationStep
             purpose="PASSWORD_RESET"
@@ -111,7 +86,7 @@ export function ForgotPasswordPage() {
           />
 
           <div className="auth-footer-link mt-4">
-            <Link to="/login">로그인으로 돌아가기</Link>
+            <Link to={loginHref}>로그인으로 돌아가기</Link>
           </div>
         </Card.Body>
       </Card>

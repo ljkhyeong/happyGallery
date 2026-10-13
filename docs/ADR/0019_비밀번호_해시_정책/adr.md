@@ -28,9 +28,8 @@
 - 허용 알고리즘: `BCrypt`, `Argon2id`, `Scrypt`
 - 기본 구현 표준:
   - Spring Security `PasswordEncoder` 사용
-  - `DelegatingPasswordEncoder`로 식별자 없는 BCrypt와 `{bcrypt}$2...` 형식을 모두 검증한다.
-  - 롤백 호환 단계에서는 신규·변경 비밀번호도 식별자 없는 BCrypt로 저장한다.
-  - 모든 실행·롤백 후보 버전이 두 형식을 읽는 것이 확인된 뒤 별도 릴리스에서 `{bcrypt}` 쓰기와 기존 값 백필을 진행한다.
+  - `BCryptPasswordEncoder` 하나로 식별자 없는 BCrypt(`$2a$...`) 형식만 저장·검증한다.
+  - 보존할 기존 해시가 없으므로 `{bcrypt}` 접두사 형식 읽기 호환과 접두사 전환·백필 계획은 두지 않는다.
 
 ### 3. 저장/운영 원칙을 고정한다
 

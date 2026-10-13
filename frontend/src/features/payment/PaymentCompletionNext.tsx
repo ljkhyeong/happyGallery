@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { captureCustomerSession } from "@/shared/api";
 import { LinkButton } from "@/shared/ui";
-import type { ConfirmPaymentResponse } from "./types";
+import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 
 function GuestCompletionActions({ children }: { children: ReactNode }) {
   const signupHref = buildAuthPageHref("/signup", {
@@ -24,8 +24,9 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
   const [customerSession] = useState(captureCustomerSession);
 
   if (result.domainId == null) {
+    const recoveryHref = result.context === "BOOKING" ? "/guest?kind=bookings#lookup-help" : "/guest#lookup-help";
     const nextAction = (
-      <LinkButton to={result.accessRecoveryRequired ? "/guest" : "/"} variant="primary">
+      <LinkButton to={result.accessRecoveryRequired ? recoveryHref : "/"} variant="primary">
         {result.accessRecoveryRequired ? "휴대폰 인증으로 조회하기" : "홈으로"}
       </LinkButton>
     );
@@ -34,10 +35,16 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
       : nextAction;
   }
   if (result.context === "PASS") {
+    // 산 이용권으로 바로 예약하거나, 그 이용권만 거른 목록에서 확인한다.
     return (
-      <LinkButton to="/my/passes" variant="primary">
-        내 이용권 확인하기
-      </LinkButton>
+      <div className="d-flex flex-wrap gap-2">
+        <LinkButton to={`/bookings/new?passId=${result.domainId}`} variant="primary">
+          이 이용권으로 예약
+        </LinkButton>
+        <LinkButton to={`/my/passes?${new URLSearchParams({ q: String(result.domainId) })}`} variant="outline-dark">
+          내 이용권 확인하기
+        </LinkButton>
+      </div>
     );
   }
   if (result.context === "ORDER") {
@@ -45,7 +52,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
       return (
         <GuestCompletionActions>
           <LinkButton
-            to="/guest/orders"
+            to={`/guest/orders?orderId=${result.domainId}`}
             state={{
               orderId: result.domainId,
               token: result.accessToken,
@@ -61,7 +68,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
     if (result.accessRecoveryRequired) {
       return (
         <GuestCompletionActions>
-          <LinkButton to="/guest" variant="primary">
+          <LinkButton to="/guest#lookup-help" variant="primary">
             휴대폰 인증으로 주문 확인하기
           </LinkButton>
         </GuestCompletionActions>
@@ -77,7 +84,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
     return (
       <GuestCompletionActions>
         <LinkButton
-          to="/guest/bookings"
+          to={`/guest/bookings?bookingId=${result.domainId}`}
           state={{
             bookingId: result.domainId,
             token: result.accessToken,
@@ -93,7 +100,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
   if (result.accessRecoveryRequired) {
     return (
       <GuestCompletionActions>
-        <LinkButton to="/guest" variant="primary">
+        <LinkButton to="/guest?kind=bookings#lookup-help" variant="primary">
           휴대폰 인증으로 예약 확인하기
         </LinkButton>
       </GuestCompletionActions>

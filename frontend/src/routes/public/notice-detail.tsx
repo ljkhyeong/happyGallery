@@ -11,7 +11,7 @@ import { buildNoticeArticleJsonLd } from "@/shared/seo/schemas";
 import { loadNotice, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const FALLBACK_DESCRIPTION = "해피갤러리의 클래스와 공방 운영 소식을 확인하세요.";
+const FALLBACK_DESCRIPTION = "해피갤러리 공방의 클래스와 운영 소식입니다.";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const noticeId = requirePublicId(params.id);
@@ -45,6 +45,7 @@ export default function NoticeDetailRoute({ loaderData }: Route.ComponentProps) 
         buildWebPageJsonLd(pathname, title, description),
         buildBreadcrumbJsonLd([
           { name: "홈", pathname: "/" },
+          { name: "공지사항", pathname: "/notices" },
           { name: loaderData.notice.title, pathname },
         ]),
         buildNoticeArticleJsonLd(loaderData.notice, pathname, heroWorkshop),

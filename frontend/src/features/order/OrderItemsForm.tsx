@@ -52,7 +52,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
     onChange(lines.map((candidate) => candidate.key === key ? { ...candidate.item, qty: quantity } : candidate.item));
   };
 
-  if (query.isPending) return <LoadingSpinner text="상품을 불러오는 중입니다..." />;
+  if (query.isPending) return <LoadingSpinner text="작품을 불러오는 중입니다..." />;
 
   return (
     <div>
@@ -60,7 +60,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
       <Row className="g-2 align-items-end mb-3">
         <Col xs={12} sm={6}>
           <Form.Group controlId="order-item-product">
-            <Form.Label>상품</Form.Label>
+            <Form.Label>작품</Form.Label>
             <Form.Select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">선택하세요</option>
               {query.data?.filter((product) => product.available && product.optionGroups.length === 0).map((product) => (
@@ -97,7 +97,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
               <ListGroup.Item key={key}>
                 <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
                   <span>
-                    {product?.name ?? `상품 #${item.productId}`}
+                    {product?.name ?? `작품 #${item.productId}`}
                     {selection && !problem && (
                       <small className="text-muted-soft ms-2">{formatKRW(selection.unitPrice * item.qty)}</small>
                     )}
@@ -105,7 +105,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
                   <div className="d-flex align-items-center gap-2 flex-shrink-0">
                     <Form.Control type="number" inputMode="numeric" size="sm" style={{ width: 80 }}
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
-                      aria-label={`${product?.name ?? "상품"} ${selection?.label ?? ""} 주문 수량`}
+                      aria-label={`${product?.name ?? "작품"} ${selection?.label ?? ""} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />
                     <Button size="sm" variant="outline-danger" className="text-nowrap"
                       onClick={() => onChange(lines.filter((line) => line.key !== key).map((line) => line.item))}>삭제</Button>

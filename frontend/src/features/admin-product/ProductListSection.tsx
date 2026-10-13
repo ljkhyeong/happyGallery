@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
-import { fetchProducts, updateProductStatus } from "./api";
+import { adminProductsQuery, updateProductStatus } from "./api";
+import { invalidateProductQueries } from "./productFormRules";
 import { InventoryAdjustmentModal } from "./InventoryAdjustmentModal";
 import { ProductEditModal } from "./ProductEditModal";
 import { SmartStoreInventoryModal } from "./SmartStoreInventoryModal";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
@@ -24,26 +25,19 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [smartStoreProductId, setSmartStoreProductId] = useState<number | null>(null);
-  const { data: products, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
+  const { data: products, isLoading, error } = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
 
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateProductStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
     onMutate: ({ id }) => setPendingStatusId(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product-categories"] });
-    },
+    onSuccess: () => invalidateProductQueries(queryClient),
     onSettled: () => setPendingStatusId(null),
   });
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} />;
   }
   if (!products?.length) return <EmptyState message="등록된 상품이 없습니다." />;
@@ -129,19 +123,25 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
         </tbody>
       </Table>
 
-      <InventoryAdjustmentModal
-        adminKey={adminKey}
-        product={selectedProduct}
-        initialVariantId={selectedProductId === focusProductId ? focusVariantId : undefined}
-        onClose={() => setSelectedProductId(null)}
-        onAuthError={onAuthError}
-      />
-      <ProductEditModal
-        adminKey={adminKey}
-        product={editingProduct}
-        onClose={() => setEditingProductId(null)}
-        onAuthError={onAuthError}
-      />
+      {selectedProduct && (
+        <InventoryAdjustmentModal
+          key={selectedProduct.id}
+          adminKey={adminKey}
+          product={selectedProduct}
+          initialVariantId={selectedProduct.id === focusProductId ? focusVariantId : undefined}
+          onClose={() => setSelectedProductId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
+      {editingProduct && (
+        <ProductEditModal
+          key={editingProduct.id}
+          adminKey={adminKey}
+          product={editingProduct}
+          onClose={() => setEditingProductId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
       {smartStoreProduct && (
         <SmartStoreInventoryModal
           key={smartStoreProduct.id}

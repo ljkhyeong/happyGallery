@@ -23,6 +23,7 @@ import {
   type UpdateReviewStatusRequestStatus,
 } from "@/generated/api/review";
 import { adminHeaders } from "@/shared/api";
+import { assertImageBlob } from "@/shared/hooks/useBlobObjectUrl";
 
 export type ReviewReportStatus = NonNullable<ListAdminReviewReportsParams["status"]>;
 export type ReviewReportDecision = DecideReviewReportRequest["decision"];
@@ -129,10 +130,7 @@ export async function fetchAdminReviewEvidenceImage(
     cache: "no-store",
     signal,
   });
-  if (!blob.type.startsWith("image/")) {
-    throw new Error("후기 증거 이미지 응답 형식이 올바르지 않습니다.");
-  }
-  return blob;
+  return assertImageBlob(blob, "후기 증거 이미지 응답 형식이 올바르지 않습니다.");
 }
 
 export async function fetchAdminReviewImage(
@@ -146,10 +144,7 @@ export async function fetchAdminReviewImage(
     cache: "no-store",
     signal,
   });
-  if (!blob.type.startsWith("image/")) {
-    throw new Error("비공개 후기 이미지 응답 형식이 올바르지 않습니다.");
-  }
-  return blob;
+  return assertImageBlob(blob, "비공개 후기 이미지 응답 형식이 올바르지 않습니다.");
 }
 
 export function fetchAdminReviewReports(

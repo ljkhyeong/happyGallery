@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchPaymentReconciliations, reconcilePayment } from "./api";
-import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { PaymentReconciliationRequiredResponse } from "@/shared/types";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -44,7 +44,7 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} />;
   }
   if (!data?.length) return <EmptyState message="상태를 다시 확인할 결제가 없습니다." />;

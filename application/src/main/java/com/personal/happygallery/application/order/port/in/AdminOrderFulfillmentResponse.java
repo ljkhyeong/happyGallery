@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.order.port.in;
 
 import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.order.ShipmentTrackingEvent;
 import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
@@ -13,7 +14,7 @@ import java.util.List;
 /** 관리자에게만 노출하는 주문 이행 상세. */
 public record AdminOrderFulfillmentResponse(
         Long orderId,
-        String type,
+        FulfillmentType type,
         ShippingAddress shippingAddress,
         LocalDate expectedShipDate,
         LocalDateTime pickupDeadlineAt,
@@ -37,7 +38,7 @@ public record AdminOrderFulfillmentResponse(
             List<ShipmentTrackingEvent> trackingEvents) {
         return new AdminOrderFulfillmentResponse(
                 fulfillment.getOrderId(),
-                fulfillment.getType().name(),
+                fulfillment.getType(),
                 shippingAddress,
                 fulfillment.getExpectedShipDate(),
                 fulfillment.getPickupDeadlineAt(),

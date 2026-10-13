@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.BulkOperationResult;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
@@ -8,7 +8,7 @@ public record SmartStoreOrderBulkActionResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> successProductOrderIds,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Failure> failures
 ) {
-    public static SmartStoreOrderBulkActionResponse from(BulkOperationResult result) {
+    public static SmartStoreOrderBulkActionResponse from(SmartStoreOperationResult result) {
         return new SmartStoreOrderBulkActionResponse(
                 result.successProductOrderIds(),
                 result.failures().stream()

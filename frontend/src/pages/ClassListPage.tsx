@@ -1,16 +1,18 @@
 import { useQueries } from "@tanstack/react-query";
 import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
-import { fetchClasses } from "@/features/booking-create/api";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
 import {
+  bookingCreateHref,
+  classAcceptsPass,
   hasOpenSlotOn,
-  isSlotWhen,
+  publicClassesQuery,
+  SLOT_WHEN_LABEL,
   type SlotWhen,
   slotWhenDates,
   upcomingSlotsQuery,
 } from "@/features/booking-create/upcomingSlots";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { classListHeading, readClassListFilters } from "@/features/booking-create/classListFilters";
 import {
   CLASS_SITUATION_TAG_OPTIONS,
   type ClassSituationTagCode,
@@ -18,51 +20,41 @@ import {
   formatKRW,
   getClassCategoryLabel,
   getClassSituationTagLabel,
-  isClassSituationTag,
-  isPerfumeClassCategory,
 } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
-import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
+import { useLoaderBackedQuery } from "@/shared/api";
 
-const WHEN_LABEL: Record<SlotWhen, string> = { weekend: "이번 주말", today: "오늘 바로" };
 const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
 
 export function ClassListPage({ initialClasses }: { initialClasses: ClassResponse[] }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const passEligibleOnly = searchParams.get("passEligible") === "true";
-  const tagParam = searchParams.get("tag");
-  const whenParam = searchParams.get("when");
-  const tag: ClassSituationTagCode | null = isClassSituationTag(tagParam) ? tagParam : null;
-  const when: SlotWhen | null = isSlotWhen(whenParam) ? whenParam : null;
+  const filters = readClassListFilters(searchParams);
+  const { passEligibleOnly, tag, when } = filters;
+  const heading = classListHeading(filters);
   const {
     data: classes,
     error: classesError,
-    isLoading: classesLoading,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.catalog.classes,
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  }, initialClasses);
+  } = useLoaderBackedQuery(publicClassesQuery(), initialClasses);
   const slotResults = useQueries({
-    queries: (classes ?? []).map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
+    queries: classes.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
-  const slotResultByClassId = new Map((classes ?? []).map((bookingClass, index) => [bookingClass.id, slotResults[index]]));
+  const slotResultByClassId = new Map(classes.map((bookingClass, index) => [bookingClass.id, slotResults[index]]));
   // 주말·오늘 조건은 일정이 모두 도착한 뒤에 걸러 목록이 줄어드는 깜빡임을 막는다.
   const whenPending = when !== null && slotResults.some((result) => result.isPending);
   const whenDates = when ? slotWhenDates(when) : [];
-  const visibleClasses = whenPending ? undefined : classes?.filter((bookingClass) =>
-    (!passEligibleOnly || (bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category)))
+  const visibleClasses = whenPending ? undefined : classes.filter((bookingClass) =>
+    (!passEligibleOnly || classAcceptsPass(bookingClass))
     && (!tag || bookingClass.situationTags.includes(tag))
     && (!when || hasOpenSlotOn(slotResultByClassId.get(bookingClass.id)?.data, whenDates)));
   const emptyMessage = when
-    ? `${WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
+    ? `${SLOT_WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
     : tag
-      ? `${getClassSituationTagLabel(tag)} 수업을 준비하고 있습니다.`
+      ? `${getClassSituationTagLabel(tag)} 수업이 없습니다.`
       : passEligibleOnly
         ? "이용권을 사용할 수 있는 수업이 없습니다."
-        : "예약 가능한 클래스를 준비하고 있습니다.";
+        : "지금 예약할 수 있는 클래스가 없습니다.";
   const hasFilter = passEligibleOnly || tag !== null || when !== null;
 
   function updateParams(apply: (next: URLSearchParams) => void) {
@@ -96,19 +88,23 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
 
   return (
     <Container className="page-container class-catalog-page">
+      {heading.documentName && (
+        <nav className="store-detail-breadcrumb" aria-label="경로">
+          <Link to="/classes" className="store-detail-breadcrumb-link">공예 클래스</Link>
+          <span aria-hidden="true">/</span>
+          <span className="store-detail-breadcrumb-current" aria-current="page">{heading.title}</span>
+        </nav>
+      )}
       <header className="class-catalog-header">
-        <div>
-          <h1>공예 클래스</h1>
-          <p>수업별 소요시간과 가격을 확인하고 원하는 날짜를 예약하세요.</p>
-        </div>
-        <LinkButton to="/group-classes" variant="outline-dark">단체수업 문의</LinkButton>
+        <h1>{heading.title}</h1>
+        <LinkButton to="/group-classes#group-inquiry" variant="outline-dark">단체수업 문의</LinkButton>
       </header>
 
       <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
         <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>
-        {(Object.keys(WHEN_LABEL) as SlotWhen[]).map((option) => (
+        {(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((option) => (
           <button key={option} type="button" aria-pressed={when === option} onClick={() => selectSituation({ when: option })}>
-            {WHEN_LABEL[option]}
+            {SLOT_WHEN_LABEL[option]}
           </button>
         ))}
         {CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => (
@@ -128,8 +124,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         {visibleClasses && <span className="small text-muted-soft" role="status">수업 {visibleClasses.length}개</span>}
       </div>
 
-      {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
-      {whenPending && <LoadingSpinner text={`${WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
+      {whenPending && <LoadingSpinner text={`${SLOT_WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (
         <div className="text-center pb-4">
@@ -151,22 +146,25 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
               />
             </figure>
             <div className="class-catalog-content">
+              {/* 4회권·상황 표시는 같은 조건의 목록으로 이어진다. */}
               <div className="class-catalog-labels">
                 <span>{getClassCategoryLabel(bookingClass.category)}</span>
-                {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && (
-                  <span>4회권 사용 가능</span>
+                {classAcceptsPass(bookingClass) && (
+                  <Link to="/classes?passEligible=true">4회권 사용 가능</Link>
                 )}
                 {bookingClass.situationTags.map((situationTag) => (
-                  <span key={situationTag} className="is-situation">{getClassSituationTagLabel(situationTag)}</span>
+                  <Link key={situationTag} to={`/classes?${new URLSearchParams({ tag: situationTag })}`}>
+                    {getClassSituationTagLabel(situationTag)}
+                  </Link>
                 ))}
               </div>
               <div className="class-catalog-title-row">
                 <h2>{bookingClass.name}</h2>
                 <strong>{formatKRW(bookingClass.price)}</strong>
               </div>
-              <p className="class-catalog-description">
-                {bookingClass.description || "해피갤러리에서 재료와 과정을 차근차근 안내하는 공예 수업입니다."}
-              </p>
+              {bookingClass.description && (
+                <p className="class-catalog-description">{bookingClass.description}</p>
+              )}
               <dl className="class-catalog-meta">
                 <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
                 <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
@@ -180,14 +178,14 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
               <ClassNextSlot result={slotResultByClassId.get(bookingClass.id)} className="class-catalog-next" />
               <div className="class-catalog-actions">
                 <LinkButton
-                  to={`/bookings/new?classId=${bookingClass.id}`}
+                  to={bookingCreateHref(bookingClass.id)}
                   variant="dark"
                   aria-label={`${bookingClass.name} 예약하기`}
                 >
-                  날짜 선택하기 <span aria-hidden="true">→</span>
+                  날짜 선택하기
                 </LinkButton>
                 <Link to={`/classes/${bookingClass.id}`} className="store-section-link">
-                  상세와 후기 보기 <span aria-hidden="true">→</span>
+                  상세와 후기 보기
                 </Link>
               </div>
             </div>
@@ -197,14 +195,12 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
 
       <section className="class-followup-links" aria-label="다른 수업 방식">
         <Link to="/passes/purchase">
-          <span>꾸준히 배우고 싶다면</span>
           <strong>정규 공예 4회권</strong>
-          <span aria-hidden="true">↗</span>
+          <span>정규 수업을 원하는 날짜에 네 번 예약합니다.</span>
         </Link>
         <Link to="/group-classes">
-          <span>학교·기관·모임과 함께</span>
-          <strong>단체·기관 수업</strong>
-          <span aria-hidden="true">↗</span>
+          <strong>단체·출강 수업</strong>
+          <span>학교·기관·모임에 맞춰 수업을 엽니다.</span>
         </Link>
       </section>
     </Container>

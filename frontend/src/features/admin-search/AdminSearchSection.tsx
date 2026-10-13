@@ -1,18 +1,20 @@
 import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
-import { ApiError } from "@/shared/api";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { SearchBookingsStatus } from "@/generated/api/adminBooking";
+import { SearchOrdersStatus } from "@/generated/api/adminOrder";
+import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
+import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
   AdminBookingSearchRow,
   AdminOrderSearchRow,
   AdminPassResponse,
   OffsetPage,
 } from "@/shared/types";
+import { AdminSearchPagination } from "./AdminSearchPagination";
 import {
   EmptyState,
   ErrorAlert,
-  getStatusLabel,
   LinkButton,
   LoadingSpinner,
   StatusBadge,
@@ -23,6 +25,7 @@ import {
   type AdminSearchResult,
   type AdminSearchTarget,
 } from "./api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
@@ -30,65 +33,9 @@ interface Props {
   onAuthError: () => void;
 }
 
-const ORDER_STATUS_OPTIONS = [
-  "PAID_APPROVAL_PENDING",
-  "APPROVED_FULFILLMENT_PENDING",
-  "IN_PRODUCTION",
-  "DELAY_CONSENT_PENDING",
-  "DELAY_ACCEPTED",
-  "SHIPPING_PREPARING",
-  "SHIPPED",
-  "DELIVERED",
-  "PICKUP_READY",
-  "PICKED_UP",
-  "COMPLETED",
-  "REJECTED",
-  "CUSTOMER_CANCELED",
-  "AUTO_REFUND_TIMEOUT",
-  "PICKUP_EXPIRED",
-  "PICKUP_FORFEITED",
-] as const;
-
-const BOOKING_STATUS_OPTIONS = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"] as const;
-
-function Pagination({
-  page,
-  onMove,
-  disabled,
-}: {
-  page: OffsetPage<unknown>;
-  onMove: (nextPage: number) => void;
-  disabled: boolean;
-}) {
-  if (page.totalPages === 0) {
-    return <small className="d-block mt-3 text-muted-soft">총 0건</small>;
-  }
-
-  const currentPage = page.page + 1;
-  return (
-    <div className="admin-search-pagination">
-      <small className="text-muted-soft">
-        총 {page.totalCount.toLocaleString("ko-KR")}건 · {currentPage}/{page.totalPages.toLocaleString("ko-KR")} 페이지
-      </small>
-      <ButtonGroup size="sm" aria-label="검색 결과 페이지 이동">
-        <Button
-          variant="outline-secondary"
-          disabled={disabled || page.page === 0}
-          onClick={() => onMove(page.page - 1)}
-        >
-          이전
-        </Button>
-        <Button
-          variant="outline-secondary"
-          disabled={disabled || page.page + 1 >= page.totalPages}
-          onClick={() => onMove(page.page + 1)}
-        >
-          다음
-        </Button>
-      </ButtonGroup>
-    </div>
-  );
-}
+// 상태 선택지는 서버 검색 enum을 그대로 써서 상태가 추가돼도 빠지지 않게 한다.
+const ORDER_STATUS_OPTIONS = Object.values(SearchOrdersStatus);
+const BOOKING_STATUS_OPTIONS = Object.values(SearchBookingsStatus);
 
 function normalizeKeyword(value: string): string | undefined {
   const trimmed = value.trim();
@@ -121,7 +68,7 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
               <LinkButton
                 size="sm"
                 variant="outline-primary"
-                to={`/admin?view=orders&orderId=${order.orderId}&orderStatus=${encodeURIComponent(order.status)}`}
+                to={adminOrderHref(order.orderId, order.status)}
               >
                 주문 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>
@@ -179,7 +126,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
               <LinkButton
                 size="sm"
                 variant="outline-primary"
-                to={`/admin?view=bookings&bookingId=${booking.bookingId}&bookingDate=${booking.startAt.slice(0, 10)}&bookingStatus=${encodeURIComponent(booking.status)}`}
+                to={adminBookingHref(booking.bookingId, booking.startAt.slice(0, 10), booking.status)}
               >
                 예약 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>
@@ -379,14 +326,14 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
 
       {validationError && <div className="text-danger mt-2" role="alert">{validationError}</div>}
       {query.isLoading && <LoadingSpinner text="검색 중..." />}
-      {query.error && !(query.error instanceof ApiError && query.error.status === 401) && (
+      {visibleAdminError(query.error) && (
         <div className="mt-3"><ErrorAlert error={query.error} /></div>
       )}
       {query.data && (
         <div className="admin-search-results">
           <SearchResults result={query.data} />
           {query.data.target !== "CUSTOMER" && (
-            <Pagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
+            <AdminSearchPagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
           )}
         </div>
       )}

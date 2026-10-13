@@ -2,6 +2,7 @@ import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Container } from "react-bootstrap";
 import { Link, useLocation, useParams } from "react-router";
+import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   fetchPaymentStatus,
@@ -9,19 +10,20 @@ import {
   PaymentResultCard,
   PaymentStatusNotice,
   readPaymentStatusToken,
-  shouldPollPaymentStatus,
+  isCompletedPayment,
+  paymentStatusPollingInterval,
 } from "@/features/payment";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
   captureCustomerSession,
   isCurrentCustomerSession,
   isCurrentCustomerSessionState,
+  queryKeys,
   runForCustomerSession,
   type CustomerSessionOwnedState,
 } from "@/shared/api";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-
-const POLL_INTERVAL_MS = 3_000;
 
 interface LocationState extends CustomerSessionOwnedState {
   orderId?: string;
@@ -59,15 +61,13 @@ export function GuestPaymentStatusPage() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: [
-      "guest",
-      "payment-status",
+    queryKey: queryKeys.guest.paymentStatus(
       customerSession.version,
       customerSession.boundaryEpoch,
       customerSession.boundaryCustomerId,
       orderId,
       statusToken,
-    ],
+    ),
     queryFn: statusToken && !sessionChanged
       ? () => runForCustomerSession(
           customerSession,
@@ -75,8 +75,7 @@ export function GuestPaymentStatusPage() {
         )
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) =>
-      shouldPollPaymentStatus(state.data?.status) ? POLL_INTERVAL_MS : false,
+    refetchInterval: ({ state }) => paymentStatusPollingInterval(state.data?.status),
   });
 
   if (!validOrderId) return <NotFoundPage />;
@@ -101,7 +100,7 @@ export function GuestPaymentStatusPage() {
           tone="notice"
           title="휴대폰 인증 후 결제 결과를 확인해 주세요"
           lead="결제 때 사용한 휴대폰 번호를 인증하면 결제 상태를 볼 수 있습니다."
-          actions={<LinkButton to="/guest" variant="primary">휴대폰 인증하기</LinkButton>}
+          actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증하기</LinkButton>}
         />
       </Container>
     );
@@ -121,7 +120,7 @@ export function GuestPaymentStatusPage() {
         <PaymentResultCard
           tone="danger"
           title="결제 상태를 불러오지 못했습니다"
-          actions={<LinkButton to="/guest" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
+          actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
         >
           <ErrorAlert error={error} />
         </PaymentResultCard>
@@ -131,19 +130,11 @@ export function GuestPaymentStatusPage() {
 
   if (!status) return null;
 
-  const completedResult = status.status === "COMPLETED" && status.domainId != null
-    ? {
-        context: status.context,
-        domainId: status.domainId,
-        accessToken: status.accessToken,
-        accessRecoveryRequired: status.accessRecoveryRequired,
-        receiptUrl: status.receiptUrl,
-      }
-    : null;
+  const completedResult = isCompletedPayment(status) ? status : null;
 
   return (
     <Container className="page-container payment-result-page">
-      <Link to="/guest" className="page-back-link">&larr; 조회한 결제 목록</Link>
+      <Link to="/guest#payment-help" className="page-back-link">&larr; 조회한 결제 목록</Link>
       <PaymentResultCard
         tone={completedResult ? "success" : "notice"}
         title="결제 상태"
@@ -151,15 +142,8 @@ export function GuestPaymentStatusPage() {
         actions={(
           <>
             {completedResult && <PaymentCompletionNext result={completedResult} />}
-            {status.status === "COMPLETED" && status.receiptUrl && (
-              <a
-                className="btn btn-outline-secondary"
-                href={status.receiptUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                결제 영수증 보기
-              </a>
+            {status.status === "COMPLETED" && (
+              <PaymentReceiptLink receiptUrl={status.receiptUrl} size="default" />
             )}
             <Button
               variant={completedResult ? "outline-secondary" : "primary"}
@@ -168,7 +152,7 @@ export function GuestPaymentStatusPage() {
             >
               {isFetching ? "확인 중..." : "상태 새로고침"}
             </Button>
-            <LinkButton to="/guest" variant="outline-secondary">목록으로</LinkButton>
+            <LinkButton to="/guest#payment-help" variant="outline-secondary">목록으로</LinkButton>
           </>
         )}
       >
@@ -177,6 +161,7 @@ export function GuestPaymentStatusPage() {
         {status.status === "COMPLETED" && !completedResult && (
           <Alert variant="warning" className="mb-0">
             결제는 완료됐지만 연결된 주문·예약 또는 이용권 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.
+            <WorkshopContactLinks />
           </Alert>
         )}
       </PaymentResultCard>

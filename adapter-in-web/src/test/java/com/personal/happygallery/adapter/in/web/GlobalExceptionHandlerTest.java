@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import tools.jackson.core.JacksonException;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.containsString;
@@ -56,7 +55,8 @@ class GlobalExceptionHandlerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
+            softly.assertThat(response.getBody())
+                    .isEqualTo(ErrorResponse.of(expected, expected.message, null));
         });
     }
 
@@ -86,7 +86,8 @@ class GlobalExceptionHandlerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
+            softly.assertThat(response.getBody())
+                    .isEqualTo(ErrorResponse.of(expected, expected.message, null));
         });
     }
 
@@ -177,18 +178,6 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get(path))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
-    }
-
-    @DisplayName("내부 Jackson 처리 오류는 INTERNAL_ERROR로 매핑된다")
-    @Test
-    void jacksonException_mapsToInternalError() {
-        ResponseEntity<ErrorResponse> response = handler.handleJacksonException(
-                mock(JacksonException.class));
-
-        assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(500);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
-        });
     }
 
     private static DataIntegrityViolationException constraintViolation(String constraintName) {

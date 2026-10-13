@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.order;
 
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -16,15 +16,15 @@ class SmartStoreDeliveryInfoProtector {
         this.fieldEncryptor = fieldEncryptor;
     }
 
-    String encrypt(DeliveryInfo deliveryInfo) {
+    String encrypt(SmartStoreDeliveryInfo deliveryInfo) {
         return deliveryInfo == null
                 ? null
                 : fieldEncryptor.encrypt(objectMapper.writeValueAsString(deliveryInfo));
     }
 
-    DeliveryInfo decrypt(String encrypted) {
+    SmartStoreDeliveryInfo decrypt(String encrypted) {
         return encrypted == null
                 ? null
-                : objectMapper.readValue(fieldEncryptor.decrypt(encrypted), DeliveryInfo.class);
+                : objectMapper.readValue(fieldEncryptor.decrypt(encrypted), SmartStoreDeliveryInfo.class);
     }
 }

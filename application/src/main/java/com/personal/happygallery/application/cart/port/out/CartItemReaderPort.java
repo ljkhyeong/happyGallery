@@ -7,10 +7,6 @@ import java.util.Optional;
 
 public interface CartItemReaderPort {
 
-    Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);
-
-    Optional<CartItem> findByUserIdAndProductIdForUpdate(Long userId, Long productId);
-
     Optional<CartItem> findByUserIdAndIdForUpdate(Long userId, Long cartItemId);
 
     List<CartItem> findAllWithTextInputsByUserId(Long userId);

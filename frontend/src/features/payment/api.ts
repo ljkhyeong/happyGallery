@@ -2,19 +2,16 @@ import {
   abandonPayment as requestPaymentAbandonment,
   confirmPayment as requestPaymentConfirmation,
   preparePayment as requestPaymentPreparation,
+  type ConfirmPaymentResponse,
+  type PreparePaymentResponse,
 } from "@/generated/api/payment";
 import {
   getPassPaymentPolicy,
   getPaymentStatus,
+  type PassPaymentPolicyResponse,
+  type PaymentStatusResponse,
 } from "@/generated/api/paymentQuery";
-import type {
-  ConfirmPaymentResponse,
-  PaymentContext,
-  PaymentPayload,
-  PaymentStatusResponse,
-  PassPaymentPolicyResponse,
-  PreparePaymentResponse,
-} from "./types";
+import type { PaymentContext, PaymentPayload } from "./types";
 
 export function preparePayment(
   context: PaymentContext,

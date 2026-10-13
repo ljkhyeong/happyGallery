@@ -1,9 +1,5 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import type {
-  AdminBookingResponse,
-  ListBookingsStatus,
-} from "../../src/generated/api/adminBooking";
-import type {
   BookingDetailResponse,
   ClassResponse,
   MyBookingDetail,
@@ -29,12 +25,12 @@ import type {
   SignupRequest,
 } from "../../src/generated/api/customerAuth";
 import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
+import { ADMIN_TOKEN_KEY } from "./mock-support";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const CUSTOMER_SESSION_COOKIE = "HG_SESSION";
 const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
@@ -88,7 +84,7 @@ export function makePhoneNumber(seed: string): string {
   return `010${digits}`;
 }
 
-export function makeEmail(seed: string): string {
+function makeEmail(seed: string): string {
   const normalized = seed.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-12) || "member";
   return `${normalized}${Date.now().toString().slice(-6)}@example.com`;
 }
@@ -138,7 +134,7 @@ export async function findAvailableBookingSlot(
   throw new Error(`Could not find an available calendar slot for class=${classId}`);
 }
 
-export function toDateInput(date: Date): string {
+function toDateInput(date: Date): string {
   return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
@@ -157,14 +153,6 @@ export function extractFirstNumber(text: string, label: string): number {
     throw new Error(`Could not find numeric value after label: ${label}`);
   }
   return Number(match[1]);
-}
-
-export function extractAccessToken(text: string): string {
-  const match = text.match(/Access Token:\s*([^\s]+)/);
-  if (!match) {
-    throw new Error("Could not find access token in success card");
-  }
-  return match[1];
 }
 
 export async function installTossPaymentStub(page: Page) {
@@ -309,10 +297,7 @@ export async function loginCustomer(page: Page, credentials: CustomerFixtureCred
 }
 
 export async function logoutCustomer(page: Page) {
-  const logoutButton = page.getByRole("button", { name: /로그아웃|LOGOUT/ }).first();
-  if (await logoutButton.isVisible()) {
-    await logoutButton.click();
-  }
+  await page.locator(".app-navbar").getByRole("button", { name: "로그아웃" }).click();
 }
 
 export async function completePhoneVerification(
@@ -326,20 +311,6 @@ export async function completePhoneVerification(
   const code = await fetchVerificationCode(page, phone, purpose);
   await page.getByLabel("인증번호").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
-}
-
-export async function completeLockedPhoneVerification(
-  root: Page | Locator,
-  page: Page,
-  phone: string,
-  purpose: SendVerificationRequestPurpose,
-  confirmLabel = "확인",
-) {
-  await root.getByRole("button", { name: "인증번호 발송" }).click();
-  await expect(root.getByLabel("인증번호")).toBeVisible();
-  const code = await fetchVerificationCode(page, phone, purpose);
-  await root.getByLabel("인증번호").fill(code);
-  await root.getByRole("button", { name: confirmLabel }).click();
 }
 
 export async function completeGuestAuthGate(page: Page, phone: string, name: string) {
@@ -388,7 +359,7 @@ export function adminCard(page: Page, title: string): Locator {
   return page.locator(".admin-workspace-panel, .card").filter({ hasText: title }).first();
 }
 
-export async function apiGet<T>(
+async function apiGet<T>(
   request: APIRequestContext,
   path: string,
   options: ApiOptions = {},
@@ -407,7 +378,7 @@ export async function apiGet<T>(
   return (await response.json()) as T;
 }
 
-export async function apiPost<T>(
+async function apiPost<T>(
   request: APIRequestContext,
   path: string,
   body?: unknown,
@@ -427,7 +398,7 @@ export async function apiPost<T>(
   return (await response.json()) as T;
 }
 
-export async function apiDelete(
+async function apiDelete(
   request: APIRequestContext,
   path: string,
   options: ApiOptions = {},
@@ -465,7 +436,7 @@ export async function fetchMyBookingSlot(
   return (await response.json()) as Pick<MyBookingDetail, "slotId">;
 }
 
-export async function fetchAdminProducts(request: APIRequestContext): Promise<ProductResponse[]> {
+async function fetchAdminProducts(request: APIRequestContext): Promise<ProductResponse[]> {
   return apiGet<ProductResponse[]>(request, "/admin/products", { admin: true });
 }
 
@@ -490,18 +461,7 @@ export async function createAdminProduct(
   return product;
 }
 
-export async function fetchAdminBookings(
-  request: APIRequestContext,
-  date: string,
-  status?: ListBookingsStatus,
-): Promise<AdminBookingResponse[]> {
-  return apiGet<AdminBookingResponse[]>(request, "/admin/bookings", {
-    admin: true,
-    query: { date, status },
-  });
-}
-
-export async function fetchAdminOrders(
+async function fetchAdminOrders(
   request: APIRequestContext,
   status?: ListOrdersStatus,
 ): Promise<AdminOrderListItemResponse[]> {
@@ -512,7 +472,7 @@ export async function fetchAdminOrders(
   return page.content;
 }
 
-export async function fetchFailedRefunds(request: APIRequestContext): Promise<FailedRefundResponse[]> {
+async function fetchFailedRefunds(request: APIRequestContext): Promise<FailedRefundResponse[]> {
   const page = await apiGet<FailedRefundPageResponse>(
     request,
     "/admin/refunds/failed",
@@ -532,39 +492,29 @@ export async function clearNextRefundFailure(request: APIRequestContext): Promis
   await apiDelete(request, "/admin/dev/payment/refunds/fail-next", { admin: true });
 }
 
+/** 목록을 다시 조회하며 조건에 맞는 항목을 기다리고, 마지막 조회에서 찾은 항목을 돌려준다. */
+async function pollFor<T>(
+  load: () => Promise<T[]>,
+  match: (item: T) => boolean,
+  message: string,
+): Promise<T> {
+  let found: T | undefined;
+  await expect.poll(async () => {
+    found = (await load()).find(match);
+    return found !== undefined;
+  }, { message }).toBe(true);
+  return found!;
+}
+
 export async function waitForProduct(
   request: APIRequestContext,
   name: string,
 ): Promise<ProductResponse> {
-  await expect.poll(async () => {
-    const products = await fetchAdminProducts(request);
-    return products.some((product) => product.name === name);
-  }).toBeTruthy();
-
-  const products = await fetchAdminProducts(request);
-  const product = products.find((item) => item.name === name);
-  if (!product) {
-    throw new Error(`Could not find product: ${name}`);
-  }
-  return product;
-}
-
-export async function waitForBookingByPhone(
-  request: APIRequestContext,
-  date: string,
-  phone: string,
-): Promise<AdminBookingResponse> {
-  await expect.poll(async () => {
-    const bookings = await fetchAdminBookings(request, date);
-    return bookings.some((booking) => booking.customerSummary.phone === phone);
-  }).toBeTruthy();
-
-  const bookings = await fetchAdminBookings(request, date);
-  const booking = bookings.find((item) => item.customerSummary.phone === phone);
-  if (!booking) {
-    throw new Error(`Could not find booking for phone: ${phone}`);
-  }
-  return booking;
+  return pollFor(
+    () => fetchAdminProducts(request),
+    (product) => product.name === name,
+    `Could not find product: ${name}`,
+  );
 }
 
 export async function waitForOrder(
@@ -572,34 +522,22 @@ export async function waitForOrder(
   orderId: number,
   status?: ListOrdersStatus,
 ): Promise<AdminOrderListItemResponse> {
-  await expect.poll(async () => {
-    const orders = await fetchAdminOrders(request, status);
-    return orders.some((order) => order.orderId === orderId);
-  }).toBeTruthy();
-
-  const orders = await fetchAdminOrders(request, status);
-  const order = orders.find((item) => item.orderId === orderId);
-  if (!order) {
-    throw new Error(`Could not find order: ${orderId}`);
-  }
-  return order;
+  return pollFor(
+    () => fetchAdminOrders(request, status),
+    (order) => order.orderId === orderId,
+    `Could not find order: ${orderId}`,
+  );
 }
 
 export async function waitForFailedRefundByOrderId(
   request: APIRequestContext,
   orderId: number,
 ): Promise<FailedRefundResponse> {
-  await expect.poll(async () => {
-    const refunds = await fetchFailedRefunds(request);
-    return refunds.some((refund) => refund.orderId === orderId);
-  }).toBeTruthy();
-
-  const refunds = await fetchFailedRefunds(request);
-  const refund = refunds.find((item) => item.orderId === orderId);
-  if (!refund) {
-    throw new Error(`Could not find failed refund for order: ${orderId}`);
-  }
-  return refund;
+  return pollFor(
+    () => fetchFailedRefunds(request),
+    (refund) => refund.orderId === orderId,
+    `Could not find failed refund for order: ${orderId}`,
+  );
 }
 
 export async function waitForFailedRefundGone(

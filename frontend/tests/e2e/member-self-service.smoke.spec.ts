@@ -11,8 +11,7 @@ import {
   makeUniqueLabel,
   signupCustomer,
 } from "./support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, installCsrfCookie } from "./mock-support";
 
 test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
@@ -51,19 +50,19 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await page.getByRole("link", { name: "내 주문 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/orders\/\d+$/);
   const orderId = Number(page.url().match(/\/my\/orders\/(\d+)$/)?.[1]);
-  await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "주문한 작품" })).toBeVisible();
   const itemRow = page.getByRole("row").filter({ hasText: productName });
   await expect(itemRow).toContainText("2");
-  await expect(itemRow).toContainText("₩66,000");
+  await expect(itemRow).toContainText("66,000원");
 
   await logoutCustomer(page);
   await page.goto("/my");
-  await expect(page.getByRole("heading", { name: "로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "로그인이 필요합니다" })).toBeVisible();
 
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
   await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
-  await page.getByLabel("주문 번호·상품명 검색").fill(String(orderId));
+  await page.getByLabel("주문 번호·작품명 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
   await expect(page).toHaveURL((url) =>
     url.pathname === `/my/orders/${orderId}`
@@ -107,7 +106,7 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 이용권 확인하기" })).toBeVisible();
   await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
-  await expect(page).toHaveURL(/\/my\/passes$/);
+  await expect(page).toHaveURL(/\/my\/passes\?q=\d+$/);
   await expect(page.getByRole("heading", { name: "이용권", level: 1 })).toBeVisible();
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {
@@ -176,52 +175,44 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
   const bookingId = 990001;
   let canceled = false;
   let passBooking = true;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "pass-cancel-warning-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.route(/\/api\/v1\/me\/cart$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
+      json: { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 },
     });
   });
 
   await page.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0 }),
+      json: { count: 0 },
     });
   });
 
   await page.route(/\/api\/v1\/slots(?:\?.*)?$/, async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    await route.fulfill({ status: 200, json: [] });
   });
 
   await page.route(/\/api\/v1\/me$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         id: 101,
         email: "pass-warning@example.com",
         name: "이용권 회원",
         phone: "01012345678",
         phoneVerified: true,
-      }),
+      },
     });
   });
 
   await page.route(new RegExp(`/api/v1/me/reviews/(?:bookings|classes)/${bookingId}(?:/creation-state)?$`), async (route) => {
     const creationState = new URL(route.request().url()).pathname.endsWith("/creation-state");
     await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(creationState ? { status: "NOT_REVIEWABLE" } : []),
+      json: creationState ? { status: "NOT_REVIEWABLE" } : [],
     });
   });
 
@@ -230,8 +221,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
       canceled = true;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        json: {
           bookingId,
           status: "CANCELED",
           participantCount: 1,
@@ -239,15 +229,14 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
           refundAmount: 0,
           refund: null,
           manualCompensationRequired: false,
-        }),
+        },
       });
       return;
     }
 
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         bookingId,
         classId: 1,
         slotId: 88,
@@ -271,7 +260,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
             : null,
         },
         refund: null,
-      }),
+      },
     });
   });
 
@@ -300,9 +289,9 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
 
   const depositCancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
   await expect(depositCancelDialog.getByText("환불·이용 횟수 복원 마감")).toBeVisible();
-  await expect(depositCancelDialog.getByText("₩15,000", { exact: true })).toBeVisible();
+  await expect(depositCancelDialog.getByText("15,000원", { exact: true })).toBeVisible();
   await expect(depositCancelDialog.getByText(
-    "취소 마감이 지나 예약금 ₩15,000은 환불되지 않습니다. 예약만 취소됩니다.",
+    "취소 마감이 지나 예약금 15,000원은 환불되지 않습니다. 예약만 취소됩니다.",
   )).toBeVisible();
   await expect(depositCancelDialog.getByRole("button", { name: "환불 없이 예약 취소" }))
     .toBeVisible();

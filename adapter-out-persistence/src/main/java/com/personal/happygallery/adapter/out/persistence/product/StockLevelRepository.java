@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.persistence.product;
 
 import com.personal.happygallery.application.product.StockLevel;
 import com.personal.happygallery.application.product.port.out.StockLevelReaderPort;
-import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -28,10 +27,7 @@ class StockLevelRepository implements StockLevelReaderPort {
                 ORDER BY product_id, product_variant_id
                 """)
                 .param("productId", productId)
-                .query((row, index) -> new StockLevel(row.getLong("product_id"),
-                        row.getObject("product_variant_id", Long.class), row.getString("product_name"),
-                        ProductType.valueOf(row.getString("type")), row.getInt("quantity"),
-                        row.getObject("minimum_stock", Integer.class), row.getLong("version"), row.getBoolean("active")))
+                .query(StockLevel.class)
                 .list();
     }
 }

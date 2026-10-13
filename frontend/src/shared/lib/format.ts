@@ -1,7 +1,5 @@
-const krwFormatter = new Intl.NumberFormat("ko-KR", {
-  style: "currency",
-  currency: "KRW",
-});
+// 국내 상점 표기처럼 `30,000원`으로 쓴다(통화 기호 ₩는 명조 제목에서 줄이 겹쳐 보인다).
+const krwNumberFormatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
 
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_OFFSET_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
@@ -31,7 +29,7 @@ export function withUtcOffset(value: string): string {
 }
 
 export function formatKRW(amount: number): string {
-  return krwFormatter.format(amount);
+  return `${krwNumberFormatter.format(amount)}원`;
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
@@ -82,4 +80,11 @@ export function formatDateTimeInput(timestamp: number): string {
 
 export function formatDateInput(timestamp: number): string {
   return formatDateTimeInput(timestamp).slice(0, 10);
+}
+
+/** `YYYY-MM-DD` 날짜에 일 수를 더한다. 달력 날짜만 계산하므로 브라우저 시간대와 무관하다. */
+export function addDaysToDateInput(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }

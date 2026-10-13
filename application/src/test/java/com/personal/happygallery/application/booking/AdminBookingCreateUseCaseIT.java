@@ -80,7 +80,7 @@ class AdminBookingCreateUseCaseIT {
         var pendingTasks = bookingCancellationTaskUseCase.listPending();
 
         assertSoftly(softly -> {
-            softly.assertThat(created.source()).isEqualTo("PHONE");
+            softly.assertThat(created.source()).isEqualTo(BookingSource.PHONE);
             softly.assertThat(created.participantCount()).isEqualTo(3);
             softly.assertThat(created.depositAmount()).isEqualTo(15_000L);
             softly.assertThat(created.balanceAmount()).isEqualTo(135_000L);
@@ -117,7 +117,7 @@ class AdminBookingCreateUseCaseIT {
         member = userStorePort.save(member);
         memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD,
-                5_000L, 45_000L);
+                5_000L, 45_000L, 1);
 
         CreateAdminBookingCommand command = new CreateAdminBookingCommand(
                 slot.getId(),

@@ -13,7 +13,8 @@ import {
   saveBookingCalendarDay,
   saveBookingCalendarSettings,
 } from "./api";
-import { ApiError, invalidateSlotAvailability, queryKeys } from "@/shared/api";
+import { invalidateSlotAvailability, queryKeys } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateInput } from "@/shared/lib";
@@ -251,8 +252,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
 
       <ErrorAlert error={mutationError} />
       {calendarQuery.isLoading && <LoadingSpinner text="예약 캘린더를 불러오는 중..." />}
-      {calendarQuery.error
-        && !(calendarQuery.error instanceof ApiError && calendarQuery.error.status === 401) && (
+      {visibleAdminError(calendarQuery.error) && (
         <ErrorAlert
           error={calendarQuery.error}
           onRetry={() => { void calendarQuery.refetch(); }}

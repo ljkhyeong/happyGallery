@@ -3,6 +3,7 @@ package com.personal.happygallery.application.product;
 import com.personal.happygallery.application.notification.NotificationOutboxService;
 import com.personal.happygallery.application.product.port.out.RestockAlertDeliveryPort;
 import com.personal.happygallery.application.product.port.out.RestockAlertPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,7 @@ public class RestockAlertTransactionService {
         }
         if (delivery.findEligibleUserId(id).isEmpty()) return false;
         boolean enqueued = outbox.enqueue(NotificationRequestedEvent.forUser(alert.getUserId(),
-                NotificationEventType.PRODUCT_RESTOCK_AVAILABLE, "RESTOCK_ALERT", id));
+                NotificationEventType.PRODUCT_RESTOCK_AVAILABLE, NotificationAggregateType.RESTOCK_ALERT, id));
         if (enqueued) {
             alert.markQueued();
             alerts.saveAndFlush(alert);

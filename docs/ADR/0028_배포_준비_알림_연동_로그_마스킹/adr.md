@@ -50,9 +50,8 @@
 ### 4. 로그 민감 데이터 마스킹
 
 - `MaskingPatternLayout` (extends `PatternLayout`): text 프로필(`!prod`)에서 `LayoutWrappingEncoder`로 사용.
-- `MaskingMessageJsonProvider` (extends `AbstractFieldJsonProvider`): prod JSON 프로필에서 `LoggingEventCompositeJsonEncoder`의 message provider로 사용.
-- `MaskingStackTraceJsonProvider` (extends `StackTraceJsonProvider`): prod JSON의 `stack_trace`도 동일한 마스킹 함수를 통과시키며 기존 필드명과 줄바꿈 구조를 유지한다.
-- 세 Logback adapter는 package-private `SensitiveLogMasker`를 공유한다. 정규식과 치환 순서는 이 클래스가 소유하고 layout/provider는 출력 형식 연결만 담당한다.
+- `SensitiveLogJsonMembersCustomizer` (implements Spring Boot `StructuredLoggingJsonMembersCustomizer`): prod JSON(logstash 형식)의 `message`와 `stack_trace` 값에 같은 마스킹 함수를 적용하고 `@timestamp`를 서울 시간대로 기록한다. `logging.structured.json.customizer`로 등록한다.
+- 두 adapter는 package-private `SensitiveLogMasker`를 공유한다. 정규식과 치환 순서는 이 클래스가 소유하고 layout/customizer는 출력 형식 연결만 담당한다. `SensitiveLogMaskerTest`가 실제 `StructuredLogEncoder`와 `application-prod.yml` 설정으로 두 필드의 마스킹을 확인한다.
 - 마스킹 대상:
   - 전화번호: `01x-xxxx-xxxx` → `01x-****-****`
   - Bearer 토큰: `Bearer xxx` → `Bearer ***`
@@ -64,7 +63,6 @@
 - 전역 예외 처리와 Sentry 전송은 DB·JSON·외부 서비스 예외 원문 대신 예외 종류와 공통 오류 메시지만 남긴다. Sentry event·breadcrumb·API 경로 태그와 Referer의 URL은 경로만 남기고 query와 fragment를 제거한다. 요청 본문·쿠키·query string과 인증·CSRF·비회원 접근 토큰 헤더도 제거해 관리자 검색어, 결제 키와 내부 식별자를 전송하지 않는다.
 - 서버 Sentry는 `send-default-pii: false`만으로 부족하다. sentry-spring은 query string을 요청 정보에 그대로 담아 오류 이벤트와 트랜잭션에 붙이고, SDK 기본 제거 헤더에 `X-Access-Token`·`X-Payment-Status-Token`·`X-Bot-Token`이 없다. 외부 호출 계측도 query를 breadcrumb·span의 `http.query`에 남긴다. 그래서 `SentryEventSanitizer`가 `beforeSend`·`beforeSendTransaction`에서 위 기준을 강제하고, `SentryEventSanitizerTest`가 실제 자동 설정·필터를 거친 전송 envelope으로 검증한다.
 - 로컬 Hibernate SQL bind 로깅도 개인정보가 노출되지 않도록 `WARN` 수준으로 유지한다.
-- `logstash-logback-encoder`를 `runtimeOnly` → `implementation`으로 변경 (커스텀 JsonProvider 컴파일에 필요).
 
 ### 5. 배포 인프라
 

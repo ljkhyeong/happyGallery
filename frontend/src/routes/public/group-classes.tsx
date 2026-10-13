@@ -10,7 +10,7 @@ import { loadWorkshop } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const TITLE = "충주 단체·기관 공예수업 | 해피갤러리";
-const DESCRIPTION = "학교, 기관, 모임을 위한 충주 해피갤러리 출장·단체 공예수업을 문의하세요.";
+const DESCRIPTION = "학교·기관·모임을 찾아가는 충주 해피갤러리의 출강·단체 공예 수업 안내와 문의 방법입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   return { workshop: await loadWorkshop(request.signal) };

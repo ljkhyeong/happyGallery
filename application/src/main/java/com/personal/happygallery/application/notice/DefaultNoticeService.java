@@ -30,12 +30,6 @@ public class DefaultNoticeService implements NoticeQueryUseCase, NoticeAdminUseC
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<Notice> listRecent(int limit) {
-        return noticeReader.findAllByOrderByPinnedDescCreatedAtDesc(limit);
-    }
-
-    @Override
     @Transactional
     public Notice getDetail(Long id) {
         if (noticeStore.incrementViewCountById(id) == 0) {

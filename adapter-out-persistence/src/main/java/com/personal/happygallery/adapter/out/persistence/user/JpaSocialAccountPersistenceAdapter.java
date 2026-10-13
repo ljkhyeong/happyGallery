@@ -46,7 +46,7 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
         }
         return matches.stream()
                 .findFirst()
-                .map(account -> restoreAndBackfill(account, requiredProviderId));
+                .map(account -> restoreAndReprotect(account, requiredProviderId));
     }
 
     @Override
@@ -86,10 +86,11 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
         repository.deleteByUserId(userId);
     }
 
-    private SocialAccount restoreAndBackfill(SocialAccount account, String providerId) {
+    /** 키 회전 전 이전 HMAC 키로 찾은 계정은 활성 키의 암호문·HMAC으로 다시 보호한다. */
+    private SocialAccount restoreAndReprotect(SocialAccount account, String providerId) {
         account.restoreProviderId(providerId);
         String activeHmac = blindIndexKeyRing.index(providerId);
-        if (account.getProviderIdEnc() == null || !activeHmac.equals(account.getProviderIdHmac())) {
+        if (!activeHmac.equals(account.getProviderIdHmac())) {
             protectWithActiveKeys(account, providerId);
             repository.save(account);
         }

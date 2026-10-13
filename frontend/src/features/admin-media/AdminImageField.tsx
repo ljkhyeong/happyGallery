@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Form } from "react-bootstrap";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useBlobObjectUrl } from "@/shared/hooks/useBlobObjectUrl";
 import { ErrorAlert } from "@/shared/ui";
 import {
   fetchAdminImagePreview,
@@ -26,45 +27,23 @@ export function AdminImageField({
   controlId,
   previewAlt,
 }: Props) {
-  const [previewUrl, setPreviewUrl] = useState<string>();
-  const [previewError, setPreviewError] = useState<unknown>();
   const upload = useAdminMutation(onAuthError, {
     mutationFn: (file: File) => uploadAdminImage(adminKey, file),
     onSuccess: (result) => onChange(result.url),
   });
 
-  useEffect(() => {
-    setPreviewError(undefined);
-    if (!value) {
-      setPreviewUrl(undefined);
-      return;
-    }
-    const fileName = localAdminImageFileName(value);
-    if (!fileName) {
-      setPreviewUrl(value);
-      return;
-    }
-
-    const controller = new AbortController();
-    let objectUrl: string | undefined;
-    setPreviewUrl(undefined);
-    void fetchAdminImagePreview(adminKey, fileName, controller.signal)
-      .then((blob) => {
-        if (controller.signal.aborted) return;
-        objectUrl = URL.createObjectURL(blob);
-        setPreviewUrl(objectUrl);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        if (isAdminSessionUnauthorized(error)) onAuthError();
-        setPreviewError(error);
-      });
-
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [adminKey, onAuthError, value]);
+  // 업로드한 이미지는 공개 전에도 관리자 인증으로 받아 미리 보고, 외부 주소는 그대로 보여 준다.
+  const fileName = value ? localAdminImageFileName(value) : undefined;
+  const loadPreview = useMemo(
+    () => fileName
+      ? (signal: AbortSignal) => fetchAdminImagePreview(adminKey, fileName, signal)
+      : null,
+    [adminKey, fileName],
+  );
+  const preview = useBlobObjectUrl(loadPreview, (error) => {
+    if (isAdminSessionUnauthorized(error)) onAuthError();
+  });
+  const previewUrl = fileName ? preview.url : value || undefined;
 
   return (
     <Form.Group controlId={controlId}>
@@ -80,7 +59,7 @@ export function AdminImageField({
       />
       <Form.Text>{upload.isPending ? "업로드 중..." : "JPEG, PNG, WebP · 최대 5MB"}</Form.Text>
       <ErrorAlert error={upload.error} />
-      <ErrorAlert error={previewError} />
+      <ErrorAlert error={preview.error} />
       {value && previewUrl && (
         <div className="admin-image-preview mt-2">
           <img src={previewUrl} alt={previewAlt} />

@@ -56,6 +56,7 @@ public enum ErrorCode {
     SMARTSTORE_OPERATION_RESULT_UNKNOWN(
             409,
             "네이버 주문 처리 결과를 확인할 수 없습니다. 같은 요청을 다시 보내지 말고 처리 결과 확인 목록을 확인해 주세요."),
+    SMARTSTORE_DISABLED(409, "스마트스토어 연동이 꺼져 있습니다. 연동 설정을 켠 뒤 다시 시도해 주세요."),
     COUPON_TERMS_IMMUTABLE(409, "이미 발급된 쿠폰의 이름·할인 조건·유효기간은 변경할 수 없습니다."),
     REVIEW_ALREADY_EXISTS(409, "해당 주문 품목 또는 예약에 이미 후기를 작성했습니다."),
     REVIEW_RECREATION_BLOCKED(409, "운영 정책으로 숨김 처리된 이력이 있어 같은 거래에 후기를 다시 작성할 수 없습니다."),
@@ -71,7 +72,6 @@ public enum ErrorCode {
     UNSUPPORTED_MEDIA_TYPE(415, "지원하지 않는 요청 형식입니다."),
 
     // 422 Unprocessable — 비즈니스 규칙 위반
-    REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),
     PRODUCTION_REFUND_NOT_ALLOWED(422, "제작이 시작된 주문은 환불할 수 없습니다."),
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),

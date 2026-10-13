@@ -1,8 +1,8 @@
 package com.personal.happygallery.adapter.out.persistence.review;
 
 import com.personal.happygallery.adapter.out.persistence.support.PersistenceConstraintNames;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportSummaryItem;
 import com.personal.happygallery.application.review.port.out.ReviewReportPort;
-import com.personal.happygallery.application.review.port.out.ReviewReportListView;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.review.ReviewReport;
@@ -53,14 +53,10 @@ class JpaReviewReportAdapter implements ReviewReportPort {
     }
 
     @Override
-    public List<ReviewReportListView> findForAdmin(ReviewReportStatus status, int limit) {
-        return repository.findAdminRows(status, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    public List<ReviewReportListView> findForAdminAfter(
-            ReviewReportStatus status, LocalDateTime createdAt, Long id, int limit) {
-        return repository.findAdminRowsAfter(status, createdAt, id, PageRequest.ofSize(limit));
+    public List<ReviewReportSummaryItem> findForAdmin(
+            ReviewReportStatus status, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return repository.findAdminRows(
+                status, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override

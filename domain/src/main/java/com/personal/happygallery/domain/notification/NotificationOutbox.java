@@ -41,8 +41,9 @@ public class NotificationOutbox {
     @Column(name = "event_type", nullable = false, length = 50)
     private NotificationEventType eventType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "aggregate_type", length = 40)
-    private String aggregateType;
+    private NotificationAggregateType aggregateType;
 
     @Column(name = "aggregate_id")
     private Long aggregateId;
@@ -98,7 +99,7 @@ public class NotificationOutbox {
                                Long guestId,
                                Long userId,
                                NotificationEventType eventType,
-                               String aggregateType,
+                               NotificationAggregateType aggregateType,
                                Long aggregateId,
                                String idempotencyKey,
                                LocalDateTime now) {
@@ -125,7 +126,7 @@ public class NotificationOutbox {
 
     private static NotificationOutbox forGuest(Long guestId,
                                                NotificationEventType eventType,
-                                               String aggregateType,
+                                               NotificationAggregateType aggregateType,
                                                Long aggregateId,
                                                String idempotencyKey,
                                                LocalDateTime now) {
@@ -142,7 +143,7 @@ public class NotificationOutbox {
 
     private static NotificationOutbox forUser(Long userId,
                                               NotificationEventType eventType,
-                                              String aggregateType,
+                                              NotificationAggregateType aggregateType,
                                               Long aggregateId,
                                               String idempotencyKey,
                                               LocalDateTime now) {
@@ -229,8 +230,7 @@ public class NotificationOutbox {
             NotificationChannel channel,
             String requestId,
             Long recipientSeq,
-            LocalDateTime nextCheckAt,
-            String auditError) {
+            LocalDateTime nextCheckAt) {
         if (!isProcessingOwnedBy(token)) {
             return false;
         }
@@ -242,7 +242,7 @@ public class NotificationOutbox {
         providerRequestId = requestId;
         providerRecipientSeq = recipientSeq;
         nextAttemptAt = nextCheckAt;
-        lastError = truncate(auditError);
+        lastError = null;
         clearProcessing();
         return true;
     }
@@ -313,7 +313,7 @@ public class NotificationOutbox {
         if (!eventType.allowsObsoleteReactivation()
                 || !idempotencyKey.equals(event.idempotencyKey())
                 || eventType != event.eventType()
-                || !Objects.equals(aggregateType, event.aggregateType())
+                || aggregateType != event.aggregateType()
                 || !Objects.equals(aggregateId, event.aggregateId())) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 또는 재입고 요청만 다시 열 수 있습니다.");
         }
@@ -409,7 +409,7 @@ public class NotificationOutbox {
     public Long getGuestId() { return guestId; }
     public Long getUserId() { return userId; }
     public NotificationEventType getEventType() { return eventType; }
-    public String getAggregateType() { return aggregateType; }
+    public NotificationAggregateType getAggregateType() { return aggregateType; }
     public Long getAggregateId() { return aggregateId; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public NotificationOutboxStatus getStatus() { return status; }

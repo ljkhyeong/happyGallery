@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { Card, Badge, Button, ButtonGroup, Form, InputGroup } from "react-bootstrap";
+import { Badge, Button, ButtonGroup, Form } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminQnaPage, fetchUnansweredAdminQna, replyQna } from "./api";
-import { fetchProducts } from "@/features/admin-product/api";
+import { adminProductsQuery } from "@/features/admin-product/api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { queryKeys } from "@/shared/api";
-import {
-  CONTENT_BODY_MAX_LENGTH,
-  contentLengthLabel,
-} from "@/shared/validation/contentText";
+import { AdminReplyCard } from "@/features/admin-inquiry/AdminReplyCard";
 
 interface Props {
   token: string;
@@ -31,10 +29,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
     resetCursor,
   } = useCursorHistory();
 
-  const productsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(token),
-  });
+  const productsQuery = useAdminQuery(onAuthError, adminProductsQuery(token));
 
   const unansweredQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.productQna.unanswered(cursor),
@@ -128,26 +123,13 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
           onAuthError={onAuthError}
         />
       ))}
-      {(hasPreviousPage || currentPage?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mt-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={!hasPreviousPage || isLoading}
-            onClick={showPreviousPage}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            disabled={!currentPage?.hasMore || isLoading}
-            onClick={() => showNextPage(currentPage?.nextCursor)}
-          >
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        hasPreviousPage={hasPreviousPage}
+        page={currentPage}
+        busy={isLoading}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
     </div>
   );
 }
@@ -166,8 +148,6 @@ function AdminQnaItem({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [replyText, setReplyText] = useState("");
-  const replyControlId = `admin-qna-reply-${qna.id}`;
-  const replyCountId = `${replyControlId}-count`;
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => replyQna(qna.id, replyText, token),
@@ -189,68 +169,19 @@ function AdminQnaItem({
   });
 
   return (
-    <Card className="mb-2">
-      <Card.Body className="py-2 px-3">
-        <div className="d-flex justify-content-between align-items-start">
-          <div>
-            <div className="d-flex align-items-center gap-2 mb-1">
-              {qna.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
-              {qna.replyContent ? (
-                <Badge bg="info" className="badge-sm">답변 완료</Badge>
-              ) : (
-                <Badge bg="warning" className="badge-sm">답변 대기</Badge>
-              )}
-              <span className="fw-semibold small">{qna.title}</span>
-            </div>
-            <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
-              {productName ?? `상품 #${qna.productId}`} | {qna.authorName} (회원 번호: {qna.userId}) | {formatDateTime(qna.createdAt)}
-            </div>
-          </div>
-        </div>
-        <div className="mt-2 small bg-light p-2 rounded">{qna.content}</div>
-
-        {qna.replyContent && (
-          <div className="mt-2 p-2 rounded small" style={{ background: "#f0f4ff" }}>
-            <strong>답변:</strong> {qna.replyContent}
-          </div>
-        )}
-
-        {!qna.replyContent && (
-          <Form
-            className="mt-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              mutation.mutate();
-            }}
-          >
-            <Form.Group controlId={replyControlId}>
-              <Form.Label className="visually-hidden">상품 문의 답변</Form.Label>
-              <InputGroup size="sm">
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="답변을 입력하세요"
-                  maxLength={CONTENT_BODY_MAX_LENGTH}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  aria-describedby={replyCountId}
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={!replyText.trim() || mutation.isPending}
-                >
-                  답변
-                </Button>
-              </InputGroup>
-              <Form.Text id={replyCountId} className="text-muted d-block text-end">
-                {contentLengthLabel(replyText, CONTENT_BODY_MAX_LENGTH)}
-              </Form.Text>
-            </Form.Group>
-            <ErrorAlert error={mutation.error} />
-          </Form>
-        )}
-      </Card.Body>
-    </Card>
+    <AdminReplyCard
+      title={qna.title}
+      content={qna.content}
+      replyContent={qna.replyContent}
+      badges={qna.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
+      meta={`${productName ?? `상품 #${qna.productId}`} | ${qna.authorName} (회원 번호: ${qna.userId}) | ${formatDateTime(qna.createdAt)}`}
+      replyLabel="상품 문의 답변"
+      replyControlId={`admin-qna-reply-${qna.id}`}
+      replyText={replyText}
+      onReplyTextChange={setReplyText}
+      onSubmit={() => mutation.mutate()}
+      pending={mutation.isPending}
+      error={mutation.error}
+    />
   );
 }

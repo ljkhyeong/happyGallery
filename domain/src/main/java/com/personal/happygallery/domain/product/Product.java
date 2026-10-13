@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -75,34 +76,7 @@ public class Product {
 
     protected Product() {}
 
-    /**
-     * 상품 생성. 초기 상태는 {@link ProductStatus#ACTIVE}.
-     *
-     * @param name  상품명
-     * @param type  상품 유형 (READY_STOCK | MADE_TO_ORDER)
-     * @param price 가격 (원)
-     */
-    public Product(String name, ProductType type, long price) {
-        this(name, type, null, price);
-    }
-
-    /**
-     * 카테고리를 포함한 상품 생성.
-     *
-     * @param name     상품명
-     * @param type     상품 유형
-     * @param category 카테고리 (nullable)
-     * @param price    가격 (원)
-     */
-    public Product(String name, ProductType type, String category, long price) {
-        this(name, type, category, price, null, null);
-    }
-
-    public Product(String name, ProductType type, String category, long price,
-                   String description, String imageUrl) {
-        this(name, type, category, price, description, imageUrl, null, null, null);
-    }
-
+    /** 상품 생성. 초기 상태는 {@link ProductStatus#ACTIVE}. */
     public Product(String name, ProductType type, String category, long price,
                    String description, String imageUrl, String specification,
                    String careInstructions, Integer productionLeadDays) {
@@ -114,13 +88,6 @@ public class Product {
                 name, category, price, description, imageUrl,
                 specification, careInstructions, productionLeadDays);
         this.status = ProductStatus.ACTIVE;
-    }
-
-    public void updateDetails(String name, String category, long price,
-                              String description, String imageUrl) {
-        applyDetails(
-                name, category, price, description, imageUrl,
-                specification, careInstructions, productionLeadDays);
     }
 
     public void updateDetails(String name, String category, long price,
@@ -138,15 +105,15 @@ public class Product {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "상품 가격은 1원 이상 허용 범위 이하여야 합니다.");
         }
-        this.name = requireText(name, "상품명", MAX_NAME_LENGTH);
+        this.name = DomainText.required(name, "상품명은", MAX_NAME_LENGTH);
         this.category = CategoryName.optional(category);
         this.price = price;
-        this.description = optionalText(description, "상품 설명", MAX_DESCRIPTION_LENGTH);
+        this.description = DomainText.optional(description, "상품 설명은", MAX_DESCRIPTION_LENGTH);
         this.imageUrl = ImageReferencePolicy.optional(imageUrl);
-        this.specification = optionalText(
-                specification, "상품 사양", MAX_SPECIFICATION_LENGTH);
-        this.careInstructions = optionalText(
-                careInstructions, "관리 방법", MAX_CARE_INSTRUCTIONS_LENGTH);
+        this.specification = DomainText.optional(
+                specification, "상품 사양은", MAX_SPECIFICATION_LENGTH);
+        this.careInstructions = DomainText.optional(
+                careInstructions, "관리 방법은", MAX_CARE_INSTRUCTIONS_LENGTH);
         this.productionLeadDays = productionLeadDays;
         requireTypeSpecificPurchaseTerms();
     }
@@ -172,26 +139,6 @@ public class Product {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "기성품에는 제작 기간을 설정할 수 없습니다.");
         }
-    }
-
-    private static String requireText(String value, String fieldName, int maxLength) {
-        String normalized = optionalText(value, fieldName, maxLength);
-        if (normalized == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "은 필수입니다.");
-        }
-        return normalized;
-    }
-
-    private static String optionalText(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, fieldName + "은 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     /** 상품을 비활성화한다. */

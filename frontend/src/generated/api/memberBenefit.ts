@@ -72,7 +72,6 @@ export const RewardHistoryResponseType = {
   RESTORE: 'RESTORE',
   EXPIRE: 'EXPIRE',
   REVOKE: 'REVOKE',
-  ADJUST: 'ADJUST',
 } as const;
 
 export interface RewardHistoryResponse {

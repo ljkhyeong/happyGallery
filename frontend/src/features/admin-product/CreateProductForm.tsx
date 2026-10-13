@@ -11,6 +11,8 @@ import {
   type OptionGroupDraft,
   type VariantDraft,
 } from "./ProductOptionEditor";
+import { invalidateProductQueries, isProductFormValid } from "./productFormRules";
+import { ProductCategoryField } from "./ProductCategoryField";
 
 interface Props {
   adminKey: string;
@@ -55,9 +57,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         variants: type === "MADE_TO_ORDER" ? variants : [],
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product-categories"] });
+      invalidateProductQueries(queryClient);
       toast.show("상품이 등록되었습니다.");
       setName("");
       setCategory("");
@@ -73,26 +73,18 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const leadDays = Number(productionLeadDays);
-  const purchaseTermsValid = type === "READY_STOCK"
-    || (specification.trim().length > 0
-      && Number.isInteger(leadDays)
-      && leadDays >= 1
-      && leadDays <= 180);
   const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
-  const optionsValid = type === "READY_STOCK" || (
-    optionGroups.every((group) => group.name.trim().length > 0
-      && (group.type !== "SELECT"
-        || group.values.every((value) => value.name.trim().length > 0)))
-    && variants.length <= 500
-    && variants.every((variant) => Number(variant.quantity) >= 0
-      && Number(price) + Number(variant.priceAdjustment ?? 0) > 0)
-  );
-  const valid = name.trim().length > 0
-    && Number(price) > 0
-    && (type === "READY_STOCK" ? Number(quantity) >= 1 : Number(quantity) >= 0)
-    && purchaseTermsValid
-    && optionsValid;
+  const valid = isProductFormValid({
+    type,
+    name,
+    price,
+    quantity,
+    minimumQuantity: type === "READY_STOCK" ? 1 : 0,
+    specification,
+    productionLeadDays,
+    optionGroups,
+    variants,
+  });
 
   return (
     <Form
@@ -135,15 +127,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
-          <Form.Group controlId="admin-product-category">
-            <Form.Label>카테고리</Form.Label>
-            <Form.Control
-              value={category}
-              maxLength={50}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="예: 목공 소품"
-            />
-          </Form.Group>
+          <ProductCategoryField controlId="admin-product-category" value={category} onChange={setCategory} />
         </Col>
         <Col xs={12} sm={6} md={2}>
           <Form.Group controlId="admin-product-price">

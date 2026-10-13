@@ -1,10 +1,7 @@
 package com.personal.happygallery.adapter.out.external.security;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import java.time.Duration;
-import org.hibernate.validator.constraints.time.DurationMin;
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
+import jakarta.validation.Valid;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.util.StringUtils;
@@ -17,12 +14,8 @@ public record TurnstileProperties(
         @DefaultValue("") String siteKey,
         @DefaultValue("") String secretKey,
         @DefaultValue("happy-gallery.com") String hostname,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("5s") Duration timeout,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("1s") Duration connectTimeout,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("500ms") Duration acquireTimeout,
-        @Min(1) @DefaultValue("5") int maxConnections,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("30s") Duration keepAlive
-) implements HttpPoolProperties {
+        @Valid @DefaultValue HttpPool http
+) {
     public TurnstileProperties {
         if (enabled && (!StringUtils.hasText(siteKey) || !StringUtils.hasText(secretKey)
                 || !StringUtils.hasText(hostname))) {

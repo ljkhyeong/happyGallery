@@ -8,7 +8,7 @@
 ## 컨텍스트
 
 고객이 직접 만드는 `WEB` 예약금은 온라인 PG(카드/간편결제)만 허용하고 계좌이체는 차단해야 한다.
-클래스 가격은 10원 이상으로 제한해 10% 일반 예약금이 최소 1원이 되게 하며, 0원 내부 승인은 8회권 예약에만 허용한다.
+클래스 가격은 10원 이상으로 제한해 10% 일반 예약금이 최소 1원이 되게 하며, 0원 내부 승인은 이용권 예약에만 허용한다.
 운영자가 전화·메신저·방문 접수의 오프라인 입금을 기록하는 경로는 PG 결제가 아니므로 별도다.
 슬롯 변경 시 예약금은 유지(재결제 없음)되어야 하고,
 D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
@@ -57,7 +57,7 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 
 - 결제 confirm 트랜잭션에서 예약금 예약을 생성할 때 `deposit_paid_at`을 기록한다.
 - 현장 잔금 결제는 관리자 명령으로 `balance_status=PAID`, `balance_paid_at=현재 시각`을 함께 갱신한다.
-- 8회권 예약처럼 `balance_amount=0`인 예약은 생성 시점부터 `balance_status=PAID`이며
+- 이용권 예약처럼 `balance_amount=0`인 예약은 생성 시점부터 `balance_status=PAID`이며
   실제 현장 결제가 없으므로 `balance_paid_at`은 비워 둔다.
 - 잔금 결제 완료 시 `arrears_flag=false`로 정리하고, 결제 완료 잔금을 다시 미수로 표시하지 못하게 한다.
 - 잔금이 있는 예약을 `PAID`로 처리한 뒤에는 고객 취소를 막는다. 기존 고객 취소는 예약금만 PG 환불하므로, 현장 수납한 잔금은 관리자 정산 없이 취소 상태로 넘기지 않도록 한다.
@@ -83,7 +83,7 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 | 파일 | 역할 |
 |------|------|
 | `domain/booking/DepositPaymentMethod.java` | CARD / EASY_PAY / BANK_TRANSFER 열거형 |
-| `db/migration/V4__add_payment_method.sql` | bookings.payment_method 컬럼 추가 |
+| `db/migration/V1__baseline_schema.sql` | bookings.payment_method 컬럼 (재작성 전 V4) |
 | `domain/booking/Booking.java` | paymentMethod 필드 + 생성자 파라미터 |
 | `domain/error/ErrorCode.java` | PAYMENT_METHOD_NOT_ALLOWED (422) 추가 |
 | `domain/error/PaymentMethodNotAllowedException.java` | 예외 클래스 |
@@ -92,5 +92,5 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 | `adapter-in-web/.../payment/PaymentController.java` | 결제 prepare/confirm 단일 진입점 |
 | `GuestBookingUseCaseIT` | bankTransfer_returns422 Proof 테스트 |
 | `BookingRescheduleUseCaseIT` | depositAmount 불변 단언 추가 |
-| `db/migration/V57__add_booking_balance_paid_at.sql` | 잔금 결제 시각, 정합성 제약, 기간 조회 인덱스 추가 |
+| `db/migration/V1__baseline_schema.sql` (재작성 전 V57) | 잔금 결제 시각, 정합성 제약, 기간 조회 인덱스 추가 |
 | `DefaultBookingSettlementService` | 잔금 결제·미수·수업 완료를 단일 트랜잭션으로 처리 |

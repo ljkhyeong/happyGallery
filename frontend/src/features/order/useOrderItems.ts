@@ -5,10 +5,11 @@ import { productQuantities, productQuantityLimit, productSkuKey } from "@/featur
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import type { OrderItemInput } from "@/shared/types";
+import { queryKeys } from "@/shared/api";
 
 export function useOrderItems(requestedItems: OrderItemInput[]) {
   const query = useQuery({
-    queryKey: ["products"],
+    queryKey: queryKeys.catalog.products,
     queryFn: () => fetchProducts(),
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
@@ -27,11 +28,11 @@ export function useOrderItems(requestedItems: OrderItemInput[]) {
     const limit = product ? productQuantityLimit(product, item.productVariantId) : 0;
     const quantity = quantities.get(productSkuKey(item)) ?? item.qty;
     const problem = !product || !product.available
-      ? "현재 구매할 수 없는 상품입니다. 이 항목을 삭제해 주세요."
+      ? "지금 구매할 수 없는 작품입니다. 이 항목을 삭제해 주세요."
       : !selection?.configurationValid
-        ? "선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요."
+        ? "선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요."
         : quantity > limit
-          ? `같은 상품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
+          ? `같은 작품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
           : null;
     return {
       item, product, selection, problem,

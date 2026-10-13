@@ -106,7 +106,8 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
                   FROM NotificationOutbox n
                   WHERE n.eventType =
                       com.personal.happygallery.domain.notification.NotificationEventType.PICKUP_DEADLINE_REMINDER
-                    AND n.aggregateType = 'ORDER'
+                    AND n.aggregateType =
+                        com.personal.happygallery.domain.notification.NotificationAggregateType.ORDER
                     AND n.aggregateId = f.orderId
                     AND n.status <>
                         com.personal.happygallery.domain.notification.NotificationOutboxStatus.OBSOLETE

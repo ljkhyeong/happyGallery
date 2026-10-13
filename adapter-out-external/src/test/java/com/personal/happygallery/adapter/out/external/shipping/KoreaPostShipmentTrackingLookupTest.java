@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
 import com.personal.happygallery.domain.order.ShippingCarrier;
 import java.time.Duration;
@@ -118,7 +119,7 @@ class KoreaPostShipmentTrackingLookupTest {
 
     private KoreaPostShipmentTrackingLookup lookup(boolean enabled) {
         return new KoreaPostShipmentTrackingLookup(new KoreaPostProperties(enabled, "test+key/=",
-                Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30)),
+                new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30))),
                 builder.baseUrl("http://openapi.epost.go.kr").build());
     }
 

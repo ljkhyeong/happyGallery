@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.product;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import java.util.regex.Pattern;
 
 public final class ProductOptionPolicy {
@@ -26,26 +27,9 @@ public final class ProductOptionPolicy {
         return value;
     }
 
-    public static String requireName(String value, String fieldName) {
-        return requireText(value, fieldName, MAX_NAME_LENGTH);
-    }
-
-    public static String requireText(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            throw invalid(fieldName + "은 필수입니다.");
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > maxLength) {
-            throw invalid(fieldName + "은 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
-    }
-
-    public static String optionalText(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return requireText(value, fieldName, maxLength);
+    /** 옵션·옵션값 이름. {@code subject}는 "옵션명은"처럼 조사를 포함한다. */
+    public static String requireName(String value, String subject) {
+        return DomainText.required(value, subject, MAX_NAME_LENGTH);
     }
 
     public static long requireTextPriceAdjustment(long value) {

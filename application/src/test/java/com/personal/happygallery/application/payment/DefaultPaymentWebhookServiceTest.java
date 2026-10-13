@@ -107,8 +107,7 @@ class DefaultPaymentWebhookServiceTest {
         LocalDateTime staleBefore = LocalDateTime.now(clock).minusMinutes(1);
         when(receiptPort.findPendingIds(staleBefore, 20)).thenReturn(List.of(31L));
         when(receiptTransactionService.claim(31L, staleBefore)).thenReturn(Optional.of(11L));
-        when(reconciliationTransactions.prepareLookup(11L)).thenReturn(
-                new PaymentReconciliationTransactionService.LookupRequest(11L, "order-1", "payment-key", 1000L));
+        when(reconciliationTransactions.prepareLookup(11L)).thenReturn("order-1");
         when(paymentPort.lookupByOrderId("order-1")).thenReturn(
                 new PaymentLookupResult(status, null, "order-1", 0L, null, "조회 결과"));
 

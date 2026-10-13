@@ -20,12 +20,12 @@
 
 **결정**: 신규 구매는 `PassPlan.REGULAR_CRAFT_4`로 확정하고 `pass_purchases.plan_code`에 저장한다.
 계획은 표시 이름과 사용 가능 클래스 정책을 함께 가진 판매 계약이다. 정책을 바꿀 때 기존 enum 상수의 의미를
-수정하지 않고 새 계획 코드를 추가한다. 정책 도입 전 구매 건은 `LEGACY_ALL_CLASSES`로 이관한다.
+수정하지 않고 새 계획 코드를 추가한다.
 
 **이유**:
 - 판매 뒤 클래스 정책이 바뀌어도 구매 당시 계약을 재현할 수 있다.
 - 목록·상세 응답의 `planCode`, `planName`과 예약 시 사용 가능 여부를 같은 값에서 만든다.
-- 향수 원데이 클래스와 관리자가 `passEligible=false`로 지정한 클래스에는 `REGULAR_CRAFT_8`을 사용할 수 없다.
+- 향수 원데이 클래스와 관리자가 `passEligible=false`로 지정한 클래스에는 이용권을 사용할 수 없다.
 
 ### 1. `expires_at` 저장 타입: `LocalDateTime`
 
@@ -144,7 +144,7 @@
 결제 진입점 도입으로 회원 이용권 구매 생성 경로를 다시 일원화했다.
 
 - 구매 생성: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`
-- `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 이용권 조회 전용으로 유지한다.
+- `GET /api/v1/me/passes`와 `/page`는 회원 이용권 조회 전용으로 유지한다. 화면이 쓰지 않던 단건 `GET /api/v1/me/passes/{id}`는 2026-10-07에 제거했다.
 - 가격은 클라이언트가 보내지 않고 서버 설정 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)으로 확정한다.
 
 ## Update (2026-07-21)
@@ -166,3 +166,9 @@
 
 - 신규 결제의 기본 판매가와 운영 설정을 300,000원(회당 75,000원)으로 조정한다. 4회·90일 정책은 유지한다.
 - 기존 구매와 준비된 결제 시도의 저장 금액은 변경하지 않는다. 기존 이용권 환불은 구매 당시 금액을 따른다.
+
+## 2026-10-07: 이전 계획 코드 정리
+
+- 운영 DB를 초기화하고 Flyway 기준선을 새로 만들면서 보존할 이전 구매·결제 시도가 없어졌다.
+- 판매하지 않는 `LEGACY_ALL_CLASSES`·`REGULAR_CRAFT_8` 계획과 계획 코드 없는 결제 JSON의 8회권 대체값을 제거한다. `PassPlan`은 `REGULAR_CRAFT_4`만 가진다.
+- 계획 코드가 없는 저장 payload는 confirm에서 `INVALID_INPUT`으로 거절하고 새 prepare를 요구한다.

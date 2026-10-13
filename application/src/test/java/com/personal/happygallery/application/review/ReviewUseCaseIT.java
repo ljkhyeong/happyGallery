@@ -10,12 +10,14 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.adapter.out.persistence.review.ReviewRepository;
 import com.personal.happygallery.adapter.out.persistence.review.ReviewImageRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
 import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
+import com.personal.happygallery.application.review.port.out.ReviewTombstoneRetentionPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -27,7 +29,6 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.review.Review;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
 import com.personal.happygallery.domain.review.ReviewReportReason;
@@ -37,6 +38,7 @@ import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -57,7 +59,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.jdbc.JdbcTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
+import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -74,7 +81,8 @@ class ReviewUseCaseIT {
     @Autowired ReviewImageAttachmentService imageAttachmentService;
     @Autowired ImageMediaReferenceReaderPort imageReferenceReader;
     @Autowired ReviewEvidenceRetentionService evidenceRetentionService;
-    @Autowired ReviewTombstoneRetentionService tombstoneRetentionService;
+    @Autowired ReviewTombstoneRetentionPort tombstoneRetentionPort;
+    @Autowired PlatformTransactionManager transactionManager;
     @Autowired UserStorePort userStore;
     @Autowired ProductRepository productRepository;
     @Autowired OrderRepository orderRepository;
@@ -119,7 +127,7 @@ class ReviewUseCaseIT {
 
         assertSoftly(softly -> {
             ReviewUseCase.PublicReviewPage productPage = publicReviewUseCase.listProductReviews(
-                    productSource.product().getId(), null, 20);
+                    productSource.product().getId(), null, ReviewSort.LATEST, null, 20);
             softly.assertThat(productPage.summary().reviewCount()).isEqualTo(1L);
             softly.assertThat(productPage.summary().averageRating()).isEqualTo(5.0);
             softly.assertThat(productPage.summary().histogram().rating5()).isEqualTo(1L);
@@ -128,7 +136,7 @@ class ReviewUseCaseIT {
                     .satisfies(item -> softly.assertThat(item.authorName())
                             .isEqualTo("후기 회원"));
             ReviewUseCase.ReviewSummary classSummary = publicReviewUseCase.listClassReviews(
-                    classSource.bookingClass().getId(), null, 20).summary();
+                    classSource.bookingClass().getId(), null, ReviewSort.LATEST, null, 20).summary();
             softly.assertThat(classSummary.reviewCount()).isEqualTo(1L);
             softly.assertThat(classSummary.averageRating()).isEqualTo(3.0);
             softly.assertThat(adminReviewUseCase.listAdminReviews(
@@ -157,7 +165,7 @@ class ReviewUseCaseIT {
                 productReview.version(),
                 admin.getId());
         ReviewUseCase.PublicReviewPage hiddenPage = publicReviewUseCase.listProductReviews(
-                productSource.product().getId(), null, 20);
+                productSource.product().getId(), null, ReviewSort.LATEST, null, 20);
 
         assertSoftly(softly -> {
             softly.assertThat(hidden.status()).isEqualTo(ReviewStatus.HIDDEN);
@@ -183,7 +191,7 @@ class ReviewUseCaseIT {
         });
 
         productSource.product().updateDetails(
-                "도자기 화병 새 이름", null, 30_000L, null, null);
+                "도자기 화병 새 이름", null, 30_000L, null, null, null, null, null);
         productRepository.saveAndFlush(productSource.product());
         ReviewUseCase.ReviewItem republished = adminReviewUseCase.updateStatus(
                 productReview.id(),
@@ -198,7 +206,7 @@ class ReviewUseCaseIT {
             softly.assertThat(republished.hiddenAt()).isNull();
             softly.assertThat(republished.hiddenByAdminId()).isNull();
             softly.assertThat(publicReviewUseCase.listProductReviews(
-                            productSource.product().getId(), null, 20).summary().reviewCount())
+                            productSource.product().getId(), null, ReviewSort.LATEST, null, 20).summary().reviewCount())
                     .isEqualTo(1L);
             softly.assertThat(memberReviewUseCase.listMyOrderReviews(
                             user.getId(), productSource.order().getId()))
@@ -274,10 +282,10 @@ class ReviewUseCaseIT {
         User user = createUser("review-source-pair@example.com", "01074000005", "원천 검증 회원");
         ProductOrderSource productSource = createProductOrderSource(user, true, "구매한 상품");
         Product unrelatedProduct = productRepository.saveAndFlush(
-                new Product("다른 상품", ProductType.READY_STOCK, 20_000L));
+                TestFixtures.readyStockProduct("다른 상품", 20_000L));
         ClassBookingSource classSource = createClassBookingSource(user, "수강한 클래스");
         BookingClass unrelatedClass = classRepository.saveAndFlush(
-                new BookingClass("다른 클래스", "CRAFT", 90, 40_000L, 20));
+                bookingClass("다른 클래스", "CRAFT", 90, 40_000L, 20));
         LocalDateTime now = LocalDateTime.now(clock);
 
         assertThatThrownBy(() -> reviewRepository.saveAndFlush(Review.forProduct(
@@ -341,7 +349,7 @@ class ReviewUseCaseIT {
             softly.assertThat(tombstone.getContent()).isNull();
             softly.assertThat(tombstone.isRecreationBlocked()).isFalse();
             softly.assertThat(publicReviewUseCase.listProductReviews(
-                            source.product().getId(), null, 20).summary().reviewCount())
+                            source.product().getId(), null, ReviewSort.LATEST, null, 20).summary().reviewCount())
                     .isZero();
             softly.assertThat(memberReviewUseCase.getProductReviewCreationState(
                             owner.getId(), source.orderItem().getId()).status())
@@ -400,7 +408,7 @@ class ReviewUseCaseIT {
         memberReviewUseCase.deleteReview(owner.getId(), hidden.id());
 
         LocalDateTime cutoff = LocalDateTime.now(clock)
-                .minus(ReviewTombstoneRetentionService.RETENTION);
+                .minus(DefaultPersonalDataRetentionBatchService.REVIEW_TOMBSTONE_RETENTION);
         jdbcTemplate.update(
                 "UPDATE reviews SET deleted_at = ? WHERE id IN (?, ?, ?)",
                 cutoff,
@@ -418,7 +426,8 @@ class ReviewUseCaseIT {
                 "DELETE FROM reviews WHERE id = ?", blocked.id()))
                 .isInstanceOf(DataIntegrityViolationException.class);
 
-        int deleted = tombstoneRetentionService.deleteBatchBefore(cutoff, 100);
+        int deleted = new TransactionTemplate(transactionManager).execute(
+                status -> tombstoneRetentionPort.deleteUnblockedBefore(cutoff, 100));
 
         assertSoftly(softly -> {
             softly.assertThat(deleted).isEqualTo(1);
@@ -751,7 +760,7 @@ class ReviewUseCaseIT {
     @DisplayName("공개 후기 집계는 전체 별점 분포를 유지하고 필터와 정렬 커서를 안정적으로 적용한다")
     void publicReviewHistogramFilterAndRatingSortUseStableCursor() {
         Product product = productRepository.saveAndFlush(
-                new Product("별점 정렬 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("별점 정렬 상품", 30_000L));
         User lowUser = createUser("review-rating-low@example.com", "01074000009", "낮은 별점 회원");
         User highUser = createUser("review-rating-high@example.com", "01074000010", "높은 별점 회원");
         User middleUser = createUser("review-rating-middle@example.com", "01074000011", "중간 별점 회원");
@@ -796,9 +805,9 @@ class ReviewUseCaseIT {
     @DisplayName("상품과 클래스 공개 후기는 정렬별 커서 순서를 끝까지 유지한다")
     void publicReviewSortQueriesPreserveProductAndClassCursorOrder() {
         Product product = productRepository.saveAndFlush(
-                new Product("공개 정렬 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("공개 정렬 상품", 30_000L));
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
+                bookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
         User lowUser = createUser("review-sort-low@example.com", "01074000024", "낮은 별점 회원");
         User highUser = createUser("review-sort-high@example.com", "01074000025", "높은 별점 회원");
         User middleUser = createUser(
@@ -873,7 +882,6 @@ class ReviewUseCaseIT {
             softly.assertThat(duplicateHelpful.helpfulCount()).isEqualTo(1L);
             softly.assertThat(report.evidence().rating()).isEqualTo(2);
             softly.assertThat(report.evidence().content()).isEqualTo("신고 시점 원문");
-            softly.assertThat(report.evidence().imagesComplete()).isTrue();
             softly.assertThat(reviewInteractionUseCase.listMyReviewReactions(
                             actor.getId(), List.of(review.id())))
                     .singleElement()
@@ -1009,7 +1017,6 @@ class ReviewUseCaseIT {
                     .containsExactly(
                             "/images/evidence-replacement.webp",
                             "/images/evidence-second.webp");
-            softly.assertThat(moderation.evidence().imagesComplete()).isTrue();
         });
     }
 
@@ -1193,14 +1200,14 @@ class ReviewUseCaseIT {
     private ProductOrderSource createProductOrderSource(
             User user, boolean completed, String productName) {
         Product product = productRepository.saveAndFlush(
-                new Product(productName, ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct(productName, 30_000L));
         return createProductOrderSource(user, completed, product);
     }
 
     private ProductOrderSource createProductOrderSource(
             User user, boolean completed, Product product) {
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), 30_000L, now.minusHours(1), now.plusHours(23));
         if (completed) {
             order.approve();
@@ -1209,13 +1216,13 @@ class ReviewUseCaseIT {
         }
         order = orderRepository.saveAndFlush(order);
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         return new ProductOrderSource(product, order, orderItem);
     }
 
     private ClassBookingSource createClassBookingSource(User user, String className) {
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass(className, "PERFUME", 120, 50_000L, 30));
+                bookingClass(className, "PERFUME", 120, 50_000L, 30));
         return createClassBookingSource(user, bookingClass, 0);
     }
 

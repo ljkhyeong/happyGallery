@@ -2,14 +2,13 @@ import { expect, test, type Page } from "@playwright/test";
 import type { CreateQnaRequest, ProductQnaDetail } from "../../src/generated/api/productQna";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
+import { EMPTY_REVIEW_PAGE, fulfillJson, productDetailFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
 
 async function mockQna(page: Page) {
-  const product = { id: 42, name: "문의 확인 작품", type: "READY_STOCK", price: 12000, available: true,
-    stockQuantity: 3, description: null, category: "공예", imageUrl: null, specification: null,
-    careInstructions: null, productionLeadDays: null, optionGroups: [], variants: [] };
+  const product = productDetailFixture({ name: "문의 확인 작품", stockQuantity: 3, category: "공예" });
   const state = {
     accountId: 501, hold: false, fail: false, release: () => {},
     requests: [] as Array<{ accountId: number; body: CreateQnaRequest }>,
@@ -19,43 +18,41 @@ async function mockQna(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     switch (pathname) {
-      case "/api/v1/auth/csrf": return route.fulfill({ contentType: "application/json",
-        headers: { "Set-Cookie": "XSRF-TOKEN=qna-writing; Path=/" }, body: "{}" });
-      case "/api/v1/me": return json({ id: state.accountId, name: `회원${state.accountId}`, email: "qna@example.com",
+      case "/api/v1/auth/csrf": return route.fulfill({
+        headers: { "Set-Cookie": "XSRF-TOKEN=qna-writing; Path=/" }, json: {} });
+      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`, email: "qna@example.com",
         phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
       case "/api/v1/me/products/42/qna": {
         const body = request.postDataJSON() as CreateQnaRequest;
         const accountId = state.accountId;
         state.requests.push({ accountId, body });
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        if (state.fail) return json({ code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.fail) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
         const row = { ...body, id: 91, userId: accountId, productId: 42, authorName: `회원${accountId}`,
           createdAt: "2026-09-12T10:00:00", repliedAt: "2026-09-12T11:00:00", replyContent: "첫 번째 답변\n두 번째 답변" };
         state.rows.push(row);
-        return json({ id: row.id, productId: 42, title: row.title, secret: row.secret, createdAt: row.createdAt }, 201);
+        return fulfillJson(route, { id: row.id, productId: 42, title: row.title, secret: row.secret, createdAt: row.createdAt }, 201);
       }
-      case "/api/v1/products/42/qna/page": return json({ content: state.rows.map((row) => ({
+      case "/api/v1/products/42/qna/page": return fulfillJson(route, { content: state.rows.map((row) => ({
         id: row.id, title: row.secret ? "비밀 문의입니다." : row.title, secret: row.secret,
         authorName: "회원***", createdAt: row.createdAt, hasReply: true,
       })), hasMore: false, nextCursor: null });
-      case "/api/v1/me/products/42/qna/page": return json({ content: state.rows.filter((row) => row.userId === state.accountId)
+      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, { content: state.rows.filter((row) => row.userId === state.accountId)
         .map((row) => ({ id: row.id, title: row.title, secret: row.secret, createdAt: row.createdAt, hasReply: true })), hasMore: false, nextCursor: null });
       case "/api/v1/me/products/42/qna/91": {
         const row = state.rows.find((item) => item.id === 91 && item.userId === state.accountId);
-        return row ? json(row) : json({ code: "NOT_FOUND" }, 404);
+        return row ? fulfillJson(route, row) : fulfillJson(route, { code: "NOT_FOUND" }, 404);
       }
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/coupons": return json([]);
-      case "/api/v1/me/rewards": return json({ availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
-      case "/api/v1/me/favorites/PRODUCT/42": return json({ saved: false });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/coupons": return fulfillJson(route, []);
+      case "/api/v1/me/rewards": return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
+      case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/products/42": return route.fallback();
-      case "/api/v1/products/42/reviews": return json({ content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
-      case "/api/v1/orders/policy": return json({ shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
+      case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
+      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
       default: throw new Error(`정의하지 않은 상품 문의 작성 테스트 요청: ${request.method()} ${pathname}`);
     }
   });

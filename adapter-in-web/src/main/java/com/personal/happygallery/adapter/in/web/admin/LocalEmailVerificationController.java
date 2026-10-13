@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** local/dev E2E 전용 이메일 인증 코드 조회 API. */
-@Profile({"local", "dev"})
+/** local E2E 전용 이메일 인증 코드 조회 API. */
+@Profile("local")
 @RestController
 @RequestMapping("/api/v1/admin/dev/email-verifications")
 public class LocalEmailVerificationController {

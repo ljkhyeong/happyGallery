@@ -6,6 +6,7 @@ import com.personal.happygallery.application.booking.port.in.BookingReminderBatc
 import com.personal.happygallery.application.booking.port.out.BookingReminderCandidatePort;
 import com.personal.happygallery.application.booking.port.out.BookingReminderTarget;
 import com.personal.happygallery.application.notification.NotificationOutboxService;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -93,9 +94,9 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
             BookingReminderTarget target, NotificationEventType eventType) {
         NotificationRequestedEvent event = target.userId() != null
                 ? NotificationRequestedEvent.forUserOncePerAggregate(
-                        target.userId(), eventType, "BOOKING", target.bookingId())
+                        target.userId(), eventType, NotificationAggregateType.BOOKING, target.bookingId())
                 : NotificationRequestedEvent.forGuestOncePerAggregate(
-                        target.guestId(), eventType, "BOOKING", target.bookingId());
+                        target.guestId(), eventType, NotificationAggregateType.BOOKING, target.bookingId());
         boolean enqueued = notificationOutboxService.enqueue(event);
         if (enqueued) {
             log.info("리마인드 요청 [bookingId={}, type={}]", target.bookingId(), eventType);

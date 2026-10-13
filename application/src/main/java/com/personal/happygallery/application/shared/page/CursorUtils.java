@@ -2,46 +2,73 @@ package com.personal.happygallery.application.shared.page;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 /**
  * 커서 인코딩/디코딩 유틸리티.
  *
- * <p>커서 형식: Base64("{ISO_LOCAL_DATE_TIME}|{id}")
- * <br>동점 방지를 위해 (timestamp, id) 복합 키를 사용한다.
+ * <p>커서 형식: Base64("{ISO_LOCAL_DATE_TIME}|{key}")
+ * <br>동점 방지를 위해 (timestamp, key) 복합 키를 사용한다. key는 숫자 ID 또는 문자열 키다.
  */
 public final class CursorUtils {
 
-    private static final String SEPARATOR = "|";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private CursorUtils() {}
 
     public static String encode(LocalDateTime timestamp, Long id) {
-        String raw = FMT.format(timestamp) + SEPARATOR + id;
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        return encode(timestamp, String.valueOf(id));
+    }
+
+    /** 문자열 키(예: 스마트스토어 상품 주문 번호)로 동점을 가르는 커서를 만든다. */
+    public static String encode(LocalDateTime timestamp, String key) {
+        return CursorCodec.encode(FMT.format(timestamp), key);
     }
 
     public static CursorParam decode(String cursor) {
+        KeyCursor keyCursor = decodeKey(cursor);
         try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            int sep = raw.lastIndexOf(SEPARATOR);
-            if (sep < 0) {
-                throw new IllegalArgumentException("Invalid cursor format");
-            }
-            LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
-            Long id = Long.valueOf(raw.substring(sep + 1));
-            return new CursorParam(timestamp, id);
-        } catch (DateTimeException | IllegalArgumentException exception) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
+            return new CursorParam(keyCursor.timestamp(), Long.valueOf(keyCursor.key()));
+        } catch (NumberFormatException exception) {
+            throw invalidCursor();
         }
     }
 
-    public record CursorParam(LocalDateTime timestamp, Long id) {}
+    /** 첫 페이지(null)는 값이 모두 null인 커서로 바꿔 nullable 커서 조회에 그대로 넘긴다. */
+    public static CursorParam decodeOrFirst(String cursor) {
+        return cursor == null ? CursorParam.FIRST : decode(cursor);
+    }
+
+    /** 첫 페이지(null)는 값이 모두 null인 문자열 키 커서로 바꿔 nullable 커서 조회에 그대로 넘긴다. */
+    public static KeyCursor decodeKeyOrFirst(String cursor) {
+        return cursor == null ? KeyCursor.FIRST : decodeKey(cursor);
+    }
+
+    public static KeyCursor decodeKey(String cursor) {
+        try {
+            String[] values = CursorCodec.decode(cursor, 2);
+            if (values[1].isEmpty()) {
+                throw new IllegalArgumentException("Invalid cursor format");
+            }
+            return new KeyCursor(LocalDateTime.parse(values[0], FMT), values[1]);
+        } catch (DateTimeException | IllegalArgumentException exception) {
+            throw invalidCursor();
+        }
+    }
+
+    private static HappyGalleryException invalidCursor() {
+        return new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
+    }
+
+    /** 값이 모두 null이면 첫 페이지를 뜻한다. */
+    public record CursorParam(LocalDateTime timestamp, Long id) {
+        private static final CursorParam FIRST = new CursorParam(null, null);
+    }
+
+    /** 값이 모두 null이면 첫 페이지를 뜻한다. */
+    public record KeyCursor(LocalDateTime timestamp, String key) {
+        private static final KeyCursor FIRST = new KeyCursor(null, null);
+    }
 }

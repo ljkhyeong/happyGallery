@@ -1,4 +1,4 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
 
 import {
@@ -6,20 +6,13 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 [
   { path: "/cart", name: "장바구니", button: "결제하기", cartCheckout: true },
@@ -34,31 +27,12 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   const cartVersion = "d".repeat(64);
   let claimed = false;
   let preparedPayload: Record<string, unknown> | null = null;
-  const product = {
-    id: 52,
-    name: "혜택 적용 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 20000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 5,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ id: 52, name: "혜택 적용 작품", price: 20000, stockQuantity: 5 });
   if (!checkout.cartCheckout) {
     await replaceSsrUpstreamFixtures(ssrApiFixture("/products/52", product));
   }
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "member-benefits-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       TossPayments: () => {
@@ -204,13 +178,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
       return;
     }
     if (pathname === "/api/v1/products/52/reviews") {
-      await fulfillJson(route, {
-        content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: {
-          averageRating: 0, reviewCount: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/payments/prepare") {
@@ -254,7 +222,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
 
   await page.goto("/my/benefits");
   await expect(page.getByRole("heading", { name: "쿠폰·적립금" })).toBeVisible();
-  await expect(page.getByText("₩50,000").first()).toBeVisible();
+  await expect(page.getByText("50,000원").first()).toBeVisible();
   const claimableCard = page.locator(".card").filter({ hasText: "여름 공개 쿠폰" }).first();
   await claimableCard.getByRole("button", { name: "쿠폰 받기" }).click();
   await expect(page.getByText("현재 새로 받을 수 있는 쿠폰이 없습니다.")).toBeVisible();
@@ -272,18 +240,18 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   await expect(rewardInput).toHaveValue("15000");
   const paymentSummary = page.getByText("결제 예정 금액", { exact: true }).locator("..");
   await page.getByRole("button", { name: /택배 배송/ }).click();
-  await expect(paymentSummary).toContainText("₩3,000");
+  await expect(paymentSummary).toContainText(/(?<![\d,])3,000원/);
 
   await page.getByRole("button", { name: "매장 수령" }).click();
-  await expect(paymentSummary).toContainText("₩0");
+  await expect(paymentSummary).toContainText(/(?<![\d,])0원/);
   if (!checkout.cartCheckout) {
     await page.getByRole("button", { name: "수량 증가", exact: true }).click();
-    await expect(paymentSummary).toContainText("₩20,000");
+    await expect(paymentSummary).toContainText("20,000원");
     await page.getByRole("button", { name: "전액 사용", exact: true }).click();
     await expect(rewardInput).toHaveValue("35000");
     await page.getByRole("button", { name: "수량 감소", exact: true }).click();
     await expect(rewardInput).toHaveValue("15000");
-    await expect(paymentSummary).toContainText("₩0");
+    await expect(paymentSummary).toContainText(/(?<![\d,])0원/);
   }
   await page.getByRole("button", { name: checkout.button, exact: true }).click();
   await expect.poll(() => preparedPayload).not.toBeNull();

@@ -32,24 +32,21 @@ import {
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { ApiError } from "@/shared/api";
+import { parsePositiveId } from "@/shared/lib";
 
 type Step = "verify" | "items";
 
 export function OrderCreatePage() {
   const { isLoading, sessionVersion } = useCustomerAuth();
   const [searchParams] = useSearchParams();
-  const requestedProductId = Number(searchParams.get("productId"));
-  const productId = Number.isSafeInteger(requestedProductId) && requestedProductId > 0 ? requestedProductId : null;
+  const productId = parsePositiveId(searchParams.get("productId"));
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
@@ -144,7 +141,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
             cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
-            ...(issuedCouponId === null ? {} : { issuedCouponId }),
+            issuedCouponId,
             rewardAmount,
             ...fulfillmentPayload(fulfillment),
           }
@@ -164,8 +161,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
         orderName: items.length === 1 && items[0]
-          ? `상품 주문 (${items[0].qty}개)`
-          : `상품 주문 ${items.length}건`,
+          ? `작품 주문 (${items[0].qty}개)`
+          : `작품 주문 ${items.length}건`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: normalizedName,
         customerPhone: phone || undefined,
@@ -182,7 +179,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       }
     },
   });
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
 
   useEffect(() => {
     if (!moveToNameAfterVerify || step !== "items") return;
@@ -196,10 +192,10 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   if (draftMissing) {
     return <Container className="page-container" style={{ maxWidth: 640 }}>
       <Alert variant="warning">{searchParams.get("draft") === "options"
-        ? "선택한 옵션 정보를 불러올 수 없습니다. 상품 상세에서 옵션과 수량을 다시 선택해 주세요."
-        : "주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요."}</Alert>
+        ? "선택한 옵션 정보를 불러올 수 없습니다. 작품 상세에서 옵션과 수량을 다시 선택해 주세요."
+        : "주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요."}</Alert>
       <LinkButton to={hasPrefilledItem ? `/products/${productId}` : "/products"}>
-        상품 다시 선택
+        작품 다시 선택
       </LinkButton>
     </Container>;
   }
@@ -209,12 +205,12 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       <PageHeader
         title={user ? "주문서" : "비회원 주문"}
         description={user
-          ? "주문할 상품과 수령 방법을 확인한 뒤 결제해 주세요."
-          : "로그인 없이 한 번에 여러 상품을 주문할 수 있습니다."}
+          ? "주문할 작품과 수령 방법을 확인한 뒤 결제해 주세요."
+          : "로그인 없이 여러 작품을 한 번에 주문할 수 있습니다."}
         actions={(
           <>
             <LinkButton to="/products" variant="dark" size="sm">
-              상품 보러가기
+              작품 보러가기
             </LinkButton>
             {!user && (
               <LinkButton to={loginHref} variant="outline-secondary" size="sm">
@@ -226,8 +222,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       />
       {hasPrefilledItem && (
         <Alert variant="info" className="mb-4">
-          선택한 상품과 수량을 주문서에 담았습니다.
-          아래에서 상품을 추가하거나 삭제할 수 있습니다.
+          선택한 작품과 수량을 주문서에 담았습니다.
+          아래에서 작품을 추가하거나 삭제할 수 있습니다.
         </Alert>
       )}
     </>
@@ -239,18 +235,17 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         {header}
         <Card className="mb-4 border-0 my-claim-card checkout-gate">
           <Card.Body className="p-4">
-            <h2 className="h5 mb-2">주문할 상품을 먼저 선택해 주세요</h2>
+            <h2 className="h5 mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
-              작품 목록에서 상품과 수량을 고르면 주문서에 자동으로 입력됩니다.
-              여러 상품을 직접 선택할 수도 있습니다.
+              작품 목록에서 작품과 수량을 고르면 주문서에 자동으로 들어갑니다.
+              여러 작품을 여기서 직접 고를 수도 있습니다.
             </p>
             <div className="d-flex flex-wrap gap-2">
               <LinkButton to="/products" variant="dark" size="sm">
-                상품 먼저 고르기
+                작품 먼저 고르기
               </LinkButton>
               <LinkButton
-                to="/guest"
-                state={{ monitoringSource: "order_manual_entry_gate" }}
+                to="/guest#lookup-help"
                 variant="outline-secondary"
                 size="sm"
               >
@@ -260,16 +255,11 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 variant="outline-primary"
                 size="sm"
                 onClick={() => {
-                  trackClientEvent({
-                    event: "GUEST_ORDER_DIRECT_ENTRY_CONTINUED",
-                    path: "/orders/new",
-                    source: "manual_entry_gate",
-                    target: "order_items_step",
-                  });
+                  trackClientEvent("GUEST_ORDER_DIRECT_ENTRY_CONTINUED");
                   setManualEntryConfirmed(true);
                 }}
               >
-                여러 상품 직접 선택
+                여러 작품 직접 선택
               </Button>
             </div>
           </Card.Body>
@@ -279,7 +269,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   }
 
   // 비회원은 휴대폰 인증이 첫 단계라 이후 단계 번호가 하나씩 밀린다.
-  const stepOffset = user ? 0 : 1;
   // 결제 버튼이 비활성인 이유를 화면 순서대로 알려 준다. 상품·임시 저장 오류는 각 안내가 따로 보인다.
   const remainingSteps = [
     !user && !code && "휴대폰 인증",
@@ -328,12 +317,12 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 fulfillmentType={fulfillment.fulfillmentType}
               />
             )}
-            <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+            <PaymentErrorAlert error={consent.paymentError(mutation.error)} />
           </CheckoutSummary>
         ) : undefined}
       >
         {!user && (
-          <CheckoutPanel step={1} title="휴대폰 인증">
+          <CheckoutPanel title="휴대폰 인증">
             {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
               key={verificationReset.version}
@@ -355,7 +344,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
         {step === "items" && (
           <>
-            <CheckoutPanel step={1 + stepOffset} title="주문자 정보">
+            <CheckoutPanel title="주문자 정보">
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
@@ -377,7 +366,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </Form.Group>
             </CheckoutPanel>
 
-            <CheckoutPanel step={2 + stepOffset} title="상품 선택">
+            <CheckoutPanel title="작품 선택">
               <OrderItemsForm
                 state={orderItems}
                 onChange={updateItems}
@@ -388,11 +377,11 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </Alert>}
             </CheckoutPanel>
 
-            <CheckoutPanel step={3 + stepOffset} title="수령 방법">
+            <CheckoutPanel title="수령 방법">
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
             </CheckoutPanel>
 
-            <CheckoutPanel step={4 + stepOffset} title="결제 수단">
+            <CheckoutPanel title="결제 수단">
               <PaymentMethodFields
                 value={checkoutSelection}
                 onChange={setCheckoutSelection}
@@ -402,27 +391,10 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
             </CheckoutPanel>
 
             {showConsentPanel && (
-              <CheckoutPanel step={5 + stepOffset} title="동의">
-                <MadeToOrderConsent
-                  required={requiresMadeToOrderConsent}
-                  policy={consent.policyQuery.data}
-                  isLoading={consent.policyQuery.isLoading}
-                  isFetching={consent.policyQuery.isFetching}
-                  error={consent.policyQuery.error}
-                  checked={consent.checked}
-                  onChange={consent.setChecked}
-                  versionMismatch={consent.versionMismatch}
-                  refreshRequired={consent.refreshRequired}
-                />
+              <CheckoutPanel title="동의">
+                <MadeToOrderConsent consent={consent} />
                 {!user && (
-                  <PolicyConsentFields
-                    id="guest-order-policy-consent"
-                    policy={guestPolicyConsent.policyQuery.data}
-                    checked={guestPolicyConsent.accepted}
-                    onChange={guestPolicyConsent.setAccepted}
-                    isLoading={guestPolicyConsent.policyQuery.isLoading}
-                    error={guestPolicyConsent.policyQuery.error}
-                  />
+                  <PolicyConsentFields id="guest-order-policy-consent" consent={guestPolicyConsent} />
                 )}
               </CheckoutPanel>
             )}

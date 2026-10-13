@@ -44,8 +44,13 @@ class NotificationDeliveryResultReconcilerTest {
                 .thenReturn(NotificationDeliveryResult.failed("MRC02"));
         when(transactionService.markProviderFailedAudit(reservation, "MRC02")).thenReturn(true);
         boolean delivered = deliveryResult == NotificationSendResult.SUCCESS;
-        when(notificationService.sendByUserIdWithOutcome(
-                10L, NotificationEventType.BOOKING_CONFIRMED, "idempotency-key", NotificationChannel.KAKAO))
+        when(notificationService.deliver(
+                NotificationRecipientType.USER,
+                null,
+                10L,
+                NotificationEventType.BOOKING_CONFIRMED,
+                "idempotency-key",
+                NotificationChannel.KAKAO))
                 .thenThrow(delivered
                         ? NotificationAuditPersistenceException.afterCompletedDelivery()
                         : NotificationAuditPersistenceException.afterUnknownDelivery());
@@ -100,7 +105,9 @@ class NotificationDeliveryResultReconcilerTest {
         when(provider.findResult("kakao-request-id", 1L))
                 .thenReturn(NotificationDeliveryResult.failed("MRC02"));
         when(transactionService.markProviderFailedAudit(reservation, "MRC02")).thenReturn(true);
-        when(notificationService.sendByUserIdWithOutcome(
+        when(notificationService.deliver(
+                NotificationRecipientType.USER,
+                null,
                 10L,
                 NotificationEventType.BOOKING_CONFIRMED,
                 "idempotency-key",
@@ -113,14 +120,15 @@ class NotificationDeliveryResultReconcilerTest {
                 "processing-token",
                 NotificationChannel.SMS,
                 "sms-request-id",
-                2L,
-                null)).thenReturn(true);
+                2L)).thenReturn(true);
         NotificationDeliveryResultReconciler reconciler = new NotificationDeliveryResultReconciler(
                 transactionService, notificationService, List.of(provider));
 
         var result = reconciler.reconcilePending();
 
-        verify(notificationService).sendByUserIdWithOutcome(
+        verify(notificationService).deliver(
+                NotificationRecipientType.USER,
+                null,
                 10L,
                 NotificationEventType.BOOKING_CONFIRMED,
                 "idempotency-key",

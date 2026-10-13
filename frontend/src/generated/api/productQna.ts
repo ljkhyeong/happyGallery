@@ -29,18 +29,6 @@ export interface QnaReplyRequest {
   replyContent: string;
 }
 
-export interface SmartStoreInquiryResponse {
-  /** @nullable */
-  answer: string | null;
-  answered: boolean;
-  channelProductId: number;
-  createdAt: string;
-  maskedWriterId: string;
-  productName: string;
-  question: string;
-  questionId: number;
-}
-
 export interface SmartStoreCustomerInquiryResponse {
   /** @nullable */
   answerContent: string | null;
@@ -88,6 +76,18 @@ export interface SmartStoreInquiryAnswerRequest {
   content: string;
 }
 
+export interface SmartStoreInquiryResponse {
+  /** @nullable */
+  answer: string | null;
+  answered: boolean;
+  channelProductId: number;
+  createdAt: string;
+  maskedWriterId: string;
+  productName: string;
+  question: string;
+  questionId: number;
+}
+
 export interface SmartStoreInquiryPageResponse {
   content: SmartStoreInquiryResponse[];
   page: number;
@@ -100,14 +100,6 @@ export interface SmartStoreInquiryAnswerTemplateResponse {
   content: string;
   questionType: string;
   subject: string;
-}
-
-export interface MyProductQnaListItem {
-  createdAt: string;
-  hasReply: boolean;
-  id: number;
-  secret: boolean;
-  title: string;
 }
 
 export interface CreateQnaRequest {
@@ -128,6 +120,14 @@ export interface QnaCreatedResponse {
   createdAt: string;
   id: number;
   productId: number;
+  secret: boolean;
+  title: string;
+}
+
+export interface MyProductQnaListItem {
+  createdAt: string;
+  hasReply: boolean;
+  id: number;
   secret: boolean;
   title: string;
 }
@@ -169,10 +169,6 @@ export interface ProductQnaPageResponse {
   nextCursor: string | null;
 }
 
-export type ListAdminProductQnaParams = {
-productId: number;
-};
-
 export type ListAdminProductQnaPageParams = {
 productId: number;
 cursor?: string;
@@ -186,24 +182,6 @@ size?: number;
 export type ListUnansweredAdminProductQnaParams = {
 cursor?: string;
 size?: number;
-};
-
-export type ListSmartStoreInquiriesParams = {
-unansweredOnly?: boolean;
-/**
- * @minimum 1
- * @maximum 200
- */
-limit?: number;
-};
-
-export type ListSmartStoreCustomerInquiriesParams = {
-unansweredOnly?: boolean;
-/**
- * @minimum 1
- * @maximum 200
- */
-limit?: number;
 };
 
 export type ListSmartStoreCustomerInquiriesPageParams = {
@@ -255,34 +233,6 @@ cursor?: string;
  */
 size?: number;
 };
-
-export const getListAdminProductQnaUrl = (params: ListAdminProductQnaParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/admin/qna?${stringifiedParams}` : `/api/v1/admin/qna`
-}
-
-export const listAdminProductQna = async (params: ListAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaResponse[]> => {
-
-  return generatedApiClient<AdminQnaResponse[]>(getListAdminProductQnaUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
 
 export const getListAdminProductQnaPageUrl = (params: ListAdminProductQnaPageParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -357,62 +307,6 @@ export const replyProductQna = async (id: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(qnaReplyRequest)
-  }
-);}
-
-
-
-export const getListSmartStoreInquiriesUrl = (params?: ListSmartStoreInquiriesParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries`
-}
-
-export const listSmartStoreInquiries = async (params?: ListSmartStoreInquiriesParams, options?: RequestInit): Promise<SmartStoreInquiryResponse[]> => {
-
-  return generatedApiClient<SmartStoreInquiryResponse[]>(getListSmartStoreInquiriesUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-export const getListSmartStoreCustomerInquiriesUrl = (params?: ListSmartStoreCustomerInquiriesParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/customers?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/customers`
-}
-
-export const listSmartStoreCustomerInquiries = async (params?: ListSmartStoreCustomerInquiriesParams, options?: RequestInit): Promise<SmartStoreCustomerInquiryResponse[]> => {
-
-  return generatedApiClient<SmartStoreCustomerInquiryResponse[]>(getListSmartStoreCustomerInquiriesUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
   }
 );}
 
@@ -563,27 +457,6 @@ export const answerSmartStoreInquiry = async (questionId: number,
 
 
 
-export const getListMyProductQnaUrl = (productId: number,) => {
-
-
-
-
-  return `/api/v1/me/products/${productId}/qna`
-}
-
-export const listMyProductQna = async (productId: number, options?: RequestInit): Promise<MyProductQnaListItem[]> => {
-
-  return generatedApiClient<MyProductQnaListItem[]>(getListMyProductQnaUrl(productId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
 export const getCreateProductQnaUrl = (productId: number,) => {
 
 
@@ -649,27 +522,6 @@ export const getMyProductQna = async (productId: number,
     id: number, options?: RequestInit): Promise<ProductQnaDetail> => {
 
   return generatedApiClient<ProductQnaDetail>(getGetMyProductQnaUrl(productId,id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-export const getListProductQnaUrl = (productId: number,) => {
-
-
-
-
-  return `/api/v1/products/${productId}/qna`
-}
-
-export const listProductQna = async (productId: number, options?: RequestInit): Promise<ProductQnaListItem[]> => {
-
-  return generatedApiClient<ProductQnaListItem[]>(getListProductQnaUrl(productId),
   {
     ...options,
     method: 'GET'

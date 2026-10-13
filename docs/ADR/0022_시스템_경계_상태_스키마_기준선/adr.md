@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-09-02
+**갱신**: 2026-10-07
 
 ---
 
@@ -45,7 +45,7 @@
 - 재입고 알림: `product_restock_alerts`에 회원·상품·옵션별 신청과 WAITING/QUEUED/NOTIFIED/CANCELED 상태를 저장한다. 대기 중 키는 UNIQUE이고 상품·회원·옵션 삭제 시 신청도 삭제한다.
 - 재고 부족 안내 기준: `inventory.minimum_stock`, `product_variants.minimum_stock`에 null 또는 0 이상 정수를 저장한다.
 - 단일 작품 재고: row lock 또는 version 기반 낙관적 락
-- 주문 승인, 자동 환불, 픽업 만료, 8회권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
+- 주문 승인, 자동 환불, 픽업 만료, 이용권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
 - 공지 관리자 수정·삭제와 공방 프로필 수정: 조회 응답 `version`과 변경 요청 `expectedVersion`의
   명시적 비교 + version 기반 낙관적 락
 - 공지 조회수: `view_count = view_count + 1` 원자 갱신. 조회수는 관리자 편집 충돌을
@@ -83,7 +83,7 @@
 - 주문 승인: `ADR-0013`
 - 예약 제작 주문: `ADR-0014`
 - 예약 변경/취소: `ADR-0006`, `ADR-0007`
-- 8회권 구매/만료/사용/환불: `ADR-0010`, `ADR-0011`
+- 이용권 구매/만료/사용/환불: `ADR-0010`, `ADR-0011`
 
 ### 4. 현재 데이터 모델은 아래를 기준으로 본다
 
@@ -91,7 +91,7 @@
 
 - `admin_user`
   - `id`, `username(unique)`, `password_hash`, `credential_version`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
-  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
+  - 비밀번호 해시는 식별자 없는 BCrypt 형식으로 저장·검증한다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - 인증되지 않은 요청이 운영자 계정을 잠그는 것을 막기 위해 V103에서 `failed_login_attempts`, `locked_until`을 제거한다. 로그인 남용은 IP 처리율 제한·MFA·감사 이력으로 통제하고, TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
 - `admin_mfa_challenge`
   - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
@@ -110,15 +110,15 @@
 - `users`
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
-  - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
+  - 로컬 비밀번호 해시는 식별자 없는 BCrypt 형식으로 저장·검증한다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
   - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 인증 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
-  - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
+  - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 이용권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
   - 종결 주문·예약의 `user_id`와 운영 이력은 유지한다. 관리자 과거 이력은 활성 회원 조회와 분리된 명시적 조회를 사용해 탈퇴 회원도 `MEMBER`로 반환하되, 익명화된 이름과 제거된 전화번호만 노출한다.
 - `user_social_accounts`
-  - `id`, `user_id`, `provider(GOOGLE|NAVER|KAKAO)`, `provider_id_enc nullable`, `provider_id_hmac`, `created_at`
-  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 평문은 저장하지 않고, V63 이전 행의 nullable 암호문은 다음 소셜 로그인에서 채운다.
+  - `id`, `user_id`, `provider(GOOGLE|NAVER|KAKAO)`, `provider_id_enc`, `provider_id_hmac`, `created_at`
+  - 외부 식별자는 provider 내부에서만 고유하므로 `(provider, provider_id_hmac)`를 유일하게 유지한다. 평문은 저장하지 않고 암호문과 HMAC을 항상 함께 저장한다.
   - 한 회원이 같은 provider의 계정을 둘 이상 연결하지 않도록 `(user_id, provider)`를 유일하게 유지한다.
 - `guests`
   - `id`, `name_enc`, `name_hmac`, `phone_enc`, `phone_hmac`, `phone_verified`, `created_at`
@@ -160,8 +160,7 @@
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
-  - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
-  - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
+  - `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이며 모두 `NOT NULL DEFAULT 0`이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다. 검수 규칙은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
 - `smartstore_order_action_history`
   - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
   - V174는 외부 호출 전 실패를 `NOT_SENT`로 구분하고, 결과 미확정 요청의 수동 확인 결과·근거·관리자·시각을 nullable 열로 추가한다. 대사 정보는 전부 비어 있거나 결과·근거·관리자 이름·시각이 함께 존재하도록 `CHECK` 제약으로 강제한다.
@@ -214,7 +213,7 @@
   - 서명된 외부 웹훅이 전달한 최신 진행 목록으로 주문별 이력을 교체한다. 주문 삭제 시 함께 삭제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 예약, 직접 주문, 주문 클레임, 이용권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
   - 고객 반환 총액은 도메인 생성과 `chk_refunds_amount_positive`에서 이중 강제한다. PG 반환액이 0원인 적립금 전액 결제 주문도 환불 행과 후처리를 유지하되 외부 결제사 호출만 건너뛴다.
   - `V106`은 기존 0원 이하 환불 행을 자동 보정하지 않고 atomic `ALTER TABLE`을 실패시킨다. 배포 전 `refunds.amount <= 0` 데이터를 확인하고 근거에 따라 정리해야 한다.
   - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
@@ -264,7 +263,7 @@
 
 - `classes`
   - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `capacity`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
-  - 공개 목록·상세와 자동 회차 조회·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 회차·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
+  - 공개 목록·상세와 자동 회차 조회·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 회차·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 이용권 사용 가능 여부를 결정한다.
   - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity`, `booked_count`, `admin_active`, `calendar_active`, `buffer_block_count`
@@ -288,7 +287,7 @@
   - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
-  - `participant_count`는 1명 이상이면서 선택한 슬롯의 남은 정원 이하이며 `slots.booked_count`에 인원 단위로 반영한다. 8회권 예약은 1명만 허용한다.
+  - `participant_count`는 1명 이상이면서 선택한 슬롯의 남은 정원 이하이며 `slots.booked_count`에 인원 단위로 반영한다. 이용권 예약은 1명만 허용한다.
   - V145 적용 뒤 8명을 초과한 예약이 생성되면 V145 이전 애플리케이션은 해당 예약을 정상 처리할 수 없으므로 이전 버전으로 롤백하지 않고 수정 버전으로 전진 배포한다.
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
@@ -389,7 +388,7 @@ HAVING COUNT(*) > 1;
   - `edited_at`은 회원 본문 수정만 나타내며 moderation·답글 변경 시각과 분리한다. `content_revision`은 본문·평점·사진 변경에서만 증가하며 회원 수정과 관리자 심사의 콘텐츠 동시성을 보호한다. JPA `version`은 상태·답글을 포함한 모든 후기 행 쓰기 충돌을 보호하므로 관리자 상태 변경은 두 토큰을 함께, 답글 변경은 `version`을 비교한다. 공식 답글은 `reply_content`, `reply_admin_id`, `reply_created_at`, `reply_edited_at`을 한 묶음으로 저장한다.
   - 공개 목록과 평균은 삭제되지 않은 `PUBLISHED`만 대상으로 하고, 회원 소유 목록과 관리자 목록은 삭제되지 않은 숨김 상태도 반환한다.
 - `review_moderation_actions`
-  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자, 시각과 `evidence_snapshot_id`를 보존한다.
+  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자, 시각과 필수 `evidence_snapshot_id`를 보존한다.
   - 후기 부모 FK는 `ON DELETE RESTRICT`로 두어 보존기간보다 먼저 부모가 파기되지 않게 한다.
 - `review_reports`
   - 후기·신고자별 한 건이며 `PENDING | ACCEPTED | REJECTED` 상태, 신고 사유·상세, 판단 관리자·시각을 저장한다.
@@ -397,7 +396,7 @@ HAVING COUNT(*) > 1;
   - 후기 부모 FK는 `ON DELETE RESTRICT`로 둔다.
 - `review_evidence_snapshots`, `review_evidence_snapshot_images`
   - 신고·moderation 시점의 콘텐츠 revision, 별점, 본문, 수정 시각과 정렬된 사진 URL을 공통 불변 증거로 보존한다.
-  - 미결 신고 증거는 만료 시각 없이 유지하고, 종결 신고·moderation 증거는 3년 뒤 사건 메타데이터와 함께 보존 배치에서 삭제한다. V124 이전 신고는 당시 사진을 복원할 수 없어 `LEGACY_REPORT`, `images_complete=false`다.
+  - 미결 신고 증거는 만료 시각 없이 유지하고, 종결 신고·moderation 증거는 3년 뒤 사건 메타데이터와 함께 보존 배치에서 삭제한다.
   - 증거 전용 또는 숨김·삭제 후기에서만 참조되는 파일은 공개 미디어 조회에서 제외하고 Bearer 관리자 증거 경로로만 제공한다. 참조 삭제는 커밋 뒤 다시 참조 여부를 확인한 다음 물리 파일을 지운다.
   - 증거 snapshot의 후기 부모 FK도 `ON DELETE RESTRICT`로 둔다.
 - `review_helpful_votes`
@@ -426,11 +425,11 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
   - 리마인드 후보는 `(event_type, aggregate_type, aggregate_id)`로 이미 접수된 도메인 이벤트를 제외한다. 멱등키 문자열 형식이 달라도 같은 이력으로 인식한다.
   - `V108`은 영속 enum 확장에 맞춰 `status` 컬럼 comment에 `OBSOLETE`를 반영한다.
 
-#### 8회권
+#### 이용권
 
 - `pass_purchases`
-  - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
-  - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_8`, 정책 도입 전 데이터는 `LEGACY_ALL_CLASSES`를 사용한다.
+  - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
+  - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_4`를 사용하고 `total_credits`는 계획의 총 횟수를 저장한다.
   - `V105`는 기존 `fk_pass_user`를 내리고 `user_id NOT NULL` 변경과 `fk_pass_user_v105` 재생성을 하나의 atomic `ALTER TABLE`로 적용한다. MySQL은 같은 ALTER 안에서 제거한 FK 이름을 즉시 재사용할 수 없어 새 이름을 쓴다. 기존 소유자 없는 행은 자동 귀속하지 않고 migration을 실패시키며, 실패한 DDL의 부분 적용이나 FK 유실을 남기지 않는다.
   - 서로 다른 테이블의 DDL은 하나의 Flyway migration 트랜잭션으로 묶이지 않으므로 환불 금액 제약은 별도 `V106`으로 분리한다. 각 migration은 단일 atomic DDL만 실행해 오염 데이터로 실패해도 다른 불변식이 부분 적용된 failed migration을 남기지 않는다.
 - `pass_ledger`
@@ -443,7 +442,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `orders(access_token, created_at DESC, id DESC)` 비회원 복구 주문 커서 조회
 - `bookings(user_id, created_at DESC, id DESC)` 회원 예약 커서 조회
 - `bookings(access_token, created_at DESC, id DESC)` 비회원 복구 예약 커서 조회
-- `pass_purchases(user_id, purchased_at DESC, id DESC)` 회원 8회권 커서 조회
+- `pass_purchases(user_id, purchased_at DESC, id DESC)` 회원 이용권 커서 조회
 - `inquiry(user_id, created_at DESC, id DESC)` 회원 문의 커서 조회
 - `inquiry(created_at DESC, id DESC)` 관리자 문의 커서 조회
 - `product_qna(product_id, created_at DESC, id DESC)` 공개·관리자 상품 Q&A 커서 조회
@@ -467,7 +466,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `review_evidence_snapshots(retention_until, id)` 종결 후기 분쟁 증거 보존 만료 조회
 - `review_evidence_snapshot_images(snapshot_id, sort_order)`, `review_evidence_snapshot_images(image_url)` 후기 분쟁 증거 사진 순서와 미디어 참조 조회
 - `payment_attempt(order_id_external)` UNIQUE
-- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·8회권 목록의 영수증 조회 (`V161`)
+- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·이용권 목록의 영수증 조회 (`V161`)
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회
@@ -492,7 +491,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리
-- `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·8회권·픽업 리마인드 접수 이력 조회
+- `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·이용권·픽업 리마인드 접수 이력 조회
 - `notification_outbox(status, next_attempt_at, locked_at, id)` NHN 최종 수신 결과 확인 대상 선점
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인
@@ -551,3 +550,11 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - V182는 `group_inquiries.status` CHECK에 `CANCELED`를 추가한다. 취소는 기존 `CLOSED`(관리자 상담 종료)와 구분하고 문의 행 잠금·버전 확인 뒤 저장한다.
 - V183의 `group_inquiry_activities.member_action`은 기존 행을 `false`로 유지한다. 관리자 ID가 비어 있는 로컬 관리자 기록도 관리자 메모이므로 회원 이력 조회의 근거로 `admin_id IS NULL`을 사용하지 않는다. 회원 변경만 `member_action=true`로 저장하고 공개한다. 회원 상세는 이 조건을 DB 조회에 적용하고, 관리자 상세는 전체 이력을 조회한다. 두 조회 모두 ID 내림차순을 유지한다.
 - 새 취소 상태 저장 이후에는 이 상태를 모르는 이전 애플리케이션으로 롤백하지 않는다. 배포 시 서버·웹·API 계약을 함께 반영한다.
+
+### Migration 기준선 재작성 (2026-10-07)
+
+- 보존할 운영 데이터가 없어 V1~V186과 Java migration V46을 지우고 `bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql` 하나로 합쳤다. 기준선은 기존 이력을 모두 적용한 DB에서 만들었고 컬럼·주석·인덱스·CHECK·FK가 같은지 비교했다.
+- 이 문서와 다른 ADR에 나오는 `V41`·`V98`·`V105` 같은 번호는 재작성 전 이력이다. 원본은 commit `a1d13803`에서 볼 수 있다. 기존 데이터를 옮기던 단계(백필·임시 테이블 검증·V46 평문 전환)는 더 이상 실행하지 않는다.
+- 일부 테이블만 `utf8mb4_0900_ai_ci`로 만들어지던 차이를 없애고, 모든 테이블이 DB 기본 문자셋·정렬 규칙을 따르게 했다.
+- 같은 정리에서 과거 행만을 위한 nullable 컬럼과 분기를 없앴다. `order_items.product_type`, `user_social_accounts.provider_id_enc`, `review_moderation_actions.evidence_snapshot_id`, `smartstore_product_orders.completed_return_quantity`는 필수이고, `review_evidence_snapshots.provenance`·`images_complete`와 `smartstore_product_orders.return_reviewed_remain_quantity`는 제거했다.
+- 운영 배포는 `deploy/k3s/schema-reset.json` 표식으로 1회 초기화 release임을 알리고, 기존 앱을 멈추고 DB와 Redis를 비운 상태에서만 진행한다. 절차는 `deploy/k3s/rolling-deployments.md`를 따른다. 이후 스키마 변경은 다시 새 migration으로 추가한다.

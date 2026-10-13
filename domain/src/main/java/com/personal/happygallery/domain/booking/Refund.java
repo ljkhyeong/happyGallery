@@ -181,13 +181,7 @@ public class Refund {
                 rewardRestoreAmount, rewardRevokeAmount, restoreCoupon, paymentKey);
     }
 
-    /** 배송·픽업 완료 후 주문 클레임 환불 요청 생성. */
-    public static Refund forOrderClaim(Long orderId, Long orderClaimId, long amount, String paymentKey) {
-        return forOrderClaim(
-                orderId, orderClaimId, amount, amount, 0L, 0L, paymentKey);
-    }
-
-    /** 클레임의 PG 취소액과 적립금 복원·회수액을 승인 시점 값으로 고정한다. */
+    /** 배송·픽업 완료 후 주문 클레임 환불 요청. PG 취소액과 적립금 복원·회수액을 승인 시점 값으로 고정한다. */
     public static Refund forOrderClaim(
             Long orderId,
             Long orderClaimId,

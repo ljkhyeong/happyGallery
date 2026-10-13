@@ -123,6 +123,14 @@ export interface CartResponse {
   totalAmount: number;
 }
 
+export interface UpdateCartItemRequest {
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
+  qty: number;
+}
+
 export interface ProductTextInputRequest {
   /**
      * @minLength 1
@@ -134,30 +142,6 @@ export interface ProductTextInputRequest {
      * @maxLength 200
      */
   value?: string;
-}
-
-export interface AddCartItemRequest {
-  productId: number;
-  /** @nullable */
-  productVariantId?: number | null;
-  /**
-     * @minimum 1
-     * @maximum 99
-     */
-  qty: number;
-  /**
-     * @minItems 0
-     * @maxItems 5
-     */
-  textInputs?: ProductTextInputRequest[];
-}
-
-export interface UpdateCartItemRequest {
-  /**
-     * @minimum 1
-     * @maximum 99
-     */
-  qty: number;
 }
 
 export interface MergeCartItemRequest {
@@ -394,18 +378,6 @@ export interface VerifyGuestClaimPhoneRequest {
   verificationCode: string;
 }
 
-export interface InquiryResponse {
-  content: string;
-  createdAt: string;
-  hasReply: boolean;
-  id: number;
-  /** @nullable */
-  repliedAt: string | null;
-  /** @nullable */
-  replyContent: string | null;
-  title: string;
-}
-
 export interface CreateInquiryRequest {
   /**
      * @minLength 1
@@ -416,6 +388,18 @@ export interface CreateInquiryRequest {
      * @minLength 1
      * @maxLength 200
      */
+  title: string;
+}
+
+export interface InquiryResponse {
+  content: string;
+  createdAt: string;
+  hasReply: boolean;
+  id: number;
+  /** @nullable */
+  repliedAt: string | null;
+  /** @nullable */
+  replyContent: string | null;
   title: string;
 }
 
@@ -702,10 +686,7 @@ export interface OrderOptionSnapshotResponse {
   value: string;
 }
 
-/**
- * @nullable
- */
-export type ItemDtoProductType = typeof ItemDtoProductType[keyof typeof ItemDtoProductType] | null;
+export type ItemDtoProductType = typeof ItemDtoProductType[keyof typeof ItemDtoProductType];
 
 
 export const ItemDtoProductType = {
@@ -724,7 +705,6 @@ export interface ItemDto {
   orderItemId: number;
   productId: number;
   productName: string;
-  /** @nullable */
   productType: ItemDtoProductType;
   /** @nullable */
   productVariantId: number | null;
@@ -784,8 +764,6 @@ export type MyPassSummaryPlanCode = typeof MyPassSummaryPlanCode[keyof typeof My
 
 
 export const MyPassSummaryPlanCode = {
-  LEGACY_ALL_CLASSES: 'LEGACY_ALL_CLASSES',
-  REGULAR_CRAFT_8: 'REGULAR_CRAFT_8',
   REGULAR_CRAFT_4: 'REGULAR_CRAFT_4',
 } as const;
 
@@ -1009,27 +987,6 @@ export const getMyCart = async ( options?: RequestInit): Promise<CartResponse> =
     method: 'GET'
 
 
-  }
-);}
-
-
-
-export const getAddMyCartItemUrl = () => {
-
-
-
-
-  return `/api/v1/me/cart/items`
-}
-
-export const addMyCartItem = async (addCartItemRequest: AddCartItemRequest, options?: RequestInit): Promise<void> => {
-
-  return generatedApiClient<void>(getAddMyCartItemUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(addCartItemRequest)
   }
 );}
 
@@ -1443,27 +1400,6 @@ export const verifyPhoneAndPreviewGuestClaims = async (verifyGuestClaimPhoneRequ
 
 
 
-export const getListMyInquiriesUrl = () => {
-
-
-
-
-  return `/api/v1/me/inquiries`
-}
-
-export const listMyInquiries = async ( options?: RequestInit): Promise<InquiryResponse[]> => {
-
-  return generatedApiClient<InquiryResponse[]>(getListMyInquiriesUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
 export const getCreateMyInquiryUrl = () => {
 
 
@@ -1503,27 +1439,6 @@ export const getListMyInquiriesPageUrl = (params?: ListMyInquiriesPageParams,) =
 export const listMyInquiriesPage = async (params?: ListMyInquiriesPageParams, options?: RequestInit): Promise<MyInquiryPageResponse> => {
 
   return generatedApiClient<MyInquiryPageResponse>(getListMyInquiriesPageUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-export const getGetMyInquiryUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/me/inquiries/${id}`
-}
-
-export const getMyInquiry = async (id: number, options?: RequestInit): Promise<InquiryResponse> => {
-
-  return generatedApiClient<InquiryResponse>(getGetMyInquiryUrl(id),
   {
     ...options,
     method: 'GET'
@@ -1708,27 +1623,6 @@ export const getListMyPassesPageUrl = (params?: ListMyPassesPageParams,) => {
 export const listMyPassesPage = async (params?: ListMyPassesPageParams, options?: RequestInit): Promise<MyPassPageResponse> => {
 
   return generatedApiClient<MyPassPageResponse>(getListMyPassesPageUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-export const getGetMyPassUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/me/passes/${id}`
-}
-
-export const getMyPass = async (id: number, options?: RequestInit): Promise<MyPassSummary> => {
-
-  return generatedApiClient<MyPassSummary>(getGetMyPassUrl(id),
   {
     ...options,
     method: 'GET'

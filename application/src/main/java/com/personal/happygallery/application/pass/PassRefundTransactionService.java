@@ -67,8 +67,8 @@ class PassRefundTransactionService {
         }
 
         int cancelledCount = bookingCancellationService.cancelLinkedBookings(pass.getId());
-        int refundCredits = Math.clamp(
-                pass.getRemainingCredits() + cancelledCount, 0, pass.getTotalCredits());
+        int refundCredits = PassPurchase.refundableCredits(
+                pass.getRemainingCredits(), cancelledCount, pass.getTotalCredits());
         long refundAmount = pass.calculateRefundAmount(refundCredits);
         Refund refund = refundAmount > 0
                 ? refundExecutionService.requestPassRefund(pass.getId(), refundAmount, pass.getPaymentKey())

@@ -89,7 +89,6 @@ class OrderPaymentBenefitReservationService {
             PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (attempt.getContext() != PaymentContext.ORDER
                 || !(payload instanceof PreparedOrderPayload orderPayload)
-                || orderPayload.pricing() == null
                 || (orderPayload.pricing().issuedCouponId() == null
                     && orderPayload.pricing().rewardUsedAmount() == 0L)) {
             return null;

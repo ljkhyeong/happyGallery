@@ -4,8 +4,6 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -50,13 +48,6 @@ public class ReviewEvidenceSnapshot {
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private ReviewEvidenceProvenance provenance;
-
-    @Column(name = "images_complete", nullable = false)
-    private boolean imagesComplete;
-
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "review_evidence_snapshot_images",
@@ -98,8 +89,6 @@ public class ReviewEvidenceSnapshot {
         this.rating = rating;
         this.content = Objects.requireNonNull(content, "후기 증거 내용은 필수입니다.");
         this.editedAt = editedAt;
-        this.provenance = ReviewEvidenceProvenance.LIVE;
-        this.imagesComplete = true;
         this.imageUrls = normalizeImages(imageUrls);
         this.capturedAt = Objects.requireNonNull(capturedAt, "후기 증거 생성 시각은 필수입니다.");
         this.retentionUntil = retentionUntil;
@@ -129,8 +118,6 @@ public class ReviewEvidenceSnapshot {
     public int getRating() { return rating; }
     public String getContent() { return content; }
     public LocalDateTime getEditedAt() { return editedAt; }
-    public ReviewEvidenceProvenance getProvenance() { return provenance; }
-    public boolean isImagesComplete() { return imagesComplete; }
     public List<String> getImageUrls() { return Collections.unmodifiableList(imageUrls); }
     public LocalDateTime getCapturedAt() { return capturedAt; }
     public LocalDateTime getRetentionUntil() { return retentionUntil; }

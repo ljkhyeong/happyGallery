@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.coupon;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -112,7 +113,7 @@ public class CouponDefinition {
                                  LocalDateTime validUntil,
                                  boolean active,
                                  boolean publiclyClaimable) {
-        this.name = requireName(name);
+        this.name = DomainText.required(name, "쿠폰 이름은", MAX_NAME_LENGTH);
         this.discountType = requireDiscountType(discountType);
         requireAmountRange(minOrderAmount, "최소 주문 금액");
         validateDiscount(discountType, discountValue, maxDiscountAmount);
@@ -137,21 +138,16 @@ public class CouponDefinition {
         if (!publiclyClaimable) {
             throw unavailable("공개 발급 대상이 아닌 쿠폰입니다.");
         }
-        if (!isWithinValidityUnchecked(now)) {
+        if (!isWithinValidity(now)) {
             throw unavailable("쿠폰 발급 기간이 아닙니다.");
         }
-    }
-
-    public boolean isPubliclyClaimableAt(LocalDateTime now) {
-        requireTime(now);
-        return active && publiclyClaimable && isWithinValidityUnchecked(now);
     }
 
     /** 배송비를 제외한 주문 상품 금액만으로 할인액을 계산한다. */
     public long calculateDiscount(long productAmount, LocalDateTime now) {
         PaymentAmountPolicy.requireValid(productAmount);
         requireTime(now);
-        if (!active || !isWithinValidityUnchecked(now)) {
+        if (!active || !isWithinValidity(now)) {
             throw unavailable("사용할 수 없는 쿠폰입니다.");
         }
         if (productAmount < minOrderAmount) {
@@ -171,12 +167,7 @@ public class CouponDefinition {
         return discount;
     }
 
-    public boolean isWithinValidity(LocalDateTime now) {
-        requireTime(now);
-        return isWithinValidityUnchecked(now);
-    }
-
-    private boolean isWithinValidityUnchecked(LocalDateTime now) {
+    private boolean isWithinValidity(LocalDateTime now) {
         return !now.isBefore(validFrom) && now.isBefore(validUntil);
     }
 
@@ -210,17 +201,6 @@ public class CouponDefinition {
             throw invalid("쿠폰 할인 방식은 필수입니다.");
         }
         return discountType;
-    }
-
-    private static String requireName(String name) {
-        if (name == null || name.isBlank()) {
-            throw invalid("쿠폰 이름은 필수입니다.");
-        }
-        String normalized = name.strip();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_NAME_LENGTH) {
-            throw invalid("쿠폰 이름은 " + MAX_NAME_LENGTH + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     private static void requirePositiveAmount(long amount, String fieldName) {

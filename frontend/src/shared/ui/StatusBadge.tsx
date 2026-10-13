@@ -1,7 +1,6 @@
 import { Badge } from "react-bootstrap";
 import { getStatusLabel, type StatusAudience } from "@/shared/lib/labels";
 
-export { getStatusLabel, type StatusAudience } from "@/shared/lib/labels";
 
 const VARIANT_MAP: Record<string, string> = {
   // Booking

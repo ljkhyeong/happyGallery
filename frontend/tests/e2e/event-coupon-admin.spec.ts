@@ -1,32 +1,14 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-
-const ADMIN_TOKEN_KEY = "hg_admin_token";
-const ADMIN_TOKEN = "event-coupon-admin-token";
+import { fulfillJson, installCsrfCookie, openMockedAdmin } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
-async function openAuthenticatedAdmin(page: Page, view: "events" | "coupons") {
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, ADMIN_TOKEN] as const);
-  await page.goto(`/admin?view=${view}`);
-  await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
-}
 
 test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 상품을 연결한다", async ({ page }) => {
   const upcomingEvent = {
@@ -137,17 +119,13 @@ test("이벤트 쿠폰은 비회원에게 로그인 후 돌아올 경로를 제�
   await expect(page.getByRole("heading", { name: "이벤트 쿠폰" })).toBeVisible();
   await expect(page.getByRole("link", { name: "로그인하고 쿠폰 받기" })).toHaveAttribute(
     "href",
-    "/login?redirect=%2Fevents%2F25",
+    "/login?redirect=%2Fevents%2F25%23event-coupon-heading",
   );
 });
 
 test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", async ({ baseURL, context, page }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "event-coupon-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   let claimed = false;
   const event = {
     id: 26,
@@ -234,7 +212,7 @@ test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", a
   await expect(page.getByText("오픈데이 쿠폰 쿠폰을 받았습니다.")).toBeVisible();
   await expect(page.getByRole("link", { name: "받은 쿠폰 확인" })).toHaveAttribute(
     "href",
-    "/my/benefits",
+    "/my/benefits#owned-coupons",
   );
 });
 
@@ -414,7 +392,7 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "events");
+  await openMockedAdmin(page, "events");
   await page.getByRole("button", { name: "새 이벤트 작성" }).click();
   await page.getByLabel("제목").fill("공방 오픈데이");
   await page.getByLabel("요약").fill("새 작품을 소개합니다.");
@@ -504,7 +482,7 @@ test("@admin 관리자는 공개 발급 쿠폰을 등록·수정·비활성화�
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "coupons");
+  await openMockedAdmin(page, "coupons");
   await page.getByRole("button", { name: "새 쿠폰 등록" }).click();
   await page.getByLabel("쿠폰 이름").fill("회원 감사 쿠폰");
   await page.getByLabel("할인 금액", { exact: true }).fill("5000");
@@ -586,7 +564,7 @@ test("@admin 발급된 쿠폰 조건 변경 오류를 동시 수정 충돌로 �
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "coupons");
+  await openMockedAdmin(page, "coupons");
   const couponCard = page.locator(".card").filter({ hasText: storedCoupon.name }).last();
   await couponCard.getByRole("button", { name: "수정", exact: true }).click();
   const nameInput = page.getByLabel("쿠폰 이름");

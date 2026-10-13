@@ -11,26 +11,28 @@ public sealed interface NotificationRequestedEvent {
 
     NotificationEventType eventType();
 
-    String aggregateType();
+    NotificationAggregateType aggregateType();
 
     Long aggregateId();
 
     String idempotencyKey();
 
     record ForGuest(Long guestId, NotificationEventType eventType,
-                    String aggregateType, Long aggregateId, String idempotencyKey)
+                    NotificationAggregateType aggregateType, Long aggregateId, String idempotencyKey)
             implements NotificationRequestedEvent {}
 
     record ForUser(Long userId, NotificationEventType eventType,
-                   String aggregateType, Long aggregateId, String idempotencyKey)
+                   NotificationAggregateType aggregateType, Long aggregateId, String idempotencyKey)
             implements NotificationRequestedEvent {}
 
-    static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType) {
-        return new ForGuest(guestId, eventType, null, null, requestKey("GUEST", guestId, eventType));
+    /** 같은 대상에 여러 번 보내는 알림. 대상은 남기고 중복 방지 키만 요청마다 새로 만든다. */
+    static NotificationRequestedEvent forGuestRepeatable(Long guestId, NotificationEventType eventType,
+                                                         NotificationAggregateType aggregateType, Long aggregateId) {
+        return new ForGuest(guestId, eventType, aggregateType, aggregateId, requestKey("GUEST", guestId, eventType));
     }
 
     static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType,
-                                               String aggregateType, Long aggregateId) {
+                                               NotificationAggregateType aggregateType, Long aggregateId) {
         return new ForGuest(guestId, eventType, aggregateType, aggregateId,
                 aggregateKey("GUEST", guestId, eventType, aggregateType, aggregateId));
     }
@@ -38,7 +40,7 @@ public sealed interface NotificationRequestedEvent {
     static NotificationRequestedEvent forGuestOncePerAggregate(
             Long guestId,
             NotificationEventType eventType,
-            String aggregateType,
+            NotificationAggregateType aggregateType,
             Long aggregateId) {
         return new ForGuest(
                 guestId,
@@ -48,12 +50,14 @@ public sealed interface NotificationRequestedEvent {
                 oncePerAggregateKeyPrefix(eventType, aggregateType) + aggregateId);
     }
 
-    static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType) {
-        return new ForUser(userId, eventType, null, null, requestKey("USER", userId, eventType));
+    /** 같은 대상에 여러 번 보내는 알림. 대상은 남기고 중복 방지 키만 요청마다 새로 만든다. */
+    static NotificationRequestedEvent forUserRepeatable(Long userId, NotificationEventType eventType,
+                                                        NotificationAggregateType aggregateType, Long aggregateId) {
+        return new ForUser(userId, eventType, aggregateType, aggregateId, requestKey("USER", userId, eventType));
     }
 
     static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType,
-                                              String aggregateType, Long aggregateId) {
+                                              NotificationAggregateType aggregateType, Long aggregateId) {
         return new ForUser(userId, eventType, aggregateType, aggregateId,
                 aggregateKey("USER", userId, eventType, aggregateType, aggregateId));
     }
@@ -61,7 +65,7 @@ public sealed interface NotificationRequestedEvent {
     static NotificationRequestedEvent forUserOncePerAggregate(
             Long userId,
             NotificationEventType eventType,
-            String aggregateType,
+            NotificationAggregateType aggregateType,
             Long aggregateId) {
         return new ForUser(
                 userId,
@@ -72,7 +76,7 @@ public sealed interface NotificationRequestedEvent {
     }
 
     static String oncePerAggregateKeyPrefix(
-            NotificationEventType eventType, String aggregateType) {
+            NotificationEventType eventType, NotificationAggregateType aggregateType) {
         return "AGGREGATE:" + eventType + ":" + aggregateType + ":";
     }
 
@@ -81,7 +85,7 @@ public sealed interface NotificationRequestedEvent {
     }
 
     private static String aggregateKey(String recipientType, Long recipientId, NotificationEventType eventType,
-                                       String aggregateType, Long aggregateId) {
+                                       NotificationAggregateType aggregateType, Long aggregateId) {
         if (aggregateType == null || aggregateId == null) {
             return requestKey(recipientType, recipientId, eventType);
         }

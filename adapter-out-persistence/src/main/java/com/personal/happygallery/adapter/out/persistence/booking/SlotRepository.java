@@ -19,11 +19,8 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Override
     <S extends Slot> List<S> saveAll(Iterable<S> slots);
 
-    @Override Optional<Slot> findById(Long id);
-    @Override List<Slot> findAllById(Iterable<Long> ids);
-
-    @Override
-    @Query("""
+    /** 예약 일정 판단에 쓰는 슬롯·클래스 projection. 호출부가 WHERE 조건만 붙인다. */
+    String SCHEDULING_SNAPSHOT = """
             SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
                 s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
                 s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
@@ -31,21 +28,14 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
                 s.bookingClass.category, s.bookingClass.passEligible
             )
             FROM Slot s
-            WHERE s.id = :id
-            """)
+            """;
+
+    @Override
+    @Query(SCHEDULING_SNAPSHOT + "WHERE s.id = :id")
     Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(@Param("id") Long id);
 
     @Override
-    @Query("""
-            SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
-                s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
-                s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
-                s.bookingClass.bufferMin, s.bookingClass.price,
-                s.bookingClass.category, s.bookingClass.passEligible
-            )
-            FROM Slot s
-            WHERE s.id IN :ids
-            """)
+    @Query(SCHEDULING_SNAPSHOT + "WHERE s.id IN :ids")
     List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(@Param("ids") Iterable<Long> ids);
 
     @Override

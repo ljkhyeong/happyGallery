@@ -22,12 +22,6 @@ function resolvePolicyNotice(
   cancelPolicy: BookingCancelPolicy,
   depositAmount: number,
 ) {
-  if (!cancelPolicy.cancellable) {
-    return {
-      variant: "warning",
-      message: "잔금 결제가 완료된 예약은 공방에 취소와 환불을 문의해 주세요.",
-    } as const;
-  }
   if (cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE) {
     return {
       variant: "warning",
@@ -88,7 +82,6 @@ interface Props {
   onSuccess: () => void | Promise<void>;
   cancelPolicy: BookingCancelPolicy;
   depositAmount: number;
-  buttonLabel?: string;
 }
 
 export function CancelButton({
@@ -96,7 +89,6 @@ export function CancelButton({
   onSuccess,
   cancelPolicy,
   depositAmount,
-  buttonLabel = "예약 취소",
 }: Props) {
   const titleId = `booking-cancel-title-${useId()}`;
   const toast = useToast();
@@ -110,9 +102,6 @@ export function CancelButton({
     res: CancelResponse,
     requireCurrent: () => void,
   ) => {
-    const passCreditNotRestored =
-      cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
-    const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
     requireCurrent();
     await Promise.all([
       invalidateSlotAvailability(queryClient),
@@ -162,15 +151,20 @@ export function CancelButton({
     ),
   });
 
+  if (!cancelPolicy.cancellable) {
+    // 잔금까지 낸 예약은 고객이 취소할 수 없다. 비활성 버튼으로는 사유가 보이지 않아 안내를 바로 보인다.
+    // 공방 연락처는 같은 화면의 예약 정보 칸에 있다.
+    return (
+      <Alert variant="warning" className="mb-0 py-2 small">
+        잔금 결제가 완료된 예약은 취소·인원 변경과 환불을 공방에 문의해 주세요.
+      </Alert>
+    );
+  }
+
   return (
     <>
-      <Button
-        variant="outline-danger"
-        disabled={!cancelPolicy.cancellable}
-        title={!cancelPolicy.cancellable ? "공방 확인이 필요한 예약입니다." : undefined}
-        onClick={() => setShowConfirm(true)}
-      >
-        {buttonLabel}
+      <Button variant="outline-danger" onClick={() => setShowConfirm(true)}>
+        예약 취소
       </Button>
 
       <Modal

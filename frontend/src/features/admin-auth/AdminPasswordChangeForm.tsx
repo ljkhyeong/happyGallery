@@ -4,7 +4,7 @@ import { Button, Form } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { changeAdminPassword } from "./api";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 
 interface Props {
   adminKey: string;
@@ -43,7 +43,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
             <Form.Control
               type="password"
               autoComplete="current-password"
-              maxLength={72}
+              maxLength={PASSWORD_MAX_UTF8_BYTES}
               value={currentPassword}
               disabled={mutation.isPending}
               onChange={(event) => setCurrentPassword(event.target.value)}
@@ -58,7 +58,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               type="password"
               autoComplete="new-password"
               minLength={10}
-              maxLength={72}
+              maxLength={PASSWORD_MAX_UTF8_BYTES}
               value={newPassword}
               isInvalid={newPasswordTooShort}
               aria-invalid={newPasswordTooShort}
@@ -78,7 +78,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
             <Form.Control
               type="password"
               autoComplete="new-password"
-              maxLength={72}
+              maxLength={PASSWORD_MAX_UTF8_BYTES}
               value={confirmation}
               isInvalid={confirmationMismatch}
               aria-invalid={confirmationMismatch}

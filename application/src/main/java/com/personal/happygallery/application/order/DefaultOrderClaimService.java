@@ -16,6 +16,7 @@ import com.personal.happygallery.application.order.OrderStockService.StockAdjust
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.application.reward.RewardBenefitService.RewardEarnedSnapshot;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.application.token.GuestTokenService;
@@ -28,6 +29,7 @@ import com.personal.happygallery.domain.order.OrderClaimItem;
 import com.personal.happygallery.domain.order.OrderClaimResolution;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -104,20 +106,15 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView requestGuestClaim(Long orderId, String accessToken, RequestCommand command) {
-        Order order = requireOrderForUpdate(orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
-        return request(order, command);
+        return request(
+                OrderLookups.requireGuestOrderForUpdate(orderReader, guestTokenService, orderId, accessToken),
+                command);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listMemberClaims(Long orderId, Long userId) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getUserId(), userId)) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireMemberOrder(orderReader, orderId, userId);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
@@ -125,10 +122,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listGuestClaims(Long orderId, String accessToken) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireGuestOrder(orderReader, guestTokenService, orderId, accessToken);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
@@ -138,19 +132,10 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public CursorPage<OrderClaimView> list(OrderClaimStatus status, String cursor, int size) {
         int pageSize = PageParams.clampSize(size);
         int fetchSize = pageSize + 1;
-        List<OrderClaim> claims;
-        if (cursor == null) {
-            claims = status == null
-                    ? orderClaimPort.findRecent(fetchSize)
-                    : orderClaimPort.findRecentByStatus(status, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            claims = status == null
-                    ? orderClaimPort.findRecentAfter(
-                            cursorParam.timestamp(), cursorParam.id(), fetchSize)
-                    : orderClaimPort.findRecentByStatusAfter(
-                            status, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<OrderClaim> claims = status == null
+                ? orderClaimPort.findRecent(after.timestamp(), after.id(), fetchSize)
+                : orderClaimPort.findRecentByStatus(status, after.timestamp(), after.id(), fetchSize);
         return CursorPage.of(
                 viewAssembler.assemble(claims),
                 pageSize,
@@ -171,9 +156,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
         if (!command.approved()) {
             claim.reject(adminId, command.note(), now());
-            OrderClaim saved = orderClaimPort.save(claim);
-            notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return viewAssembler.assemble(saved);
+            notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+            return viewAssembler.assemble(claim);
         }
 
         List<StockAdjustment> inventoryAdjustments = lines.stream()
@@ -188,9 +172,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             }
             orderStockService.deductAll(inventoryAdjustments);
             claim.approveExchange(adminId, command.note(), now());
-            OrderClaim saved = orderClaimPort.save(claim);
-            notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return viewAssembler.assemble(saved);
+            notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+            return viewAssembler.assemble(claim);
         }
 
         if (command.restoreInventory()) {
@@ -231,7 +214,6 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         validateCumulativeBenefits(order, approvedStateByItemId, allocation);
         orderClaimItemPort.saveAll(lines.stream().map(OrderClaimLine::claimItem).toList());
         claim.approveRefund(adminId, command.note(), now());
-        OrderClaim saved = orderClaimPort.save(claim);
         refundExecutionService.requestOrderClaimRefund(
                 order.getId(),
                 claim.getId(),
@@ -240,8 +222,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                 allocation.rewardRestoreAmount(),
                 allocation.rewardRevokeAmount(),
                 order.getPaymentKey());
-        notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-        return viewAssembler.assemble(saved);
+        notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+        return viewAssembler.assemble(claim);
     }
 
     @Override
@@ -251,9 +233,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         Order order = OrderLookups.requireOrder(orderReader, claim.getOrderId());
         claim.completeExchange(
                 adminId, command.carrier(), command.trackingNumber(), command.note(), now());
-        OrderClaim saved = orderClaimPort.save(claim);
-        notifyCustomer(order, saved, NotificationEventType.ORDER_EXCHANGE_COMPLETED);
-        return viewAssembler.assemble(saved);
+        notifyCustomer(order, claim, NotificationEventType.ORDER_EXCHANGE_COMPLETED);
+        return viewAssembler.assemble(claim);
     }
 
     private OrderClaimView request(Order order, RequestCommand command) {
@@ -406,9 +387,9 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             Order order, OrderClaim claim, NotificationEventType eventType) {
         NotificationRequestedEvent event = order.getUserId() != null
                 ? NotificationRequestedEvent.forUser(
-                        order.getUserId(), eventType, "ORDER_CLAIM", claim.getId())
+                        order.getUserId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId())
                 : NotificationRequestedEvent.forGuest(
-                        order.getGuestId(), eventType, "ORDER_CLAIM", claim.getId());
+                        order.getGuestId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId());
         eventPublisher.publishEvent(event);
     }
 

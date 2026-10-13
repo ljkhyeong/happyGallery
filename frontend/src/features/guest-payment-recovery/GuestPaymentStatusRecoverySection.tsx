@@ -1,13 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
 import { Alert, Card, ListGroup } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import {
-  captureCustomerSession,
-  runForCurrentCustomer,
-  type CustomerSessionSnapshot,
-} from "@/shared/api";
+import { useOwnedRecoveryResult } from "@/features/guest-recovery/useOwnedRecoveryResult";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, StatusBadge } from "@/shared/ui";
 import { recoverGuestPaymentStatuses } from "./api";
@@ -15,7 +9,6 @@ import {
   clearGuestPaymentStatusRecovery,
   loadGuestPaymentStatusRecovery,
   saveGuestPaymentStatusRecovery,
-  type GuestPaymentStatusRecoverySession,
 } from "./session";
 
 const CONTEXT_LABELS = {
@@ -24,50 +17,12 @@ const CONTEXT_LABELS = {
   PASS: "이용권",
 } as const;
 
-interface RecoveryView {
-  customerSession: CustomerSessionSnapshot;
-  storage: GuestPaymentStatusRecoverySession;
-}
-
-function loadRecoveryView(): RecoveryView | null {
-  const storage = loadGuestPaymentStatusRecovery();
-  return storage
-    ? { customerSession: captureCustomerSession(), storage }
-    : null;
-}
-
 export function GuestPaymentStatusRecoverySection() {
-  const [recoveryView, setRecoveryView] = useState<RecoveryView | null>(loadRecoveryView);
-  const recovery = useMutation({
-    mutationFn: async ({ phone, code }: { phone: string; code: string }) => {
-      let storedRecovery: GuestPaymentStatusRecoverySession | null = null;
-      try {
-        return await runForCurrentCustomer(
-          () => recoverGuestPaymentStatuses(phone, code),
-          (result, requireCurrent) => {
-            requireCurrent();
-            const customerSession = captureCustomerSession();
-            storedRecovery = saveGuestPaymentStatusRecovery(
-              result,
-              customerSession,
-            );
-            requireCurrent();
-            if (storedRecovery) {
-              setRecoveryView({ customerSession, storage: storedRecovery });
-            }
-            return result;
-          },
-        );
-      } catch (error) {
-        if (storedRecovery) {
-          const expectedRecovery = storedRecovery;
-          clearGuestPaymentStatusRecovery(expectedRecovery);
-          setRecoveryView((current) =>
-            current?.storage === expectedRecovery ? null : current);
-        }
-        throw error;
-      }
-    },
+  const { view: recoveryView, mutation: recovery, reset } = useOwnedRecoveryResult({
+    load: loadGuestPaymentStatusRecovery,
+    save: saveGuestPaymentStatusRecovery,
+    clear: clearGuestPaymentStatusRecovery,
+    request: recoverGuestPaymentStatuses,
   });
 
   const result = recoveryView?.storage.value ?? null;
@@ -78,14 +33,10 @@ export function GuestPaymentStatusRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_PAYMENT_STATUS_RECOVERY"
           title="결제 결과 다시 확인"
-          description="결제에 사용한 휴대폰 번호를 인증하고 결제 내역을 확인하세요."
+          description="결제에 쓴 휴대폰 번호를 인증하면 결제 내역을 볼 수 있습니다."
           confirmLabel="결제 결과 다시 확인"
           confirming={recovery.isPending}
-          onReset={() => {
-            recovery.reset();
-            clearGuestPaymentStatusRecovery(recoveryView?.storage);
-            setRecoveryView(null);
-          }}
+          onReset={reset}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />
 

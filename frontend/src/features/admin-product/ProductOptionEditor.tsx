@@ -333,7 +333,7 @@ export function ProductOptionEditor({ groups, variants, existingProduct, onChang
                         <Form.Control
                           size="sm"
                           type="number"
-                          value={variant.priceAdjustment ?? 0}
+                          value={variant.priceAdjustment}
                           onChange={(event) => onChange(groups, variants.map((item, itemIndex) => (
                             itemIndex === index
                               ? { ...item, priceAdjustment: Number(event.target.value) }
@@ -348,7 +348,7 @@ export function ProductOptionEditor({ groups, variants, existingProduct, onChang
                           min={0}
                           aria-label={`${selectionLabel(variant)} 재고`}
                           readOnly={existingQuantities.has(variantKey(variant, groups))}
-                          value={existingQuantities.get(variantKey(variant, groups)) ?? variant.quantity ?? 0}
+                          value={existingQuantities.get(variantKey(variant, groups)) ?? variant.quantity}
                           onChange={(event) => onChange(groups, variants.map((item, itemIndex) => (
                             itemIndex === index
                               ? { ...item, quantity: Number(event.target.value) }

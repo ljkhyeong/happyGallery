@@ -18,7 +18,6 @@ import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
-import com.personal.happygallery.domain.time.Clocks;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,13 +55,13 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     public Detail createExternal(Long adminId, GroupInquiryDetails details) {
         View view = save(null, GroupInquiry.Source.EXTERNAL, details);
         activities.save(new GroupInquiryActivity(view.inquiry().getId(), adminId, null,
-                GroupInquiryStatus.RECEIVED, encryptor.encrypt("외부 채널 문의 등록"), LocalDateTime.now(clock.withZone(Clocks.SEOUL))));
+                GroupInquiryStatus.RECEIVED, encryptor.encrypt("외부 채널 문의 등록"), LocalDateTime.now(clock)));
         return detail(view.inquiry());
     }
 
     private View save(Long userId, GroupInquiry.Source source, GroupInquiryDetails details) {
         GroupInquiry inquiry = inquiries.saveAndFlush(new GroupInquiry(userId, source,
-                encryptor.encrypt(mapper.writeValueAsString(details)), LocalDateTime.now(clock.withZone(Clocks.SEOUL))));
+                encryptor.encrypt(mapper.writeValueAsString(details)), LocalDateTime.now(clock)));
         return new View(inquiry, details);
     }
 
@@ -89,11 +88,11 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     private CursorPage<View> search(Long userId, AdminFilter filter, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        var before = cursor == null ? null : CursorUtils.decode(cursor);
+        var before = CursorUtils.decodeOrFirst(cursor);
         var rows = inquiries.search(userId, filter.status(), filter.source(), filter.inquiryId(),
                 filter.from() == null ? null : filter.from().atStartOfDay(),
-                filter.to() == null ? null : filter.to().plusDays(1).atStartOfDay(), before == null ? null : before.timestamp(),
-                before == null ? null : before.id(), pageSize + 1);
+                filter.to() == null ? null : filter.to().plusDays(1).atStartOfDay(),
+                before.timestamp(), before.id(), pageSize + 1);
         return CursorPage.of(rows.stream().map(this::view).toList(), pageSize,
                 value -> CursorUtils.encode(value.inquiry().getCreatedAt(), value.inquiry().getId()));
     }
@@ -114,7 +113,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
         var previous = view(inquiry).details();
         var revised = new GroupInquiryDetails(previous.organization(), previous.contactName(), previous.phone(), previous.email(),
                 headcount, preferredSchedule, previous.location(), previous.classInterest(), previous.message());
-        var now = LocalDateTime.now(clock.withZone(Clocks.SEOUL));
+        var now = LocalDateTime.now(clock);
         inquiry.reviseByMember(version, encryptor.encrypt(mapper.writeValueAsString(revised)), now);
         inquiries.saveAndFlush(inquiry);
         String note = "참여 인원: " + previous.headcount() + "명 → " + revised.headcount()
@@ -129,7 +128,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
         var inquiry = inquiries.findByIdForUpdate(id).orElseThrow(NotFoundException.supplier("단체 수업 문의"));
         requireOwner(inquiry, userId);
         var previous = inquiry.getStatus();
-        var now = LocalDateTime.now(clock.withZone(Clocks.SEOUL));
+        var now = LocalDateTime.now(clock);
         inquiry.cancelByMember(version, now);
         inquiries.saveAndFlush(inquiry);
         activities.save(GroupInquiryActivity.forMember(id, previous, inquiry.getStatus(), encryptor.encrypt("회원이 문의를 취소했습니다."), now));
@@ -158,7 +157,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
         if (normalizedNote == null) throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "상담 메모를 입력해 주세요.");
         GroupInquiry inquiry = inquiries.findByIdForUpdate(id).orElseThrow(NotFoundException.supplier("단체 수업 문의"));
         var previous = inquiry.getStatus();
-        var now = LocalDateTime.now(clock.withZone(Clocks.SEOUL));
+        var now = LocalDateTime.now(clock);
         inquiry.recordConsultation(version, status, now);
         inquiries.saveAndFlush(inquiry);
         activities.save(new GroupInquiryActivity(id, adminId, previous, status, encryptor.encrypt(normalizedNote), now));
@@ -169,7 +168,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     public Detail scheduleContact(Long id, long version, LocalDate nextContactOn, Long adminId) {
         var inquiry = inquiries.findByIdForUpdate(id).orElseThrow(NotFoundException.supplier("단체 수업 문의"));
         var previous = inquiry.getNextContactOn();
-        var now = LocalDateTime.now(clock.withZone(Clocks.SEOUL));
+        var now = LocalDateTime.now(clock);
         inquiry.scheduleContact(version, nextContactOn, now);
         inquiries.saveAndFlush(inquiry);
         String note = "다음 연락일: " + (previous == null ? "미지정" : previous)
@@ -183,7 +182,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     public CursorPage<View> followUps(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         var after = cursor == null ? null : CursorUtils.decode(cursor);
-        var today = LocalDate.now(clock.withZone(Clocks.SEOUL));
+        var today = LocalDate.now(clock);
         var rows = inquiries.findFollowUps(today, after == null ? null : after.timestamp().toLocalDate(),
                 after == null ? null : after.id(), pageSize + 1);
         return CursorPage.of(rows.stream().map(this::view).toList(), pageSize,

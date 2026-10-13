@@ -3,6 +3,7 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -105,7 +106,7 @@ class NotificationOutboxTransactionService {
             }
             recipient = eligibleRecipient.get();
         } else if (outbox.getEventType() == NotificationEventType.PRODUCT_RESTOCK_AVAILABLE) {
-            var userId = "RESTOCK_ALERT".equals(outbox.getAggregateType())
+            var userId = outbox.getAggregateType() == NotificationAggregateType.RESTOCK_ALERT
                     ? restockDelivery.findEligibleUserId(outbox.getAggregateId())
                             .filter(value -> Objects.equals(value, outbox.getUserId()))
                     : Optional.<Long>empty();
@@ -129,13 +130,10 @@ class NotificationOutboxTransactionService {
             return NotificationOutboxDeliveryPreparation.stale();
         }
         return NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
-                outbox.getId(),
                 outbox.getRecipientType(),
                 outbox.getGuestId(),
                 outbox.getUserId(),
                 outbox.getEventType(),
-                outbox.getAggregateType(),
-                outbox.getAggregateId(),
                 outbox.getIdempotencyKey()));
     }
 
@@ -157,16 +155,14 @@ class NotificationOutboxTransactionService {
             String processingToken,
             NotificationChannel channel,
             String providerRequestId,
-            Long providerRecipientSeq,
-            String auditError) {
+            Long providerRecipientSeq) {
         NotificationOutbox outbox = findOutboxForUpdate(outboxId);
         return outbox.markDeliveryPending(
                 processingToken,
                 channel,
                 providerRequestId,
                 providerRecipientSeq,
-                LocalDateTime.now(clock).plusSeconds(30),
-                auditError);
+                LocalDateTime.now(clock).plusSeconds(30));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -274,13 +270,10 @@ record NotificationDeliveryResultReservation(
         Long providerRecipientSeq
 ) {}
 
-record NotificationOutboxDeliveryRequest(Long outboxId,
-                                         NotificationRecipientType recipientType,
+record NotificationOutboxDeliveryRequest(NotificationRecipientType recipientType,
                                          Long guestId,
                                          Long userId,
                                          NotificationEventType eventType,
-                                         String aggregateType,
-                                         Long aggregateId,
                                          String idempotencyKey) {}
 
 record NotificationOutboxDeliveryPreparation(NotificationOutboxPreparationStatus status,

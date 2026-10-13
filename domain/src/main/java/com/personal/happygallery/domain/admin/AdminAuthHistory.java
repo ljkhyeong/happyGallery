@@ -47,8 +47,6 @@ public class AdminAuthHistory {
 
     public Long getId() { return id; }
     public Long getAdminUserId() { return adminUserId; }
-    public String getSubjectHmac() { return subjectHmac; }
-    public String getHmacKeyId() { return hmacKeyId; }
     public AdminAuthOutcome getOutcome() { return outcome; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

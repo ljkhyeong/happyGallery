@@ -40,6 +40,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -447,12 +448,8 @@ class CouponUseCaseIT {
         couponRedemptionUseCase.reserve(issued.getId(), attempt.getId());
         IssuedCoupon reserved = issuedCouponRepository.findById(issued.getId()).orElseThrow();
 
-        Order order = orderRepository.saveAndFlush(Order.forMember(
-                user.getId(),
-                quote.discountedProductAmount(),
-                0L,
-                now,
-                now.plusHours(24)));
+        Order order = orderRepository.saveAndFlush(memberOrder(
+                user.getId(), quote.discountedProductAmount(), now, now.plusHours(24)));
         couponRedemptionUseCase.redeem(issued.getId(), attempt.getId(), order.getId());
         IssuedCoupon redeemed = issuedCouponRepository.findById(issued.getId()).orElseThrow();
 
@@ -461,7 +458,7 @@ class CouponUseCaseIT {
         IssuedCoupon restored = issuedCouponRepository.findById(issued.getId()).orElseThrow();
 
         assertSoftly(softly -> {
-            softly.assertThat(none.applied()).isFalse();
+            softly.assertThat(none.issuedCouponId()).isNull();
             softly.assertThat(none.discountAmount()).isZero();
             softly.assertThat(quote.discountAmount()).isEqualTo(30_000L);
             softly.assertThat(quote.discountedProductAmount()).isEqualTo(70_000L);
@@ -496,7 +493,7 @@ class CouponUseCaseIT {
                 PaymentAttempt.startForMember(
                         "expired-coupon-attempt", PaymentContext.ORDER, 45_000L, "{}", user.getId()));
         couponRedemptionUseCase.reserve(issued.getId(), attempt.getId());
-        Order order = orderRepository.saveAndFlush(Order.forMember(
+        Order order = orderRepository.saveAndFlush(memberOrder(
                 user.getId(), 45_000L, now, now.plusHours(24)));
         couponRedemptionUseCase.redeem(issued.getId(), attempt.getId(), order.getId());
 

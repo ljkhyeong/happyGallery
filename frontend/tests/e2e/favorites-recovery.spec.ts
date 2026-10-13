@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ClassResponse } from "../../src/generated/api/booking";
 import type { FavoriteResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
+import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -30,45 +31,43 @@ async function mockFavorites(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname, searchParams } = new URL(request.url());
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     const saved = state.accounts.get(state.accountId)!;
     if (pathname.startsWith("/api/v1/me/favorites/")) {
       const target = pathname.split("/").slice(-2).join(":");
       const method = request.method();
       if (method === "GET") {
-        return state.failStatus ? json({ code: "SERVICE_UNAVAILABLE" }, 503) : json({ saved: saved.has(target) });
+        return state.failStatus ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, { saved: saved.has(target) });
       }
       state.writes.push({ method, target, accountId: state.accountId });
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-      if (state.failWrite) return json({ code: "SERVICE_UNAVAILABLE" }, 503);
+      if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
       if (method === "PUT") saved.add(target);
       else if (method === "DELETE") saved.delete(target);
       else throw new Error(`지원하지 않는 찜 변경 요청: ${method}`);
       return route.fulfill({ status: 204 });
     }
     switch (pathname) {
-      case "/api/v1/auth/csrf": return route.fulfill({ contentType: "application/json",
-        headers: { "Set-Cookie": "XSRF-TOKEN=favorites-recovery; Path=/" }, body: "{}" });
-      case "/api/v1/me": return json({ id: state.accountId, name: `회원${state.accountId}`,
+      case "/api/v1/auth/csrf": return route.fulfill({
+        headers: { "Set-Cookie": "XSRF-TOKEN=favorites-recovery; Path=/" }, json: {} });
+      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
         email: "favorite@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites": {
         const type = searchParams.get("type");
         const cursor = searchParams.get("cursor");
         state.listReads.push({ type, cursor });
-        if (state.failList || (cursor && state.failNextPage)) return json({ code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.failList || (cursor && state.failNextPage)) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
         const rows = favorites.filter((item) => saved.has(`${item.targetType}:${item.targetId}`)
           && (!type || item.targetType === type));
         const hasMore = state.paginated && !cursor && rows.length > 1;
-        return json({ content: state.paginated ? (cursor ? rows.slice(1) : rows.slice(0, 1)) : rows,
+        return fulfillJson(route, { content: state.paginated ? (cursor ? rows.slice(1) : rows.slice(0, 1)) : rows,
           hasMore, nextCursor: hasMore ? "next-page" : null });
       }
       case "/api/v1/classes/42": return route.fallback();
-      case "/api/v1/slots/upcoming": return json([]);
-      case "/api/v1/classes/42/reviews": return json({ content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+      case "/api/v1/slots/upcoming": return fulfillJson(route, []);
+      case "/api/v1/classes/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
       default: throw new Error(`정의하지 않은 찜 테스트 요청: ${pathname}`);
     }
   });

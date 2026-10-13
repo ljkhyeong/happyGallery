@@ -1,7 +1,7 @@
 // ── 홈·클래스·단체수업 화면 ──────────────────────────────
-// 홈은 상점 첫 화면(배너·작품·클래스·카테고리)이고, 섹션은 흰 바탕과 옅은 회색 면만 쓴다.
+// 홈은 첫 화면·새로 올라온 작품·공방 클래스·재료별로 보기 순서이고, 섹션은 흰 면과 옅은 회색 면을 번갈아 쓴다.
 
-.market-section,
+.gallery-section,
 .class-catalog-page,
 .class-detail-page,
 .group-class-page {
@@ -9,259 +9,314 @@
   overflow-wrap: anywhere;
 }
 
-// ── 홈: 기획 배너 · 작품 · 클래스 · 카테고리 · 공방 정보 ──────────
-.market-section {
-  padding-block: clamp(1.75rem, 3.5vw, 2.75rem);
+// ── 홈: 첫 화면 · 새로 올라온 작품 · 공방 클래스 · 재료별로 보기 · 공방 이야기 ──────────
+// 구역은 명조 제목과 먹색 1px 선으로 시작하고 흰 면과 옅은 회색 면을 번갈아 쓴다.
+.gallery-section {
+  padding-block: clamp(3rem, 6vw, 4.5rem);
+
+  &.is-tinted {
+    background: var(--hg-surface-alt);
+  }
 }
 
-.market-banners-inner {
+// 회색 면 위 작품 카드는 액자 매트를 흰색으로 바꾼다.
+.gallery-section.is-tinted .product-card-media {
+  background: #FFFFFF;
+}
+
+.gallery-hero-inner {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
-  gap: 0.75rem;
-  padding-top: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: end;
+  padding-block: clamp(2.5rem, 5vw, 4rem) clamp(3rem, 6vw, 5rem);
 }
 
-.market-banner-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(15rem, 1fr);
-  color: var(--hg-dark);
-  background: var(--hg-clay-tint);
-  text-decoration: none;
-
-  img {
-    width: 100%;
-    height: 100%;
-    min-height: 15rem;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-  }
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
-  }
-
-  &:hover .market-banner-link {
-    text-decoration: underline;
-  }
-}
-
-.market-banner-copy {
+.gallery-hero-copy {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1.75rem;
-
-  strong {
-    font-size: 1.6rem;
-    font-weight: 800;
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-  }
-
-  > span:not(.market-banner-kicker):not(.market-banner-link) {
-    color: #4A4A48;
-    font-size: 0.92rem;
-  }
+  gap: 1.5rem;
 }
 
-.market-banner-kicker {
-  color: var(--hg-accent);
-  font-size: 0.82rem;
-  font-weight: 700;
+.gallery-hero-title {
+  margin: 0;
+  font-family: var(--hg-font-display);
+  font-size: clamp(2.6rem, 6vw, 5.25rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
 }
 
-.market-banner-link {
-  margin-top: 0.35rem;
-  font-weight: 700;
+.gallery-hero-lead {
+  max-width: 30em;
+  margin: 0;
+  color: #3A3A37;
+  line-height: 1.75;
 }
 
-.market-banner-side {
+.gallery-hero-facts {
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem 1.75rem;
+  margin: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hg-border);
+  font-size: 0.88rem;
 
-// 사진 위 글은 반투명 먹색 띠에 흰 글자로 올려 사진이 밝아도 읽히게 한다.
-.market-banner-tile {
-  position: relative;
-  display: flex;
-  min-height: 9.5rem;
-  overflow: hidden;
-  color: #FFFFFF;
-  text-decoration: none;
-
-  img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 400ms ease;
+  > div {
+    display: contents;
   }
 
-  > span {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    margin-top: auto;
-    padding: 0.8rem 1rem;
-    background: rgba(20, 20, 20, 0.76);
-    font-size: 0.82rem;
+  dt {
+    color: var(--hg-ink-soft);
+    font-weight: 400;
   }
 
-  strong {
-    font-size: 1.05rem;
-  }
-
-  &:hover,
-  &:focus-visible {
-    color: #FFFFFF;
-  }
-
-  &:hover img {
-    transform: scale(1.03);
+  dd {
+    margin: 0;
   }
 }
 
-.market-section-head {
+.gallery-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.25rem;
-  margin-bottom: 1rem;
+  gap: 0.6rem;
+}
+
+.gallery-hero-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+
+  img {
+    width: 100%;
+    aspect-ratio: 5 / 4;
+    object-fit: cover;
+  }
+
+  figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    color: var(--hg-ink-soft);
+    font-size: 0.8rem;
+  }
+}
+
+.gallery-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1.75rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--hg-dark);
 
   h2 {
     margin: 0;
-    font-size: 1.35rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-family: var(--hg-font-display);
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
   }
 }
 
-.market-section-more {
+.gallery-section-more {
   margin-left: auto;
-  color: var(--hg-ink-soft);
+  color: var(--hg-dark);
   font-size: 0.88rem;
-  text-decoration: none;
+  text-underline-offset: 4px;
+}
 
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
-    text-decoration: underline;
+// 작품 카테고리: 밑줄 탭. 선택은 먹색 2px 밑줄과 굵은 글자.
+.gallery-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.1rem;
+
+  > button {
+    height: 2.75rem;
+    padding: 0;
+    color: var(--hg-ink-soft);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    font: inherit;
+    font-size: 0.9rem;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--hg-dark);
+    }
+
+    &[aria-pressed="true"] {
+      color: var(--hg-dark);
+      border-bottom-color: var(--hg-dark);
+      font-weight: 700;
+    }
   }
 }
 
-// 카테고리·상황 칩: 각진 테두리 버튼, 선택은 먹색 채움.
-.market-chips {
+// 상황별 바로가기: 각진 테두리 칩.
+.gallery-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 
-  > a,
-  > button {
+  > a {
     display: inline-flex;
     align-items: center;
-    height: 2.1rem;
-    padding: 0 0.85rem;
+    height: 2.75rem;
+    padding: 0 0.95rem;
     color: var(--hg-dark);
-    background: #FFFFFF;
-    border: 1px solid #DADADA;
-    border-radius: var(--hg-radius);
-    font: inherit;
+    border: 1px solid #C9C9C4;
     font-size: 0.88rem;
     text-decoration: none;
     white-space: nowrap;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       border-color: var(--hg-dark);
     }
   }
-
-  > button[aria-pressed="true"] {
-    color: #FFFFFF;
-    background: var(--hg-dark);
-    border-color: var(--hg-dark);
-    font-weight: 700;
-  }
 }
 
-.home-product-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+// 공방 클래스: 시간표처럼 날짜 · 사진 · 수업 · 가격 · 자세히 보기를 한 줄에 둔다.
+.gallery-program-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.market-class-box {
-  padding: 1.5rem;
-  background: var(--hg-surface-alt);
-}
-
-.market-class-grid {
+.gallery-program-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.market-class-card {
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: 6.5rem 8rem minmax(0, 1fr) 7rem auto;
+  align-items: center;
+  gap: 1.75rem;
+  padding-block: 1.35rem;
   color: var(--hg-dark);
-  background: #FFFFFF;
+  border-bottom: 1px solid var(--hg-border);
   text-decoration: none;
 
-  img {
-    width: 100%;
-    aspect-ratio: 4 / 3;
+  > img {
+    width: 8rem;
+    height: 6rem;
     object-fit: cover;
-  }
-
-  h3 {
-    margin: 0;
-    font-size: 0.98rem;
-    font-weight: 700;
-  }
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
   }
 
   &:hover h3 {
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+
+  &:hover .gallery-program-cta {
+    color: #FFFFFF;
+    background: var(--hg-dark);
   }
 }
 
-.market-class-body {
+.gallery-program-date {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.75rem 0.85rem 0.9rem;
+  font-family: var(--hg-font-display);
+
+  // 10.12처럼 월·일이 두 자리여도 한 줄로 둔다.
+  strong {
+    font-size: 1.75rem;
+    font-weight: 500;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  span {
+    color: var(--hg-ink-soft);
+    font-size: 0.8rem;
+  }
 }
 
-.market-class-meta {
+.gallery-program-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    font-family: var(--hg-font-display);
+    font-size: 1.3rem;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+}
+
+.gallery-program-meta {
   color: var(--hg-ink-soft);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
 }
 
-.market-class-price {
+.gallery-program-price {
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.market-class-next {
-  margin-top: auto !important;
-  padding-top: 0.5rem;
-  color: var(--hg-ink-soft);
+.gallery-program-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 2.75rem;
+  padding: 0 1.1rem;
+  border: 1px solid var(--hg-dark);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color var(--hg-transition), background var(--hg-transition);
 }
 
-.market-category-grid {
+.gallery-program-links {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 2rem;
+
+  > a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.6rem 1.75rem;
+    color: var(--hg-dark);
+    border: 1px solid var(--hg-dark);
+    text-decoration: none;
+
+    > strong {
+      font-family: var(--hg-font-display);
+      font-size: 1.4rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+    }
+
+    > span:last-child {
+      color: #3A3A37;
+      font-size: 0.9rem;
+    }
+
+    &:hover strong {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+  }
+}
+
+// 재료별로 보기: 3:2 사진 아래 카테고리 이름.
+.gallery-room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.25rem 1.25rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -269,81 +324,101 @@
   a {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
     color: var(--hg-dark);
-    font-weight: 700;
     text-decoration: none;
 
-    &:hover span {
+    &:hover .gallery-room-name {
       text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
     }
   }
 
   img {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 3 / 2;
     object-fit: cover;
   }
 }
 
-.market-shop-profile {
-  display: flex;
-  flex-wrap: wrap;
+.gallery-room-name {
+  font-family: var(--hg-font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+// 공방 이야기: 작업 사진과 소개·주소·문의, 그 아래 쇼핑 안내.
+.gallery-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 3.5rem);
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem 2rem;
-  padding: 1.4rem 1.5rem;
-  border: 1px solid #DADADA;
+
+  > img {
+    width: 100%;
+    aspect-ratio: 16 / 11;
+    object-fit: cover;
+  }
+}
+
+.gallery-story-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 
   h2 {
-    margin: 0 0 0.35rem;
-    font-size: 1.15rem;
-    font-weight: 800;
+    margin: 0;
+    font-family: var(--hg-font-display);
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
   }
 
   p {
-    max-width: 44rem;
+    max-width: 36em;
     margin: 0;
-    color: #4A4A48;
+    color: #3A3A37;
+    line-height: 1.8;
+  }
+
+  .gallery-story-address {
+    color: var(--hg-ink-soft);
+    font-size: 0.9rem;
   }
 }
 
-.market-shop-address {
-  margin-top: 0.35rem !important;
-  color: var(--hg-ink-soft) !important;
-  font-size: 0.88rem;
-}
-
-.market-shop-actions {
+.gallery-story-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.market-shop-info {
+.gallery-shop-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
-  gap: 0 1.5rem;
-  margin: 1.25rem 0 0;
+  gap: 0 2rem;
+  margin: 3rem 0 0;
   border-top: 1px solid var(--hg-dark);
 
   > div {
-    padding-block: 0.9rem;
+    padding-block: 1.1rem;
   }
 
   dt {
-    font-weight: 700;
+    font-family: var(--hg-font-display);
+    font-weight: 600;
   }
 
   dd {
-    margin: 0.25rem 0 0;
-    color: #4A4A48;
+    margin: 0.3rem 0 0;
+    color: #3A3A37;
     font-size: 0.9rem;
   }
 }
 
 // ── 클래스 카드의 다음 수업 줄 (클래스 목록·홈 공용) ──────────
-.market-class-next,
+.gallery-program-next,
 .class-catalog-next {
   display: flex;
   flex-wrap: wrap;
@@ -356,10 +431,16 @@
     font-weight: 700;
   }
 
-  // 남은 자리가 적으면 빨강으로 서두름을 알린다(흰 바탕 6.0:1).
+  // 남은 자리가 적으면 빨강으로 서두름을 알린다(흰 바탕 5.7:1).
   b.is-few {
-    color: #B23A1E;
+    color: var(--hg-signal);
   }
+}
+
+.gallery-program-next {
+  justify-content: flex-start;
+  margin: 0.3rem 0 0;
+  color: var(--hg-ink-soft);
 }
 
 .class-catalog-next {
@@ -373,6 +454,11 @@
   grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
   gap: clamp(2.5rem, 6vw, 6rem);
   align-items: center;
+  padding-bottom: clamp(4rem, 8vw, 6rem);
+
+  figure {
+    aspect-ratio: 4 / 5;
+  }
 }
 
 .group-class-intro figure,
@@ -397,13 +483,13 @@
   margin-bottom: 1.25rem;
   font-family: var(--hg-font-display);
   font-size: clamp(1.6rem, 3vw, 2.25rem);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.02em;
 }
 
-.group-class-intro p:not(.store-section-kicker),
-.group-class-inquiry p:not(.store-section-kicker) {
+.group-class-intro p,
+.group-class-inquiry p {
   margin-bottom: 1.75rem;
   line-height: 1.85;
 }
@@ -425,24 +511,19 @@
   min-width: 0;
 }
 
+// 공지 칸 머리: 제목과 전체 공지 링크를 한 줄에 둔다.
 .home-update-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
   margin-bottom: 1.5rem;
 
-  .store-section-kicker {
-    margin-bottom: 0.45rem;
-  }
-
   h2 {
-    margin-bottom: 0.45rem;
+    margin: 0;
     font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 2.6vw, 2.1rem);
-    font-weight: 800;
-  }
-
-  > p:last-child {
-    margin: 0;
-    color: var(--hg-ink-soft);
-    font-size: 0.9rem;
+    font-weight: 500;
   }
 }
 
@@ -459,12 +540,11 @@
   color: var(--hg-dark);
   border-bottom: 1px solid var(--hg-border);
   text-decoration: none;
-  transition: color 180ms ease, padding-left 180ms ease;
+  transition: padding-left 180ms ease;
 
   &:hover,
   &:focus-visible {
     padding-left: 0.35rem;
-    color: var(--hg-accent-deep);
   }
 }
 
@@ -541,9 +621,9 @@
 
   h2 {
     margin-bottom: 0.9rem;
-    color: #FFFFFF;
     font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+    font-weight: 500;
     line-height: 1.3;
   }
 }
@@ -555,15 +635,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.1rem;
-
-  .store-section-kicker {
-    margin-bottom: 0;
-  }
-}
-
-.home-event-labels .store-section-kicker,
-.home-event-empty .store-section-kicker {
-  color: #E3B23C;
 }
 
 .home-event-summary {
@@ -588,7 +659,7 @@
 .home-event-empty {
   align-items: flex-start;
 
-  > p:not(.store-section-kicker) {
+  > p {
     max-width: 30rem;
     margin-bottom: 1.75rem;
     color: rgba(255, 255, 255, 0.72);
@@ -599,28 +670,11 @@
   overflow: hidden;
   background: var(--hg-clay-tint);
   border-radius: var(--hg-radius-media);
-  box-shadow: inset 0 0 0 1px rgba(138, 75, 42, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.12);
 
   .card-body {
     padding: clamp(1.5rem, 4vw, 2.25rem);
   }
-}
-
-.event-coupon-kicker {
-  margin-bottom: 0.4rem;
-  color: var(--hg-accent-deep);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-// ── 방문 안내 ──────────────────────────────────────────
-.workshop-visit-links {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  align-items: flex-start;
 }
 
 // ── 클래스 목록 ─────────────────────────────────────────
@@ -636,15 +690,10 @@
   margin-bottom: 1.75rem;
 
   h1 {
-    margin-bottom: 0.5rem;
+    margin: 0;
     font-family: var(--hg-font-display);
     font-size: clamp(2.1rem, 4vw, 3rem);
-    font-weight: 800;
-  }
-
-  p:last-child {
-    margin: 0;
-    color: var(--hg-ink-soft);
+    font-weight: 500;
   }
 }
 
@@ -706,11 +755,10 @@
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
   border-radius: var(--hg-radius-card);
-  transition: border-color var(--hg-transition), box-shadow var(--hg-transition);
+  transition: border-color var(--hg-transition);
 
   &:hover {
     border-color: rgba(34, 34, 34, 0.4);
-    box-shadow: var(--hg-shadow-soft);
   }
 }
 
@@ -721,7 +769,6 @@
 .class-catalog-media {
   height: 100%;
   min-height: 15rem;
-  border-radius: var(--hg-radius-media);
 }
 
 .class-catalog-content {
@@ -736,7 +783,8 @@
   gap: 0.4rem;
   margin-bottom: 0.65rem;
 
-  span {
+  > span,
+  > a {
     padding: 0.2rem 0.6rem;
     color: var(--hg-leaf-deep);
     background: var(--hg-leaf-tint);
@@ -745,9 +793,14 @@
     font-weight: 700;
   }
 
-  span.is-situation {
-    color: var(--hg-accent-deep);
-    background: var(--hg-clay-tint);
+  > a {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
   }
 }
 
@@ -762,7 +815,7 @@
     margin-bottom: 0;
     font-family: var(--hg-font-display);
     font-size: clamp(1.4rem, 2.4vw, 1.75rem);
-    font-weight: 700;
+    font-weight: 500;
   }
 
   strong {
@@ -824,8 +877,7 @@
 
   > a {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.35rem 1rem;
+    gap: 0.35rem;
     padding: 1.75rem 2rem;
     color: var(--hg-dark);
     background: var(--hg-leaf-tint);
@@ -839,84 +891,241 @@
     }
   }
 
-  span:first-child {
-    grid-column: 1;
-    color: var(--hg-leaf);
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-
   strong {
-    grid-column: 1;
     font-family: var(--hg-font-display);
     font-size: 1.35rem;
+    font-weight: 500;
   }
 
-  span:last-child {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    align-self: center;
-    color: var(--hg-leaf-deep);
+  span {
+    color: var(--hg-ink-soft);
+    font-size: 0.88rem;
   }
 }
 
 // ── 클래스 상세 ─────────────────────────────────────────
-.class-detail-page {
-  max-width: var(--hg-container);
-}
-
+// 사진과 요약(분류·제목·가격·상황·수업 정보·예약 상자)을 나란히 두고, 아래에 일정·소개·안내·오시는 길·후기를 둔다.
 .class-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
   gap: clamp(1.75rem, 4vw, 3.5rem);
   align-items: start;
 }
 
 .class-detail-media {
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 5 / 4;
 }
 
-.class-detail-story {
-  margin-top: 2rem;
+.class-detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
 
-  h2 {
-    margin-bottom: 0.85rem;
-    font-family: var(--hg-font-display);
-    font-size: 1.5rem;
-    font-weight: 800;
+.class-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+
+  > span,
+  > a {
+    padding: 0.1rem 0.6rem;
+    color: var(--hg-dark);
+    border: 1px solid var(--hg-dark);
+    font-size: 0.78rem;
+    text-decoration: none;
+  }
+
+  // 4회권 표시는 4회권으로 예약할 수 있는 수업 목록으로 이어진다.
+  > a:hover,
+  > a:focus-visible {
+    text-decoration: underline;
   }
 }
 
-.class-detail-description {
-  color: #5C5C5C;
-  line-height: 1.9;
-  white-space: pre-wrap;
+.class-detail-title {
+  margin: 0;
+  font-family: var(--hg-font-display);
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
 }
 
-// 상세 아래쪽 정보: 다가오는 일정·예약 안내·방문 안내를 같은 간격으로 쌓는다.
+.class-detail-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+
+  > span {
+    color: var(--hg-ink-soft);
+    font-size: 0.85rem;
+  }
+}
+
+.class-detail-favorite {
+  margin-left: auto;
+
+  > div {
+    margin: 0 !important;
+  }
+}
+
+.class-detail-price {
+  margin: 0;
+  font-family: var(--hg-font-display);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.class-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0 0.85rem;
+    color: var(--hg-dark);
+    background: var(--hg-surface-alt);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+}
+
+.class-detail-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem 1.75rem;
+  margin: 0;
+  padding-block: 1rem;
+  border-top: 1px solid var(--hg-dark);
+  border-bottom: 1px solid var(--hg-border);
+  font-size: 0.9rem;
+
+  > div {
+    display: contents;
+  }
+
+  dt {
+    color: var(--hg-ink-soft);
+    font-weight: 400;
+  }
+
+  dd {
+    margin: 0;
+    white-space: pre-line;
+  }
+}
+
+// 예약 상자: 예약금·잔금을 금액으로 먼저 보여 주고 예약 버튼과 가장 가까운 회차를 붙인다.
+.class-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: clamp(1.25rem, 2.4vw, 1.75rem);
+  border: 1px solid var(--hg-dark);
+}
+
+.class-detail-amounts {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 0.9rem;
+
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+  }
+
+  > div:nth-child(3) {
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--hg-border);
+  }
+
+  dt {
+    font-weight: 400;
+
+    span {
+      color: var(--hg-ink-soft);
+      font-size: 0.82rem;
+    }
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+.class-detail-nearest {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: var(--hg-dark);
+  background: var(--hg-surface-alt);
+  font-size: 0.88rem;
+  text-decoration: none;
+
+  strong {
+    font-variant-numeric: tabular-nums;
+  }
+
+  b {
+    font-weight: 700;
+  }
+
+  b.is-few {
+    color: var(--hg-signal);
+  }
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+// 아래 구역: 다가오는 일정 · 수업 소개 · 예약 안내 · 오시는 길 (후기는 후기 구역 스타일을 쓴다)
 .class-detail-section {
-  margin-top: 2.25rem;
-  padding-top: 1.75rem;
-  border-top: 1px solid var(--hg-border);
+  margin-top: clamp(2.75rem, 6vw, 4rem);
 }
 
 .class-detail-section-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.9rem;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
 
   h2 {
     margin: 0;
     font-family: var(--hg-font-display);
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
   }
 
-  span {
+  > span {
     color: var(--hg-ink-soft);
-    font-size: 0.82rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -929,7 +1138,7 @@
 .class-slot-chips {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -937,34 +1146,47 @@
   a {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
-    padding: 0.75rem 0.9rem;
+    gap: 0.15rem;
+    padding: 0.9rem 1rem;
     color: var(--hg-dark);
     background: var(--hg-surface);
-    border: 1.5px solid var(--hg-border);
-    border-radius: var(--hg-radius);
+    border: 1px solid var(--hg-border);
     text-decoration: none;
     font-variant-numeric: tabular-nums;
-    transition: border-color var(--hg-transition), background var(--hg-transition);
+    transition: border-color var(--hg-transition);
 
     &:hover,
     &:focus-visible {
-      border-color: var(--hg-leaf);
-      background: var(--hg-leaf-tint);
+      border-color: var(--hg-dark);
     }
   }
 
   strong {
-    font-size: 0.92rem;
+    font-family: var(--hg-font-display);
+    font-size: 1.05rem;
+    font-weight: 500;
   }
 
   small {
-    color: var(--hg-leaf);
+    color: var(--hg-ink-soft);
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 600;
 
+    // 마감 임박은 빨간 점과 빨강 글자로 알린다(흰 바탕 5.7:1).
     &.is-few {
-      color: var(--hg-accent-deep);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--hg-signal);
+      font-weight: 700;
+
+      &::before {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
     }
   }
 }
@@ -972,81 +1194,48 @@
 .class-detail-more {
   display: inline-block;
   margin-top: 0.75rem;
-  color: var(--hg-ink-soft);
-  font-size: 0.85rem;
+  color: var(--hg-dark);
+  font-size: 0.88rem;
+  text-underline-offset: 4px;
+}
+
+.class-detail-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(2rem, 5vw, 3.5rem);
+}
+
+.class-detail-description {
+  margin: 0;
+  color: #3A3A37;
+  line-height: 1.9;
+  white-space: pre-wrap;
 }
 
 .class-detail-policy {
   margin: 0;
-  padding-left: 1.1rem;
-  color: #5C5C5C;
-  font-size: 0.92rem;
-  line-height: 1.8;
+  padding: 0;
+  list-style: none;
+  counter-reset: class-policy;
 
-  li + li {
-    margin-top: 0.35rem;
-  }
-}
-
-.class-detail-card {
-  position: sticky;
-  top: 6rem;
-  background: var(--hg-surface);
-  border: 1px solid var(--hg-border) !important;
-  border-radius: var(--hg-radius-media);
-  box-shadow: var(--hg-shadow-soft);
-
-  .card-body {
-    padding: clamp(1.5rem, 3vw, 2rem);
-  }
-}
-
-.class-detail-title {
-  margin-bottom: 0.75rem;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.85rem, 3.4vw, 2.5rem);
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.class-detail-price {
-  margin: 1rem 0 0;
-  font-size: 1.6rem;
-  font-weight: 800;
-}
-
-.class-detail-meta {
-  display: grid;
-  margin: 1.25rem 0 1.5rem;
-  border-top: 1px solid var(--hg-border);
-
-  > div {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 0;
+  li {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    gap: 0.75rem;
+    padding-block: 0.9rem;
+    color: #3A3A37;
     border-bottom: 1px solid var(--hg-border);
-  }
+    font-size: 0.92rem;
+    line-height: 1.75;
+    counter-increment: class-policy;
 
-  dt {
-    flex: 0 0 auto;
-    color: var(--hg-ink-soft);
-    font-weight: 500;
+    &::before {
+      color: var(--hg-dark);
+      font-family: var(--hg-font-display);
+      font-size: 1rem;
+      content: counter(class-policy);
+    }
   }
-
-  dd {
-    margin: 0;
-    text-align: right;
-    font-weight: 600;
-    white-space: pre-line;
-  }
-}
-
-.class-detail-helper {
-  margin: 0.75rem 0 0;
-  color: var(--hg-ink-soft);
-  font-size: 0.82rem;
-  text-align: center;
 }
 
 // ── 단체수업 ────────────────────────────────────────────
@@ -1076,16 +1265,11 @@
     object-fit: cover;
   }
 
-  .store-section-kicker {
-    color: #E3B23C;
-  }
-
   h1 {
     margin-bottom: 1.25rem;
-    color: #FFFFFF;
     font-family: var(--hg-font-display);
     font-size: clamp(2.5rem, 6vw, 4.25rem);
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1.25;
   }
 }
@@ -1098,14 +1282,6 @@
     max-width: 34rem;
     margin: 0;
     color: rgba(255, 255, 255, 0.84);
-  }
-}
-
-.group-class-intro {
-  padding-bottom: clamp(4rem, 8vw, 6rem);
-
-  figure {
-    aspect-ratio: 4 / 5;
   }
 }
 
@@ -1134,17 +1310,11 @@
     border-radius: var(--hg-radius-media);
   }
 
-  li > span {
-    color: var(--hg-accent);
-    font-family: var(--hg-font-display);
-    font-size: 1.35rem;
-    font-weight: 700;
-  }
-
   h3 {
-    margin: 1rem 0 0.6rem;
+    margin: 0 0 0.6rem;
     font-family: var(--hg-font-display);
     font-size: 1.35rem;
+    font-weight: 500;
   }
 
   li p {
@@ -1190,48 +1360,32 @@
     grid-template-columns: 1fr;
   }
 
-  .market-banners-inner {
+  .gallery-hero-inner,
+  .gallery-story {
     grid-template-columns: 1fr;
   }
 
-  .home-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  // 태블릿은 자세히 보기 버튼을 빼고 날짜 · 사진 · 수업 · 가격만 둔다.
+  .gallery-program-row {
+    grid-template-columns: 5.5rem 7rem minmax(0, 1fr) auto;
+    gap: 1.25rem;
+
+    > img {
+      width: 7rem;
+      height: 5.25rem;
+    }
   }
 
-  .market-class-grid {
+  .gallery-program-cta {
+    display: none;
+  }
+
+  .gallery-room-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .market-category-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .class-detail-card {
-    position: static;
-  }
-
-  // 모바일에서는 사진 → 예약 카드(제목·가격) → 수업 소개 순서로 보여 준다.
-  .class-detail-main {
-    display: contents;
-  }
-
-  .class-detail-media {
-    order: 1;
-  }
-
-  .class-detail-card {
-    order: 2;
-  }
-
-  .class-detail-story {
-    order: 3;
-    margin-top: 0;
-  }
-
-  // 다가오는 일정·예약 안내·방문 안내는 수업 소개 뒤에 둔다.
-  .class-detail-section {
-    order: 4;
-    margin-top: 0;
+  .class-detail-columns {
+    grid-template-columns: 1fr;
   }
 
   .class-slot-chips {
@@ -1254,33 +1408,51 @@
     flex-direction: column;
   }
 
-  .market-banner-main {
-    grid-template-columns: 1fr;
-  }
-
-  .market-banner-copy {
-    padding: 1.25rem;
-
-    strong {
-      font-size: 1.35rem;
-    }
-  }
-
-  .home-product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   // 모바일 홈은 작품 6개(세 줄)까지만 보여 주고 나머지는 전체 작품 보기로 이어 간다.
   .home-product-grid > :nth-child(n + 7) {
     display: none;
   }
 
-  .market-section-more {
+  .gallery-section-more {
     margin-left: 0;
   }
 
+  // 모바일 수업 줄은 사진 옆에 수업·다음 수업·가격을 쌓는다. 날짜는 다음 수업 문장에 있다.
+  .gallery-program-row {
+    grid-template-columns: 6rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.35rem 1rem;
+
+    > img {
+      grid-row: span 2;
+      width: 6rem;
+      height: 6rem;
+    }
+  }
+
+  .gallery-program-date {
+    display: none;
+  }
+
+  .gallery-program-body h3 {
+    font-size: 1.1rem;
+  }
+
+  .gallery-program-links {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-room-grid {
+    gap: 1.5rem 0.75rem;
+  }
+
+  .gallery-room-name {
+    font-size: 1.05rem;
+  }
+
   // 칩이 많은 줄은 줄바꿈 대신 가로로 밀어 본다.
-  .market-chips,
+  .gallery-tabs,
+  .gallery-chips,
   .class-situation-chips {
     flex-wrap: nowrap;
     max-width: 100%;
@@ -1290,19 +1462,6 @@
     > * {
       flex: 0 0 auto;
     }
-  }
-
-  .market-class-box {
-    padding: 1rem;
-  }
-
-  .market-class-grid {
-    gap: 0.75rem;
-  }
-
-  .market-shop-profile {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .home-event-panel {

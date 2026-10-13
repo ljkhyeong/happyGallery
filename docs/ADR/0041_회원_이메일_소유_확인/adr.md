@@ -43,8 +43,8 @@ Google OIDC는 `email_verified=true`인 프로필을 제공하지만 Naver 프�
 ### 4. 인증 원문을 DB 검색 키로 남기지 않는다
 
 - `email_verifications`는 회원 ID, 발급 당시 자격 버전, `email_hmac`, 회원 ID·정규화 이메일·코드를 결합한 `code_hmac`, `code_enc`, 발송·검증 상태와 만료 시각을 저장한다.
-- 이메일 원문과 이메일 암호문은 저장하지 않는다. `code_enc`는 보호된 행을 복원·재저장하고 local/dev의 E2E 코드 조회를 지원하되 운영 응답에는 노출하지 않는다.
-- 로그에는 이메일과 인증 코드 원문을 남기지 않는다. local/dev/test 가짜 발송기도 발송 목적만 기록한다.
+- 이메일 원문과 이메일 암호문은 저장하지 않는다. `code_enc`는 보호된 행을 복원·재저장하고 local의 E2E 코드 조회를 지원하되 운영 응답에는 노출하지 않는다.
+- 로그에는 이메일과 인증 코드 원문을 남기지 않는다. local/test 가짜 발송기도 발송 목적만 기록한다.
 
 ### 5. 등록의 최종 정합성은 회원 행 잠금과 DB 유일 제약이 보장한다
 
@@ -68,7 +68,7 @@ Google OIDC는 `email_verified=true`인 프로필을 제공하지만 Naver 프�
 - STARTTLS와 직접 SSL 중 정확히 하나를 필수로 하고, STARTTLS downgrade를 허용하지 않으며
   서버 인증서의 호스트명을 검증한다.
 - 이 즉시 검증 흐름은 일반 업무 알림의 `notification_outbox`, Alimtalk/SMS fallback과 분리한다. 일반 영수증·보조 이메일 채널 구현 여부와도 별개다.
-- local/dev/test는 코드를 로그나 응답에 노출하지 않는 가짜 sender를 사용하고, local/dev 관리자 코드 조회 API만 암호문을 복호화한다.
+- local/test는 코드를 로그나 응답에 노출하지 않는 가짜 sender를 사용하고, local 관리자 코드 조회 API만 암호문을 복호화한다.
 - 만료된 인증 행은 만료 후 1일 뒤 개인정보 보존 배치가 `(expires_at, id)` 순서로 100건씩 삭제한다.
 - HMAC 키 회전 시 이메일 원문이 없어 `email_hmac`과 결합 `code_hmac`을 다시 만들 수 없으므로 인증 행을 전량 삭제한다. 사용자는 회전 뒤 새 코드를 요청한다.
 

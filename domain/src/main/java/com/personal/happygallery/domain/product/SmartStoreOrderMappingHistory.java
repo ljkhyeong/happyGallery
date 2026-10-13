@@ -51,5 +51,4 @@ public class SmartStoreOrderMappingHistory {
     public Long getOriginProductNo() { return originProductNo; }
     public Long getOptionId() { return optionId; }
     public boolean isEnabled() { return enabled; }
-    public LocalDateTime getClosedAt() { return closedAt; }
 }

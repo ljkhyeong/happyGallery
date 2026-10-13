@@ -57,6 +57,7 @@ export function useMadeToOrderConsent(required: boolean) {
   const agreed = required && checked && version !== null;
 
   return {
+    required,
     agreed,
     version: required ? version : null,
     ready: (!required || agreed) && !refreshRequired,
@@ -66,5 +67,7 @@ export function useMadeToOrderConsent(required: boolean) {
     refreshRequired,
     policyQuery,
     handleSubmissionError,
+    /** 동의 안내 변경 오류는 동의 영역이 안내하므로 결제 오류 표시에서 뺀다. */
+    paymentError: (error: unknown) => isMadeToOrderConsentVersionMismatch(error) ? null : error,
   };
 }

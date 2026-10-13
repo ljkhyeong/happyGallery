@@ -234,10 +234,7 @@ export interface OrderOptionSnapshotResponse {
   value: string;
 }
 
-/**
- * @nullable
- */
-export type ItemDtoProductType = typeof ItemDtoProductType[keyof typeof ItemDtoProductType] | null;
+export type ItemDtoProductType = typeof ItemDtoProductType[keyof typeof ItemDtoProductType];
 
 
 export const ItemDtoProductType = {
@@ -256,7 +253,6 @@ export interface ItemDto {
   orderItemId: number;
   productId: number;
   productName: string;
-  /** @nullable */
   productType: ItemDtoProductType;
   /** @nullable */
   productVariantId: number | null;

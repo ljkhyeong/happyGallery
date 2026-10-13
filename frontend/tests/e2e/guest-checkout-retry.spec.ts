@@ -1,11 +1,8 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
-
-async function json(route: Route, body: unknown, status = 200) {
-  await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-}
 
 async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   const prepares: Array<{ payload: { verificationCode: string; name: string } }> = [];
@@ -16,39 +13,39 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") return json(route, { code: "UNAUTHORIZED" }, 401);
-    if (pathname === "/api/v1/bookings/phone-verifications") return json(route, { verificationId: 1 });
-    if (pathname === "/api/v1/policies/current") return json(route, {
+    if (pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+    if (pathname === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { verificationId: 1 });
+    if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
       terms: { version: "2026-07", documentPath: "/terms/2026-07" },
       privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
     });
-    if (pathname === "/api/v1/products") return json(route, [{
+    if (pathname === "/api/v1/products") return fulfillJson(route, [{
       id: 42, name: "재인증 확인 작품", price: 12000, type: "READY_STOCK", status: "ACTIVE",
       available: true, stockQuantity: 10, variants: [], optionGroups: [], fulfillmentOptions: ["SHIPPING", "PICKUP"],
     }]);
-    if (pathname === "/api/v1/orders/policy") return json(route, {
+    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
       shippingFee: 0, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의",
     });
-    if (pathname === "/api/v1/classes") return json(route, [{
+    if (pathname === "/api/v1/classes") return fulfillJson(route, [{
       id: 42, name: "재인증 확인 수업", price: 50000, category: "LEATHER", status: "ACTIVE",
       durationMin: 90, bufferMin: 0, passEligible: false, situationTags: [],
     }]);
-    if (pathname === "/api/v1/slots/upcoming") return json(route, [{
+    if (pathname === "/api/v1/slots/upcoming") return fulfillJson(route, [{
       id: 77, classId: 42, startAt: "2099-01-02T10:00:00", endAt: "2099-01-02T11:30:00",
       capacity: 4, bookedCount: 0, remainingCapacity: 4,
     }]);
     if (pathname === "/api/v1/payments/prepare") {
       prepares.push(route.request().postDataJSON());
-      if (prepares.length === 1) return json(route, { code: "PHONE_VERIFICATION_FAILED" }, 400);
-      if (prepares.length === 2) return json(route, { code: "INSUFFICIENT_STOCK" }, 409);
-      return json(route, { orderId: "guest-retry", amount: 5000, context: kind, statusToken: "guest-token" });
+      if (prepares.length === 1) return fulfillJson(route, { code: "PHONE_VERIFICATION_FAILED" }, 400);
+      if (prepares.length === 2) return fulfillJson(route, { code: "INSUFFICIENT_STOCK" }, 409);
+      return fulfillJson(route, { orderId: "guest-retry", amount: 5000, context: kind, statusToken: "guest-token" });
     }
     if (pathname === "/api/v1/payments/guest-retry/abandon") return route.fulfill({ status: 204 });
-    if (pathname === "/api/v1/workshop") return json(route, { name: "해피갤러리", version: 1 });
-    return json(route, []);
+    if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", version: 1 });
+    return fulfillJson(route, []);
   });
   await page.goto(kind === "ORDER" ? "/orders/new?productId=42" : "/bookings/new");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-retry-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   if (kind === "BOOKING") {
     await page.getByLabel("클래스").selectOption("42");
     await page.locator('[data-slot-id="77"]').click();

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyBookingDetailResponse, OrderDetailResponse } from "../../src/shared/types";
+import { fulfillJson } from "./mock-support";
 
 const order = {
   orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED",
@@ -22,7 +23,7 @@ const booking = {
 
 const scenarios = [
   {
-    path: "orders", title: "주문", label: "주문 번호·상품명 검색", sort: "AMOUNT_DESC",
+    path: "orders", title: "주문", label: "주문 번호·작품명 검색", sort: "AMOUNT_DESC",
     link: /주문 #9090/, detailText: order.orderNumber, detail: order,
     summary: { ...order, createdAt: "2026-08-01T12:00:00" },
   },
@@ -36,27 +37,24 @@ async function installMemberApi(page: Page, scenario: typeof scenarios[number]) 
   const state = { detailAvailable: true, detailRequests: 0, listRequests: [] as URL[] };
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    const json = (body: unknown, status = 200) => route.fulfill({
-      status, contentType: "application/json", body: JSON.stringify(body),
-    });
     if (url.pathname === "/api/v1/me") {
-      return json({ id: 501, name: "회원", email: "navigation@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
+      return fulfillJson(route, { id: 501, name: "회원", email: "navigation@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
     }
-    if (url.pathname === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (url.pathname === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
-    if (url.pathname === "/api/v1/workshop") return json({ name: "해피갤러리" });
+    if (url.pathname === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+    if (url.pathname === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (url.pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (url.pathname === `/api/v1/me/${scenario.path}/page`) {
       state.listRequests.push(url);
-      return json({ content: [scenario.summary], hasMore: false, nextCursor: null });
+      return fulfillJson(route, { content: [scenario.summary], hasMore: false, nextCursor: null });
     }
     if (url.pathname === `/api/v1/me/${scenario.path}/9090`) {
       state.detailRequests += 1;
       return state.detailAvailable
-        ? json(scenario.detail)
-        : json({ code: "SERVICE_UNAVAILABLE", message: "일시적인 조회 실패" }, 503);
+        ? fulfillJson(route, scenario.detail)
+        : fulfillJson(route, { code: "SERVICE_UNAVAILABLE", message: "일시적인 조회 실패" }, 503);
     }
-    if (url.pathname.endsWith("/creation-state")) return json({ status: "NOT_REVIEWABLE" });
-    return json([]);
+    if (url.pathname.endsWith("/creation-state")) return fulfillJson(route, { status: "NOT_REVIEWABLE" });
+    return fulfillJson(route, []);
   });
   return state;
 }

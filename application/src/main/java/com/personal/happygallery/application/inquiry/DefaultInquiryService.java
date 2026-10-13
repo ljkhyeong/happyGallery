@@ -5,10 +5,12 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.user.User;
@@ -52,23 +54,18 @@ public class DefaultInquiryService implements InquiryUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Inquiry> listByUser(Long userId) {
-        return listByUser(userId, null, PageParams.MAX_SIZE).content();
+    public Inquiry getOwned(Long inquiryId, Long userId) {
+        return inquiryReader.findByIdAndUserId(inquiryId, userId)
+                .orElseThrow(NotFoundException.supplier("문의"));
     }
 
     @Override
     @Transactional(readOnly = true)
     public CursorPage<Inquiry> listByUser(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Inquiry> inquiries;
-        if (cursor == null) {
-            inquiries = inquiryReader.findByUserId(userId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            inquiries = inquiryReader.findByUserIdAfter(
-                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Inquiry> inquiries = inquiryReader.findByUserId(
+                userId, after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(
                 inquiries,
                 pageSize,
@@ -77,44 +74,16 @@ public class DefaultInquiryService implements InquiryUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Inquiry findByIdAndUser(Long inquiryId, Long userId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(NotFoundException.supplier("문의"));
-        if (!inquiry.getUserId().equals(userId)) {
-            throw new NotFoundException("문의");
-        }
-        return inquiry;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<InquiryWithUser> listAll(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Inquiry> inquiries;
-        if (cursor == null) {
-            inquiries = inquiryReader.findRecent(fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            inquiries = inquiryReader.findRecentAfter(
-                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Inquiry> inquiries = inquiryReader.findRecent(after.timestamp(), after.id(), pageSize + 1);
         Map<Long, User> userMap = batchFetchUsers(inquiries);
         List<InquiryWithUser> items = inquiries.stream()
                 .map(i -> new InquiryWithUser(i, userName(userMap, i.getUserId())))
                 .toList();
         return CursorPage.of(items, pageSize, item -> CursorUtils.encode(
                 item.inquiry().getCreatedAt(), item.inquiry().getId()));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public InquiryWithUser findByIdForAdmin(Long inquiryId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(NotFoundException.supplier("문의"));
-        String name = userReader.findById(inquiry.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new InquiryWithUser(inquiry, name);
     }
 
     @Override
@@ -127,7 +96,7 @@ public class DefaultInquiryService implements InquiryUseCase {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 inquiry.getUserId(),
                 NotificationEventType.INQUIRY_ANSWERED,
-                "INQUIRY",
+                NotificationAggregateType.INQUIRY,
                 inquiry.getId()));
         String name = userReader.findById(inquiry.getUserId())
                 .map(User::getName).orElse("탈퇴회원");

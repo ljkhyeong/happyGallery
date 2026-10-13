@@ -2,7 +2,6 @@ package com.personal.happygallery.application.store;
 
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.application.store.port.out.WorkshopProfileReaderPort;
-import com.personal.happygallery.application.store.port.out.WorkshopProfileStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -17,14 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultWorkshopProfileService implements WorkshopProfileUseCase {
 
     private final WorkshopProfileReaderPort readerPort;
-    private final WorkshopProfileStorePort storePort;
     private final Clock clock;
 
-    public DefaultWorkshopProfileService(WorkshopProfileReaderPort readerPort,
-                                         WorkshopProfileStorePort storePort,
-                                         Clock clock) {
+    public DefaultWorkshopProfileService(WorkshopProfileReaderPort readerPort, Clock clock) {
         this.readerPort = readerPort;
-        this.storePort = storePort;
         this.clock = clock;
     }
 
@@ -52,6 +47,7 @@ public class DefaultWorkshopProfileService implements WorkshopProfileUseCase {
                 command.naverTalkUrl(), command.naverBlogUrl(),
                 command.instagramUrl(), command.smartStoreUrl(),
                 LocalDateTime.now(clock));
-        return storePort.save(profile);
+        // 조회한 영속 엔티티라 커밋 시 변경 감지로 저장되고 version도 그때 올라간다.
+        return profile;
     }
 }

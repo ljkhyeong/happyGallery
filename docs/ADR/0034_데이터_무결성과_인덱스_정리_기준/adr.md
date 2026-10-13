@@ -30,7 +30,7 @@
   현재 시간 커서와 기간 조회는 `ORDER BY time DESC, id DESC`를 유지하며 ID를 동률 해소 키로 사용한다.
 - 주문 클레임 작업함은 상태 없는 전체 조회와 상태별 조회를 모두 제공하므로
   `(requested_at DESC, id DESC)`와 `(status, requested_at DESC, id DESC)`를 각각 유지한다.
-- `notification_outbox(event_type, aggregate_type, aggregate_id)`는 예약·8회권·픽업 리마인드가
+- `notification_outbox(event_type, aggregate_type, aggregate_id)`는 예약·이용권·픽업 리마인드가
   멱등키 문자열 형식과 무관하게 이미 접수된 aggregate를 제외할 때 사용한다. 반복 가능한 다른 알림 이벤트도
   같은 의미 컬럼 조합을 가질 수 있으므로 UNIQUE로 만들지 않고, 쓰기 멱등성은 기존 `idempotency_key` UNIQUE가 담당한다.
 
@@ -79,12 +79,12 @@
 
 ### 금전·원장
 
-- 현재 환불은 예약·직접 주문·주문 클레임·8회권·결제 시도 보상 원본당 환불 요청 한 건을 만들고 같은 행과 멱등키로 재시도한다.
+- 현재 환불은 예약·직접 주문·주문 클레임·이용권·결제 시도 보상 원본당 환불 요청 한 건을 만들고 같은 행과 멱등키로 재시도한다.
   직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK를 UNIQUE로 둔다.
   하나의 클레임을 다시 분할 환불하는 모델을 도입할 때는 이 결정을 다시 검토한다.
 - 환불 요청 멱등키와 PG가 반환한 취소 거래 식별자는 각각 환불 전체에서 한 건에만 귀속되어야 하므로
   `idempotency_key`, `refund_transaction_key`를 UNIQUE로 둔다. nullable 거래 식별자는 성공 전까지 여러 `NULL`을 허용한다.
-- 예약 한 건의 8회권 `USE`와 예약 취소 `REFUND`는 타입별 한 번만 허용하므로
+- 예약 한 건의 이용권 `USE`와 예약 취소 `REFUND`는 타입별 한 번만 허용하므로
   `UNIQUE(related_booking_id, type)`으로 원장 중복을 막는다.
 
 ### 기타 DB 불변식
@@ -121,13 +121,7 @@
 
 ## 구현 반영
 
-- `V44__enforce_identity_and_transaction_consistency.sql`
-- `V98__enforce_booking_phone_identity.sql`
-- `V94__index_notification_outbox_event_aggregate.sql`
-- `V109__allow_shared_guest_recovery_order_token.sql`
-- `V110__allow_shared_guest_recovery_booking_token.sql`
-- `V111__index_member_order_cursor.sql`부터 `V115__index_product_qna_cursors.sql`까지의 고객 이력 커서 인덱스
-- `V141__index_public_review_rating_low_sort.sql`의 상품·클래스 낮은 별점순 혼합 방향 인덱스
+- `V1__baseline_schema.sql`의 식별·거래 정합성 제약과 고객 이력 커서·후기 정렬 인덱스 (재작성 전 V44·V94·V98·V109~V115·V141)
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
 - 전화번호 HMAC 기준 활성 예약 조회와 계정별 활성 예약 DB 제약
 - 예약 UNIQUE 제약 이름 기준 예외 변환

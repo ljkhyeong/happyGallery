@@ -29,7 +29,6 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -119,8 +118,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 productReview.rating(),
                 productReview.content(),
                 productReview.editedAt(),
-                ReviewEvidenceProvenance.LIVE,
-                true,
                 productReview.images().stream()
                         .map(ReviewUseCase.ReviewImageItem::imageUrl)
                         .toList(),
@@ -166,7 +163,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         when(noticeAdminUseCase.getForEdit(1L)).thenReturn(notice);
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
         when(noticeAdminUseCase.update(eq(1L), anyLong(), any(), any(), anyBoolean())).thenReturn(notice);
-        when(qnaUseCase.listByProductForAdmin(1L)).thenReturn(List.of(qna));
         when(qnaUseCase.listByProductForAdmin(eq(1L), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(qna), "cursor-next", true));
         when(qnaUseCase.listUnanswered(isNull(), anyInt()))
@@ -174,7 +170,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.replyAndGet(eq(5L), any(), eq(ADMIN_USER_ID))).thenReturn(qna);
         when(inquiryUseCase.listAll(isNull(), anyInt()))
                 .thenReturn(new CursorPage<>(List.of(inquiry), null, false));
-        when(inquiryUseCase.findByIdForAdmin(9L)).thenReturn(inquiry);
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
         when(adminReviewUseCase.listAdminReviews(
                 eq(ReviewTargetType.PRODUCT),
@@ -427,15 +422,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 QNA 목록 API를 문서화한다")
-    void admin_list_qna() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/qna")
-                        .with(adminUser())
-                        .param("productId", "1"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("관리자 상품별 QNA 커서 페이지 API를 문서화한다")
     void admin_list_qna_page() throws Exception {
         mockMvc.perform(get("/api/v1/admin/qna/page")
@@ -476,13 +462,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(9))
                 .andExpect(jsonPath("$.hasMore").value(false));
-    }
-
-    @Test
-    @DisplayName("관리자 문의 상세 API를 문서화한다")
-    void admin_get_inquiry() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/inquiries/{id}", 9L).with(adminUser()))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -557,7 +536,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].newStatus").value("HIDDEN"))
                 .andExpect(jsonPath("$[0].adminUserId").value(ADMIN_USER_ID))
                 .andExpect(jsonPath("$[0].evidence.contentRevision").value(1))
-                .andExpect(jsonPath("$[0].evidence.imagesComplete").value(true));
+                .andExpect(jsonPath("$[0].evidence.id").value(81));
     }
 
     @Test

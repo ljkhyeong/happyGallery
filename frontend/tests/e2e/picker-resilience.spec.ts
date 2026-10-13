@@ -1,8 +1,6 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { EMPTY_CART_VERSION, fulfillJson, openMockedAdmin } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
-const ADMIN_TOKEN = "picker-resilience-admin-token";
-const EMPTY_CART_VERSION = "0".repeat(64);
 const EMPTY_CURSOR_PAGE = {
   content: [],
   nextCursor: null,
@@ -27,22 +25,6 @@ const adminClass = {
   targetAudience: null,
   situationTags: [],
 };
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
-async function openAuthenticatedAdmin(page: Page, view: "today" | "bookings" | "classes") {
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, ADMIN_TOKEN] as const);
-  await page.goto(`/admin?view=${view}`);
-  await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
-}
 
 function adminPanel(page: Page, title: string) {
   return page.locator("section.admin-workspace-panel")
@@ -77,7 +59,7 @@ test("@admin 클래스 목록과 회차 관리 선택기는 조회 실패를 빈
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "classes");
+  await openMockedAdmin(page, "classes");
   const listPanel = adminPanel(page, "클래스 목록");
   const slotPanel = adminPanel(page, "예약이 있는 회차 관리");
 
@@ -137,7 +119,7 @@ test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "bookings");
+  await openMockedAdmin(page, "bookings");
   await page.getByRole("button", { name: "전화·메신저·방문 예약 등록" }).click();
   const modal = page.getByRole("dialog", { name: "전화·메신저·방문 예약 등록" });
 
@@ -189,7 +171,7 @@ test("@admin 환불 조회 실패는 확인 필요 0건으로 단정하지 않�
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "today");
+  await openMockedAdmin(page, "today");
   const refundPanel = adminPanel(page, "환불 확인 필요");
 
   await expect(refundPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();

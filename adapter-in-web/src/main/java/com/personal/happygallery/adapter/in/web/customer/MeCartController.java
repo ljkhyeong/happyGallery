@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartView;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.MergeItem;
-import com.personal.happygallery.adapter.in.web.customer.dto.AddCartItemRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.ProductTextInputRequest;
@@ -40,17 +39,6 @@ public class MeCartController {
     public CartResponse getCart(@AuthenticationPrincipal CustomerPrincipal customer) {
         CartView cart = cartUseCase.getCart(customer.userId());
         return CartResponse.from(cart);
-    }
-
-    @PostMapping("/items")
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(operationId = "addMyCartItem")
-    public void addItem(@RequestBody @Valid AddCartItemRequest req,
-                        @AuthenticationPrincipal CustomerPrincipal customer) {
-        cartUseCase.addItem(
-                customer.userId(), req.productId(), req.productVariantId(),
-                req.textInputs().stream().map(ProductTextInputRequest::toCommand).toList(),
-                req.qty());
     }
 
     @PostMapping("/merge")

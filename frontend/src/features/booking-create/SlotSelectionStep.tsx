@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, ListGroup } from "react-bootstrap";
-import { fetchClasses } from "./api";
-import { slotDayParts, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "./upcomingSlots";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import {
+  classAcceptsPass,
+  isFewSeats,
+  publicClassesQuery,
+  slotDayParts,
+  UPCOMING_SLOT_DAYS,
+  upcomingSlotsQuery,
+} from "./upcomingSlots";
 import { CheckoutPanel, LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import {
   CLASS_CATEGORY_OPTIONS,
   classImageSrc,
   getClassCategoryLabel,
-  isPerfumeClassCategory,
+  formatDateInput,
 } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
@@ -20,8 +25,10 @@ import { BookingDateChips, BookingSlotTime } from "./BookingDateChips";
 interface Props {
   initialClassId?: number | null;
   initialSlotId?: number | null;
-  /** 빈자리 알림 링크는 날짜만 펼치고, 사용자가 이미 시간을 고른 홈 빠른 예약은 남은 자리가 있으면 바로 선택한다. */
+  /** 빈자리 알림 링크는 날짜만 펼치고, 클래스 상세에서 이미 시간을 고른 경우는 남은 자리가 있으면 바로 선택한다. */
   selectInitialSlot?: boolean;
+  /** 이용권으로 예약하러 들어온 경우 이용권을 쓸 수 있는 수업만 고르게 한다. */
+  passOnly?: boolean;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
@@ -33,11 +40,14 @@ export function SlotSelectionStep({
   initialClassId,
   initialSlotId,
   selectInitialSlot = false,
+  passOnly = false,
   selectedSlot,
   onSelect,
   onDeselect,
   onClassChange,
 }: Props) {
+  // "알림 신청한 일정" 표시는 빈자리 알림 링크로 들어온 경우만이다. 상세에서 고른 시간은 선택 상태로 보인다.
+  const vacancyFlagSlotId = selectInitialSlot ? null : initialSlotId;
   const appliedInitialClassId = useRef<number | null | undefined>(undefined);
   const appliedInitialClass = useRef<ClassResponse | null | undefined>(undefined);
   const appliedInitialSlotId = useRef<number | null | undefined>(undefined);
@@ -51,14 +61,14 @@ export function SlotSelectionStep({
     isFetching: classesFetching,
     error: classesError,
     refetch: refetchClasses,
-  } = useQuery({
-    queryKey: ["classes"],
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  });
+  } = useQuery(publicClassesQuery());
 
   const classIdNum = Number(classId);
   const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;
+  // 주소로 이미 고른 수업은 이용권 대상이 아니어도 목록에 남겨 아래 안내와 함께 보여 준다.
+  const classOptions = passOnly
+    ? classes?.filter((bookingClass) => classAcceptsPass(bookingClass) || bookingClass.id === classIdNum)
+    : classes;
 
   useEffect(() => {
     if (classes === undefined) return;
@@ -142,7 +152,7 @@ export function SlotSelectionStep({
 
   return (
     <>
-      <CheckoutPanel step={1} title="수업">
+      <CheckoutPanel title="수업">
         {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다..." />}
         <ErrorAlert
           error={classesError}
@@ -167,8 +177,8 @@ export function SlotSelectionStep({
               onClassChange?.(classes?.find((bookingClass) => bookingClass.id === nextId) ?? null);
               onDeselect?.();
             }}>
-              <option value="">수업을 선택하세요</option>
-              {classes?.map((c) => {
+              <option value="">{passOnly ? "이용권으로 들을 수업을 선택하세요" : "수업을 선택하세요"}</option>
+              {classOptions?.map((c) => {
                 const categoryLabel = CLASS_CATEGORY_OPTIONS.find(
                   ({ code }) => code === c.category.trim().toUpperCase(),
                 )?.label;
@@ -188,7 +198,7 @@ export function SlotSelectionStep({
             <div>
               <p className="booking-class-meta">
                 {getClassCategoryLabel(selectedClass.category)} · {selectedClass.durationMin}분
-                {selectedClass.passEligible && !isPerfumeClassCategory(selectedClass.category) && " · 4회권 사용 가능"}
+                {classAcceptsPass(selectedClass) && " · 4회권 사용 가능"}
               </p>
               {selectedClass.description && <p>{selectedClass.description}</p>}
               {(selectedClass.targetAudience || selectedClass.preparationInfo) && (
@@ -212,7 +222,7 @@ export function SlotSelectionStep({
         )}
       </CheckoutPanel>
 
-      <CheckoutPanel step={2} title="날짜와 시간" meta={`앞으로 ${UPCOMING_SLOT_DAYS}일`}>
+      <CheckoutPanel title="날짜와 시간" meta={`앞으로 ${UPCOMING_SLOT_DAYS}일`}>
         {!selectedClass && classes !== undefined && (
           <p className="checkout-panel-empty">수업을 먼저 선택해 주세요.</p>
         )}
@@ -240,7 +250,7 @@ export function SlotSelectionStep({
               <Form.Control
                 type="date"
                 value={inquiryDate}
-                min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+                min={formatDateInput(Date.now())}
                 onChange={(event) => setInquiryDate(event.target.value)}
               />
             </Form.Group>
@@ -271,7 +281,7 @@ export function SlotSelectionStep({
             <ListGroup className="booking-slot-list">
               {slots.map((slot) => slot.remainingCapacity === 0 ? (
                 <ListGroup.Item key={slot.id} data-slot-id={slot.id} className="is-full">
-                  {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
+                  {slot.id === vacancyFlagSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
                   <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">만석</span>
                   <VacancyAlertButton slotId={slot.id} />
@@ -283,9 +293,9 @@ export function SlotSelectionStep({
                   action
                   active={selectedSlot?.id === slot.id}
                   onClick={() => onSelect(slot)}
-                  className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
+                  className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
                 >
-                  {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
+                  {slot.id === vacancyFlagSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
                   <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>
                 </ListGroup.Item>
@@ -294,7 +304,7 @@ export function SlotSelectionStep({
           </>
         )}
 
-        {selectedSlot !== null && <WorkshopVisitInfo compact />}
+        {selectedSlot !== null && <WorkshopVisitInfo />}
       </CheckoutPanel>
     </>
   );

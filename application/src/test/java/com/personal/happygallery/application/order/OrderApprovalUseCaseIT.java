@@ -2,18 +2,12 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.AlreadyRefundedException;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.Refund;
@@ -57,12 +51,6 @@ class OrderApprovalUseCaseIT {
     private static final long ADMIN_ID = 1L;
 
     @Autowired MockMvc mockMvc;
-    @Autowired ProductStorePort productStorePort;
-    @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired RefundPort refundPort;
@@ -70,18 +58,14 @@ class OrderApprovalUseCaseIT {
     @Autowired AdminOrderQueryUseCase adminOrderQueryUseCase;
     @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
-    @Autowired OrderService orderService;
     @Autowired Clock clock;
     @MockitoBean NotificationService notificationService;
-    OrderTestHelper orderHelper;
+    @Autowired OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
                 AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
-        orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
-                userStorePort, orderService, clock);
     }
 
     @AfterEach

@@ -1,7 +1,6 @@
 package com.personal.happygallery.domain.user;
 
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 
 public final class PersonalName {
 
@@ -10,13 +9,6 @@ public final class PersonalName {
     private PersonalName() {}
 
     public static String required(String value) {
-        if (value == null || value.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이름은 필수입니다.");
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_LENGTH) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이름은 100자 이하여야 합니다.");
-        }
-        return normalized;
+        return DomainText.required(value, "이름은", MAX_LENGTH);
     }
 }

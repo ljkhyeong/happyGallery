@@ -32,7 +32,9 @@ import com.personal.happygallery.application.booking.port.in.BookingRescheduleUs
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberEmailRegistrationUseCase;
@@ -49,19 +51,21 @@ import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -181,7 +185,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(
-                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true, 5)),
+                                null, 1L, null, "시그니처 캔들", ProductType.READY_STOCK,
+                                39000L, 0L, 0L, 39000L, null, null, null, List.of(), 1, true, 5)),
                         39000L,
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
@@ -212,18 +217,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
         when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), any(PassHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
-        when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
-                .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
-        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
+                .thenReturn(new PassRefundResult(1, 4, 300000L, 901L, RefundStatus.REQUESTED));
+        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), eq(0), eq(20), eq(false)))
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
                         NotificationEventType.ORDER_PAID,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
-                        null, "주문 #200 · 가죽 지갑", null)));
-        when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
+                        null, "주문 #200 · 가죽 지갑", null,
+                        new NotificationQueryUseCase.NotificationTarget(200L, null, null, null, null, null))));
+        when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
         when(guestClaimUseCase.claim(eq(CUSTOMER_USER_ID), any(), any()))
@@ -234,14 +239,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(socialAuthUseCase.listLinkedProviders(CUSTOMER_USER_ID))
                 .thenReturn(List.of(SocialProvider.GOOGLE));
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
-        when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
+        when(inquiryUseCase.getOwned(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(inquiry), "cursor-next", true));
-        when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false)))
                 .thenReturn(qna);
-        when(qnaUseCase.listOwnedByProduct(1L, CUSTOMER_USER_ID))
-                .thenReturn(List.of(ownedQna));
         when(qnaUseCase.listOwnedByProduct(
                 eq(1L), eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(ownedQna), "cursor-next", true));
@@ -302,8 +304,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 classReview.rating(),
                                 classReview.content(),
                                 classReview.editedAt(),
-                                ReviewEvidenceProvenance.LIVE,
-                                true,
                                 List.of(),
                                 LocalDateTime.of(2026, 5, 1, 21, 0)),
                         ReviewReportStatus.PENDING,
@@ -578,16 +578,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("장바구니 상품 추가 API를 문서화한다")
-    void add_cart_item() throws Exception {
-        mockMvc.perform(post("/api/v1/me/cart/items")
-                        .with(customerUser())
-                        .contentType(APPLICATION_JSON)
-                        .content("{\"productId\":1,\"qty\":1}"))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
     @DisplayName("비회원 장바구니 병합 API를 문서화한다")
     void merge_guest_cart() throws Exception {
         mockMvc.perform(post("/api/v1/me/cart/merge")
@@ -820,20 +810,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 이용권 상세 API를 문서화한다")
-    void get_my_pass() throws Exception {
-        mockMvc.perform(get("/api/v1/me/passes/{id}", 300L).with(customerUser()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("내 이용권 정산 환불 API를 문서화한다")
     void refund_my_pass() throws Exception {
         mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 300L).with(customerUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(1))
-                .andExpect(jsonPath("$.refundCredits").value(8))
-                .andExpect(jsonPath("$.refundAmount").value(240000))
+                .andExpect(jsonPath("$.refundCredits").value(4))
+                .andExpect(jsonPath("$.refundAmount").value(300000))
                 .andExpect(jsonPath("$.refundStatus").value("REQUESTED"))
                 .andExpect(jsonPath("$.refundId").doesNotExist());
     }
@@ -854,7 +837,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].readAt").doesNotExist())
                 .andExpect(jsonPath("$[0].read").value(false))
                 .andExpect(jsonPath("$[0].contextTitle").value("주문 #200 · 가죽 지갑"))
-                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()));
+                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()))
+                .andExpect(jsonPath("$[0].target.orderId").value(200))
+                .andExpect(jsonPath("$[0].target.bookingId").value(nullValue()))
+                .andExpect(jsonPath("$[0].target.slotId").value(nullValue()));
     }
 
     @Test
@@ -863,7 +849,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/me/notifications").with(customerUser())
                         .param("page", "1").param("size", "20").param("unreadOnly", "true"))
                 .andExpect(status().isOk());
-        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, null, 1, 20, true);
+        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, 1, 20, true);
     }
 
     @Test
@@ -930,13 +916,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 문의 목록 API를 문서화한다")
-    void list_my_inquiries() throws Exception {
-        mockMvc.perform(get("/api/v1/me/inquiries").with(customerUser()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("내 문의 커서 페이지 API를 문서화한다")
     void list_my_inquiries_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/inquiries/page")
@@ -946,13 +925,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$.content[0].id").value(9))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
                 .andExpect(jsonPath("$.hasMore").value(true));
-    }
-
-    @Test
-    @DisplayName("내 문의 상세 API를 문서화한다")
-    void get_my_inquiry() throws Exception {
-        mockMvc.perform(get("/api/v1/me/inquiries/{id}", 9L).with(customerUser()))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -969,14 +941,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("내 상품 QNA 목록 API를 문서화한다")
-    void list_my_product_qna() throws Exception {
-        mockMvc.perform(get("/api/v1/me/products/{productId}/qna", 1L)
-                        .with(customerUser()))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -1243,11 +1207,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private static GuestClaimUseCase.ClaimPreview claimPreview(boolean verified) {
         return new GuestClaimUseCase.ClaimPreview(
                 verified,
-                List.of(new GuestClaimUseCase.ClaimOrderSummary(
-                        200L, "PAID_APPROVAL_PENDING", 39000L,
+                List.of(new GuestOrderSummary(
+                        200L, OrderStatus.PAID_APPROVAL_PENDING, 39000L,
                         LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC))),
-                List.of(new GuestClaimUseCase.ClaimBookingSummary(
-                        100L, "BOOKED", "향수 원데이",
+                List.of(new GuestBookingSummary(
+                        100L, BookingStatus.BOOKED, "향수 원데이",
                         LocalDateTime.of(2026, 5, 7, 19, 0),
                         LocalDateTime.of(2026, 5, 7, 21, 0))));
     }

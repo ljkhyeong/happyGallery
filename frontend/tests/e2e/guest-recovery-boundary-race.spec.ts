@@ -1,14 +1,5 @@
-import { expect, test, type Route } from "@playwright/test";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
+import { expect, test } from "@playwright/test";
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저장한 capability를 되돌린다", async ({
   baseURL,
@@ -28,11 +19,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
   let currentMember: typeof nextMember | null = null;
   let recoveredPageReads = 0;
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-recovery-race-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(({ customerId }) => {
     const originalSetItem = Storage.prototype.setItem;
     let boundaryInjected = false;
@@ -88,8 +75,6 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
       await fulfillJson(route, {
         accessToken: "must-be-rolled-back",
         expiresAt: "2099-08-08T12:00:00",
-        orders: [],
-        bookings: [],
       });
       return;
     }

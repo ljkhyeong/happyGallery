@@ -3,10 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
-  ButtonGroup,
   Col,
   Form,
-  Modal,
   Row,
   Table,
 } from "react-bootstrap";
@@ -24,12 +22,15 @@ import {
   StatusBadge,
   useToast,
 } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
-import type { AdminPassResponse, RefundStatus } from "@/shared/types";
+import { AdminSearchPagination } from "@/features/admin-search/AdminSearchPagination";
+import type { AdminPassResponse } from "@/shared/types";
 
 interface Props {
   adminKey: string;
@@ -38,19 +39,6 @@ interface Props {
 
 const PAGE_SIZE = 10;
 const REFUNDABLE_STATUSES = new Set<AdminPassResponse["status"]>(["ACTIVE", "USED_UP"]);
-const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
-  REQUESTED: "요청 접수",
-  PROCESSING: "처리 중",
-  RETRYABLE: "자동으로 다시 처리 예정",
-  RECONCILIATION_REQUIRED: "결제사 확인 필요",
-  SUCCEEDED: "환불 완료",
-  FAILED: "환불 실패",
-};
-
-function visibleError(error: Error | null): Error | null {
-  return error instanceof ApiError && error.status === 401 ? null : error;
-}
-
 export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -148,7 +136,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
       </Form>
 
       {passSearch.isLoading && <LoadingSpinner text="이용권 조회 중..." />}
-      <ErrorAlert error={visibleError(passSearch.error)} />
+      <ErrorAlert error={visibleAdminError(passSearch.error)} />
 
       {passSearch.data?.content.length === 0 && (
         <EmptyState message="검색 조건에 맞는 이용권이 없습니다." />
@@ -194,35 +182,19 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
             </tbody>
           </Table>
 
-          <div className="admin-search-pagination">
-            <small className="text-muted-soft">
-              총 {passSearch.data.totalCount.toLocaleString("ko-KR")}건 · {passSearch.data.page + 1}/
-              {passSearch.data.totalPages.toLocaleString("ko-KR")} 페이지
-            </small>
-            <ButtonGroup size="sm" aria-label="이용권 검색 결과 페이지 이동">
-              <Button
-                variant="outline-secondary"
-                disabled={passSearch.isFetching || page === 0}
-                onClick={() => movePage(page - 1)}
-              >
-                이전
-              </Button>
-              <Button
-                variant="outline-secondary"
-                disabled={passSearch.isFetching || page + 1 >= passSearch.data.totalPages}
-                onClick={() => movePage(page + 1)}
-              >
-                다음
-              </Button>
-            </ButtonGroup>
-          </div>
+          <AdminSearchPagination
+            page={passSearch.data}
+            onMove={movePage}
+            disabled={passSearch.isFetching}
+            ariaLabel="이용권 검색 결과 페이지 이동"
+          />
         </div>
       )}
 
       {selectedPassId !== null && (
         <section className="border-top mt-4 pt-4" aria-labelledby="admin-pass-detail-title">
           {passDetail.isLoading && <LoadingSpinner text="이용권 상세 조회 중..." />}
-          <ErrorAlert error={visibleError(passDetail.error)} />
+          <ErrorAlert error={visibleAdminError(passDetail.error)} />
 
           {selectedPass && (
             <>
@@ -248,7 +220,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
                 {selectedPass.refundStatus && (
                   <>
                     <dt className="col-6 col-md-3">환불 상태</dt>
-                    <dd className="col-6 col-md-3">{REFUND_STATUS_LABEL[selectedPass.refundStatus]}</dd>
+                    <dd className="col-6 col-md-3">{ADMIN_REFUND_STATUS_LABEL[selectedPass.refundStatus]}</dd>
                   </>
                 )}
               </dl>
@@ -287,62 +259,41 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
             {expire.isPending ? "처리 중..." : "기간 지난 이용권 만료 처리"}
           </Button>
         </div>
-        <ErrorAlert error={visibleError(expire.error)} />
+        <ErrorAlert error={visibleAdminError(expire.error)} />
       </section>
 
-      <Modal
+      <ConfirmModal
         show={showRefundConfirm}
-        aria-labelledby="admin-pass-refund-title"
-        onHide={() => {
-          if (!refund.isPending) setShowRefundConfirm(false);
-        }}
-        centered
+        title="이용권 전체 환불 확인"
+        pending={refund.isPending}
+        onClose={() => setShowRefundConfirm(false)}
+        confirmLabel={refund.isPending ? "환불 처리 중..." : "전체 환불 확정"}
+        confirmVariant="danger"
+        confirmDisabled={!selectedPass || !refundable}
+        onConfirm={() => selectedPass && refund.mutate(selectedPass.passId)}
       >
-        <Modal.Header closeButton={!refund.isPending}>
-          <Modal.Title id="admin-pass-refund-title" className="fs-6">
-            이용권 전체 환불 확인
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={visibleError(refund.error)} />
-          {selectedPass && (
-            <>
-              <p className="mb-3">
-                <strong>{selectedPass.passNumber}</strong>을 전체 환불하고 남은 이용 권한을 종료합니다.
-              </p>
-              <dl className="row small mb-3">
-                <dt className="col-6">현재 상태</dt>
-                <dd className="col-6"><StatusBadge status={selectedPass.status} audience="admin" /></dd>
-                <dt className="col-6">잔여 횟수</dt>
-                <dd className="col-6">{selectedPass.remainingCredits}/{selectedPass.totalCredits}회</dd>
-                <dt className="col-6">자동 취소될 미래 예약</dt>
-                <dd className="col-6 fw-semibold">{selectedPass.futureBookingCount}건</dd>
-                <dt className="col-6">예상 환불액</dt>
-                <dd className="col-6 fw-semibold">{formatKRW(selectedPass.expectedRefundAmount)}</dd>
-              </dl>
-              <Alert variant="warning" className="mb-0 py-2 small">
-                미래 예약은 자동 취소되고 잔여 횟수는 0회가 됩니다. 실행 후에는 되돌릴 수 없습니다.
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={refund.isPending}
-            onClick={() => setShowRefundConfirm(false)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={!selectedPass || !refundable || refund.isPending}
-            onClick={() => selectedPass && refund.mutate(selectedPass.passId)}
-          >
-            {refund.isPending ? "환불 처리 중..." : "전체 환불 확정"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={visibleAdminError(refund.error)} />
+        {selectedPass && (
+          <>
+            <p className="mb-3">
+              <strong>{selectedPass.passNumber}</strong>을 전체 환불하고 남은 이용 권한을 종료합니다.
+            </p>
+            <dl className="row small mb-3">
+              <dt className="col-6">현재 상태</dt>
+              <dd className="col-6"><StatusBadge status={selectedPass.status} audience="admin" /></dd>
+              <dt className="col-6">잔여 횟수</dt>
+              <dd className="col-6">{selectedPass.remainingCredits}/{selectedPass.totalCredits}회</dd>
+              <dt className="col-6">자동 취소될 미래 예약</dt>
+              <dd className="col-6 fw-semibold">{selectedPass.futureBookingCount}건</dd>
+              <dt className="col-6">예상 환불액</dt>
+              <dd className="col-6 fw-semibold">{formatKRW(selectedPass.expectedRefundAmount)}</dd>
+            </dl>
+            <Alert variant="warning" className="mb-0 py-2 small">
+              미래 예약은 자동 취소되고 잔여 횟수는 0회가 됩니다. 실행 후에는 되돌릴 수 없습니다.
+            </Alert>
+          </>
+        )}
+      </ConfirmModal>
     </div>
   );
 }

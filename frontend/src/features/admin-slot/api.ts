@@ -5,11 +5,9 @@ import {
   deleteAdminBookingTimeBlock,
   deactivateSlot as deactivateAdminSlot,
   getAdminBookingCalendar,
-  listClasses,
   listSlots,
   updateAdminBookingCalendarDay,
   updateAdminBookingCalendarSettings,
-  type AdminClassResponse,
   type AdminSlotSessionCancelRequest,
   type AdminSlotSessionCancelResponse,
   type BookingCalendarResponse,
@@ -21,10 +19,6 @@ import {
   type UpdateBookingCalendarSettingsRequest,
 } from "@/generated/api/adminCatalog";
 import { adminHeaders } from "@/shared/api";
-
-export function fetchClasses(adminKey: string): Promise<AdminClassResponse[]> {
-  return listClasses({ headers: adminHeaders(adminKey) });
-}
 
 export function cancelSlotSession(
   adminKey: string,

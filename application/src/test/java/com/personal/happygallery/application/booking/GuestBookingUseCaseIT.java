@@ -23,6 +23,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingStateProbe;
 import com.personal.happygallery.support.BookingTestHelper;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.ExternalIntegrationUseCaseIT;
@@ -443,7 +444,7 @@ class GuestBookingUseCaseIT {
                                           String name,
                                           Long requestedSlotId,
                                           DepositPaymentMethod paymentMethod) {
-        return new BookingPayload(
+        return PaymentPayloads.booking(
                 null,
                 phone,
                 verificationCode,

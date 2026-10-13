@@ -1,11 +1,11 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
+import { fulfillJson, navigateInApp, seedAdminSession } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const workshop = {
   name: "해피갤러리",
   updatedAt: "2026-08-08T10:00:00",
@@ -15,21 +15,6 @@ const workshop = {
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
-async function navigateInApp(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, "", nextPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, path);
-}
 
 test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최신 내용을 표시한다", async ({ page }) => {
   let publicTitle = "변경 전 공지";
@@ -46,9 +31,7 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최�
     }],
   }));
 
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, "notice-cache-admin-token"] as const);
+  await seedAdminSession(page);
   await updatePublicHomeFixture();
 
   await page.route("**/api/v1/**", async (route) => {

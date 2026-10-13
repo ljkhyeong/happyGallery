@@ -5,8 +5,10 @@ import {
   markMyNotificationAsRead,
 } from "@/generated/api/notification";
 
-export function fetchNotifications(page: number, size: number = 20, unreadOnly = false, signal?: AbortSignal) {
-  return listMyNotifications({ page, size, unreadOnly }, { signal });
+export const NOTIFICATION_PAGE_SIZE = 20;
+
+export function fetchNotifications(page: number, unreadOnly = false, signal?: AbortSignal) {
+  return listMyNotifications({ page, size: NOTIFICATION_PAGE_SIZE, unreadOnly }, { signal });
 }
 
 export function fetchUnreadCount() {

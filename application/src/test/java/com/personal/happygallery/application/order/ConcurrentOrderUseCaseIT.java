@@ -1,11 +1,5 @@
 package com.personal.happygallery.application.order;
 
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
@@ -14,17 +8,14 @@ import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.ConcurrentExecution.runSimultaneously;
+import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -37,23 +28,9 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class ConcurrentOrderUseCaseIT {
 
-    @Autowired OrderService orderService;
-    @Autowired ProductStorePort productStorePort;
-    @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
-    OrderTestHelper orderHelper;
-
-    @BeforeEach
-    void setUp() {
-        orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
-                userStorePort, orderService);
-    }
+    @Autowired OrderTestHelper orderHelper;
 
     @AfterEach
     void tearDown() {
@@ -71,43 +48,23 @@ class ConcurrentOrderUseCaseIT {
 
     @DisplayName("수량 1 재고에서 동시 주문을 시도하면 1건만 성공한다")
     @Test
-    void concurrentOrder_quantity1_onlyOneSucceeds() throws InterruptedException {
+    void concurrentOrder_quantity1_onlyOneSucceeds() throws Exception {
         Product product = orderHelper.createReadyStockProduct("단일 작품(동시성)", 50000L, 1);
         User member = orderHelper.createMemberOwner();
 
         int threadCount = 5;
-        ExecutorService exec = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch startLatch = new CountDownLatch(1);
-        AtomicInteger successes = new AtomicInteger();
-        AtomicInteger failures  = new AtomicInteger();
-
-        for (int i = 0; i < threadCount; i++) {
-            exec.submit(() -> {
-                try {
-                    startLatch.await();
-                    orderService.createMemberOrder(member.getId(),
-                            List.of(new OrderService.OrderItemRequest(
-                                    product.getId(), product.getName(), 1, 50000L)));
-                    successes.incrementAndGet();
-                } catch (InventoryNotEnoughException e) {
-                    failures.incrementAndGet();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                return null;
-            });
-        }
-
-        startLatch.countDown();
-        exec.shutdown();
-        exec.awaitTermination(15, TimeUnit.SECONDS);
+        List<Throwable> outcomes = runSimultaneously(nCopies(threadCount,
+                () -> orderHelper.createMemberPickupOrder(
+                        member.getId(), List.of(OrderTestHelper.item(product, 1, 50000L)))));
 
         // 최종 재고 0 확인 (음수로 내려가지 않음)
         int remaining = orderStateProbe.getInventoryByProductId(product.getId()).getQuantity();
 
         assertSoftly(softly -> {
-            softly.assertThat(successes.get()).isEqualTo(1);
-            softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
+            softly.assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+            softly.assertThat(outcomes).filteredOn(Objects::nonNull)
+                    .hasSize(threadCount - 1)
+                    .allMatch(InventoryNotEnoughException.class::isInstance);
             softly.assertThat(remaining).isEqualTo(0);
         });
     }

@@ -9,6 +9,4 @@ public interface NoticeReaderPort {
     Optional<Notice> findById(Long id);
 
     List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
-
-    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(int limit);
 }

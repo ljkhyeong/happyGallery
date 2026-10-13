@@ -2,6 +2,7 @@ import type { ClassResponse } from "@/generated/api/booking";
 import type { NoticeDetailResponse } from "@/generated/api/notice";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
+import { workshopAddress } from "../lib/contact.ts";
 import { withUtcOffset } from "../lib/format.ts";
 import { absoluteSiteUrl, SITE_NAME, SITE_ORIGIN, seoDescription } from "./metadata.ts";
 
@@ -26,9 +27,7 @@ export function buildLocalBusinessJsonLd(
   workshop: WorkshopProfileResponse,
   image: string,
 ): JsonLd {
-  const streetAddress = [workshop.addressLine1, workshop.addressLine2]
-    .filter(Boolean)
-    .join(" ");
+  const streetAddress = workshopAddress(workshop);
   const sameAs = [
     workshop.naverBlogUrl,
     workshop.instagramUrl,

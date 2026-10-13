@@ -3,13 +3,10 @@ import test from "node:test";
 
 import { getUserMessage } from "../../src/shared/lib/errorMessages.ts";
 import {
-  CLASS_CATEGORY_OPTIONS,
   FULFILLMENT_TYPE_LABEL,
   getClassCategoryLabel,
   getStatusLabel,
-  isPerfumeClassCategory,
   NOTIFICATION_EVENT_LABEL,
-  PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "../../src/shared/lib/labels.ts";
 
@@ -56,10 +53,6 @@ test("회원과 결제 오류는 서비스에서 사용하는 쉬운 용어로 �
     "이 결제에 사용할 수 없는 결제 수단입니다. 다른 결제 수단을 선택해 주세요.",
   );
   assert.match(getUserMessage("ACCOUNT_WITHDRAWAL_BLOCKED"), /탈퇴할 수 없습니다/);
-  assert.equal(
-    getUserMessage("REFUND_NOT_ALLOWED"),
-    "환불할 수 없습니다. 환불 조건과 처리 상태를 확인해 주세요.",
-  );
   assert.equal(getUserMessage("REVIEW_REPORT_ALREADY_EXISTS"), "이미 신고한 후기입니다.");
   assert.match(getUserMessage("PAYMENT_RESULT_RETENTION_EXPIRED"), /이용권 내역/);
 });
@@ -68,19 +61,13 @@ test("클래스 카테고리는 알려진 종류를 고객이 읽을 수 있는 
   assert.equal(getClassCategoryLabel("PERFUME"), "향수");
   assert.equal(getClassCategoryLabel(" resin "), "레진아트");
   assert.equal(getClassCategoryLabel("CERAMIC"), "CERAMIC");
-  assert.equal(isPerfumeClassCategory(" perfume "), true);
-  assert.deepEqual(
-    CLASS_CATEGORY_OPTIONS.map(({ code }) => code),
-    ["PERFUME", "RESIN", "WOOD", "KNIT", "LEATHER", "UPCYCLING"],
-  );
 });
 
 test("상품과 알림 라벨은 내부 업무 용어 대신 고객 표현을 사용한다", () => {
   assert.equal(PRODUCT_TYPE_LABEL.READY_STOCK, "재고 상품");
   assert.equal(PRODUCT_TYPE_LABEL.MADE_TO_ORDER, "주문 제작 상품");
-  assert.match(PRODUCT_FULFILLMENT_LABEL.MADE_TO_ORDER, /공방 승인 후/);
   assert.equal(FULFILLMENT_TYPE_LABEL.PICKUP, "매장 수령");
-  assert.equal(NOTIFICATION_EVENT_LABEL.ORDER_CLAIM_RESOLVED, "환불·교환 요청 처리 결과");
+  assert.equal(NOTIFICATION_EVENT_LABEL.ORDER_CLAIM_RESOLVED, "반품·교환 요청 처리 결과");
   assert.equal(NOTIFICATION_EVENT_LABEL.REVIEW_HIDDEN, "후기 비공개 안내");
   assert.equal(NOTIFICATION_EVENT_LABEL.PRODUCT_QNA_ANSWERED, "상품 문의 답변");
 });

@@ -11,7 +11,7 @@ interface Props {
 
 export function MyAuthGateCard({ title, description, showGuestLinks = false }: Props) {
   const location = useLocation();
-  const redirectTo = `${location.pathname}${location.search}`;
+  const redirectTo = `${location.pathname}${location.search}${location.hash}`;
   const loginHref = buildAuthPageHref("/login", { redirectTo });
   const signupHref = buildAuthPageHref("/signup", { redirectTo });
 

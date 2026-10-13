@@ -33,34 +33,6 @@
         "required" : [ "adminId", "createdAt", "fromStatus", "id", "memberAction", "note", "toStatus" ],
         "type" : "object"
       },
-      "AddCartItemRequest" : {
-        "properties" : {
-          "productId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "productVariantId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
-          "qty" : {
-            "format" : "int32",
-            "maximum" : 99,
-            "minimum" : 1,
-            "type" : "integer"
-          },
-          "textInputs" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductTextInputRequest"
-            },
-            "maxItems" : 5,
-            "minItems" : 0,
-            "type" : "array"
-          }
-        },
-        "required" : [ "productId", "qty" ],
-        "type" : "object"
-      },
       "AdjustInventoryRequest" : {
         "properties" : {
           "productVariantId" : {
@@ -735,7 +707,7 @@
           },
           "productType" : {
             "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
-            "type" : [ "string", "null" ]
+            "type" : "string"
           },
           "productVariantId" : {
             "format" : "int64",
@@ -1128,11 +1100,7 @@
             "type" : [ "string", "null" ]
           },
           "evidence" : {
-            "oneOf" : [ {
-              "$ref" : "#/components/schemas/ReviewEvidenceResponse"
-            }, {
-              "type" : "null"
-            } ]
+            "$ref" : "#/components/schemas/ReviewEvidenceResponse"
           },
           "id" : {
             "format" : "int64",
@@ -1871,26 +1839,11 @@
       "CaptureClientEventRequest" : {
         "properties" : {
           "event" : {
-            "enum" : [ "GUEST_LOOKUP_HUB_VIEWED", "GUEST_ORDER_DIRECT_ENTRY_CONTINUED", "GUEST_MEMBER_CTA_CLICKED", "GUEST_CLAIM_MODAL_OPENED", "GUEST_CLAIM_COMPLETED" ],
-            "type" : "string"
-          },
-          "path" : {
-            "maxLength" : 120,
-            "minLength" : 0,
-            "type" : "string"
-          },
-          "source" : {
-            "maxLength" : 80,
-            "minLength" : 0,
-            "type" : "string"
-          },
-          "target" : {
-            "maxLength" : 80,
-            "minLength" : 0,
+            "enum" : [ "GUEST_LOOKUP_HUB_VIEWED", "GUEST_ORDER_DIRECT_ENTRY_CONTINUED", "GUEST_MEMBER_CTA_CLICKED", "GUEST_CLAIM_MODAL_OPENED" ],
             "type" : "string"
           }
         },
-        "required" : [ "event", "path" ],
+        "required" : [ "event" ],
         "type" : "object"
       },
       "CartItemResponse" : {
@@ -3091,20 +3044,11 @@
       },
       "DeliveryTrackingWebhookRequest" : {
         "properties" : {
-          "event" : {
-            "type" : "string"
-          },
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/Item"
             },
             "type" : "array"
-          },
-          "requestId" : {
-            "type" : "string"
-          },
-          "timestamp" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -3251,6 +3195,7 @@
             "type" : [ "integer", "null" ]
           },
           "aggregateType" : {
+            "enum" : [ "ORDER", "ORDER_CLAIM", "BOOKING", "VACANCY_ALERT", "PASS_PURCHASE", "REFUND", "INQUIRY", "PRODUCT_QNA", "RESTOCK_ALERT", "REVIEW", "REVIEW_MODERATION_ACTION" ],
             "type" : [ "string", "null" ]
           },
           "attemptCount" : {
@@ -3782,24 +3727,12 @@
           "accessToken" : {
             "type" : "string"
           },
-          "bookings" : {
-            "items" : {
-              "$ref" : "#/components/schemas/GuestRecordRecoveryBookingSummary"
-            },
-            "type" : "array"
-          },
           "expiresAt" : {
             "format" : "date-time",
             "type" : "string"
-          },
-          "orders" : {
-            "items" : {
-              "$ref" : "#/components/schemas/GuestRecordRecoveryOrderSummary"
-            },
-            "type" : "array"
           }
         },
-        "required" : [ "accessToken", "bookings", "expiresAt", "orders" ],
+        "required" : [ "accessToken", "expiresAt" ],
         "type" : "object"
       },
       "GuestRecoveredBookingPageResponse" : {
@@ -4023,15 +3956,6 @@
           "currentStatus" : {
             "type" : "string"
           },
-          "hasChanged" : {
-            "type" : "boolean"
-          },
-          "isDelivered" : {
-            "type" : "boolean"
-          },
-          "previousStatus" : {
-            "type" : "string"
-          },
           "trackingData" : {
             "$ref" : "#/components/schemas/TrackingData"
           },
@@ -4081,7 +4005,7 @@
           },
           "productType" : {
             "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
-            "type" : [ "string", "null" ]
+            "type" : "string"
           },
           "productVariantId" : {
             "format" : "int64",
@@ -4162,14 +4086,9 @@
       },
       "MarkShippedRequest" : {
         "properties" : {
-          "carrier" : {
-            "maxLength" : 50,
-            "minLength" : 0,
-            "type" : "string"
-          },
           "carrierCode" : {
             "enum" : [ "CJ_LOGISTICS", "LOTTE", "HANJIN", "KOREA_POST", "KYUNGDONG", "DAESIN", "LOGEN", "HAPDONG", "COUPANG", "WOORI", "CU_POST", "GS_POSTBOX" ],
-            "type" : [ "string", "null" ]
+            "type" : "string"
           },
           "trackingNumber" : {
             "maxLength" : 100,
@@ -4177,7 +4096,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "carrier", "trackingNumber" ],
+        "required" : [ "carrierCode", "trackingNumber" ],
         "type" : "object"
       },
       "MemberPassRefundResponse" : {
@@ -4744,7 +4663,7 @@
             "type" : "integer"
           },
           "planCode" : {
-            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8", "REGULAR_CRAFT_4" ],
+            "enum" : [ "REGULAR_CRAFT_4" ],
             "type" : "string"
           },
           "planName" : {
@@ -4925,10 +4844,11 @@
             "type" : [ "integer", "null" ]
           },
           "aggregateType" : {
+            "enum" : [ "ORDER", "ORDER_CLAIM", "BOOKING", "VACANCY_ALERT", "PASS_PURCHASE", "REFUND", "INQUIRY", "PRODUCT_QNA", "RESTOCK_ALERT", "REVIEW", "REVIEW_MODERATION_ACTION" ],
             "type" : [ "string", "null" ]
           },
           "contextTitle" : {
-            "description" : "본인 주문의 구매 당시 상품명, 현재 예약 클래스 또는 재입고 상품·옵션. 원본이 없거나 타인 소유이면 null",
+            "description" : "본인 주문의 구매 당시 상품명, 현재 예약 클래스, 빈자리 알림 클래스, 재입고 상품·옵션 또는 문의한 상품. 원본이 없거나 타인 소유이면 null",
             "type" : [ "string", "null" ]
           },
           "deliveredAt" : {
@@ -4951,12 +4871,52 @@
             "type" : [ "string", "null" ]
           },
           "scheduledAt" : {
-            "description" : "예약 알림 원본의 현재 예약일시. 알림 발생 당시 일정이 아니며 예약이 아니거나 원본을 조회할 수 없으면 null",
+            "description" : "예약 알림은 현재 예약일시, 빈자리 알림은 신청한 회차 시작 시각. 알림 발생 당시 일정이 아니며 그 밖의 알림이거나 원본을 조회할 수 없으면 null",
             "format" : "date-time",
             "type" : [ "string", "null" ]
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/NotificationTarget",
+            "description" : "알림을 눌렀을 때 열 본인 기록. 원본이 없거나 타인 소유이면 모든 값이 null"
           }
         },
-        "required" : [ "aggregateId", "aggregateType", "contextTitle", "deliveredAt", "eventType", "id", "read", "readAt", "scheduledAt" ],
+        "required" : [ "aggregateId", "aggregateType", "contextTitle", "deliveredAt", "eventType", "id", "read", "readAt", "scheduledAt", "target" ],
+        "type" : "object"
+      },
+      "NotificationTarget" : {
+        "properties" : {
+          "bookingId" : {
+            "description" : "예약·예약금 환불 알림의 예약 ID",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "classId" : {
+            "description" : "빈자리 알림 회차의 클래스 ID",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "orderId" : {
+            "description" : "주문·주문 클레임·주문 환불 알림의 주문 ID",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "productId" : {
+            "description" : "재입고·상품 문의 답변 알림의 상품 ID",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "productVariantId" : {
+            "description" : "재입고 알림을 신청한 옵션 조합 ID. 상품 전체로 신청했으면 null",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "slotId" : {
+            "description" : "빈자리 알림 회차 ID",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "bookingId", "classId", "orderId", "productId", "productVariantId", "slotId" ],
         "type" : "object"
       },
       "OfficialReviewReplyResponse" : {
@@ -5070,10 +5030,6 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
-          "completedByAdminId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
           "customerReason" : {
             "type" : "string"
           },
@@ -5121,10 +5077,6 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
-          "resolvedByAdminId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
           "status" : {
             "enum" : [ "REQUESTED", "REFUND_REQUESTED", "EXCHANGE_APPROVED", "REJECTED", "COMPLETED" ],
             "type" : "string"
@@ -5134,7 +5086,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "adminNote", "completedAt", "completedByAdminId", "customerReason", "id", "items", "maximumRefundAmount", "orderId", "refundAmount", "refundStatus", "replacementCarrier", "replacementTrackingNumber", "requestedAt", "requestedResolution", "resolvedAt", "resolvedByAdminId", "status", "type" ],
+        "required" : [ "adminNote", "completedAt", "customerReason", "id", "items", "maximumRefundAmount", "orderId", "refundAmount", "refundStatus", "replacementCarrier", "replacementTrackingNumber", "requestedAt", "requestedResolution", "resolvedAt", "status", "type" ],
         "type" : "object"
       },
       "OrderCustomerActionResponse" : {
@@ -7111,13 +7063,6 @@
             "maxItems" : 5,
             "type" : "array"
           },
-          "imagesComplete" : {
-            "type" : "boolean"
-          },
-          "provenance" : {
-            "enum" : [ "LIVE", "LEGACY_REPORT" ],
-            "type" : "string"
-          },
           "rating" : {
             "format" : "int32",
             "maximum" : 5,
@@ -7125,7 +7070,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "capturedAt", "content", "contentRevision", "editedAt", "id", "imageUrls", "imagesComplete", "provenance", "rating" ],
+        "required" : [ "capturedAt", "content", "contentRevision", "editedAt", "id", "imageUrls", "rating" ],
         "type" : "object"
       },
       "ReviewHelpfulResponse" : {
@@ -7184,11 +7129,7 @@
             "type" : "string"
           },
           "evidence" : {
-            "oneOf" : [ {
-              "$ref" : "#/components/schemas/ReviewEvidenceResponse"
-            }, {
-              "type" : "null"
-            } ]
+            "$ref" : "#/components/schemas/ReviewEvidenceResponse"
           },
           "id" : {
             "format" : "int64",
@@ -7372,7 +7313,7 @@
             "type" : "integer"
           },
           "type" : {
-            "enum" : [ "EARN", "RESERVE", "RELEASE", "USE", "RESTORE", "EXPIRE", "REVOKE", "ADJUST" ],
+            "enum" : [ "EARN", "RESERVE", "RELEASE", "USE", "RESTORE", "EXPIRE", "REVOKE" ],
             "type" : "string"
           }
         },
@@ -8848,35 +8789,14 @@
       },
       "TrackingData" : {
         "properties" : {
-          "courierCode" : {
-            "type" : "string"
-          },
-          "courierName" : {
-            "type" : "string"
-          },
-          "dateLastProgress" : {
-            "type" : "string"
-          },
-          "deliveryStatus" : {
-            "type" : "string"
-          },
           "deliveryStatusText" : {
             "type" : "string"
-          },
-          "isDelivered" : {
-            "type" : "boolean"
           },
           "progresses" : {
             "items" : {
               "$ref" : "#/components/schemas/Progress"
             },
             "type" : "array"
-          },
-          "queriedAt" : {
-            "type" : "string"
-          },
-          "trackingNumber" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -11161,33 +11081,6 @@
         "tags" : [ "admin-inquiry-controller" ]
       }
     },
-    "/api/v1/admin/inquiries/{id}" : {
-      "get" : {
-        "operationId" : "getAdminInquiry",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/AdminInquiryResponse"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-inquiry-controller" ]
-      }
-    },
     "/api/v1/admin/inquiries/{id}/reply" : {
       "post" : {
         "operationId" : "replyToAdminInquiry",
@@ -12876,36 +12769,6 @@
         "tags" : [ "admin-product-controller" ]
       }
     },
-    "/api/v1/admin/qna" : {
-      "get" : {
-        "operationId" : "listAdminProductQna",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/AdminQnaResponse"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-product-qna-controller" ]
-      }
-    },
     "/api/v1/admin/qna/page" : {
       "get" : {
         "operationId" : "listAdminProductQnaPage",
@@ -13952,88 +13815,6 @@
           }
         },
         "tags" : [ "admin-slot-session-controller" ]
-      }
-    },
-    "/api/v1/admin/smartstore-inquiries" : {
-      "get" : {
-        "operationId" : "listSmartStoreInquiries",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "unansweredOnly",
-          "required" : false,
-          "schema" : {
-            "default" : true,
-            "type" : "boolean"
-          }
-        }, {
-          "in" : "query",
-          "name" : "limit",
-          "required" : false,
-          "schema" : {
-            "default" : 100,
-            "format" : "int32",
-            "maximum" : 200,
-            "minimum" : 1,
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/SmartStoreInquiryResponse"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-smart-store-inquiry-controller" ]
-      }
-    },
-    "/api/v1/admin/smartstore-inquiries/customers" : {
-      "get" : {
-        "operationId" : "listSmartStoreCustomerInquiries",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "unansweredOnly",
-          "required" : false,
-          "schema" : {
-            "default" : true,
-            "type" : "boolean"
-          }
-        }, {
-          "in" : "query",
-          "name" : "limit",
-          "required" : false,
-          "schema" : {
-            "default" : 100,
-            "format" : "int32",
-            "maximum" : 200,
-            "minimum" : 1,
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/SmartStoreCustomerInquiryResponse"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-smart-store-inquiry-controller" ]
       }
     },
     "/api/v1/admin/smartstore-inquiries/customers/page" : {
@@ -16372,27 +16153,6 @@
         "tags" : [ "me-cart-controller" ]
       }
     },
-    "/api/v1/me/cart/items" : {
-      "post" : {
-        "operationId" : "addMyCartItem",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/AddCartItemRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "me-cart-controller" ]
-      }
-    },
     "/api/v1/me/cart/items/{cartItemId}" : {
       "delete" : {
         "operationId" : "removeMyCartItem",
@@ -17005,25 +16765,6 @@
       }
     },
     "/api/v1/me/inquiries" : {
-      "get" : {
-        "operationId" : "listMyInquiries",
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/InquiryResponse"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "me-inquiry-controller" ]
-      },
       "post" : {
         "operationId" : "createMyInquiry",
         "requestBody" : {
@@ -17079,33 +16820,6 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MyInquiryPageResponse"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "me-inquiry-controller" ]
-      }
-    },
-    "/api/v1/me/inquiries/{id}" : {
-      "get" : {
-        "operationId" : "getMyInquiry",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/InquiryResponse"
                 }
               }
             },
@@ -17560,33 +17274,6 @@
         "tags" : [ "me-pass-controller" ]
       }
     },
-    "/api/v1/me/passes/{id}" : {
-      "get" : {
-        "operationId" : "getMyPass",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/MyPassSummary"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "me-pass-controller" ]
-      }
-    },
     "/api/v1/me/passes/{id}/refund" : {
       "post" : {
         "operationId" : "refundMyPass",
@@ -17664,34 +17351,6 @@
       }
     },
     "/api/v1/me/products/{productId}/qna" : {
-      "get" : {
-        "operationId" : "listMyProductQna",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/MyProductQnaListItem"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "me-product-qna-controller" ]
-      },
       "post" : {
         "operationId" : "createProductQna",
         "parameters" : [ {
@@ -19274,36 +18933,6 @@
           }
         },
         "tags" : [ "product-controller" ]
-      }
-    },
-    "/api/v1/products/{productId}/qna" : {
-      "get" : {
-        "operationId" : "listProductQna",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "format" : "int64",
-            "type" : "integer"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/ProductQnaListItem"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "product-qna-controller" ]
       }
     },
     "/api/v1/products/{productId}/qna/page" : {

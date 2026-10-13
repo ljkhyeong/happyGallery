@@ -8,7 +8,7 @@ import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import type { ProductDetailResponse } from "@/shared/types";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 interface Props {
@@ -26,7 +26,6 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   const {
     data: event,
     error,
-    isLoading,
     query: eventQuery,
   } = useLoaderBackedQuery({
     queryKey: eventQueryKey,
@@ -38,7 +37,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   }, initialEvent);
 
   // 관리자가 관련 상품을 바꾸면 갱신된 이벤트 기준으로 빠진 상품을 숨기고 순서를 따른다.
-  const relatedProductIds = event?.relatedProductIds ?? [];
+  const relatedProductIds = event.relatedProductIds;
   const visibleRelatedProducts = relatedProductIds.flatMap((productId) => {
     const product = relatedProducts.find(({ id }) => id === productId);
     return product ? [product] : [];
@@ -52,54 +51,51 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
         &larr; 이벤트 목록
       </Link>
 
-      {isLoading && <LoadingSpinner text="이벤트를 불러오는 중입니다" />}
       <ErrorAlert
         error={error}
         onRetry={() => void eventQuery.refetch()}
         retrying={eventQuery.isFetching}
       />
 
-      {event && (
-        <article>
-          {event.imageUrl && (
-            <img
-              src={event.imageUrl}
-              alt={`${event.title} 대표 이미지`}
-              className="w-100 rounded-4 mb-4"
-              style={{ maxHeight: 520, objectFit: "cover" }}
-            />
-          )}
-          <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-            <Badge bg={eventTimingLabel(event) === "진행 중" ? "success" : "secondary"}>
-              {eventTimingLabel(event)}
-            </Badge>
-            {event.featured && <Badge bg="dark">추천</Badge>}
-          </div>
-          <h1 className="mb-3">{event.title}</h1>
-          <p className="lead text-muted-soft">{event.summary}</p>
-          <EventPeriodText event={event} className="small text-muted-soft" />
-          <hr className="my-4" />
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.85 }}>{event.content}</div>
+      <article>
+        {event.imageUrl && (
+          <img
+            src={event.imageUrl}
+            alt={`${event.title} 대표 이미지`}
+            className="w-100 rounded-4 mb-4"
+            style={{ maxHeight: 520, objectFit: "cover" }}
+          />
+        )}
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <Badge bg={eventTimingLabel(event) === "진행 중" ? "success" : "secondary"}>
+            {eventTimingLabel(event)}
+          </Badge>
+          {event.featured && <Badge bg="dark">추천</Badge>}
+        </div>
+        <h1 className="mb-3">{event.title}</h1>
+        <p className="lead text-muted-soft">{event.summary}</p>
+        <EventPeriodText event={event} className="small text-muted-soft" />
+        <hr className="my-4" />
+        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.85 }}>{event.content}</div>
 
-          {event.couponDefinitionId !== null && (
-            <EventCouponClaim
-              eventId={event.id}
-              couponDefinitionId={event.couponDefinitionId}
-            />
-          )}
+        {event.couponDefinitionId !== null && (
+          <EventCouponClaim
+            eventId={event.id}
+            couponDefinitionId={event.couponDefinitionId}
+          />
+        )}
 
-          {visibleRelatedProducts.length > 0 && (
-            <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
-              <h2 id="event-related-products" className="h5 mb-4">함께 보면 좋은 작품</h2>
-              <div className="product-grid">
-                {visibleRelatedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            </section>
-          )}
-        </article>
-      )}
+        {visibleRelatedProducts.length > 0 && (
+          <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
+            <h2 id="event-related-products" className="h5 mb-4">관련 작품</h2>
+            <div className="product-grid">
+              {visibleRelatedProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
+      </article>
     </Container>
   );
 }

@@ -1,30 +1,29 @@
-// ── 핸드메이드 마켓 ─────────────────────────────────────
-// 흰 바탕에 먹색 글자, 강조는 가죽 갈색(accent) 하나만 쓴다. 모서리는 각지게(2px), 그림자는 쓰지 않는다.
-// 토큰 이름은 이전 방향과 같게 두고 값만 바꿨다: leaf=먹색(주 행동·선택), accent=가죽 갈색, clay-tint=갈색 옅은 면.
+// ── 전시 도록 ──────────────────────────────────────────
+// 흰 벽에 먹색 글자, 제목은 명조(Hahmlet). 색은 먹색 하나로 쓰고, 빨강(signal)은 남은 자리·수량이 적거나
+// 판매가 끝난 표시에만 쓴다(미술관의 판매 완료 빨간 점). 모서리는 각지게(2px), 그림자는 쓰지 않는다.
+// 토큰 이름은 이전 방향과 같게 두고 값만 바꿨다: leaf·accent=먹색(주 행동·선택), clay-tint=옅은 회색 면.
 :root {
   --hg-paper: #FFFFFF;
-  --hg-paper-deep: #F6F6F4;
   --hg-surface: #FFFFFF;
-  --hg-surface-alt: #F6F6F4;
-  --hg-surface-dim: #EFEFEC;
-  --hg-ink-soft: #666666;
-  --hg-ink-soft-on-alt: #5C5C5C;
-  --hg-shadow-soft: none;
-  --hg-accent: #8A4B2A;
-  --hg-accent-deep: #8A4B2A;
-  --hg-clay-tint: #F3EEE8;
-  --hg-dark: #222222;
-  --hg-leaf: #222222;
+  --hg-surface-alt: #F4F4F2;
+  --hg-surface-dim: #EDEDEA;
+  --hg-ink-soft: #5E5E5A;
+  --hg-ink-soft-on-alt: #55554F;
+  --hg-accent: #111111;
+  --hg-accent-deep: #111111;
+  --hg-signal: #C8102E;
+  --hg-clay-tint: #F4F4F2;
+  --hg-dark: #111111;
+  --hg-leaf: #111111;
   --hg-leaf-deep: #000000;
-  --hg-leaf-tint: #F6F6F4;
+  --hg-leaf-tint: #F4F4F2;
   --hg-brass: #E3B23C;
-  --hg-border: #EBEBEB;
+  --hg-border: #DCDCD8;
   --hg-radius: 2px;
   --hg-radius-media: 0;
   --hg-radius-card: 2px;
-  --hg-container: 1180px;
   --hg-transition: 180ms ease;
-  --hg-font-display: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  --hg-font-display: "Hahmlet", "AppleMyungjo", "Nanum Myeongjo", serif;
 }
 
 body {
@@ -46,11 +45,6 @@ textarea {
     outline: 2px solid var(--hg-dark);
     outline-offset: 2px;
   }
-}
-
-.page-container {
-  max-width: 1180px;
-  padding-block: clamp(2rem, 4vw, 3.5rem) clamp(3rem, 6vw, 5rem);
 }
 
 // 본문 바로가기: 키보드 포커스를 받을 때만 왼쪽 위에 나타난다.
@@ -108,9 +102,10 @@ textarea {
   }
 }
 
+// 머리글 끝은 먹색 1px 선으로 닫아 본문과 나눈다.
 .app-navbar {
   background: #FFFFFF;
-  border-bottom: 1px solid var(--hg-border);
+  border-bottom: 1px solid var(--hg-dark);
 }
 
 .app-header-inner {
@@ -124,14 +119,11 @@ textarea {
 .app-brand {
   flex: 0 0 auto;
   color: var(--hg-dark);
+  font-family: var(--hg-font-display);
   font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-decoration: none;
-
-  &:hover {
-    color: var(--hg-dark);
-  }
 }
 
 // 검색창은 2px 먹색 테두리 안에 입력과 검색 버튼을 붙인다. 포커스는 테두리 바깥에 한 번 더 그린다.
@@ -229,7 +221,6 @@ textarea {
   &:hover,
   &:focus-visible {
     background: #000000;
-    color: #FFFFFF;
   }
 }
 
@@ -260,7 +251,6 @@ textarea {
     text-decoration: none;
 
     &.is-class {
-      color: var(--hg-accent);
       font-weight: 700;
     }
 
@@ -292,11 +282,11 @@ textarea {
 }
 
 // ── 바닥글: 고객센터 · 사업자 정보 ─────────────────────────
+// 먹색 바탕에 옅은 회색 글자(#C9C9C4, 11.0:1)를 쓰고 이름·전화·강조 링크만 흰색으로 둔다.
 .app-footer {
-  padding-block: 2rem;
-  color: var(--hg-ink-soft);
-  background: var(--hg-surface-alt);
-  border-top: 1px solid var(--hg-border);
+  padding-block: 2.5rem;
+  color: #C9C9C4;
+  background: var(--hg-dark);
   font-size: 0.82rem;
 
   a {
@@ -306,7 +296,11 @@ textarea {
 
   a:hover,
   a:focus-visible {
-    color: var(--hg-dark);
+    color: #FFFFFF;
+  }
+
+  a:focus-visible {
+    outline-color: #FFFFFF;
   }
 }
 
@@ -323,8 +317,18 @@ textarea {
   gap: 0.2rem;
 
   strong {
-    color: var(--hg-dark);
+    color: #FFFFFF;
   }
+}
+
+.app-footer-business > strong {
+  font-family: var(--hg-font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.app-footer-links .fw-bold {
+  color: #FFFFFF;
 }
 
 .app-footer-cs {
@@ -337,7 +341,7 @@ textarea {
 }
 
 .app-footer-phone {
-  color: var(--hg-dark) !important;
+  color: #FFFFFF !important;
   font-size: 1.4rem;
   font-weight: 800;
   text-decoration: none;
@@ -356,9 +360,9 @@ textarea {
 }
 
 .app-footer-copyright {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--hg-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 @media (max-width: 767.98px) {
@@ -384,6 +388,10 @@ textarea {
 }
 
 @media (max-width: 575.98px) {
+  .app-utility-copy {
+    display: none;
+  }
+
   // 회원가입은 로그인 화면에서 이어 가고, 좁은 머리글에는 로그인만 둔다.
   .app-signup-link {
     display: none;
@@ -434,21 +442,16 @@ textarea {
 // 주요·보조 행동 버튼은 화면마다 색이 달라지지 않도록 먹색으로 통일한다.
 .btn-primary,
 .btn-dark {
-  --bs-btn-color: #FFFFFF;
-  --bs-btn-bg: var(--hg-leaf);
-  --bs-btn-border-color: var(--hg-leaf);
-  --bs-btn-hover-color: #FFFFFF;
   --bs-btn-hover-bg: var(--hg-leaf-deep);
   --bs-btn-hover-border-color: var(--hg-leaf-deep);
-  --bs-btn-active-color: #FFFFFF;
   --bs-btn-active-bg: var(--hg-leaf-deep);
   --bs-btn-active-border-color: var(--hg-leaf-deep);
-  --bs-btn-disabled-color: #FFFFFF;
   --bs-btn-disabled-bg: #B5B5B5;
   --bs-btn-disabled-border-color: #B5B5B5;
   --bs-btn-focus-shadow-rgb: 34, 34, 34;
 }
 
+// 소셜 로그인 버튼도 outline-dark를 쓰지만 제공자 색은 _storefront.scss의 두 클래스 선택자가 정한다.
 .btn-outline-primary,
 .btn-outline-dark {
   --bs-btn-color: var(--hg-leaf);
@@ -464,79 +467,45 @@ textarea {
   --bs-btn-focus-shadow-rgb: 34, 34, 34;
 }
 
-// 클래스 예약처럼 작품 구매와 구분할 행동: 가죽 갈색 채움에 흰 글자(6.7:1).
-.btn-accent {
-  --bs-btn-color: #FFFFFF;
-  --bs-btn-bg: var(--hg-accent);
-  --bs-btn-border-color: var(--hg-accent);
-  --bs-btn-hover-color: #FFFFFF;
-  --bs-btn-hover-bg: #6F3B20;
-  --bs-btn-hover-border-color: #6F3B20;
-  --bs-btn-active-color: #FFFFFF;
-  --bs-btn-active-bg: #6F3B20;
-  --bs-btn-active-border-color: #6F3B20;
-  --bs-btn-focus-shadow-rgb: 138, 75, 42;
-}
-
 // 노랑 배지(승인 대기·지연·답변 대기)는 흰 글자가 1.96:1이라 먹색 글자(8.1:1)로 쓴다.
 .badge.bg-warning {
   color: var(--hg-dark);
 }
 
-// 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 갈색(6.7:1)으로 쓴다.
+// 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 먹색(18.9:1)으로 쓴다.
 .btn-outline-warning {
   --bs-btn-color: var(--hg-accent-deep);
-  --bs-btn-border-color: var(--hg-brass);
   --bs-btn-hover-color: var(--hg-dark);
-  --bs-btn-hover-bg: var(--hg-brass);
-  --bs-btn-hover-border-color: var(--hg-brass);
   --bs-btn-active-color: var(--hg-dark);
   --bs-btn-active-bg: #D8A42C;
   --bs-btn-active-border-color: #D8A42C;
   --bs-btn-disabled-color: var(--hg-accent-deep);
-  --bs-btn-disabled-border-color: var(--hg-brass);
 }
 
 // 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
 .store-section-kicker,
-.store-purchase-kicker,
-.store-detail-kicker,
-.product-card-kicker {
+.store-detail-kicker {
   margin-bottom: 0.75rem;
-  padding: 0;
-  border: 0;
   color: var(--hg-accent-deep);
-  background: transparent !important;
-  font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.store-detail-price,
-.store-purchase-total-value {
-  font-family: inherit;
-  letter-spacing: 0;
-}
-
-// ── 작품 카드: 정사각 사진 · 카테고리 · 이름 · 가격 · 주문 제작 표시 ──────
+// ── 작품 카드: 액자 여백 사진 · 번호·카테고리 · 이름 · 판매 방식 · 가격 ──────
 .product-card {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   height: 100%;
   color: var(--hg-dark);
   text-decoration: none;
 
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
-  }
-
   &:hover .product-card-name {
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1px;
   }
 
   &:focus-visible {
@@ -544,23 +513,22 @@ textarea {
   }
 }
 
+// 사진은 회색 여백(액자 매트) 안에 4:5로 건다. 회색 면 위 목록에서는 매트를 흰색으로 바꾼다.
 .product-card-media {
   position: relative;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
+  padding: clamp(0.5rem, 1.1vw, 0.85rem);
   background: var(--hg-surface-alt);
 
-  img {
+  > img,
+  > .product-media-empty {
+    display: flex;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 400ms ease;
+    aspect-ratio: 4 / 5;
   }
-}
 
-.product-card:hover .product-card-media img,
-.product-card:focus-visible .product-card-media img {
-  transform: scale(1.03);
+  img {
+    object-fit: cover;
+  }
 }
 
 // 사진 없는 작품은 카드·상세 모두 같은 준비 중 표시를 쓴다.
@@ -585,52 +553,55 @@ textarea {
   }
 }
 
-.product-card-status {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  padding: 0.15rem 0.5rem;
-  color: #FFFFFF;
-  background: var(--hg-dark);
-  font-size: 0.75rem;
-  font-weight: 700;
+.product-card-meta {
+  margin-top: 0.75rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
 }
 
-.product-card-meta {
-  margin-top: 0.55rem;
-  color: var(--hg-ink-soft);
-  font-size: 0.78rem;
+// 카테고리를 숨긴 목록에서는 이름이 사진 바로 아래에 온다.
+.product-card-media + .product-card-name {
+  margin-top: 0.75rem;
 }
 
 .product-card-name {
   margin: 0;
-  font-family: inherit;
-  font-size: 0.93rem;
+  font-family: var(--hg-font-display);
+  font-size: 1.05rem;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.4;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
-.product-card-price {
-  font-size: 1rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+.product-card-type {
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
 }
 
-.product-card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.15rem;
-}
-
-.product-card-badge {
-  padding: 0.05rem 0.4rem;
-  color: var(--hg-accent);
-  border: 1px solid var(--hg-accent);
-  font-size: 0.72rem;
+// 판매가 끝난 작품은 미술관의 판매 완료 표시처럼 빨간 점을 붙인다.
+.product-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--hg-signal);
+  font-size: 0.8rem;
   font-weight: 700;
+
+  &::before {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+}
+
+.product-card-price {
+  margin-top: 0.2rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .product-card.is-sold-out {
@@ -646,7 +617,7 @@ textarea {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1.75rem 1rem;
+  gap: 2.5rem 1.25rem;
 }
 
 @media (max-width: 991.98px) {
@@ -666,24 +637,26 @@ textarea {
   }
 }
 
+// 목록·체크아웃 화면 머리(PageHeader): 제목·설명과 행동 버튼을 한 줄에 둔다. 아래 여백은 마크업의 mb-4가 정한다.
 .store-section-header {
-  margin-bottom: 2.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--hg-border);
 }
 
-.store-section-title,
-.lookup-panel-title {
+.store-section-title {
   margin-bottom: 0.55rem;
   font-family: var(--hg-font-display);
   font-size: 2.55rem;
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.4;
-  letter-spacing: 0;
 }
 
 .store-section-desc {
-  margin-bottom: 0;
   color: var(--hg-ink-soft);
   font-size: 0.9375rem;
 }
@@ -691,46 +664,24 @@ textarea {
 .store-section-link {
   color: var(--hg-dark);
   font-size: 0.8rem;
-  letter-spacing: 0;
-  text-transform: none;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-accent-deep);
-  }
+  font-weight: 700;
+  text-decoration: none;
 }
 
+// 예약·주문·상세 화면의 간단 방문 안내: 옅은 회색 면 하나로 묶는다(강조 선은 쓰지 않는다).
 .workshop-visit-info {
   display: grid;
-  grid-template-columns: minmax(10rem, 0.7fr) minmax(18rem, 1.3fr) auto;
-  gap: clamp(1.5rem, 4vw, 4rem);
-  align-items: start;
-}
-
-.workshop-visit-info.is-compact {
   grid-template-columns: 1fr;
   gap: 0.75rem;
-  padding: 1rem;
-  border-left: 3px solid var(--hg-accent);
+  align-items: start;
+  padding: 1.1rem 1.25rem;
   background: var(--hg-surface-alt);
-
-  .workshop-visit-name {
-    font-size: 1rem;
-  }
 }
 
 .workshop-visit-name {
-  margin: 0;
   font-family: var(--hg-font-display);
-  font-size: 2.25rem;
-  font-weight: 800;
-}
-
-.workshop-visit-introduction {
-  margin: 1rem 0 0;
-  color: var(--hg-ink-soft);
-  line-height: 1.75;
-  white-space: pre-line;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .workshop-visit-details {
@@ -754,6 +705,13 @@ textarea {
   }
 }
 
+.workshop-visit-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
 .workshop-map-link {
   color: var(--hg-accent-deep);
   font-weight: 700;
@@ -768,6 +726,7 @@ textarea {
     margin-bottom: 0.75rem;
     font-family: var(--hg-font-display);
     font-size: 2.5rem;
+    font-weight: 500;
     letter-spacing: 0;
   }
 
@@ -828,77 +787,29 @@ textarea {
   }
 }
 
-.admin-image-preview {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-
-  img {
-    width: 5rem;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border: 1px solid var(--hg-border);
-  }
-}
-
 @media (max-width: 767.98px) {
-  .workshop-visit-info {
-    grid-template-columns: 1fr;
-  }
-
   .business-info-list > div {
     grid-template-columns: 1fr;
     gap: 0.25rem;
   }
 }
 
-.lookup-panel {
-  padding: clamp(2rem, 4vw, 3rem);
-  background: #EFEFEC;
-  border: 0;
-  border-radius: var(--hg-radius);
-}
-
-.lookup-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
-}
-
 .list-group-item {
   background: transparent;
-  border-color: var(--hg-border);
 }
 
+// 작품 목록 머리: 조건에 맞춘 제목과 한 줄 안내. 아래 선은 카테고리 탭이 맡는다.
 .store-list-header {
-  padding: 0 0 1.5rem;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--hg-border);
+  margin-bottom: 0.5rem;
 }
 
-.store-list-title,
-.store-detail-title {
+.store-list-title {
+  margin-bottom: 0.35rem;
   font-family: var(--hg-font-display);
-  font-weight: 800;
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
-
-.lookup-panel,
-.store-detail-card,
-.store-purchase-card,
-.store-list-header,
-.auth-hero-card,
-.auth-form-card,
-.my-gate-card,
-.my-stat-card,
-.my-claim-card,
-.my-list-card,
-.my-action-card,
-.my-filter-card {
-  border-color: var(--hg-border);
-}
-
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -918,30 +829,6 @@ textarea {
   }
 }
 
-@media (max-width: 767.98px) {
-  .admin-dashboard-columns,
-  .admin-dashboard-detail-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .admin-metric-grid > div,
-  .admin-metric-grid > div:nth-child(3n) {
-    border-right: 1px solid var(--hg-border);
-  }
-
-  .admin-metric-grid > div:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .admin-revenue-row {
-    grid-template-columns: 2.75rem minmax(5rem, 1fr) minmax(5.75rem, auto);
-    gap: 0.4rem;
-  }
-}
 // 비회원 조회는 입력과 보조 안내의 순서를 명확히 구분한다.
 .guest-lookup-page {
   max-width: 672px;
@@ -962,8 +849,6 @@ textarea {
   h1 {
     margin-bottom: 0.75rem;
     font-size: clamp(1.5rem, 4vw, 1.875rem);
-    font-weight: 700;
-    color: var(--hg-dark);
   }
 
   p {
@@ -1139,6 +1024,52 @@ textarea {
   line-height: 1.9;
 }
 
+// 공지 목록: 상세와 같은 읽기 폭에 제목과 날짜를 한 줄씩 둔다.
+.notice-list-page {
+  max-width: 760px;
+}
+
+.notice-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--hg-border);
+  }
+
+  a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    color: var(--hg-dark);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &:hover span,
+    &:focus-visible span {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  }
+
+  .badge {
+    flex: none;
+  }
+
+  time {
+    flex: none;
+    color: var(--hg-ink-soft);
+    font-size: 0.85rem;
+  }
+}
+
 .notice-others {
   padding: 1.25rem 1.4rem;
   background: var(--hg-surface);
@@ -1147,7 +1078,6 @@ textarea {
 
   h2 {
     margin-bottom: 0.6rem;
-    font-family: inherit;
     font-size: 0.95rem;
     font-weight: 800;
   }

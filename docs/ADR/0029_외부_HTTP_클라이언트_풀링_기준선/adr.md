@@ -48,7 +48,7 @@ Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도
 - Toss Payments max connections: 10
 - Delivery API: acquire 0.5초, connect 1초, read/response 3초, max connections 10
 - 공휴일: acquire 0.5초, connect 1초, read/response 5초, max connections 5
-- acquire·connect·response·keep-alive는 각 `@ConfigurationProperties`에서 `Duration`으로 바인딩한다. `PooledHttpClientFactory`는 임의의 밀리초 변환 없이 Apache HttpClient 5의 `Timeout.of(Duration)`와 `TimeValue.of(Duration)`에 전달한다.
+- acquire·connect·response·keep-alive·max connections는 공용 `HttpPool` record로 `Duration`·정수 값을 바인딩한다. 연동별 설정은 `app.external.<연동>.http.*`에 두고, 풀 설정만 있는 OAuth는 `app.external.<제공자>-oauth.*`를 `SocialOAuthHttpProperties` 하나로 바인딩한다. 서비스별 기본값은 `application.yml`에만 둔다. `PooledHttpClientFactory`는 임의의 밀리초 변환 없이 Apache HttpClient 5의 `Timeout.of(Duration)`와 `TimeValue.of(Duration)`에 전달한다.
 - 기존 `*_TIMEOUT_MILLIS`·`*_KEEP_ALIVE_MILLIS` 환경 변수는 숫자 계약을 유지하고 `application.yml`에서 `ms` 단위를 붙인다.
 
 ### 3. 외부 HTTP 설정도 전체 타임아웃 계층 안에서 정렬한다

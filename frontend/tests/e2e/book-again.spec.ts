@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { BookingDetailResponse, ClassResponse, MyBookingDetail } from "../../src/generated/api/booking";
+import { fulfillJson } from "./mock-support";
 
 const bookingClass: ClassResponse = {
   id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 90,
@@ -20,40 +21,37 @@ async function mockBookingFlow(page: Page, member: boolean, currentClasses = [bo
   const writes: string[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
-    const json = (body: unknown, status = 200) => route.fulfill({
-      status, contentType: "application/json", body: JSON.stringify(body),
-    });
     if (route.request().method() !== "GET") {
       writes.push(`${route.request().method()} ${pathname}`);
-      return json({ code: "UNEXPECTED_WRITE" }, 500);
+      return fulfillJson(route, { code: "UNEXPECTED_WRITE" }, 500);
     }
     switch (pathname) {
       case "/api/v1/me":
         return member
-          ? json({ id: 501, name: "회원", email: "booking@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-          : json({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
-      case "/api/v1/me/passes/page": return json({ content: [], hasMore: false, nextCursor: null });
-      case "/api/v1/policies/current": return json({
+          ? fulfillJson(route, { id: 501, name: "회원", email: "booking@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
+          : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
+      case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/policies/current": return fulfillJson(route, {
         terms: { version: "2026-09", documentPath: "/terms" },
         privacy: { version: "2026-09", documentPath: "/privacy" },
       });
-      case "/api/v1/me/bookings/7": return json({
+      case "/api/v1/me/bookings/7": return fulfillJson(route, {
         ...previousBooking, status: "COMPLETED", balanceStatus: "PAID", passBooking: false, receiptUrl: null,
       } satisfies MyBookingDetail);
       case "/api/v1/bookings/7":
         expect(route.request().headers()["x-access-token"]).toBe("guest-booking-code");
-        return json({
+        return fulfillJson(route, {
           ...previousBooking, status: "CANCELED", bookingNumber: "HG-7", guestName: "비회원", guestPhone: "01087654321",
         } satisfies BookingDetailResponse);
-      case "/api/v1/me/reviews/bookings/7": return json([]);
-      case "/api/v1/me/reviews/classes/7/creation-state": return json({
+      case "/api/v1/me/reviews/bookings/7": return fulfillJson(route, []);
+      case "/api/v1/me/reviews/classes/7/creation-state": return fulfillJson(route, {
         sourceId: 7, sourceType: "BOOKING", targetType: "CLASS", status: "AVAILABLE",
       });
-      case "/api/v1/classes": return json(currentClasses);
-      case "/api/v1/slots/upcoming": return json([{
+      case "/api/v1/classes": return fulfillJson(route, currentClasses);
+      case "/api/v1/slots/upcoming": return fulfillJson(route, [{
         id: 71, classId: Number(searchParams.get("classId")), bookedCount: 0,
         capacity: 6, remainingCapacity: 6, startAt: "2099-01-12T14:00:00", endAt: "2099-01-12T15:30:00",
       }]);

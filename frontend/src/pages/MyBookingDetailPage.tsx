@@ -16,10 +16,11 @@ import {
   rescheduleMyBooking,
 } from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
-import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { customerRefundRefetchInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { queryKeys } from "@/shared/api";
 import { BookingReviewSection } from "@/features/review/BookingReviewSection";
+import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
 export function MyBookingDetailPage() {
   const { search } = useLocation();
@@ -39,11 +40,7 @@ export function MyBookingDetailPage() {
     queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => fetchMyBooking(bookingId),
     enabled: isAuthenticated && validBookingId,
-    refetchInterval: ({ state }) =>
-      customerRefundPollingInterval(
-        state.data?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      ),
+    refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
 
   if (!validBookingId) return <NotFoundPage />;
@@ -57,10 +54,9 @@ export function MyBookingDetailPage() {
       </Link>
       <PageHeader
         title="예약 상세"
-        description="예약 상태를 확인하고, 가능한 경우 날짜·시간을 변경하거나 취소할 수 있습니다."
         actions={(
           <LinkButton
-            to={booking ? `/bookings/new?classId=${booking.classId}` : "/bookings/new"}
+            to={booking ? bookingCreateHref(booking.classId) : "/bookings/new"}
             variant="outline-dark" size="sm"
           >
             {booking ? "같은 수업 예약" : "새 예약 만들기"}
@@ -100,7 +96,8 @@ export function MyBookingDetailPage() {
             </Card>
           )}
 
-          {isBooked && booking.participantCount > 1 && (
+          {/* 잔금까지 낸 예약은 고객이 인원을 바꿀 수 없어 취소 칸의 공방 문의 안내로 모은다. */}
+          {isBooked && booking.participantCount > 1 && booking.cancelPolicy.cancellable && (
             <Card className="mt-3 border-0 my-action-card">
               <Card.Header>예약 인원 변경</Card.Header>
               <Card.Body>

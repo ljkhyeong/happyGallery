@@ -1,13 +1,12 @@
-import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { OrderDetailResponse } from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
-const EMPTY_CART_VERSION = "0".repeat(64);
 const ONE_PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -16,23 +15,6 @@ const ONE_PIXEL_PNG = Buffer.from(
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
-async function installCsrfCookie(context: BrowserContext, baseURL: string | undefined) {
-  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "review-hardening-csrf",
-    url: baseURL,
-  }]);
-}
 
 test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 한 번만 전송한다", async ({ page }) => {
   const reportStatuses = new Map<number, "PENDING" | "ACCEPTED" | "REJECTED">([
@@ -65,8 +47,6 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       rating: id === 91 ? 1 : 3,
       content: id === 91 ? "신고 판단 확인 대상 후기" : "신고 반려 확인 대상 후기",
       editedAt: null,
-      provenance: "LIVE",
-      imagesComplete: true,
       imageUrls: [`/api/v1/admin/review-evidence/${id + 100}/images/0`],
       capturedAt: "2026-08-09T10:00:00",
     },
@@ -111,9 +91,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       : [],
   });
 
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, "review-hardening-admin-token"] as const);
+  await seedAdminSession(page, "review-hardening-admin-token");
   await page.addInitScript(() => {
     const created: string[] = [];
     const revoked: string[] = [];
@@ -508,22 +486,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     averageRating: 5,
     histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 3 },
   };
-  const product = {
-    id: 42,
-    name: "페이지 반응 검증 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "페이지 반응 검증 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 

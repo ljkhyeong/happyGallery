@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useMatches } from "react-router";
 import { Container, Nav } from "react-bootstrap";
 import { CalendarDays, ClipboardList, Heart, House, Palette, UserRound } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
 import { ProductSearchForm } from "@/features/product/ProductSearchForm";
@@ -12,6 +13,7 @@ import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
 import { ErrorAlert } from "./ErrorAlert";
 import type { WorkshopProfile } from "@/shared/types";
+import { telHref, workshopAddress } from "@/shared/lib";
 
 const CLASS_NAV_ITEMS = [
   { path: "/classes", label: "원데이 클래스" },
@@ -21,7 +23,16 @@ const CLASS_NAV_ITEMS = [
 ] as const;
 
 /** 둘러보기 화면에서만 모바일 하단 탭바를 보여 주고, 상세·결제 화면의 하단 버튼과 겹치지 않게 한다. */
-const TAB_BAR_PATHS = new Set(["/", "/classes", "/products", "/events", "/group-classes", "/guest", "/my"]);
+const TAB_BAR_PATHS = new Set(["/", "/classes", "/products", "/events", "/group-classes", "/guest", "/my", "/my/bookings"]);
+
+/** 로그인·가입을 마친 뒤 돌아오지 않을 화면: 인증 화면 자체와 결제 결과·관리자 화면. */
+function authReturnPath(pathname: string, search: string, hash: string): string | undefined {
+  if (["/login", "/signup", "/forgot-password", "/auth/callback", "/admin"].includes(pathname)
+    || pathname.startsWith("/payments/")) {
+    return undefined;
+  }
+  return `${pathname}${search}${hash}`;
+}
 
 function isActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/") return pathname === "/";
@@ -44,10 +55,10 @@ function initialWorkshopFromMatches(
 }
 
 export function Layout() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const searchParams = new URLSearchParams(search);
   const onProducts = pathname === "/products";
-  const activeCategory = onProducts ? searchParams.get("category")?.toUpperCase() : undefined;
+  const activeCategory = onProducts ? searchParams.get("category") : undefined;
   const madeToOrderOnly = onProducts && searchParams.get("type") === "MADE_TO_ORDER";
   const matches = useMatches();
   const {
@@ -92,7 +103,7 @@ export function Layout() {
     { to: "/classes", label: "클래스", icon: CalendarDays, active: isMainNavActive(pathname, "/classes") },
     { to: "/products", label: "작품", icon: Palette, active: isActive(pathname, "/products") },
     {
-      to: isAuthenticated ? "/my/bookings" : "/guest",
+      to: isAuthenticated ? "/my/bookings" : "/guest?kind=bookings",
       label: "예약 조회",
       icon: ClipboardList,
       active: pathname === "/guest" || isActive(pathname, "/my/bookings"),
@@ -124,13 +135,12 @@ export function Layout() {
             <Link to="/my/inquiries" className="app-utility-link">1:1 문의</Link>
             <Link
               to="/guest"
-              state={{ monitoringSource: "layout_utility" }}
               className="app-utility-link"
             >
               비회원 조회
             </Link>
             {workshop?.phone && (
-              <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-utility-link">
+              <a href={telHref(workshop.phone)} className="app-utility-link">
                 고객센터 {workshop.phone}
               </a>
             )}
@@ -181,13 +191,18 @@ export function Layout() {
               ) : (
                 <>
                   <Link
-                    to="/login"
+                    to={buildAuthPageHref("/login", { redirectTo: authReturnPath(pathname, search, hash) })}
                     className={`app-icon-link${isActive(pathname, "/login") ? " active" : ""}`}
                   >
                     <UserRound size={21} strokeWidth={1.8} aria-hidden="true" />
                     <span>로그인</span>
                   </Link>
-                  <Link to="/signup" className="app-signup-link">회원가입</Link>
+                  <Link
+                    to={buildAuthPageHref("/signup", { redirectTo: authReturnPath(pathname, search, hash) })}
+                    className="app-signup-link"
+                  >
+                    회원가입
+                  </Link>
                 </>
               )
             )}
@@ -251,7 +266,7 @@ export function Layout() {
             <div className="app-footer-cs">
               <strong>고객센터</strong>
               {workshop?.phone && (
-                <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-footer-phone">{workshop.phone}</a>
+                <a href={telHref(workshop.phone)} className="app-footer-phone">{workshop.phone}</a>
               )}
               <div className="app-footer-contact">
                 {workshop?.kakaoTalkId && <span>카카오톡 {workshop.kakaoTalkId}</span>}
@@ -266,7 +281,7 @@ export function Layout() {
               <span>
                 {[
                   workshop?.representativeName && `대표자 ${workshop.representativeName}`,
-                  workshop?.addressLine1 && [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" "),
+                  workshop?.addressLine1 && workshopAddress(workshop),
                 ].filter(Boolean).join(" · ")}
               </span>
               <span>

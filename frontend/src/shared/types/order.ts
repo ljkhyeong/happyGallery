@@ -1,9 +1,4 @@
 export type {
-  FulfillmentDto,
-  FulfillmentDtoType as FulfillmentType,
-  ItemDto as OrderItemDto,
-  OrderCustomerActionResponse,
-  OrderDelayResponseRequest,
   OrderDelayResponseRequestDecision as OrderDelayDecision,
   OrderDetailResponse,
   OrderPricePolicyResponse,

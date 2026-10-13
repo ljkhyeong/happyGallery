@@ -4,7 +4,7 @@ import { Alert, Button, Modal } from "react-bootstrap";
 import { Link } from "react-router";
 import { createGuestGroupInquiry, createMyGroupInquiry, type GroupInquiryRequest } from "@/generated/api/customerStore";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { GroupInquiryForm } from "./GroupInquiryForm";
 import { useBotProtection } from "@/features/bot-protection/useBotProtection";
@@ -25,7 +25,7 @@ function GroupInquirySectionContent() {
     mutationFn: (request: GroupInquiryRequest) => isAuthenticated
       ? runForCurrentCustomer(() => createMyGroupInquiry(request, options), (receipt) => {
         setReceiptId(receipt.id);
-        void client.invalidateQueries({ queryKey: ["me", "group-inquiries"] });
+        void client.invalidateQueries({ queryKey: queryKeys.member.groupInquiries.all });
       })
       : createGuestGroupInquiry(request, options).then((receipt) => { setReceiptId(receipt.id); }),
     onSettled: botProtection.reset,
@@ -43,7 +43,7 @@ function GroupInquirySectionContent() {
           {receiptId !== null ? <Alert variant="success">
             <Alert.Heading>문의가 접수되었습니다.</Alert.Heading>
             <p className="mb-1">접수 번호 {receiptId} · 입력한 연락처로 답변드립니다.</p>
-            {isAuthenticated && <Link to="/my/group-inquiries">내 문의 상태 확인</Link>}
+            {isAuthenticated && <Link to={`/my/group-inquiries?inquiryId=${receiptId}`}>내 문의 상태 확인</Link>}
           </Alert> : isLoading ? <LoadingSpinner /> : status === "error" ? <ErrorAlert error={error} onRetry={() => { void refresh(); }} /> : <>
             {botProtection.challenge}
             <GroupInquiryForm onSubmit={(request) => mutation.mutate(request)} submitDisabled={!botProtection.ready}

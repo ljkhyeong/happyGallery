@@ -2,6 +2,7 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
 import com.personal.happygallery.application.notification.port.out.ReviewNotificationEligibilityPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -32,10 +33,10 @@ class ReviewNotificationEligibilityTest {
         when(port.findBookingRequestRecipient(200L)).thenReturn(Optional.of(bookingRecipient));
 
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_REQUEST, "ORDER", 100L)))
+                outbox(NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, 100L)))
                 .contains(orderRecipient);
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_REQUEST, "BOOKING", 200L)))
+                outbox(NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.BOOKING, 200L)))
                 .contains(bookingRecipient);
         verify(port).findOrderRequestRecipient(100L);
         verify(port).findBookingRequestRecipient(200L);
@@ -52,13 +53,13 @@ class ReviewNotificationEligibilityTest {
         when(port.findOwnerRepliedReviewRecipient(300L)).thenReturn(Optional.of(recipient));
 
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_HIDDEN, "REVIEW_MODERATION_ACTION", 300L)))
+                outbox(NotificationEventType.REVIEW_HIDDEN, NotificationAggregateType.REVIEW_MODERATION_ACTION, 300L)))
                 .contains(recipient);
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_REPUBLISHED, "REVIEW_MODERATION_ACTION", 300L)))
+                outbox(NotificationEventType.REVIEW_REPUBLISHED, NotificationAggregateType.REVIEW_MODERATION_ACTION, 300L)))
                 .contains(recipient);
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_OWNER_REPLIED, "REVIEW", 300L))).contains(recipient);
+                outbox(NotificationEventType.REVIEW_OWNER_REPLIED, NotificationAggregateType.REVIEW, 300L))).contains(recipient);
         verify(port).findHiddenReviewRecipient(300L);
         verify(port).findRepublishedReviewRecipient(300L);
         verify(port).findOwnerRepliedReviewRecipient(300L);
@@ -71,17 +72,17 @@ class ReviewNotificationEligibilityTest {
         ReviewNotificationEligibility eligibility = new ReviewNotificationEligibility(port);
 
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_REQUEST, "REVIEW", 300L))).isEmpty();
+                outbox(NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.REVIEW, 300L))).isEmpty();
         assertThat(eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.REVIEW_HIDDEN, "ORDER", 300L))).isEmpty();
+                outbox(NotificationEventType.REVIEW_HIDDEN, NotificationAggregateType.ORDER, 300L))).isEmpty();
         assertThatThrownBy(() -> eligibility.findEligibleRecipient(
-                outbox(NotificationEventType.ORDER_PAID, "ORDER", 300L)))
+                outbox(NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, 300L)))
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(port);
     }
 
     private static NotificationOutbox outbox(
-            NotificationEventType eventType, String aggregateType, Long aggregateId) {
+            NotificationEventType eventType, NotificationAggregateType aggregateType, Long aggregateId) {
         return NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(1L, eventType, aggregateType, aggregateId),
                 NOW);

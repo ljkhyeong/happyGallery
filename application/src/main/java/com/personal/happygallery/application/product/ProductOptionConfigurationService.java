@@ -31,6 +31,7 @@ import com.personal.happygallery.domain.product.ProductOptionValue;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductVariant;
 import com.personal.happygallery.domain.product.ProductVariantSelection;
+import com.personal.happygallery.domain.text.DomainText;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -132,13 +133,6 @@ public class ProductOptionConfigurationService {
                     includeInactiveVariants));
         }
         return Map.copyOf(result);
-    }
-
-    @Transactional(readOnly = true)
-    public ResolvedPurchase resolvePurchase(Product product, Long variantId,
-                                            List<TextInput> requestedInputs) {
-        return resolvePurchases(List.of(new PurchaseRequest(
-                0, product.getId(), variantId, requestedInputs))).getFirst().purchase();
     }
 
     @Transactional(readOnly = true)
@@ -274,8 +268,8 @@ public class ProductOptionConfigurationService {
             TextInput input = inputsByGroupKey.get(group.getKey());
             String normalized = input == null
                     ? null
-                    : ProductOptionPolicy.optionalText(
-                            input.value(), group.getName(), group.getInputMaxLength());
+                    : DomainText.optional(
+                            input.value(), group.getName() + "은", group.getInputMaxLength());
             if (normalized == null) {
                 if (group.isRequired()) {
                     throw invalid(group.getName() + "을 입력해 주세요.");
@@ -612,7 +606,7 @@ public class ProductOptionConfigurationService {
                     || !sortOrders.add(group.sortOrder())) {
                 throw invalid("옵션 그룹 식별자와 정렬 순서는 중복될 수 없습니다.");
             }
-            ProductOptionPolicy.requireName(group.name(), "옵션명");
+            ProductOptionPolicy.requireName(group.name(), "옵션명은");
             if (group.type() == ProductOptionType.TEXT && !group.values().isEmpty()) {
                 throw invalid("직접입력형 옵션에는 선택값을 등록할 수 없습니다.");
             }
@@ -623,7 +617,7 @@ public class ProductOptionConfigurationService {
                         || !valueSortOrders.add(value.sortOrder())) {
                     throw invalid("옵션값 식별자와 정렬 순서는 한 그룹 안에서 중복될 수 없습니다.");
                 }
-                ProductOptionPolicy.requireName(value.name(), "옵션값");
+                ProductOptionPolicy.requireName(value.name(), "옵션값은");
             }
         }
     }

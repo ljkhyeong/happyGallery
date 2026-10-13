@@ -5,6 +5,8 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
+import { REVIEW_REPORT_REASON_LABELS } from "@/features/review/reviewLabels";
 import { AdminReviewReportDetail } from "./AdminReviewReportDetail";
 import {
   fetchAdminReviewReport,
@@ -13,12 +15,16 @@ import {
   type ReviewReportStatus,
 } from "./api";
 
-const REPORT_REASON_LABELS: Record<string, string> = {
-  SPAM: "광고·도배",
-  ABUSIVE: "욕설·비방",
-  PRIVACY: "개인정보 노출",
-  FALSE_INFORMATION: "허위 정보",
-  OTHER: "기타",
+const REPORT_STATUS_LABELS: Record<ReviewReportStatus, string> = {
+  PENDING: "처리 대기",
+  ACCEPTED: "위반 인정",
+  REJECTED: "신고 반려",
+};
+
+const REPORT_STATUS_BADGES: Record<ReviewReportStatus, string> = {
+  PENDING: "warning",
+  ACCEPTED: "danger",
+  REJECTED: "secondary",
 };
 
 export function AdminReviewReportSection({
@@ -66,9 +72,9 @@ export function AdminReviewReportSection({
           }}
         >
           <option value="">전체</option>
-          <option value="PENDING">처리 대기</option>
-          <option value="ACCEPTED">위반 인정</option>
-          <option value="REJECTED">신고 반려</option>
+          {Object.entries(REPORT_STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </Form.Select>
       </div>
       {query.isLoading && <LoadingSpinner text="후기 신고를 불러오는 중입니다" />}
@@ -90,16 +96,13 @@ export function AdminReviewReportSection({
           />
         ))}
       </div>
-      {(hasPreviousPage || query.data?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mt-3">
-          <Button type="button" size="sm" variant="outline-secondary" disabled={!hasPreviousPage || query.isFetching} onClick={showPreviousPage}>
-            이전
-          </Button>
-          <Button type="button" size="sm" variant="outline-primary" disabled={!query.data?.hasMore || query.isFetching} onClick={() => showNextPage(query.data?.nextCursor)}>
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        hasPreviousPage={hasPreviousPage}
+        page={query.data}
+        busy={query.isFetching}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
     </section>
   );
 }
@@ -129,10 +132,8 @@ function AdminReviewReportCard({
       <Card.Body>
         <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <Badge bg={summary.status === "PENDING" ? "warning" : summary.status === "ACCEPTED" ? "danger" : "secondary"}>
-              {summary.status === "PENDING" ? "처리 대기" : summary.status === "ACCEPTED" ? "위반 인정" : "신고 반려"}
-            </Badge>
-            <strong>{REPORT_REASON_LABELS[summary.reason]}</strong>
+            <Badge bg={REPORT_STATUS_BADGES[summary.status]}>{REPORT_STATUS_LABELS[summary.status]}</Badge>
+            <strong>{REVIEW_REPORT_REASON_LABELS[summary.reason]}</strong>
           </div>
           <small className="text-muted-soft">{formatDateTime(summary.createdAt)}</small>
         </div>

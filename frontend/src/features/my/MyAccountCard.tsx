@@ -1,5 +1,5 @@
 import { Button, Card } from "react-bootstrap";
-import { Link } from "react-router";
+import { LinkButton } from "@/shared/ui";
 import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 
@@ -21,7 +21,7 @@ export function MyAccountCard({
   return (
     <Card className="mb-4 my-action-card border-0">
       <Card.Body>
-        <div className="my-section-kicker mb-3">계정 관리</div>
+        <h2 className="my-account-title">계정 관리</h2>
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
             <h6 className="mb-1">로그인 비밀번호</h6>
@@ -38,13 +38,14 @@ export function MyAccountCard({
               변경
             </Button>
           ) : user.email && user.phone ? (
-            <Link
-              className="btn btn-outline-primary btn-sm"
+            <LinkButton
+              variant="outline-primary"
+              size="sm"
               to="/forgot-password"
               state={{ email: user.email, phone: user.phone }}
             >
               설정
-            </Link>
+            </LinkButton>
           ) : null}
         </div>
 

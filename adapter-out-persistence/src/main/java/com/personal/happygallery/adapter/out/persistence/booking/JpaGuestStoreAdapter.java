@@ -16,11 +16,6 @@ class JpaGuestStoreAdapter implements GuestStorePort {
     }
 
     @Override
-    public Guest save(Guest guest) {
-        return guestRepository.save(guest);
-    }
-
-    @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public Guest getOrCreateByPhoneHmac(Guest candidate) {
         // 중복이면 기존 신원 정보를 유지하고 UNIQUE 제약의 직렬화만 이용한다.

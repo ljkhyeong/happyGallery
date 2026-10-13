@@ -16,8 +16,7 @@ public record AdminReviewReportResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String detail,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, implementation = ReviewStatus.class)
         ReviewStatus snapshotStatus,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
-        ReviewEvidenceResponse evidence,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ReviewEvidenceResponse evidence,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, implementation = ReviewReportStatus.class)
         ReviewReportStatus status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String decisionNote,

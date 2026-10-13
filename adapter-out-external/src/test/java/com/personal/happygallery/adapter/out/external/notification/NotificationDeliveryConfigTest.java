@@ -44,9 +44,13 @@ class NotificationDeliveryConfigTest {
             .withBean(JavaMailSender.class, () -> smtp)
             .withPropertyValues("spring.profiles.active=prod",
                     "app.external.notification.alimtalk-thread-pool.pool-size=1",
+                    "app.external.notification.alimtalk-thread-pool.queue-capacity=5",
                     "app.external.notification.sms-thread-pool.pool-size=1",
+                    "app.external.notification.sms-thread-pool.queue-capacity=5",
                     "app.external.notification.phone-verification-thread-pool.pool-size=1",
+                    "app.external.notification.phone-verification-thread-pool.queue-capacity=5",
                     "app.external.notification.email-verification-thread-pool.pool-size=1",
+                    "app.external.notification.email-verification-thread-pool.queue-capacity=5",
                     "app.external.notification.circuit-breaker.failure-rate-threshold=50",
                     "app.external.email-verification.from=no-reply@mail.happy-gallery.com",
                     "spring.mail.host=smtp.example.com", "spring.mail.port=587",
@@ -71,7 +75,7 @@ class NotificationDeliveryConfigTest {
             assertThat(senders).extracting(NotificationSenderPort::channel)
                     .containsExactlyInAnyOrder(NotificationChannel.KAKAO, NotificationChannel.SMS);
             for (var sender : senders) {
-                assertThat(sender.send("test", "01012345678", "테스트", NotificationEventType.BOOKING_CONFIRMED))
+                assertThat(sender.send("test", "01012345678", "테스트", NotificationEventType.BOOKING_CONFIRMED).result())
                         .isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
             }
             assertThat(context.getBean(PhoneVerificationSender.class).send("01012345678", "123456")).isFalse();
@@ -121,7 +125,9 @@ class NotificationDeliveryConfigTest {
         return runner.withPropertyValues("app.external.alimtalk.app-key=test",
                 "app.external.alimtalk.secret-key=test", "app.external.alimtalk.sender-key=test",
                 "app.external.sms.api-key=test", "app.external.sms.api-secret=test",
-                "app.external.sms.sender-number=01012345678");
+                "app.external.sms.sender-number=01012345678",
+                // application.yml의 NHN 응답 timeout 기본값. 바깥 TimeLimiter 5초 안에 들어와야 한다.
+                "app.external.alimtalk.http.timeout=2s", "app.external.sms.http.timeout=2s");
     }
 
     @Configuration(proxyBeanMethods = false)

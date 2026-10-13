@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -60,7 +60,7 @@ public record SmartStoreChannelOrderDetailResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String holdbackStatus,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> imageUrls
     ) {
-        public static ClaimDetail from(SmartStoreChannelOrderUseCase.ClaimDetail result) {
+        public static ClaimDetail from(SmartStoreClaimDetail result) {
             return new ClaimDetail(
                     result.claimId(), result.claimType(), result.claimStatus(), result.reason(),
                     result.detailedReason(), result.requestQuantity(), result.requestedAt(),

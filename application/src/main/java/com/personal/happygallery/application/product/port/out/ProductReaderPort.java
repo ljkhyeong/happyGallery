@@ -20,9 +20,8 @@ public interface ProductReaderPort {
 
     List<Product> findAllById(Iterable<Long> ids);
 
-    List<Product> findActiveProductsByCreatedAtDesc();
-
-    List<Product> findAllProductsByCreatedAtDesc();
+    /** 관리자용 전체 상품 (최신 등록순). */
+    List<Product> findAllByOrderByCreatedAtDesc();
 
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
     List<Product> findActiveByFilter(ProductFilter filter);

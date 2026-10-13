@@ -12,19 +12,19 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 @Tag("policy")
 class PassRefundAmountPolicyTest {
 
-    @DisplayName("4회권과 기존 8회권은 구매 횟수만큼 사용하고 남은 횟수에 비례해 환불한다")
-    @ParameterizedTest
-    @CsvSource({"REGULAR_CRAFT_4, 4, 120003, 90002", "REGULAR_CRAFT_8, 8, 240003, 210002"})
-    void purchasedCreditsAndRefund_followPurchasedPlan(
-            PassPlan plan, int credits, long price, long refundAfterOneUse) {
+    @DisplayName("4회권은 구매 횟수만큼 사용하고 남은 횟수에 비례해 환불한다")
+    @Test
+    void purchasedCreditsAndRefund_followPurchasedPlan() {
+        int credits = 4;
+        long price = 120_003L;
+        long refundAfterOneUse = 90_002L;
         LocalDateTime now = LocalDateTime.of(2026, 9, 11, 10, 0);
-        PassPurchase pass = PassPurchase.forMember(1L, now, now.plusDays(90), price, plan);
+        PassPurchase pass = PassPurchase.forMember(
+                1L, now, now.plusDays(90), price, PassPlan.REGULAR_CRAFT_4);
 
         assertThat(pass.getTotalCredits()).isEqualTo(credits);
         assertThat(pass.getRemainingCredits()).isEqualTo(credits);
@@ -44,9 +44,9 @@ class PassRefundAmountPolicyTest {
     void fullRefund_returnsOriginalPaymentAmount() {
         LocalDateTime purchasedAt = LocalDateTime.of(2026, 7, 21, 10, 0);
         PassPurchase pass = PassPurchase.forMember(
-                1L, purchasedAt, purchasedAt.plusMonths(3), 240_003L, PassPlan.REGULAR_CRAFT_8);
+                1L, purchasedAt, purchasedAt.plusMonths(3), 120_003L, PassPlan.REGULAR_CRAFT_4);
 
-        assertThat(pass.calculateRefundAmount(pass.getTotalCredits())).isEqualTo(240_003L);
+        assertThat(pass.calculateRefundAmount(pass.getTotalCredits())).isEqualTo(120_003L);
     }
 
     @DisplayName("이용권 만료 결과는 아직 유효하면 비어 있고 재처리하면 소멸 수량 0을 유지한다")
@@ -54,7 +54,7 @@ class PassRefundAmountPolicyTest {
     void expirationResult_distinguishesValidFromAlreadyExpired() {
         LocalDateTime expiresAt = LocalDateTime.of(2026, 10, 21, 0, 0);
         PassPurchase pass = PassPurchase.forMember(
-                1L, expiresAt.minusMonths(3), expiresAt, 240_000L, PassPlan.REGULAR_CRAFT_8);
+                1L, expiresAt.minusMonths(3), expiresAt, 120_000L, PassPlan.REGULAR_CRAFT_4);
 
         assertThat(pass.expireIfReached(expiresAt.minusNanos(1))).isEmpty();
         assertThat(pass.expireIfReached(expiresAt)).hasValue(pass.getTotalCredits());
@@ -67,7 +67,7 @@ class PassRefundAmountPolicyTest {
         LocalDateTime purchasedAt = LocalDateTime.of(2026, 7, 21, 10, 0);
 
         assertThatThrownBy(() -> PassPurchase.forMember(
-                null, purchasedAt, purchasedAt.plusMonths(3), 240_000L, PassPlan.REGULAR_CRAFT_8))
+                null, purchasedAt, purchasedAt.plusMonths(3), 120_000L, PassPlan.REGULAR_CRAFT_4))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }

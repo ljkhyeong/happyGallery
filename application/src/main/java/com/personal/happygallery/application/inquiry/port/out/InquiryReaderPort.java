@@ -7,16 +7,13 @@ import java.util.Optional;
 
 public interface InquiryReaderPort {
 
-    Optional<Inquiry> findById(Long id);
-
     Optional<Inquiry> findByIdForUpdate(Long id);
 
-    List<Inquiry> findByUserId(Long userId, int limit);
+    Optional<Inquiry> findByIdAndUserId(Long id, Long userId);
 
-    List<Inquiry> findByUserIdAfter(
-            Long userId, LocalDateTime createdAt, Long id, int limit);
+    /** 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (createdAt DESC, id DESC)다. */
+    List<Inquiry> findByUserId(Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
-    List<Inquiry> findRecent(int limit);
-
-    List<Inquiry> findRecentAfter(LocalDateTime createdAt, Long id, int limit);
+    /** 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (createdAt DESC, id DESC)다. */
+    List<Inquiry> findRecent(LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 }

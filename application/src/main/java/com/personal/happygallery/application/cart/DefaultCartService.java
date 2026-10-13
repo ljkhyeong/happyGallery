@@ -20,6 +20,7 @@ import com.personal.happygallery.application.product.port.out.InventoryReaderPor
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.cart.CartItemTextInput;
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
@@ -30,8 +31,6 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,41 +169,6 @@ public class DefaultCartService implements CartUseCase {
         }
         List<CartItemView> immutableViews = List.copyOf(views);
         return new CartSnapshot(items, immutableViews, CartSnapshotVersion.from(immutableViews));
-    }
-
-    @Override
-    public void addItem(Long userId, Long productId, int qty) {
-        addItem(userId, productId, null, List.of(), qty);
-    }
-
-    @Override
-    public void addItem(Long userId, Long productId, Long productVariantId,
-                        List<TextInput> textInputs, int qty) {
-        OrderAmountCalculator.requireQuantity(qty);
-        cartOwnerLock.lock(userId);
-        ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
-                new PurchaseRequest(0, productId, productVariantId, textInputs))).getFirst();
-        LocalDateTime changedAt = LocalDateTime.now(clock);
-        List<CartItemTextInput> cartInputs = cartInputs(resolved.purchase());
-        CartItem candidate = new CartItem(
-                userId, productId, resolved.purchase().variantId(), cartInputs, qty, changedAt);
-
-        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
-                userId, List.of(productId));
-        StockKey stockKey = stockKey(resolved);
-        long desiredQuantity = quantitiesByStockKey(existingItems)
-                .getOrDefault(stockKey, 0L) + qty;
-        requireAvailableStock(
-                Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
-
-        existingItems.stream()
-                .filter(item -> CartItem.lineKey(
-                        item.getProductId(), item.getProductVariantId(), item.getTextInputs())
-                        .equals(candidate.getLineKey()))
-                .min(Comparator.comparing(CartItem::getId))
-                .ifPresentOrElse(
-                        existing -> existing.addQty(qty, changedAt),
-                        () -> cartItemStore.save(candidate));
     }
 
     @Override
@@ -451,12 +414,7 @@ public class DefaultCartService implements CartUseCase {
                 })
                 .sorted()
                 .collect(Collectors.joining("&"));
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(canonicalItems.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
-        }
+        return Sha256.hex(canonicalItems);
     }
 
     private record CartSnapshot(

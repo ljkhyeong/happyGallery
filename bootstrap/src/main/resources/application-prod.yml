@@ -39,16 +39,20 @@ app:
 
 logging:
   level:
-    root: INFO
-    com.personal.happygallery: INFO
+    # root·애플리케이션 로그 수준을 올려도 SQL 문과 바인딩 값은 운영 로그에 남기지 않는다.
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
+  structured:
+    json:
+      # logback-spring.xml의 운영 JSON(logstash 형식)에 서비스 이름을 붙이고 기존에 없던 필드는 뺀다.
+      add:
+        service: ${spring.application.name:happygallery}
+      exclude: "@version,level_value,tags"
+      customizer: com.personal.happygallery.bootstrap.logging.SensitiveLogJsonMembersCustomizer
 
 management:
   endpoint:
     health:
-      probes:
-        enabled: true
       group:
         readiness:
           include: readinessState,db,redis
