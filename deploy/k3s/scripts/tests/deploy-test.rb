@@ -42,6 +42,7 @@ class DeployTest < Minitest::Test
     File.write(@images, JSON.generate(images))
     @env = { 'PATH' => "#{@bin}:#{ENV.fetch('PATH')}",
              'K3S_BIN' => File.join(@bin, 'k3s'), 'SYSTEMCTL_BIN' => File.join(@bin, 'systemctl'),
+             'KUBECTL_BIN' => File.join(@bin, 'kubectl'),
              'HAPPYGALLERY_RELEASE_DIR' => File.join(@dir, 'releases'),
              'CD_BACKUP_ENV' => @cd_backup_env,
              'HAPPYGALLERY_CD_BACKUP_DIR' => File.join(@dir, 'cd-cache'),
@@ -51,7 +52,18 @@ class DeployTest < Minitest::Test
     executable(File.join(@bin, 'git'), "puts '#{TAG}'")
     # flock은 Linux 실행 경계다. 파일 내용·원자 교체·Ruby 잠금은 실제로 검사한다.
     executable(File.join(@bin, 'flock'), 'exit 0')
-    executable(File.join(@bin, 'sudo'), "ARGV.shift if ARGV.first == '--'; exec(*ARGV)")
+    executable(File.join(@bin, 'sudo'), "ARGV.shift while %w[-n --].include?(ARGV.first); exec(*ARGV)")
+    # 실행 중인 이미지는 테스트가 지정할 때만 응답한다. 기본값은 조회 결과 없음이다.
+    executable(File.join(@bin, 'kubectl'), <<~'RUBY')
+      name = ARGV[ARGV.index('deployment') + 1]
+      print ENV.fetch("DEPLOY_TEST_LIVE_#{name.upcase}", '')
+    RUBY
+    executable(File.join(@bin, 'journalctl'), <<~'RUBY')
+      abort 'unexpected journalctl call' unless
+        ARGV == %w[-u happygallery-backup.service --since -40min --no-pager -o cat]
+      print ENV.fetch('DEPLOY_TEST_JOURNAL', '')
+      exit Integer(ENV.fetch('DEPLOY_TEST_JOURNAL_EXIT', '0'))
+    RUBY
     executable(File.join(@bin, 'sleep'), 'exit 0')
     executable(File.join(@scripts, 'prepare-cd-backup.sh'), "printf '%s\\n' '#{@bundle}'")
     executable(File.join(@bin, 'k3s'), <<~'RUBY')
@@ -67,10 +79,17 @@ class DeployTest < Minitest::Test
       File.open(ENV.fetch('DEPLOY_TEST_CALLS'), 'a') { |f| f.puts JSON.generate(['systemctl', *ARGV]) }
       case ARGV.first
       when 'show'
+        unless ARGV.include?('--property=ActiveState')
+          puts "Result=exit-code\nExecMainStatus=1"
+          exit 0
+        end
         states = ENV.fetch('DEPLOY_TEST_STATE').split(',')
-        count = File.readlines(ENV.fetch('DEPLOY_TEST_CALLS')).count { |line| JSON.parse(line)[1] == 'show' }
+        count = File.readlines(ENV.fetch('DEPLOY_TEST_CALLS')).count do |line|
+          JSON.parse(line).then { |call| call[1] == 'show' && call.include?('--property=ActiveState') }
+        end
         puts states.fetch(count - 1, states.last)
-      when 'start', 'stop' then exit 0
+      when 'start' then exit Integer(ENV.fetch('DEPLOY_TEST_BACKUP_EXIT', '0'))
+      when 'stop' then exit 0
       else abort 'unexpected systemctl call'
       end
     RUBY
@@ -187,6 +206,65 @@ class DeployTest < Minitest::Test
     refute status.success?
     assert_equal @original, File.read(@release)
     refute calls.any? { |call| call[1] == 'start' }
+    refute calls.any? { |call| call[0] == 'ROLLOUT' }
+  end
+
+  def release_record(name, app_digest, frontend_digest)
+    dir = File.join(@dir, 'releases', name)
+    FileUtils.mkdir_p(dir)
+    File.write(File.join(dir, 'metadata.env'), <<~ENV)
+      APP_IMAGE=localhost/happygallery-app:#{name}
+      FRONTEND_IMAGE=localhost/happygallery-frontend:#{name}
+      APP_IMAGE_DIGEST=#{app_digest}
+      FRONTEND_IMAGE_DIGEST=#{frontend_digest}
+    ENV
+    dir
+  end
+
+  def test_backup_runs_after_current_is_aligned_with_release_running_both_images
+    old = release_record('20261004T000000Z-old', "sha256:#{'1' * 64}", "sha256:#{'2' * 64}")
+    live = release_record('20261005T000000Z-live', "sha256:#{'3' * 64}", "sha256:#{'4' * 64}")
+    # app만 같고 frontend가 다른 더 최신 기록은 실행 중인 release가 아니다.
+    release_record('20261006T000000Z-app-only', "sha256:#{'3' * 64}", "sha256:#{'5' * 64}")
+    File.symlink(old, File.join(@dir, 'releases', 'current'))
+    @env['DEPLOY_TEST_LIVE_APP'] = "localhost/happygallery-app:20261005T000000Z-live@sha256:#{'3' * 64}"
+    @env['DEPLOY_TEST_LIVE_FRONTEND'] = "localhost/happygallery-frontend@sha256:#{'4' * 64}"
+
+    output, error, status = deploy(imported: true)
+
+    assert status.success?, error
+    assert_equal File.realpath(live), File.realpath(File.join(@dir, 'releases', 'current'))
+    assert_includes output, 'current release 기록을 바로잡았습니다'
+    assert calls.any? { |call| call[1] == 'start' }
+  end
+
+  def test_failed_backup_reports_service_result_and_script_errors_without_rollout
+    @env['DEPLOY_TEST_BACKUP_EXIT'] = '1'
+    @env['DEPLOY_TEST_JOURNAL'] = <<~LOG
+      [happygallery] 백업을 시작합니다.
+      rclone: Failed to copy: 외부 도구 상세 출력
+      오류: 실행 이미지와 현재 release 기록이 다릅니다. 배포를 마친 뒤 백업하세요.
+    LOG
+
+    _output, error, status = deploy(imported: true)
+
+    refute status.success?
+    assert_includes error, '[백업 상태] Result=exit-code'
+    assert_includes error, '[백업 기록] 오류: 실행 이미지와 현재 release 기록이 다릅니다.'
+    assert_includes error, '[백업 기록] [happygallery] 백업을 시작합니다.'
+    refute_includes error, 'rclone: Failed'
+    assert_includes error, '배포 전 백업이 실패해 rollout을 시작하지 않습니다'
+    refute calls.any? { |call| call[0] == 'ROLLOUT' }
+  end
+
+  def test_failed_backup_without_journal_permission_points_to_server_journal
+    @env['DEPLOY_TEST_BACKUP_EXIT'] = '1'
+    @env['DEPLOY_TEST_JOURNAL_EXIT'] = '1'
+
+    _output, error, status = deploy(imported: true)
+
+    refute status.success?
+    assert_includes error, 'journal을 읽을 권한이 없습니다'
     refute calls.any? { |call| call[0] == 'ROLLOUT' }
   end
 

@@ -130,7 +130,9 @@ kube -n "$NAMESPACE" rollout status deployment/alertmanager --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/grafana --timeout=3m
 kube -n "$NAMESPACE" wait --for=condition=Ready certificate/happygallery-tls --timeout=5m
 
+# 새 release가 이미 실행 중이므로 공개 점검 전에 current로 기록한다. 점검 실패 뒤에도
+# 다음 배포의 백업이 실행 이미지와 current 기록 불일치로 막히지 않게 한다.
+ln -sfn "$release_dir" "$state_root/current"
 "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
 rolling_resume_schedulers
-ln -sfn "$release_dir" "$state_root/current"
 info "rollout 완료: $release_dir"

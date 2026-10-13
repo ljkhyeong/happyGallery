@@ -3,7 +3,6 @@ version: 2
 updates:
   - package-ecosystem: gradle
     directory: /
-    target-branch: codexReview
     schedule:
       interval: weekly
       day: monday
@@ -17,7 +16,6 @@ updates:
 
   - package-ecosystem: npm
     directory: /frontend
-    target-branch: codexReview
     schedule:
       interval: weekly
       day: monday
@@ -31,7 +29,6 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: codexReview
     schedule:
       interval: weekly
       day: monday
@@ -45,7 +42,6 @@ updates:
 
   - package-ecosystem: docker
     directory: /deploy/k3s/images
-    target-branch: codexReview
     schedule:
       interval: weekly
       day: monday
@@ -63,7 +59,6 @@ updates:
 
   - package-ecosystem: docker
     directory: /
-    target-branch: codexReview
     schedule:
       interval: weekly
       day: monday

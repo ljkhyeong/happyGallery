@@ -31,6 +31,16 @@ class SecurityUpdateTest < Minitest::Test
     end
   end
 
+  def test_updates_spring_framework_but_not_other_spring_groups
+    source = "ext['spring-framework.version'] = '7.0.8'\n"
+    updated, changes, blocked = SecurityUpdate.plan(source, [
+      report('org.springframework:spring-webmvc', '7.0.8', '7.0.9'),
+      report('org.springframework.boot:spring-boot', '7.0.8', '7.0.9')])
+    assert_equal({ 'spring-framework.version' => '7.0.9' }, changes)
+    assert_includes updated, "ext['spring-framework.version'] = '7.0.9'"
+    assert_equal 1, blocked.size
+  end
+
   def test_uses_highest_required_patch_across_findings
     source = "ext['jackson-bom.version'] = '3.1.4'"
     _, changes, = SecurityUpdate.plan(source, [report('tools.jackson.core:jackson-databind', '3.1.4', '3.1.6'),

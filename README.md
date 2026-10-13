@@ -142,7 +142,7 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 - React feature 계층의 HTTP API 호출은 모두 생성 client를 사용한다. feature wrapper는 생성 함수와 서버 DTO를 재사용하고 React Query 키·캐시·화면용 뷰 모델만 관리한다. OAuth 로그인처럼 브라우저가 직접 이동하는 URL에는 생성 client를 사용하지 않는다.
 - Playwright 실행 전 백엔드는 `http://localhost:8080`에서 실행 중이어야 한다.
 - 기본 E2E는 주요 기능과 오류 복구를 확인하는 `@smoke` 테스트만 실행하며, MFA 전용 개발 서버는 시작하지 않는다. 전체 검사는 `e2e:full`, 특정 기능 검사는 도메인별 스크립트를 사용한다.
-- `codexReview`와 `main` 대상 PR은 Gradle/npm/GitHub Actions 변경의 Dependency Review, npm audit, ESLint·React Hooks 검사와 app/frontend 컨테이너의 Trivy HIGH/CRITICAL 검사를 통과해야 한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 자동 갱신 대상이 아니므로 Trivy와 명시적 버전 점검으로 관리한다. GitHub 정책상 보안 갱신 PR은 기본 브랜치인 `main`을 대상으로 한다.
+- `main` 대상 PR은 Gradle/npm/GitHub Actions 변경의 Dependency Review, npm audit, ESLint·React Hooks 검사와 app/frontend 컨테이너의 Trivy HIGH/CRITICAL 검사를 통과해야 한다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 버전 갱신 PR을 `main`으로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 자동 갱신 대상이 아니므로 Trivy와 명시적 버전 점검으로 관리한다.
 
 테스트 선택 기준은 [ADR-0027](docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md), E2E 실행 시간 조정 배경은 [Retrospective-0009](docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md)에 남긴다.
 

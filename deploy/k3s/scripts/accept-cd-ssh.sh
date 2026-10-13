@@ -17,7 +17,11 @@ export GIT_TERMINAL_PROMPT=0
 umask 077
 mkdir -p "$cd_state"
 exec 9> "$cd_state/.lock"
-flock -n 9 || { echo '다른 CD가 실행 중입니다.' >&2; exit 1; }
+# Actions는 운영 배포를 하나씩 보낸다. 수동 배포 등이 잠금을 잡고 있으면 바로 실패하지 않고 기다린다.
+if ! flock -n 9; then
+    echo '다른 CD가 실행 중이어서 끝나기를 기다립니다(최대 15분).' >&2
+    flock -w 900 9 || { echo '다른 CD가 15분 넘게 실행 중이어서 배포하지 않습니다.' >&2; exit 1; }
+fi
 [[ $(git -C "$cd_repository" remote get-url origin) == https://github.com/ljkhyeong/happyGallery.git ]] \
     || { echo 'origin 저장소가 다릅니다.' >&2; exit 1; }
 git -C "$cd_repository" fetch --no-tags origin refs/heads/main:refs/remotes/happygallery-cd/main

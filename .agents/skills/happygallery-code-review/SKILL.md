@@ -7,7 +7,7 @@ description: happyGallery의 미커밋 변경·브랜치 diff·commit·PR을 결
 
 ## 대상과 원칙
 
-- 대상을 먼저 확정한다. 미커밋은 `git diff HEAD`와 새 파일, 브랜치는 `git merge-base HEAD <기준>`부터의 diff, PR은 `gh pr diff <PR>`을 사용한다. 기준은 작업 브랜치면 `codexReview`, `codexReview`면 `main`이며 원격이 앞서 있으면 원격 ref를 쓴다.
+- 대상을 먼저 확정한다. 미커밋은 `git diff HEAD`와 새 파일, 브랜치는 `git merge-base HEAD <기준>`부터의 diff, PR은 `gh pr diff <PR>`을 사용한다. 기준은 `main`이며 원격이 앞서 있으면 `origin/main`을 쓴다.
 - 읽기 전용으로 리뷰한다. 파일 수정·commit·push·PR 코멘트 작성은 사용자가 요청한 경우에만 한다.
 - 변경 파일마다 담당 도메인 스킬을 읽고 그 규칙을 기준으로 삼는다. 도메인 규칙을 이 스킬에 복제하지 않는다.
 - 이번 변경이 만든 문제이고, 호출 경로나 입력으로 실패 시나리오를 보일 수 있으며, 작성자가 알면 고칠 문제만 보고한다. 기존 문제·의도한 동작 변경·취향 차이는 제외한다.
