@@ -79,22 +79,21 @@ test -r /etc/happygallery/rclone.conf && printf 'R2 설정 읽기 OK\n'
 
 기존 `backup.env`와 `RCLONE_CONFIG`, `RCLONE_BACKUP_REMOTE`를 일치시킨다. CD는 최근 48시간 내 완성된 R2 복구 묶음을 다운로드하고 모든 SHA-256을 검사한다. age 개인키는 사용하지 않는다. 처음 수행했던 DB 복원 훈련과 별개로 전송 무결성을 자동 검사하는 단계다. 검증 캐시는 `~/.local/state/happygallery/cd/backups`에 두 세대만 보관한다.
 
-## 3. 서버의 GHCR 읽기 인증
+## 3. 서버의 GHCR 이미지 받기
 
-[GHCR 문서](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)에 따라 GitHub의 **Personal access tokens → Tokens (classic)**에서 `read:packages` 토큰을 만든다. 첫 게시 패키지는 기본 비공개다. 서버에는 읽기 토큰만 저장하고 게시에는 워크플로의 `GITHUB_TOKEN`을 사용한다.
+GHCR의 `happygallery-app`·`happygallery-frontend` 패키지는 공개로 두고, 서버는 토큰 없이 이미지를 받는다. 저장소가 공개이고, 이미지에는 공개 소스로 만든 JAR·프런트 번들과 브라우저에 그대로 내려가는 값(Toss 클라이언트 키·Sentry DSN)만 들어간다. 운영 비밀값은 서버의 k8s Secret으로 실행할 때 주입한다. 게시에는 워크플로의 `GITHUB_TOKEN`만 쓴다.
 
-서버에서 실행한다. 토큰 만료 시 서버의 로그인도 갱신해야 한다.
+예전에는 서버에 `read:packages` 토큰으로 로그인해 두었다. 토큰이 만료되면 배포가 깨지고(2026-10-13 Production `38393872817`), 서버에 계정의 모든 패키지를 읽는 장기 자격 증명이 남아 이 방식을 그만뒀다.
+
+`deploy-registry-images.sh`는 저장된 로그인이 없는 임시 Docker 설정으로 받는다. 만료된 로그인을 함께 보내면 GHCR은 공개 이미지도 `denied`로 거부하므로, 서버 계정에 예전 로그인이 남아 있어도 쓰지 않는다. 임시 설정은 Docker context도 잃으므로 현재 데몬 주소를 함께 넘긴다. 받은 이미지가 게시한 이미지인지는 digest와 commit·source label로 확인한다.
+
+새 패키지를 처음 게시하면 GHCR은 비공개로 만든다. 배포가 "인증 없이 받지 못했습니다"로 멈추면 GitHub의 패키지 설정(**Package settings → Change visibility**)에서 공개로 바꾼다.
+
+예전 로그인은 서버에서 지우고, GitHub **Personal access tokens (classic)**에서 해당 토큰을 폐기한다.
 
 ```bash
-read -r -s -p 'GHCR 읽기 토큰: ' HG_GHCR_TOKEN
-printf '\n'
-printf '%s' "$HG_GHCR_TOKEN" | docker login ghcr.io -u ljkhyeong --password-stdin
-unset HG_GHCR_TOKEN
-chmod 700 "$HOME/.docker"
-chmod 600 "$HOME/.docker/config.json"
+docker logout ghcr.io
 ```
-
-Docker는 이 인증을 서버 사용자 계정에 보관한다. 토큰은 Git 저장소나 이미지에 넣지 않는다.
 
 ## 4. Mac에서 배포 전용 SSH 키 생성
 
@@ -182,6 +181,8 @@ ps -eo pid,ppid,lstart,args | grep -E 'accept-cd|happygallery-cd-ssh|deploy-regi
 이 파이프라인은 앱 배포를 자동화한다. root 소유 SSH 진입점·sudoers·systemd unit·k3s 업그레이드는 파일별 운영 절차로 갱신한다. 특히 `/opt/happygallery`의 백업 스크립트는 CI worktree가 갱신돼도 바뀌지 않으므로 해당 스크립트를 변경한 릴리스에서는 호스트 측 갱신도 수행한다.
 
 2026-10-06 변경(잠금 대기·백업 journal 읽기)은 `accept-cd-ssh.sh`와 `cd-sudoers.example`을 바꿨다. 서버의 `/opt/happygallery`를 이 커밋으로 갱신한 뒤 [2. 서버에 배포 진입점 설치](#2-서버에-배포-진입점-설치)의 `install` 명령을 다시 실행한다. 갱신 전에도 배포는 동작하며, 잠금은 기존처럼 바로 실패하고 백업 실패 로그에는 journal 권한 안내만 남는다.
+
+2026-10-13 변경(GHCR 인증 없이 받기)은 CD worktree에서 실행하는 `deploy-registry-images.sh`만 바꿨다. 서버 진입점을 다시 설치할 필요 없이 다음 배포부터 적용된다.
 
 ## 로컬 검증
 

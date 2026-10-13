@@ -1,11 +1,20 @@
 # HANDOFF
 
+## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
+
+- 시작 SHA `76dc6990`, 브랜치 `codex/work-20261013-ghcr-anonymous-pull`. 아래 절의 운영 배포가 서버의 만료된 GHCR 로그인으로 `denied` 실패해, 사용자가 "배포마다 토큰을 다시 받아야 하냐"고 물었다. 공개 패키지를 인증 없이 받는 권장안으로 진행하기로 했다.
+- 변경: `deploy-registry-images.sh`는 저장된 로그인이 없는 임시 `DOCKER_CONFIG`와 현재 데몬 주소(`docker context inspect`)로 `docker pull`한다. 이미지 확인(digest·commit·source label)은 그대로다. `deploy/k3s/cicd.md` 3절을 새 방식과 근거(공개 저장소, 이미지에 비밀값 없음, 장기 토큰 제거)로 바꿨다. 서버 진입점 재설치는 필요 없다.
+- 테스트: `cd-test.rb`의 가짜 `docker`가 실제처럼 설정 경로·context로 데몬을 고르고 만료 로그인을 GHCR처럼 거부한다. 만료 로그인과 별도 context가 남아 있어도 같은 데몬으로 받는지 검사하며, 수정 전 스크립트에서 `denied`로 실패함을 확인했다.
+- 검증: `validate.sh` 통과(Ruby 161건), `shellcheck -x` 통과. 이미지 두 개는 GHCR에서 익명으로 받아짐을 확인했다(manifest 200).
+- 남은 행동: PR을 main에 병합한 뒤 Production에서 이미지 받기가 통과하고 초기화 preflight에서 멈추는지 확인한다. 운영자는 서버에서 `docker logout ghcr.io`, GitHub에서 옛 `read:packages` 토큰 폐기(정리)를 하고, 초기화 release 3단계를 진행한다.
+
 ## main 병합 PR (2026-10-13)
 
 - 시작 SHA `fb6024ff`. 사용자가 원격 main 병합과 도중의 CI/CD 오류 대응을 요청했다. PR 흐름은 main에서 온 지침대로 작업 브랜치 → main이다(`codexReview` 폐지).
 - `origin/main`의 9커밋(CI/CD 개선·codexReview 폐지·홈 SSR smoke)을 병합했다(`c20281b8`). 충돌은 HANDOFF 한 곳이었다. PR은 [#176](https://github.com/ljkhyeong/happyGallery/pull/176)이고, 앱의 PR 감시(자동 수정)를 켰다.
 - 병합 전 로컬 검사: `deploy/k3s/scripts/validate.sh`, `agent-feedback-test` 16건, `check-agent-skills` 28개, PR 기준 롤링 호환성(`ci-compatibility.rb`, 초기화 release `20261007-baseline` 인식), `ssr-root-document` smoke, frontend `lint`·`api:check`·`build` 통과. 로컬 `gh`·`validate.sh`는 샌드박스 밖과 UTF-8 로캘(`LANG=ko_KR.UTF-8`)에서 실행한다.
-- 남은 행동: CI 통과 뒤 병합한다(제목 `Feat: …을 main에 병합`). 병합 뒤 운영 배포는 롤아웃 preflight에서 앱 교체 전에 멈춘다(의도한 동작, 운영은 이전 release 유지). 운영자가 `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계(복구 묶음 확인, 앱 중지, DB·Redis 비우기)를 진행해야 새 release가 올라간다. 그 전까지 이후 main 병합(열린 Dependabot #169~#175 포함)도 같은 지점에서 멈춘다.
+- 결과: CI `38392643894` 12개 작업 통과, Codex 리뷰 지적 없음, main 병합 `76dc6990`. Production `38393872817`은 validate·이미지 게시(app `sha256:e7df16f1…`, frontend `sha256:9ba881c7…`)까지 통과하고, 롤아웃의 서버 이미지 받기(`deploy-registry-images.sh`의 `docker pull`)가 GHCR `denied`로 실패했다. 두 이미지는 익명으로도 받을 수 있어(공개 패키지) 서버에 저장한 GHCR 읽기 토큰의 만료·폐기로 보인다. 앱 교체 전 실패라 운영은 이전 release 그대로다. 일시 장애가 아니라 재실행하지 않았다.
+- 남은 행동(운영자): ① GHCR 토큰 갱신 → 위 절에서 토큰 없이 받도록 바꿔 필요 없다. ② `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계(`HAPPYGALLERY_SCHEMA_RESET=20261007-baseline`, 복구 묶음 확인, 앱 중지, DB·Redis 비우기, `rollout.sh`)를 진행한다. CD만 다시 돌리면 초기화 preflight에서 멈춘다. 그 전까지 이후 main 병합(열린 Dependabot #169~#175 포함)도 같은 지점에서 멈춘다.
 
 ## 문의 작성 시각·인증 뒤 복귀·링크·용어 정리 (2026-10-12)
 
