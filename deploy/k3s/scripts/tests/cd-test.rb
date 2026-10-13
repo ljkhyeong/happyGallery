@@ -47,8 +47,17 @@ class CdTest < Minitest::Test
     RUBY
     executable(@bin, 'docker', <<~'RUBY')
       record(ARGV)
+      # 실제 Docker처럼 DOCKER_CONFIG(없으면 ~/.docker)의 설정에서 저장된 로그인과 연결할 데몬을 정한다.
+      config_path = File.join(ENV['DOCKER_CONFIG'] || File.join(ENV.fetch('HOME'), '.docker'), 'config.json')
+      config = File.exist?(config_path) ? JSON.parse(File.read(config_path)) : {}
+      daemon = ENV['DOCKER_HOST'] || (config['currentContext'] == 'server' ? 'unix:///run/server.sock' : 'unix:///var/run/docker.sock')
+      File.open(ENV['HG_CD_DAEMON_LOG'], 'a') { |f| f.puts "#{ARGV.first} #{daemon}" } if ENV['HG_CD_DAEMON_LOG']
       abort 'injected pull failure' if ARGV.first == 'pull' && ENV['HG_CD_PULL_FAIL']
-      if ARGV.first == 'login'
+      # 공개 패키지여도 만료된 로그인을 함께 보내면 GHCR은 거부한다.
+      abort 'Error response from daemon: error from registry: denied' if ARGV.first == 'pull' && config.dig('auths', 'ghcr.io')
+      if ARGV.first(2) == %w[context inspect]
+        puts daemon
+      elsif ARGV.first == 'login'
         abort 'missing token stdin' if STDIN.read.empty?
       elsif ARGV.first(2) == %w[image inspect]
         if ARGV.include?('--format')
@@ -270,6 +279,22 @@ class CdTest < Minitest::Test
     assert calls.any? { |call| call.first(3) == %w[docker pull --platform] }
     refute calls.any? { |call| call.first(2) == %w[docker build] }
     assert_equal "PUBLIC_HOST=happy-gallery.com\n", File.read(@release)
+  end
+
+  def test_registry_pull_ignores_saved_ghcr_login_and_keeps_current_docker_daemon
+    prepare_registry
+    # 서버 계정에 만료된 GHCR 로그인과 기본이 아닌 Docker context가 남아 있다.
+    FileUtils.mkdir_p(File.join(@dir, '.docker'))
+    File.write(File.join(@dir, '.docker/config.json'),
+               JSON.generate('currentContext' => 'server', 'auths' => { 'ghcr.io' => { 'auth' => 'ZXhwaXJlZA==' } }))
+    daemon_log = File.join(@dir, 'daemons')
+    @env['HG_CD_DAEMON_LOG'] = daemon_log
+    _out, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    assert status.success?, error
+    assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
+    daemons = File.readlines(daemon_log, chomp: true).map { |line| line.split(' ', 2) }
+    assert_equal 2, daemons.count { |command, _| command == 'pull' }
+    assert_equal ['unix:///run/server.sock'], daemons.map(&:last).uniq
   end
 
   def test_registry_import_bootstraps_when_running_app_lacks_online_backup_guard

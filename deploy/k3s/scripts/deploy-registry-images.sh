@@ -22,12 +22,19 @@ ruby "$SCRIPT_DIR/update-release-images.rb" --check "$release_env"
 umask 077
 registry_tmp=$(mktemp -d)
 trap 'rm -rf "$registry_tmp"' EXIT
+# GHCR 패키지는 공개라 인증 없이 받는다. 서버 계정에 만료·폐기된 로그인이 남아 있으면 GHCR이 denied로 거부하므로
+# 저장된 자격 증명이 없는 빈 설정으로 받는다. 빈 설정은 Docker context도 잃으므로 지금 쓰는 데몬 주소를 함께 넘긴다.
+registry_docker_host=$(docker context inspect --format '{{.Endpoints.docker.Host}}') && [[ -n $registry_docker_host ]] \
+    || die "현재 Docker 연결 주소를 확인할 수 없습니다."
+mkdir "$registry_tmp/docker-config"
 registry_local_images=()
 for registry_component in app frontend; do
     if [[ $registry_component == app ]]; then registry_digest=$registry_app_digest; else registry_digest=$registry_frontend_digest; fi
     registry_ref="ghcr.io/ljkhyeong/happygallery-$registry_component@$registry_digest"
     local_ref="localhost/happygallery-$registry_component:$registry_revision"
-    docker pull --platform linux/amd64 "$registry_ref"
+    DOCKER_CONFIG="$registry_tmp/docker-config" DOCKER_HOST="$registry_docker_host" \
+        docker pull --platform linux/amd64 "$registry_ref" \
+        || die "GHCR에서 $registry_ref 를 인증 없이 받지 못했습니다. 패키지가 공개인지 확인하세요."
     docker image inspect "$registry_ref" > "$registry_tmp/image.json"
     ruby -rjson - "$registry_tmp/image.json" "$registry_revision" "$registry_ref" <<'RUBY'
 image = JSON.parse(File.read(ARGV[0])).fetch(0)
