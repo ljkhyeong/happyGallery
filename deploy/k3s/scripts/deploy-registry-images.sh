@@ -24,7 +24,9 @@ registry_tmp=$(mktemp -d)
 trap 'rm -rf "$registry_tmp"' EXIT
 # GHCR 패키지는 공개라 인증 없이 받는다. 서버 계정에 만료·폐기된 로그인이 남아 있으면 GHCR이 denied로 거부하므로
 # 저장된 자격 증명이 없는 빈 설정으로 받는다. 빈 설정은 Docker context도 잃으므로 지금 쓰는 데몬 주소를 함께 넘긴다.
-registry_docker_host=$(docker context inspect --format '{{.Endpoints.docker.Host}}') && [[ -n $registry_docker_host ]] \
+# 상속된 DOCKER_HOST는 활성 context보다 우선하므로 있으면 그대로 쓴다.
+registry_docker_host=${DOCKER_HOST:-$(docker context inspect --format '{{.Endpoints.docker.Host}}')} \
+    && [[ -n $registry_docker_host ]] \
     || die "현재 Docker 연결 주소를 확인할 수 없습니다."
 mkdir "$registry_tmp/docker-config"
 registry_local_images=()

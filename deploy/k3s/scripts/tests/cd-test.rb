@@ -288,13 +288,18 @@ class CdTest < Minitest::Test
     File.write(File.join(@dir, '.docker/config.json'),
                JSON.generate('currentContext' => 'server', 'auths' => { 'ghcr.io' => { 'auth' => 'ZXhwaXJlZA==' } }))
     daemon_log = File.join(@dir, 'daemons')
-    @env['HG_CD_DAEMON_LOG'] = daemon_log
-    _out, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
-    assert status.success?, error
-    assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
-    daemons = File.readlines(daemon_log, chomp: true).map { |line| line.split(' ', 2) }
-    assert_equal 2, daemons.count { |command, _| command == 'pull' }
-    assert_equal ['unix:///run/server.sock'], daemons.map(&:last).uniq
+    @env.merge!('HG_CD_DAEMON_LOG' => daemon_log, 'DOCKER_CONFIG' => nil)
+    # 상속된 DOCKER_HOST는 활성 context보다 우선한다. nil은 실행 환경에서 변수를 지운다.
+    { nil => 'unix:///run/server.sock', 'tcp://inherited.test:2375' => 'tcp://inherited.test:2375' }.each do |inherited, expected|
+      @env['DOCKER_HOST'] = inherited
+      FileUtils.rm_f([@log, daemon_log])
+      _out, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+      assert status.success?, error
+      assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
+      daemons = File.readlines(daemon_log, chomp: true).map { |line| line.split(' ', 2) }
+      assert_equal 2, daemons.count { |command, _| command == 'pull' }
+      assert_equal [expected], daemons.map(&:last).uniq
+    end
   end
 
   def test_registry_import_bootstraps_when_running_app_lacks_online_backup_guard
