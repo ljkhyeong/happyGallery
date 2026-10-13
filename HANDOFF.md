@@ -1,5 +1,12 @@
 # HANDOFF
 
+## main 병합 PR (2026-10-13)
+
+- 시작 SHA `fb6024ff`. 사용자가 원격 main 병합과 도중의 CI/CD 오류 대응을 요청했다. PR 흐름은 main에서 온 지침대로 작업 브랜치 → main이다(`codexReview` 폐지).
+- `origin/main`의 9커밋(CI/CD 개선·codexReview 폐지·홈 SSR smoke)을 병합했다(`c20281b8`). 충돌은 HANDOFF 한 곳이었다. PR은 [#176](https://github.com/ljkhyeong/happyGallery/pull/176)이고, 앱의 PR 감시(자동 수정)를 켰다.
+- 병합 전 로컬 검사: `deploy/k3s/scripts/validate.sh`, `agent-feedback-test` 16건, `check-agent-skills` 28개, PR 기준 롤링 호환성(`ci-compatibility.rb`, 초기화 release `20261007-baseline` 인식), `ssr-root-document` smoke, frontend `lint`·`api:check`·`build` 통과. 로컬 `gh`·`validate.sh`는 샌드박스 밖과 UTF-8 로캘(`LANG=ko_KR.UTF-8`)에서 실행한다.
+- 남은 행동: CI 통과 뒤 병합한다(제목 `Feat: …을 main에 병합`). 병합 뒤 운영 배포는 롤아웃 preflight에서 앱 교체 전에 멈춘다(의도한 동작, 운영은 이전 release 유지). 운영자가 `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계(복구 묶음 확인, 앱 중지, DB·Redis 비우기)를 진행해야 새 release가 올라간다. 그 전까지 이후 main 병합(열린 Dependabot #169~#175 포함)도 같은 지점에서 멈춘다.
+
 ## 문의 작성 시각·인증 뒤 복귀·링크·용어 정리 (2026-10-12)
 
 - 시작 SHA `294b430a`, 같은 브랜치. 사용자가 "더 있는지 확인해서 진행하라"고 해 탐색 에이전트로 고객 화면 링크·문구를 다시 대조하고, 확인 중 찾은 버그를 함께 고쳤다.
@@ -13,7 +20,7 @@
   - 찜 목록 유형 필터의 주소 반영(`?type`), 클래스 예약의 날짜만 지정한 링크: 기능 추가라 이번 범위 밖이다.
   - 비회원 조회 FAQ의 "~요" 질문(고객 말투 FAQ), 단체수업 문의 취소 확인 "그만하시겠어요?", 홈 "작은 상설전"(승인 시안), "← 목록" 돌아가기, "확인 필요" 대체 라벨, 클래스 상세 정책 순번.
   - 오류 화면(`root`·`ErrorBoundary`)의 "공방에 문의" 안내에는 연락처를 붙이지 않았다. 오류 화면에서 공방 정보 조회가 돈다는 보장이 없다.
-- 남은 행동: PR 전에 `origin/main`(이 브랜치에 없는 커밋 9개)을 병합하고 충돌·CI를 확인한다.
+- 남은 행동: PR 전에 `origin/main`(이 브랜치에 없는 커밋 9개)을 병합하고 충돌·CI를 확인한다. → 2026-10-13 병합, PR #176.
 - 검증:
   - 백엔드: `MemberWritingUseCaseIT` 2건(수정 전 실패), `CustomerApiRestDocsTest` 65건 통과.
   - 프론트: typecheck·변경 파일 ESLint·단위 81건 통과.
@@ -85,7 +92,7 @@
   - E2E 전체 255건: 기준선(`1df40a91`)과 단계별 병합 뒤, 최종 jar 모두 통과. 전용 컨테이너 MySQL 3317·Redis 6389와 local jar로 실행했다.
   - 화면 비교: 변경 전후 dev 서버를 1280·390px로 픽셀 비교했다. 공개·고객 화면 21개와 관리자 화면 11개가 동일했다.
   - `agent-feedback final b1dc26c5`: 호환성 단계만 실패한다. 이 기준에는 초기화 표식이 이미 들어 있어 OpenAPI 비교가 돌고, aggregateType enum을 "제약 추가"로 판정하기 때문이다. `ruby tools/check-working-compatibility.rb` 기준을 `main`·`origin/main`으로 하면 초기화 release로 처리돼 통과한다. 나머지 단계(diff·문법·ArchUnit·typecheck)는 따로 실행해 통과했다.
-- 남은 행동: `origin/main`(`982a88a2`)에 이 브랜치에 없는 커밋 9개(CI/CD 개선 등)가 있다. PR 전에 main을 병합하고 충돌·CI를 확인한다.
+- 남은 행동: `origin/main`(`982a88a2`)에 이 브랜치에 없는 커밋 9개(CI/CD 개선 등)가 있다. PR 전에 main을 병합하고 충돌·CI를 확인한다. → 2026-10-13 병합, PR #176.
 - 결정이 필요한 것(손대지 않음):
   - 소셜 로그인 버튼이 브랜드 배경에 먹색 글자·테두리다. 의도한 모습인지 확인이 필요하다. → 2026-10-11 제공자 지침 색으로 고침.
   - 결제 결과·로그인 전 내 정보·로그인 화면의 좁은 폭(600·760px) 규칙은 적용된 적 없는 죽은 규칙이라 지웠다. 좁힐지는 별도로 정한다.
