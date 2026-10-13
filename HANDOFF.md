@@ -6,7 +6,8 @@
 - 변경: `deploy-registry-images.sh`는 저장된 로그인이 없는 임시 `DOCKER_CONFIG`와 현재 데몬 주소(`docker context inspect`)로 `docker pull`한다. 이미지 확인(digest·commit·source label)은 그대로다. `deploy/k3s/cicd.md` 3절을 새 방식과 근거(공개 저장소, 이미지에 비밀값 없음, 장기 토큰 제거)로 바꿨다. 서버 진입점 재설치는 필요 없다.
 - 테스트: `cd-test.rb`의 가짜 `docker`가 실제처럼 설정 경로·context로 데몬을 고르고 만료 로그인을 GHCR처럼 거부한다. 만료 로그인과 별도 context가 남아 있어도 같은 데몬으로 받는지 검사하며, 수정 전 스크립트에서 `denied`로 실패함을 확인했다.
 - 검증: `validate.sh` 통과(Ruby 161건), `shellcheck -x` 통과. 이미지 두 개는 GHCR에서 익명으로 받아짐을 확인했다(manifest 200).
-- 남은 행동: PR을 main에 병합한 뒤 Production에서 이미지 받기가 통과하고 초기화 preflight에서 멈추는지 확인한다. 운영자는 서버에서 `docker logout ghcr.io`, GitHub에서 옛 `read:packages` 토큰 폐기(정리)를 하고, 초기화 release 3단계를 진행한다.
+- 결과: PR #178, CI `38403508389` 통과, Codex 지적 1건(상속된 `DOCKER_HOST`를 먼저 쓰기) 반영(`d7950017`), main 병합 `4aaba8ee`. Production `38404325294`에서 두 이미지를 토큰 없이 받았고(앱 JAR 검사·containerd 반입 통과), 배포 전 백업·R2 복구 묶음 검증(`~/.local/state/happygallery/cd/backups/20261013T133050Z/happygallery-20261013T133050Z.recovery.env`)과 `release.env` 갱신 뒤 초기화 preflight에서 의도대로 멈췄다. 운영은 이전 release(`982a88a2`) 그대로다.
+- 남은 행동(운영자): 정리로 서버에서 `docker logout ghcr.io`, GitHub에서 옛 `read:packages` 토큰을 폐기한다. `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계(`HAPPYGALLERY_SCHEMA_RESET=20261007-baseline`, 복구 묶음 확인, 앱 중지, DB·Redis 비우기, `rollout.sh`)를 진행한다. 이 결과 기록은 운영 배포를 다시 일으키지 않도록 로컬 커밋으로만 남겼다.
 
 ## main 병합 PR (2026-10-13)
 
