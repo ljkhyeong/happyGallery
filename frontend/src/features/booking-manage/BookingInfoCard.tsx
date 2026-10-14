@@ -1,16 +1,10 @@
-import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { StatusBadge } from "@/shared/ui";
+import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
 import { formatDateTime, formatTime } from "@/shared/lib";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import type { BookingDetailResponse } from "@/shared/types";
 import { AddBookingToCalendarButton } from "./AddBookingToCalendarButton";
-
-export interface BookingInfoRow {
-  label: string;
-  value: ReactNode;
-}
 
 interface Props {
   label: string;
@@ -19,7 +13,7 @@ interface Props {
   className: string;
   startAt: string;
   endAt: string;
-  rows: BookingInfoRow[];
+  rows: DetailRow[];
   refund: BookingDetailResponse["refund"];
 }
 
@@ -36,14 +30,7 @@ export function BookingInfoCard({ label, status, classId, className, startAt, en
         <h2><Link to={`/classes/${classId}`}>{className}</Link></h2>
         <p>{formatDateTime(startAt)} ~ {sameDay ? formatTime(endAt) : formatDateTime(endAt)}</p>
       </div>
-      <dl className="my-detail-rows">
-        {rows.map((row) => (
-          <div key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <DetailRows rows={rows} />
       <div className="my-detail-card-actions">
         <AddBookingToCalendarButton className={className} startAt={startAt} endAt={endAt} status={status} />
       </div>

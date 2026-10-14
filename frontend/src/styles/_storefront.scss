@@ -2152,6 +2152,48 @@ a.my-list-card:focus-visible {
   padding: 0 1.4rem 1.4rem;
 }
 
+// 상세 카드 안의 구역(주문한 작품·배송·수령 정보): 선으로 나누고 명조 소제목으로 시작한다.
+.my-detail-section {
+  padding: 1rem 1.4rem 1.25rem;
+  border-top: 1px solid var(--hg-border);
+
+  > h3 {
+    margin-bottom: 0.75rem;
+    font-family: var(--hg-font-display);
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  > .my-detail-rows {
+    padding: 0;
+  }
+}
+
+.my-detail-row-wide {
+  grid-column: 1 / -1;
+}
+
+// 주문 품목 표: 칸 이름은 행 이름처럼 작게, 결제 금액 합계 줄만 진하게 쓴다.
+.my-detail-table {
+  margin-bottom: 0;
+
+  thead th {
+    color: var(--hg-ink-soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  tfoot th {
+    color: var(--hg-ink-soft);
+    font-weight: 500;
+  }
+
+  tfoot tr:last-child > * {
+    color: var(--hg-dark);
+    font-weight: 700;
+  }
+}
+
 .my-inquiry-card {
   margin-bottom: 0.75rem;
   padding: 1.1rem 1.25rem;

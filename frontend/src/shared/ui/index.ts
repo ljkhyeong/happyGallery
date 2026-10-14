@@ -6,6 +6,8 @@ export { ErrorBoundary } from "./ErrorBoundary";
 export { SectionErrorBoundary } from "./SectionErrorBoundary";
 export { EmptyState } from "./EmptyState";
 export { StatusBadge } from "./StatusBadge";
+export { DetailRows } from "./DetailRows";
+export type { DetailRow } from "./DetailRows";
 export { ToastProvider, useToast } from "./ToastContainer";
 export { LinkButton } from "./LinkButton";
 export { PageHeader } from "./PageHeader";
