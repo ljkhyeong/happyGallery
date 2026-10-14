@@ -36,7 +36,7 @@ export function MyOrdersPage() {
   ];
   const quickTabs = [
     { value: "ALL", label: "전체" },
-    ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"]),
+    ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"], { keepOrder: true }),
   ];
 
   return (
@@ -63,7 +63,9 @@ export function MyOrdersPage() {
         hasMore={query.hasNextPage}
       />
       {query.isLoading && <LoadingSpinner />}
-      {hasLoadedOrders && orders.length === 0 && <EmptyState message="검색 조건에 맞는 주문 내역이 없습니다." />}
+      {hasLoadedOrders && orders.length === 0 && (
+        <EmptyState message={filters.hasFilter ? "검색 조건에 맞는 주문 내역이 없습니다." : "주문 내역이 없습니다."} />
+      )}
       {orders.length > 0 && orders.map((order) => (
         <Card
           key={order.orderId}

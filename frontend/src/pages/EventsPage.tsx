@@ -15,7 +15,7 @@ export function EventsPage({ initialEvents }: { initialEvents: EventResponse[] }
   const events = loadedEvents.filter((event) => isEventAvailable(event));
 
   return (
-    <Container className="page-container" style={{ maxWidth: 1100 }}>
+    <Container className="page-container">
       <PageHeader
         title="이벤트"
         description="진행 중이거나 시작 예정인 이벤트입니다."

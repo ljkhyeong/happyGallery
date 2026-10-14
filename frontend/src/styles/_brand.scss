@@ -835,13 +835,21 @@
   white-space: pre-line;
 }
 
+// 모든 항목을 이름·값 한 줄로 맞춘다. 짧은 항목(시간·정원)은 두 개씩, 추천 대상·준비물은 한 줄 전체를 쓴다.
 .class-catalog-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 1.5rem;
   margin: 1.25rem 0;
   padding-block: 1rem;
   border-block: 1px solid var(--hg-border);
+
+  > div {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: baseline;
+  }
 
   dt {
     color: var(--hg-ink-soft);
@@ -859,9 +867,6 @@
 
 .class-catalog-meta-wide {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: 1rem;
 }
 
 .class-catalog-actions {
@@ -1330,7 +1335,7 @@
 .group-class-inquiry {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2rem 3rem;
   margin-top: clamp(4rem, 8vw, 6rem);
   padding: clamp(2rem, 5vw, 4rem);
@@ -1506,11 +1511,8 @@
   }
 
   // 모바일 목록은 비교에 필요한 시간·정원만 남기고 추천 대상·준비물은 상세에서 본다.
-  .class-catalog-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .class-catalog-meta-wide {
+  // 항목 줄 배치(.class-catalog-meta > div)보다 우선하도록 부모 선택자를 붙인다.
+  .class-catalog-meta .class-catalog-meta-wide {
     display: none;
   }
 

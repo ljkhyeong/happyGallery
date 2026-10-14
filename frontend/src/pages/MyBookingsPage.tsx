@@ -34,7 +34,7 @@ export function MyBookingsPage() {
   ];
   const quickTabs = [
     { value: "ALL", label: "전체" },
-    ...buildStatusFilterOptions(["BOOKED", "COMPLETED", "CANCELED"]),
+    ...buildStatusFilterOptions(["BOOKED", "COMPLETED", "CANCELED"], { keepOrder: true }),
   ];
 
   return (
@@ -61,7 +61,9 @@ export function MyBookingsPage() {
         hasMore={query.hasNextPage}
       />
       {query.isLoading && <LoadingSpinner />}
-      {hasLoadedBookings && bookings.length === 0 && <EmptyState message="검색 조건에 맞는 예약 내역이 없습니다." />}
+      {hasLoadedBookings && bookings.length === 0 && (
+        <EmptyState message={filters.hasFilter ? "검색 조건에 맞는 예약 내역이 없습니다." : "예약 내역이 없습니다."} />
+      )}
       {bookings.length > 0 && bookings.map((booking) => (
         <Card
           key={booking.bookingId}

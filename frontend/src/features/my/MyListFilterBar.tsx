@@ -38,7 +38,7 @@ export function MyListFilterBar({
 
   return (
     <Card className="my-filter-card border-0 mb-3">
-      <Card.Body className="p-3">
+      <Card.Body className="py-3">
         <div className="my-quick-tabs mb-3" role="group" aria-label="상태별 보기">
           {quickTabs.map((tab) => {
             const isActive = tab.value === statusFilter;

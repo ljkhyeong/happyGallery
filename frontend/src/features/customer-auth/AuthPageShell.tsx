@@ -58,7 +58,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
                   ))}
                 </ul>
               )}
-              <div className="d-flex flex-wrap gap-3 mt-auto small">{hero.links}</div>
+              <div className="d-flex flex-wrap gap-3 small">{hero.links}</div>
             </Card.Body>
           </Card>
         </Col>

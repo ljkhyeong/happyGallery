@@ -2,13 +2,16 @@ import { formatKRW, getStatusLabel, parseApiDateTime } from "@/shared/lib";
 import type { MyPassSummary } from "./api";
 import type { MyFilterOption } from "./MyListFilterBar";
 
-export function buildStatusFilterOptions(statuses: string[]): MyFilterOption[] {
-  return Array.from(new Set(statuses))
-    .sort((left, right) => getStatusLabel(left).localeCompare(getStatusLabel(right), "ko"))
-    .map((status) => ({
-      value: status,
-      label: getStatusLabel(status),
-    }));
+/** 상태 선택 상자는 이름순으로, 빠른 칩은 진행 순서를 지키도록 넘긴 순서대로 만든다. */
+export function buildStatusFilterOptions(statuses: string[], { keepOrder = false } = {}): MyFilterOption[] {
+  const unique = Array.from(new Set(statuses));
+  if (!keepOrder) {
+    unique.sort((left, right) => getStatusLabel(left).localeCompare(getStatusLabel(right), "ko"));
+  }
+  return unique.map((status) => ({
+    value: status,
+    label: getStatusLabel(status),
+  }));
 }
 
 export function getPassFilterKey(pass: MyPassSummary): string {

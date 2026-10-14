@@ -18,6 +18,8 @@ export interface MyListFilters {
   statusFilter: string;
   sortValue: string;
   defaultSort: string;
+  /** 검색어나 상태 필터가 걸려 있는지. 빈 목록 문구를 고를 때 쓴다. */
+  hasFilter: boolean;
   updateFilters: (next: MyListFilterUpdate) => void;
   resetFilters: () => void;
 }
@@ -76,6 +78,8 @@ export function useMyListFilters({
     statusFilter,
     sortValue,
     defaultSort,
+    // 정렬은 결과 수를 바꾸지 않으므로 검색어와 상태만 본다.
+    hasFilter: searchQuery.trim() !== "" || statusFilter !== "ALL",
     updateFilters,
     resetFilters,
   };

@@ -535,6 +535,15 @@
   background: var(--hg-surface);
 }
 
+// 테두리 없는 내 정보 칸은 안쪽 가로 여백만 남으면 화면 제목·위 카드보다 들어가 보여, 같은 선에서 시작한다.
+.my-claim-card,
+.my-action-card,
+.my-filter-card {
+  > .card-body {
+    padding-inline: 0;
+  }
+}
+
 .my-claim-entry-note {
   display: flex;
   flex-wrap: wrap;
@@ -2524,7 +2533,7 @@ a.my-list-card:focus-visible {
   overflow: hidden;
 
   > .card-header {
-    padding: 0.9rem 1.25rem;
+    padding: 0.9rem 0;
     color: var(--hg-dark);
     background: transparent;
     border-bottom: 1px solid var(--hg-border);

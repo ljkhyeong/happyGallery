@@ -209,11 +209,14 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           : "로그인 없이 여러 작품을 한 번에 주문할 수 있습니다."}
         actions={(
           <>
-            <LinkButton to="/products" variant="dark" size="sm">
-              작품 보러가기
-            </LinkButton>
+            {/* 먹색 채움은 결제(또는 빈 주문서의 "작품 먼저 고르기") 하나만 둔다. 빈 주문서는 본문이 같은 곳으로 안내한다. */}
+            {!shouldShowManualEntryGate && (
+              <LinkButton to="/products" variant="outline-dark" size="sm">
+                작품 보러가기
+              </LinkButton>
+            )}
             {!user && (
-              <LinkButton to={loginHref} variant="outline-secondary" size="sm">
+              <LinkButton to={loginHref} variant="outline-dark" size="sm">
                 로그인 후 주문하기
               </LinkButton>
             )}
@@ -234,7 +237,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       <Container className="page-container checkout-page">
         {header}
         <Card className="mb-4 border-0 my-claim-card checkout-gate">
-          <Card.Body className="p-4">
+          <Card.Body className="py-4">
             <h2 className="h5 mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
               작품 목록에서 작품과 수량을 고르면 주문서에 자동으로 들어갑니다.
