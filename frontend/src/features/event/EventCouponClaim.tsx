@@ -38,7 +38,7 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
   return (
     <Card className="event-coupon-panel mt-5 border-0" as="section" aria-labelledby="event-coupon-heading">
       <Card.Body>
-        <h2 id="event-coupon-heading" className="h4 mb-2">이벤트 쿠폰</h2>
+        <h2 id="event-coupon-heading" className="h4 display-heading mb-2">이벤트 쿠폰</h2>
 
         {status === "error" && (
           <ErrorAlert

@@ -18,7 +18,7 @@ export function MyAuthGateCard({ title, description, showGuestLinks = false }: P
   return (
     <Card className="my-gate-card border-0">
       <Card.Body className="p-4">
-        <h5 className="mb-2">{title}</h5>
+        <h5 className="display-heading mb-2">{title}</h5>
         <p className="text-muted-soft small mb-3">{description}</p>
         <div className="d-flex flex-wrap gap-2">
           <LinkButton to={loginHref} variant="primary">

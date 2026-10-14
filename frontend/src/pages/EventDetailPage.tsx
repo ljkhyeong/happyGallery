@@ -87,7 +87,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
 
         {visibleRelatedProducts.length > 0 && (
           <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
-            <h2 id="event-related-products" className="h5 mb-4">관련 작품</h2>
+            <h2 id="event-related-products" className="h5 display-heading mb-4">관련 작품</h2>
             <div className="product-grid">
               {visibleRelatedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

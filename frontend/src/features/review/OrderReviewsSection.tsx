@@ -41,7 +41,7 @@ export function OrderReviewsSection({ orderId, items }: Props) {
     <section id={REVIEW_SECTION_ID} className="review-section member-source-reviews" aria-labelledby="order-reviews-heading">
       <header className="review-section-header">
         <div>
-          <h5 id="order-reviews-heading" className="mb-1">작품 후기</h5>
+          <h5 id="order-reviews-heading" className="display-heading mb-1">작품 후기</h5>
           <p className="text-muted-soft small mb-0">
             받은 작품마다 후기를 한 번 쓸 수 있습니다.
           </p>

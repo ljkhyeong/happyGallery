@@ -1238,8 +1238,9 @@ a.my-list-card:focus-visible {
 
   h2 {
     margin: 0;
-    font-size: 1.05rem;
-    font-weight: 800;
+    font-family: var(--hg-font-display);
+    font-size: 1.15rem;
+    font-weight: 500;
     line-height: 1.4;
   }
 }
@@ -2010,10 +2011,12 @@ a.my-list-card:focus-visible {
   text-underline-offset: 3px;
 }
 
+// 내 정보·체크아웃의 구역 제목은 명조 500으로 쓴다(README: 구역은 명조 제목으로 시작). 구역 안 항목 이름은 고딕이다.
 .my-account-title {
   margin: 0 0 1rem;
-  font-size: 1rem;
-  font-weight: 700;
+  font-family: var(--hg-font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
 }
 
 .my-recent-head {
@@ -2024,8 +2027,9 @@ a.my-list-card:focus-visible {
 
   h2 {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 800;
+    font-family: var(--hg-font-display);
+    font-size: 1.15rem;
+    font-weight: 500;
   }
 
   a {
@@ -2579,6 +2583,8 @@ a.my-list-card:focus-visible {
     color: var(--hg-dark);
     background: transparent;
     border-bottom: 1px solid var(--hg-border);
-    font-weight: 800;
+    font-family: var(--hg-font-display);
+    font-size: 1.15rem;
+    font-weight: 500;
   }
 }

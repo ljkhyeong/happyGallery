@@ -52,7 +52,7 @@ export function ReviewOpportunityList() {
       />
       <section className="review-opportunity-section" aria-labelledby="review-opportunity-heading">
         <div className="review-opportunity-heading">
-          <h3 id="review-opportunity-heading" className="h5 mb-0">후기를 쓸 수 있는 내역</h3>
+          <h3 id="review-opportunity-heading" className="h5 display-heading mb-0">후기를 쓸 수 있는 내역</h3>
           <strong>불러온 {opportunities.length.toLocaleString("ko-KR")}건</strong>
         </div>
         <div className="review-opportunity-list">

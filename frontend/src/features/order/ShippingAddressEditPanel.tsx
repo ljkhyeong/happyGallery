@@ -46,7 +46,7 @@ function ShippingAddressEditor({ order, accessToken, onSaved }: Props) {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <h5>배송지 수정</h5>
+        <h5 className="display-heading">배송지 수정</h5>
         <p className="small text-muted">배송 준비를 시작하기 전까지 수정할 수 있습니다.</p>
         <ErrorAlert error={mutation.error} />
         <Form onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>

@@ -136,7 +136,7 @@ export function OrderClaimSection({ order, access }: Props) {
 
   return (
     <section className="mt-4 border-top pt-4" aria-labelledby="order-claim-title">
-      <h5 id="order-claim-title">반품·교환</h5>
+      <h5 id="order-claim-title" className="display-heading">반품·교환</h5>
 
       {isLoading && <LoadingSpinner />}
       <ErrorAlert

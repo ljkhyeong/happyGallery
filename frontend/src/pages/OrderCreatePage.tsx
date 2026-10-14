@@ -238,7 +238,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         {header}
         <Card className="mb-4 border-0 my-claim-card checkout-gate">
           <Card.Body className="py-4">
-            <h2 className="h5 mb-2">주문할 작품을 먼저 골라 주세요</h2>
+            <h2 className="h5 display-heading mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
               작품 목록에서 작품과 수량을 고르면 주문서에 자동으로 들어갑니다.
               여러 작품을 여기서 직접 고를 수도 있습니다.
