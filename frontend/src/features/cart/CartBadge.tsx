@@ -18,8 +18,7 @@ export function CartBadge() {
       <span>장바구니</span>
       {itemCount > 0 && (
         <Badge
-          bg="danger"
-          pill
+          bg="dark"
           className="position-absolute top-0 start-50 ms-2 translate-middle-y"
           style={{ fontSize: "0.65rem" }}
         >

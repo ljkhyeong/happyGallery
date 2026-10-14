@@ -62,12 +62,12 @@ export function MyVacancyAlertsSection() {
         const canceling = cancelMutation.isPending
           && cancelMutation.variables?.alertId === alert.alertId;
         return (
-          <Card key={alert.alertId} className="mb-2 my-list-card border-0">
+          <Card key={alert.alertId} className="mb-2 my-list-card">
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 px-3">
               <div>
                 <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
                   <Link to={`/classes/${alert.classId}`} className="fw-semibold small">{alert.className}</Link>
-                  <Badge bg={alert.status === "WAITING" ? "secondary" : "info"} className="badge-sm">
+                  <Badge bg={alert.status === "WAITING" ? "light" : "dark"} className="badge-sm">
                     {alert.status === "WAITING" ? "알림 대기" : "빈자리 발생"}
                   </Badge>
                 </div>

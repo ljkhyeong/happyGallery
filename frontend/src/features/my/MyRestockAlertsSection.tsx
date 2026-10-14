@@ -22,12 +22,12 @@ export function MyRestockAlertsSection() {
         retrying={busy} retryLabel="알림 해지 다시 시도" />
       {query.data?.length === 0 && <EmptyState message="신청한 재입고 알림이 없습니다." />}
       {query.data?.map((alert) => (
-        <Card key={alert.id} className="mb-2 border-0 my-list-card">
+        <Card key={alert.id} className="mb-2 my-list-card">
           <Card.Body className="d-flex justify-content-between align-items-center gap-2 py-3">
             <div>
               <Link to={productDetailHref(alert.productId, alert.productVariantId)}>{alert.productName}</Link>
               <div className="small text-muted">{alert.optionLabel}</div>
-              <Badge bg="secondary">{needsStatusCheck && mutation.variables?.action === "cancel" && mutation.variables.id === alert.id
+              <Badge bg="light">{needsStatusCheck && mutation.variables?.action === "cancel" && mutation.variables.id === alert.id
                 ? "상태 확인 필요" : STATUS_LABELS[alert.status]}</Badge>
             </div>
             {["WAITING", "QUEUED"].includes(alert.status) && <Button size="sm" variant="outline-secondary" disabled={busy || query.isError}

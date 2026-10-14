@@ -51,7 +51,7 @@ function GroupInquirySectionContent() {
           </>}
         </Modal.Body>
         {receiptId !== null && <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShow(false)}>닫기</Button>
+          <Button variant="outline-dark" onClick={() => setShow(false)}>닫기</Button>
         </Modal.Footer>}
       </Modal>
     </>

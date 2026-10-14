@@ -132,7 +132,7 @@ export function GuestClaimModal({
               <Stack gap={3}>
                 <div className="d-flex justify-content-between align-items-center">
                   <span className="small text-muted-soft">인증 상태</span>
-                  <Badge bg="success">확인 완료</Badge>
+                  <Badge bg="dark">확인 완료</Badge>
                 </div>
 
                 {preview.orders.length === 0 &&
@@ -210,7 +210,7 @@ export function GuestClaimModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="outline-dark" onClick={onClose}>
           닫기
         </Button>
         <Button

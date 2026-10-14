@@ -132,7 +132,7 @@ export function MyInquiryCreatePage() {
           <Button variant="outline-secondary" onClick={() => blocker.reset?.()}>
             {mutation.isPending ? "돌아가기" : "계속 작성"}
           </Button>
-          <Button variant="danger" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>
+          <Button variant="dark" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>
             나가기
           </Button>
         </Modal.Footer>

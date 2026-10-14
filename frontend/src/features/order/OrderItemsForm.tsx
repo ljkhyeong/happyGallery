@@ -107,7 +107,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
                       aria-label={`${product?.name ?? "작품"} ${selection?.label ?? ""} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />
-                    <Button size="sm" variant="outline-danger" className="text-nowrap"
+                    <Button size="sm" variant="outline-dark" className="text-nowrap"
                       onClick={() => onChange(lines.filter((line) => line.key !== key).map((line) => line.item))}>삭제</Button>
                   </div>
                 </div>

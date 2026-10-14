@@ -56,7 +56,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               >
                 수정
               </Button>
-              <Button type="button" size="sm" variant="outline-danger" onClick={() => setConfirmingDelete(true)}>
+              <Button type="button" size="sm" variant="outline-dark" onClick={() => setConfirmingDelete(true)}>
                 삭제
               </Button>
             </div>
@@ -119,7 +119,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               <Button
                 type="button"
                 size="sm"
-                variant="danger"
+                variant="dark"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(review)}
               >

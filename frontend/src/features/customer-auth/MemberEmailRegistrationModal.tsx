@@ -184,7 +184,7 @@ export function MemberEmailRegistrationModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={close} disabled={busy}>
+        <Button variant="outline-dark" onClick={close} disabled={busy}>
           취소
         </Button>
       </Modal.Footer>

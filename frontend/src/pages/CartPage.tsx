@@ -155,7 +155,7 @@ function CartContent() {
         )}
         <Button
           size="sm"
-          variant="outline-danger"
+          variant="outline-dark"
           onClick={() => setShowDiscardConfirm(true)}
         >
           이 기기에서 해당 작품 제거
@@ -186,7 +186,7 @@ function CartContent() {
           취소
         </Button>
         <Button
-          variant="danger"
+          variant="dark"
           onClick={() => {
             discardGuestCartMerge();
             setShowDiscardConfirm(false);
@@ -419,7 +419,8 @@ function CartContent() {
                     {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
                     {!canSelect(item) && !item.quantityWarning && (
                       <div>
-                        <span className="badge bg-secondary">구매 불가</span>
+                        {/* 작품 카드·상세와 같은 판매 불가 빨간 점 표시를 쓴다. */}
+                        <span className="product-card-status">구매 불가</span>
                         <div className="small text-danger">
                           재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
                         </div>

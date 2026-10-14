@@ -48,7 +48,7 @@ export function OrderCustomerActionPanel({
       {canCancel && (
         <div className="d-flex justify-content-end mt-3">
           <Button
-            variant="outline-danger"
+            variant="outline-dark"
             disabled={pending}
             onClick={() => setConfirmAction("CANCEL")}
           >
@@ -60,7 +60,7 @@ export function OrderCustomerActionPanel({
       {canRespondToDelay && (
         <div className="d-flex justify-content-end gap-2 mt-3">
           <Button
-            variant="outline-danger"
+            variant="outline-dark"
             disabled={pending}
             onClick={() => setConfirmAction("REJECT")}
           >
@@ -99,7 +99,7 @@ export function OrderCustomerActionPanel({
         <Modal.Footer>
           <Button
             type="button"
-            variant="secondary"
+            variant="outline-dark"
             disabled={pending}
             onClick={() => setConfirmAction(null)}
           >
@@ -107,7 +107,7 @@ export function OrderCustomerActionPanel({
           </Button>
           <Button
             type="button"
-            variant="danger"
+            variant="dark"
             disabled={pending}
             onClick={submitConfirmedAction}
           >

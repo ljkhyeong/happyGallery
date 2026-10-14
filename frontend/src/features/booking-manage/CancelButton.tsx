@@ -163,7 +163,7 @@ export function CancelButton({
 
   return (
     <>
-      <Button variant="outline-danger" onClick={() => setShowConfirm(true)}>
+      <Button variant="outline-dark" onClick={() => setShowConfirm(true)}>
         예약 취소
       </Button>
 
@@ -194,10 +194,10 @@ export function CancelButton({
           </Alert>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirm(false)}>
+          <Button variant="outline-dark" onClick={() => setShowConfirm(false)}>
             닫기
           </Button>
-          <Button variant="danger" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button variant="dark" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
             {mutation.isPending ? "취소 중..." : confirmLabel}
           </Button>
         </Modal.Footer>

@@ -452,7 +452,9 @@ textarea {
 }
 
 // 소셜 로그인 버튼도 outline-dark를 쓰지만 제공자 색은 _storefront.scss의 두 클래스 선택자가 정한다.
+// 회색 테두리(outline-secondary)도 보조 행동이라 먹색으로 맞춘다.
 .btn-outline-primary,
+.btn-outline-secondary,
 .btn-outline-dark {
   --bs-btn-color: var(--hg-leaf);
   --bs-btn-border-color: var(--hg-leaf);
@@ -472,6 +474,32 @@ textarea {
   color: var(--hg-dark);
 }
 
+// 회색 면 배지(끝난 상태·이름표)는 흰 바탕에서 묻히지 않도록 선을 두른다.
+.badge.bg-light {
+  color: var(--hg-dark);
+  border: 1px solid var(--hg-border);
+}
+
+// 안내 상자도 먹색 하나로 쓴다. 정보·완료 안내는 회색 면, 주의는 노랑 면에 먹색 글자, 오류만 빨강이다.
+.alert-info,
+.alert-success,
+.alert-secondary {
+  --bs-alert-color: var(--hg-dark);
+  --bs-alert-bg: var(--hg-surface-alt);
+  --bs-alert-border-color: var(--hg-border);
+  --bs-alert-link-color: var(--hg-dark);
+}
+
+.alert-warning {
+  --bs-alert-color: var(--hg-dark);
+  --bs-alert-link-color: var(--hg-dark);
+}
+
+// 토스트는 그림자 없이 선으로만 구분한다.
+.toast {
+  --bs-toast-box-shadow: none;
+}
+
 // 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 먹색(18.9:1)으로 쓴다.
 .btn-outline-warning {
   --bs-btn-color: var(--hg-accent-deep);
@@ -480,17 +508,6 @@ textarea {
   --bs-btn-active-bg: #D8A42C;
   --bs-btn-active-border-color: #D8A42C;
   --bs-btn-disabled-color: var(--hg-accent-deep);
-}
-
-// 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
-.store-section-kicker,
-.store-detail-kicker {
-  margin-bottom: 0.75rem;
-  color: var(--hg-accent-deep);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 // ── 작품 카드: 액자 여백 사진 · 번호·카테고리 · 이름 · 판매 방식 · 가격 ──────
@@ -599,8 +616,9 @@ textarea {
 
 .product-card-price {
   margin-top: 0.2rem;
+  font-family: var(--hg-font-display);
   font-size: 0.98rem;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -848,7 +866,9 @@ textarea {
 
   h1 {
     margin-bottom: 0.75rem;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.5rem, 4vw, 1.875rem);
+    font-weight: 500;
   }
 
   p {
@@ -963,8 +983,9 @@ textarea {
 
   h1 {
     margin-bottom: 0.35rem;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 4vw, 2rem);
-    font-weight: 400;
+    font-weight: 500;
   }
 
   p:last-child {
@@ -1006,8 +1027,9 @@ textarea {
 
   h1 {
     margin-bottom: 0.6rem;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.75rem, 4vw, 2.35rem);
-    font-weight: 400;
+    font-weight: 500;
     line-height: 1.35;
   }
 }
@@ -1125,9 +1147,9 @@ textarea {
   display: inline-block;
   margin-bottom: 2.5rem;
   color: var(--hg-dark);
-  font-family: $headings-font-family;
+  font-family: var(--hg-font-display);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -1137,7 +1159,9 @@ textarea {
 
 .status-page-title {
   margin-bottom: 0.75rem;
+  font-family: var(--hg-font-display);
   font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 500;
   word-break: keep-all;
 }
 

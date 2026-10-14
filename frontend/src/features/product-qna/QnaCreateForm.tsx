@@ -161,7 +161,7 @@ export function QnaCreateForm({ productId }: Props) {
       <Modal.Body>{mutation.isPending ? "문의 등록 중입니다. 잠시만 기다려 주세요." : "작성한 제목과 내용이 삭제됩니다."}</Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={keepWriting}>{mutation.isPending ? "돌아가기" : "계속 작성"}</Button>
-        <Button variant="danger" disabled={mutation.isPending} onClick={() => {
+        <Button variant="dark" disabled={mutation.isPending} onClick={() => {
           clearDraft();
           mutation.reset();
           blocker.proceed?.();

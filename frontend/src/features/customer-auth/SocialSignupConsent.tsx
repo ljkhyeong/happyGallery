@@ -46,7 +46,7 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
 
   return (
     <section className="mt-5">
-      <h1 className="h4">동의하고 가입 완료</h1>
+      <h1 className="h4 display-heading">동의하고 가입 완료</h1>
       <p className="text-muted">소셜 계정 확인이 끝났습니다. 약관에 동의하면 가입이 완료됩니다.</p>
       <Form onSubmit={(event) => void submit(event)}>
         {expired ? <p role="alert">가입 시간이 만료되었거나 이미 처리되었습니다. 다시 로그인해 주세요.</p>

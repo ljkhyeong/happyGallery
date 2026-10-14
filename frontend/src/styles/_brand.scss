@@ -260,8 +260,9 @@
 }
 
 .gallery-program-price {
+  font-family: var(--hg-font-display);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -598,7 +599,7 @@
   min-height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #18211C;
+  background: var(--hg-dark);
 
   img {
     width: 100%;
@@ -820,7 +821,9 @@
 
   strong {
     flex: 0 0 auto;
+    font-family: var(--hg-font-display);
     font-size: 1.15rem;
+    font-weight: 500;
   }
 }
 
@@ -993,7 +996,7 @@
     padding: 0 0.85rem;
     color: var(--hg-dark);
     background: var(--hg-surface-alt);
-    border-radius: 999px;
+    border-radius: var(--hg-radius);
     font-size: 0.82rem;
     text-decoration: none;
 

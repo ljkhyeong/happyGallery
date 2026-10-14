@@ -104,7 +104,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               <Button
                 type="button"
                 size="sm"
-                variant="danger"
+                variant="dark"
                 aria-label={`등록한 후기 사진 ${index + 1} 삭제`}
                 aria-haspopup="dialog"
                 disabled={deleteMutation.isPending || uploadMutation.isPending}
@@ -169,7 +169,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               <Button
                 type="button"
                 size="sm"
-                variant="secondary"
+                variant="dark"
                 aria-label={`등록 전 사진 ${index + 1} 선택에서 제거`}
                 disabled={uploadMutation.isPending}
                 onClick={() => {
@@ -261,7 +261,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
           </Button>
           <Button
             type="button"
-            variant="danger"
+            variant="dark"
             disabled={deleteMutation.isPending || pendingDeleteImage === null}
             onClick={() => {
               if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);

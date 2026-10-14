@@ -24,6 +24,19 @@
   }
 }
 
+// 목록 줄 안의 작은 배지(비밀글·답변 완료·공지 고정·알림 상태).
+// 크기는 그대로 두고 화면·구역 제목을 명조 500으로 쓴다(README 디자인 기준).
+.display-heading {
+  font-family: var(--hg-font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.badge-sm {
+  padding: 0.25em 0.45em;
+  font-size: 0.7rem;
+}
+
 .empty-state {
   padding-block: 3rem;
   color: var(--hg-ink-soft);

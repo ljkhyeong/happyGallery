@@ -13,6 +13,14 @@ interface ToastContextValue {
   show: (message: string, variant?: Variant) => void;
 }
 
+// 색은 먹색 하나로 쓴다: 완료·정보 알림은 먹색, 확인이 필요한 알림만 노랑, 실패만 빨강이다.
+const TOAST_BG: Record<Variant, string> = {
+  success: "dark",
+  info: "dark",
+  warning: "warning",
+  danger: "danger",
+};
+
 const ToastContext = createContext<ToastContextValue>({ show: () => {} });
 
 export function useToast() {
@@ -41,7 +49,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <Toast
             key={t.id}
-            bg={t.variant}
+            bg={TOAST_BG[t.variant]}
             autohide
             delay={3000}
             onClose={() => remove(t.id)}

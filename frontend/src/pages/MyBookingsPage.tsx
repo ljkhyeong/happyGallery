@@ -67,7 +67,7 @@ export function MyBookingsPage() {
           key={booking.bookingId}
           as={Link}
           to={{ pathname: `/my/bookings/${booking.bookingId}`, search }}
-          className="mb-2 text-decoration-none my-list-card border-0"
+          className="mb-2 text-decoration-none my-list-card"
         >
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">

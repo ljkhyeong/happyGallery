@@ -35,13 +35,13 @@ function InquiryActions({ message, url, label = "네이버톡톡 문의" }: Prop
           {copyStatus === "copying" ? "복사 중..." : "문의 문구 복사"}
         </Button>
         <Button as="a" role="link" href={url} target="_blank" rel="noopener noreferrer"
-          variant="outline-success" size="sm">
+          variant="outline-dark" size="sm">
           <MessageCircleMore size={15} aria-hidden="true" className="me-1" />
           {label}
         </Button>
       </div>
       {copyStatus === "copied" && (
-        <p role="status" className="small text-success mt-2 mb-0">문의 문구를 복사했습니다.</p>
+        <p role="status" className="small mt-2 mb-0">문의 문구를 복사했습니다.</p>
       )}
       {copyStatus === "failed" && (
         <div className="mt-2">

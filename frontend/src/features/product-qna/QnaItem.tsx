@@ -53,8 +53,8 @@ export function QnaItem({ item, productId, owned }: Props) {
         <div className="d-flex justify-content-between align-items-start">
           <div className="flex-grow-1">
             <div className="d-flex align-items-center gap-2 mb-1">
-              {item.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
-              {item.hasReply && <Badge bg="info" className="badge-sm">답변 완료</Badge>}
+              {item.secret && <Badge bg="light" className="badge-sm">비밀글</Badge>}
+              {item.hasReply && <Badge bg="dark" className="badge-sm">답변 완료</Badge>}
               <span className="fw-semibold small">{displayTitle}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>

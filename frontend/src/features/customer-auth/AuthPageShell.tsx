@@ -34,7 +34,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
         <Col lg={{ span: 7, order: 2 }}>
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
-              <h1 className="h3 mb-3">{title}</h1>
+              <h1 className="h3 display-heading mb-3">{title}</h1>
               {children}
               <div className="d-flex align-items-center my-4">
                 <hr className="flex-grow-1" />
@@ -49,7 +49,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
         <Col lg={{ span: 5, order: 1 }}>
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
-              <h2 className="mb-3">{hero.title}</h2>
+              <h2 className="display-heading mb-3">{hero.title}</h2>
               {hero.description && <p className="text-muted-soft mb-4">{hero.description}</p>}
               {hero.benefits && (
                 <ul className="auth-benefit-list mb-4">

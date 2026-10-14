@@ -121,7 +121,7 @@ export function MyPassesPage() {
       {query.isLoading && <LoadingSpinner />}
       {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 이용권 내역이 없습니다." />}
       {passes.length > 0 && passes.map((pass) => (
-        <Card key={pass.passId} className="mb-2 my-list-card border-0">
+        <Card key={pass.passId} className="mb-2 my-list-card">
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
@@ -150,7 +150,7 @@ export function MyPassesPage() {
                   {isPassRefundable(pass) && (
                     <Button
                       type="button"
-                      variant="outline-danger"
+                      variant="outline-dark"
                       size="sm"
                       onClick={() => {
                         refundMutation.reset();
@@ -200,7 +200,7 @@ export function MyPassesPage() {
             취소
           </Button>
           <Button
-            variant="danger"
+            variant="dark"
             disabled={!refundTarget || refundMutation.isPending}
             onClick={() => refundTarget && refundMutation.mutate(refundTarget.passId)}
           >

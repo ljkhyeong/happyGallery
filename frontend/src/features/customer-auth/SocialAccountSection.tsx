@@ -192,12 +192,12 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
               <div key={provider} className="d-flex justify-content-between align-items-center gap-3">
                 <div className="d-flex align-items-center gap-2">
                   <span>{details.label}</span>
-                  {linked && <Badge bg="success">연결됨</Badge>}
+                  {linked && <Badge bg="dark">연결됨</Badge>}
                 </div>
                 {linked ? (
                   <Button
                     type="button"
-                    variant="outline-danger"
+                    variant="outline-dark"
                     size="sm"
                     disabled={
                       !canUnlink
@@ -255,7 +255,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
             )}
             <Button
               type="button"
-              variant="secondary"
+              variant="outline-dark"
               onClick={closePasswordReauthentication}
               disabled={sensitiveActionPending}
             >

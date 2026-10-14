@@ -42,14 +42,32 @@ const VARIANT_MAP: Record<string, string> = {
   REFUND_FAILED: "danger",
 };
 
+// 고객 화면은 먹색 하나로 쓴다: 진행 중은 먹색, 끝난 상태는 회색 면, 고객이 확인할 일은 노랑(먹색 글자), 실패만 빨강.
+// 관리자 화면은 상태를 빠르게 훑도록 위 색을 그대로 쓴다.
+const CUSTOMER_TONE: Record<string, string> = {
+  primary: "dark",
+  info: "dark",
+  success: "light",
+  secondary: "light",
+};
+// 불참은 오류가 아니라 끝난 상태이고, 사용 가능한 이용권은 진행 중인 상태다.
+const CUSTOMER_STATUS_TONE: Record<string, string> = {
+  NO_SHOW: "light",
+  ACTIVE: "dark",
+};
+
 interface Props {
   status: string;
   audience?: StatusAudience;
 }
 
 export function StatusBadge({ status, audience = "customer" }: Props) {
+  const variant = VARIANT_MAP[status] ?? "secondary";
+  const bg = audience === "customer"
+    ? CUSTOMER_STATUS_TONE[status] ?? CUSTOMER_TONE[variant] ?? variant
+    : variant;
   return (
-    <Badge bg={VARIANT_MAP[status] ?? "secondary"} className="badge-status">
+    <Badge bg={bg} text={bg === "light" || bg === "warning" ? "dark" : undefined} className="badge-status">
       {getStatusLabel(status, audience)}
     </Badge>
   );

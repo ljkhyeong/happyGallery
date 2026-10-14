@@ -74,8 +74,7 @@ function NotificationBellContent() {
         <span aria-hidden="true">알림</span>
         {unreadCount !== undefined && unreadCount > 0 && (
           <Badge
-            bg="danger"
-            pill
+            bg="dark"
             className="position-absolute top-0 start-50 ms-2 translate-middle-y"
             style={{ fontSize: "0.65rem" }}
           >
@@ -86,7 +85,6 @@ function NotificationBellContent() {
           <Badge
             bg="warning"
             text="dark"
-            pill
             className="position-absolute top-0 start-50 ms-2 translate-middle-y"
             aria-hidden="true"
           >
@@ -102,7 +100,7 @@ function NotificationBellContent() {
           role="dialog"
           aria-label="알림 목록"
           tabIndex={-1}
-          className="notification-popover position-absolute end-0 shadow-sm"
+          className="notification-popover position-absolute end-0"
         >
           <Card.Header className="d-flex justify-content-between align-items-center py-2 px-3">
             <span className="fw-semibold small">알림</span>
@@ -133,7 +131,7 @@ function NotificationBellContent() {
                 <span className="small text-danger">읽지 않은 알림 수를 확인하지 못했습니다.</span>
                 <Button
                   type="button"
-                  variant="outline-danger"
+                  variant="outline-dark"
                   size="sm"
                   disabled={unreadQuery.isFetching}
                   onClick={() => void unreadQuery.refetch()}

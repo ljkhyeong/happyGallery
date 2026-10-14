@@ -17,7 +17,7 @@ export function MadeToOrderConsent({ consent }: Props) {
     <div className="border rounded p-3 mb-3">
       <div className="d-flex align-items-center gap-2 mb-2">
         <span className="fw-semibold">주문제작 상품 청약철회 제한 동의</span>
-        <Badge bg="danger">필수</Badge>
+        <Badge bg="dark">필수</Badge>
       </div>
 
       {versionMismatch && (

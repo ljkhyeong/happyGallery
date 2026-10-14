@@ -16,11 +16,11 @@ import { formatDateTime, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
-  AVAILABLE: { label: "사용 가능", bg: "success" },
+  AVAILABLE: { label: "사용 가능", bg: "dark" },
   RESERVED: { label: "결제 처리 중", bg: "warning" },
-  REDEEMED: { label: "사용 완료", bg: "secondary" },
-  EXPIRED: { label: "기간 만료", bg: "secondary" },
-  CANCELED: { label: "사용 중지", bg: "secondary" },
+  REDEEMED: { label: "사용 완료", bg: "light" },
+  EXPIRED: { label: "기간 만료", bg: "light" },
+  CANCELED: { label: "사용 중지", bg: "light" },
 };
 
 const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
@@ -69,7 +69,7 @@ export function MyBenefitsPage() {
           <>
             <Row className="g-3 mb-3">
               <Col md={4}>
-                <Card className="my-stat-card h-100 border-0">
+                <Card className="my-stat-card h-100">
                   <Card.Body>
                     <div className="text-muted-soft small mb-1">사용 가능</div>
                     <strong className="fs-4">{formatKRW(wallet.availableBalance)}</strong>
@@ -77,7 +77,7 @@ export function MyBenefitsPage() {
                 </Card>
               </Col>
               <Col md={4}>
-                <Card className="my-stat-card h-100 border-0">
+                <Card className="my-stat-card h-100">
                   <Card.Body>
                     <div className="text-muted-soft small mb-1">결제 처리 중</div>
                     <strong className="fs-4">{formatKRW(wallet.reservedBalance)}</strong>
@@ -85,7 +85,7 @@ export function MyBenefitsPage() {
                 </Card>
               </Col>
               <Col md={4}>
-                <Card className="my-stat-card h-100 border-0">
+                <Card className="my-stat-card h-100">
                   <Card.Body>
                     <div className="text-muted-soft small mb-1">회수 예정</div>
                     <strong className="fs-4">{formatKRW(wallet.debtBalance)}</strong>
@@ -97,7 +97,7 @@ export function MyBenefitsPage() {
             <h6 className="mt-4 mb-2">최근 적립금 이력</h6>
             {wallet.history.length === 0 && <EmptyState message="적립금 이력이 없습니다." />}
             {wallet.history.map((history: RewardHistoryResponse) => (
-              <Card key={history.id} className="my-list-card border-0 mb-2">
+              <Card key={history.id} className="my-list-card mb-2">
                 <Card.Body className="py-3 d-flex flex-wrap justify-content-between gap-3">
                   <div>
                     <strong className="small">{REWARD_HISTORY_LABEL[history.type]}</strong>
@@ -134,7 +134,7 @@ export function MyBenefitsPage() {
           <EmptyState message="현재 새로 받을 수 있는 쿠폰이 없습니다." />
         )}
         {claimableQuery.data?.map((coupon) => (
-          <Card key={coupon.definitionId} className="my-list-card border-0 mb-2">
+          <Card key={coupon.definitionId} className="my-list-card mb-2">
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3">
               <div>
                 <strong>{coupon.name}</strong>
@@ -171,9 +171,9 @@ export function MyBenefitsPage() {
         {couponsQuery.data?.length === 0 && <EmptyState message="보유한 쿠폰이 없습니다." />}
         {couponsQuery.data?.map((coupon) => {
           const status = COUPON_STATUS[coupon.status]
-            ?? { label: "상태 확인 필요", bg: "secondary" };
+            ?? { label: "상태 확인 필요", bg: "light" };
           return (
-            <Card key={coupon.id} className="my-list-card border-0 mb-2">
+            <Card key={coupon.id} className="my-list-card mb-2">
               <Card.Body className="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                   <div className="d-flex flex-wrap gap-2 align-items-center mb-1">

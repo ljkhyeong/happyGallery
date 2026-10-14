@@ -88,7 +88,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>취소</Button>
+          <Button variant="outline-dark" onClick={onClose}>취소</Button>
           <Button variant="primary" onClick={() => onMemberAuthenticated(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
@@ -132,7 +132,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
         <Modal.Title id="auth-gate-title" className="fs-6">진행 방식 선택</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Nav variant="tabs" className="mb-3">
+        <Nav variant="underline" className="mb-3">
           <Nav.Item>
             <Nav.Link active={tab === "login"} onClick={() => setTab("login")}>로그인</Nav.Link>
           </Nav.Item>

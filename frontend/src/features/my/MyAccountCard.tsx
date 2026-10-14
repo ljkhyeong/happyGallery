@@ -84,7 +84,7 @@ export function MyAccountCard({
               진행 중인 거래가 있으면 탈퇴가 제한됩니다. 신청 시 해당 내역을 안내합니다.
             </p>
           </div>
-          <Button variant="outline-danger" size="sm" onClick={onWithdraw}>
+          <Button variant="outline-dark" size="sm" onClick={onWithdraw}>
             탈퇴
           </Button>
         </div>

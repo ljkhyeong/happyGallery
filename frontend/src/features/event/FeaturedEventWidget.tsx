@@ -46,7 +46,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       {featured && (
         <div className="home-event-copy">
           <div className="home-event-labels">
-            <Badge bg={isEventOngoing(featured) ? "success" : "light"} text={isEventOngoing(featured) ? undefined : "dark"}>
+            <Badge bg={isEventOngoing(featured) ? "dark" : "light"} text={isEventOngoing(featured) ? undefined : "dark"}>
               {isEventOngoing(featured) ? "진행 중" : "시작 예정"}
             </Badge>
           </div>

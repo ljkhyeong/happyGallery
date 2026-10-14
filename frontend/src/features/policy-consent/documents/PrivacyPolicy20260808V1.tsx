@@ -5,7 +5,6 @@ export function PrivacyPolicy20260808V1() {
   return (
     <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
       <header className="legal-page-header">
-        <p className="store-section-kicker">PRIVACY POLICY</p>
         <h1>개인정보처리방침</h1>
         <p>시행일: 2026년 8월 8일</p>
       </header>

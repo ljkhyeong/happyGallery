@@ -138,7 +138,7 @@ export function ReviewReportModal({
             >
               취소
             </Button>
-            <Button type="submit" variant="danger" disabled={mutation.isPending}>
+            <Button type="submit" variant="dark" disabled={mutation.isPending}>
               {mutation.isPending ? "접수 중..." : "신고 접수"}
             </Button>
           </Modal.Footer>

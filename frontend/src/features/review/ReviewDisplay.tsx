@@ -11,8 +11,8 @@ export function ReviewStars({ rating }: { rating: number }) {
 
 export function ReviewStatusBadge({ status }: { status: "PUBLISHED" | "HIDDEN" }) {
   return status === "PUBLISHED"
-    ? <Badge bg="success">공개</Badge>
-    : <Badge bg="secondary">비공개</Badge>;
+    ? <Badge bg="dark">공개</Badge>
+    : <Badge bg="light">비공개</Badge>;
 }
 
 export function ReviewDate({ value }: { value: string }) {

@@ -62,17 +62,17 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
           <img
             src={event.imageUrl}
             alt={`${event.title} 대표 이미지`}
-            className="w-100 rounded-4 mb-4"
+            className="w-100 mb-4"
             style={{ maxHeight: 520, objectFit: "cover" }}
           />
         )}
         <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-          <Badge bg={eventTimingLabel(event) === "진행 중" ? "success" : "secondary"}>
+          <Badge bg={eventTimingLabel(event) === "진행 중" ? "dark" : "light"}>
             {eventTimingLabel(event)}
           </Badge>
           {event.featured && <Badge bg="dark">추천</Badge>}
         </div>
-        <h1 className="mb-3">{event.title}</h1>
+        <h1 className="display-heading mb-3">{event.title}</h1>
         <p className="lead text-muted-soft">{event.summary}</p>
         <EventPeriodText event={event} className="small text-muted-soft" />
         <hr className="my-4" />

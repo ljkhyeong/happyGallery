@@ -43,7 +43,7 @@ export function MyInquiriesPage() {
       {inquiries.map((inquiry) => (
         <article key={inquiry.id} className="my-inquiry-card">
           <header>
-            <Badge bg={inquiry.hasReply ? "success" : "secondary"}>
+            <Badge bg={inquiry.hasReply ? "dark" : "light"}>
               {inquiry.hasReply ? "답변 완료" : "답변 대기"}
             </Badge>
             <h2>{inquiry.title}</h2>

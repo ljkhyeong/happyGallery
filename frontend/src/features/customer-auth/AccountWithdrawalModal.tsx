@@ -144,7 +144,7 @@ export function AccountWithdrawalModal({
             </Button>
             <Button
               type="submit"
-              variant="danger"
+              variant="dark"
               disabled={!agreed || withdrawal.isPending}
             >
               {withdrawal.isPending ? "처리 중..." : "동의하고 탈퇴하기"}

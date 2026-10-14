@@ -21,8 +21,8 @@ export function MyGroupInquiriesSection() {
       {query.isLoading && <LoadingSpinner />}
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
       {query.data?.content.length === 0 && <EmptyState message="접수한 단체 수업 문의가 없습니다." />}
-      {query.data?.content.map((inquiry) => <Card key={inquiry.id} className="mb-2 border-0 my-list-card"><Card.Body>
-        <strong>{inquiry.organization}</strong> <Badge bg="secondary">{GROUP_INQUIRY_STATUS[inquiry.status]}</Badge>
+      {query.data?.content.map((inquiry) => <Card key={inquiry.id} className="mb-2 my-list-card"><Card.Body>
+        <strong>{inquiry.organization}</strong> <Badge bg="light">{GROUP_INQUIRY_STATUS[inquiry.status]}</Badge>
         <div>{inquiry.classInterest} · {inquiry.headcount}명 · {inquiry.preferredSchedule}</div>
         <div className="small text-muted">{inquiry.location} · 접수 번호 {inquiry.id} · {formatDateTime(inquiry.createdAt)}</div>
         <Button size="sm" variant="outline-primary" className="mt-2" onClick={() => {

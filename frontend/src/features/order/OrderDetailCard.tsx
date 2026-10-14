@@ -85,7 +85,7 @@ export function OrderDetailCard({ order }: Props) {
             </tr>
             <tr>
               <th colSpan={3} className="text-end">쿠폰 할인</th>
-              <td className="text-end text-success">
+              <td className="text-end">
                 {order.couponDiscountAmount > 0
                   ? `-${formatKRW(order.couponDiscountAmount)}`
                   : formatKRW(0)}
@@ -93,7 +93,7 @@ export function OrderDetailCard({ order }: Props) {
             </tr>
             <tr>
               <th colSpan={3} className="text-end">적립금 사용</th>
-              <td className="text-end text-success">
+              <td className="text-end">
                 {order.rewardUsedAmount > 0
                   ? `-${formatKRW(order.rewardUsedAmount)}`
                   : formatKRW(0)}
@@ -112,7 +112,7 @@ export function OrderDetailCard({ order }: Props) {
             <Row className="g-3">
               <Col xs={6}>
                 <small className="text-muted-soft d-block">수령 방법</small>
-                <Badge bg="info" className="badge-status">
+                <Badge bg="light" className="badge-status">
                   {FULFILLMENT_TYPE_LABEL[order.fulfillment.type] ?? "수령 방법 확인 필요"}
                 </Badge>
               </Col>

@@ -131,11 +131,11 @@ export function ReduceParticipantsForm({
           </Alert>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirm(false)}>
+          <Button variant="outline-dark" onClick={() => setShowConfirm(false)}>
             닫기
           </Button>
           <Button
-            variant="warning"
+            variant="dark"
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >

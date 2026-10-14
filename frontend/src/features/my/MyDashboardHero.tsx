@@ -17,7 +17,7 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
       <div className="my-dashboard-hello">
         <h1 id="my-dashboard-title">{user.name}님</h1>
         <div className="my-dashboard-meta">
-          <Badge bg={user.phoneVerified ? "success" : "secondary"}>
+          <Badge bg={user.phoneVerified ? "dark" : "warning"}>
             {user.phoneVerified
               ? "휴대폰 인증 완료"
               : user.phone

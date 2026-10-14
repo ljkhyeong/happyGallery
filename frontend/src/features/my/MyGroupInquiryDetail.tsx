@@ -115,7 +115,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
         retrying={busy} retryLabel="문의 조회 다시 시도" />
       {detail && values && (
         <>
-          <p>{detail.summary.organization} · <Badge bg="secondary">{GROUP_INQUIRY_STATUS[detail.summary.status]}</Badge></p>
+          <p>{detail.summary.organization} · <Badge bg="light">{GROUP_INQUIRY_STATUS[detail.summary.status]}</Badge></p>
           {!confirmCancel && mutationError}
           <Form onSubmit={(event) => {
             event.preventDefault();
@@ -139,7 +139,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
               </Form.Group>
               {editable && <div className="d-flex gap-2">
                 <Button type="submit" disabled={writeDisabled}>{mutation.isPending && mutation.variables?.action === "update" ? "저장 중..." : "변경 저장"}</Button>
-                <Button variant="outline-danger" disabled={writeDisabled} onClick={() => setConfirmCancel(true)}>문의 취소</Button>
+                <Button variant="outline-dark" disabled={writeDisabled} onClick={() => setConfirmCancel(true)}>문의 취소</Button>
               </div>}
             </fieldset>
           </Form>
@@ -161,7 +161,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             </Modal.Body>
             <Modal.Footer>
               <Button variant="outline-secondary" disabled={mutation.isPending} onClick={() => setConfirmCancel(false)}>돌아가기</Button>
-              <Button variant="danger" disabled={writeDisabled} onClick={() => mutation.mutate({
+              <Button variant="dark" disabled={writeDisabled} onClick={() => mutation.mutate({
                 action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
               })}>문의 취소 확인</Button>
             </Modal.Footer>
@@ -176,7 +176,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={() => blocker.reset?.()}>계속 수정</Button>
-          <Button variant="danger" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>{dirty ? "변경 버리고 이동" : "이동"}</Button>
+          <Button variant="dark" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>{dirty ? "변경 버리고 이동" : "이동"}</Button>
         </Modal.Footer>
       </Modal>
     </Card.Body></Card>

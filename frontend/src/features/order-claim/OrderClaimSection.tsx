@@ -259,9 +259,9 @@ function OrderClaimHistoryItem({ claim }: { claim: OrderClaimResponse }) {
       <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
         <div className="d-flex flex-wrap gap-1 align-items-center">
           <strong>접수 #{claim.id}</strong>
-          <Badge bg="secondary">{ORDER_CLAIM_TYPE_LABELS[claim.type]}</Badge>
-          <Badge bg="info">{ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
-          <Badge bg={claim.status === "REJECTED" ? "danger" : "success"}>
+          <Badge bg="light">{ORDER_CLAIM_TYPE_LABELS[claim.type]}</Badge>
+          <Badge bg="light">{ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
+          <Badge bg="dark">
             {STATUS_LABELS[claim.status]}
           </Badge>
         </div>
