@@ -5,7 +5,7 @@ import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ProductFilterBar } from "@/features/product/ProductFilterBar";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, PageHeader } from "@/shared/ui";
 import { useProductListFilters } from "@/features/product/useProductListFilters";
 import { productListHeading } from "@/features/product/productFilters";
 import { SHOP_CATEGORIES } from "@/features/product/shopCategories";
@@ -81,10 +81,8 @@ export function ProductListPage({
           <span className="store-detail-breadcrumb-current" aria-current="page">{heading.title}</span>
         </nav>
       )}
-      <header className="store-list-header">
-        <h1 className="store-list-title">{heading.title}</h1>
-        {heading.lead && <p className="text-muted-soft store-section-desc mb-0">{heading.lead}</p>}
-      </header>
+      {/* 바로 아래 카테고리 탭이 선을 가지므로 머리 아래 선은 뺀다. */}
+      <PageHeader title={heading.title} description={heading.lead} divider={false} />
 
       <nav className="store-category-tabs" aria-label="카테고리">
         <Link

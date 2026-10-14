@@ -21,7 +21,7 @@ import {
   getClassCategoryLabel,
   getClassSituationTagLabel,
 } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import { useLoaderBackedQuery } from "@/shared/api";
@@ -95,10 +95,12 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
           <span className="store-detail-breadcrumb-current" aria-current="page">{heading.title}</span>
         </nav>
       )}
-      <header className="class-catalog-header">
-        <h1>{heading.title}</h1>
-        <LinkButton to="/group-classes#group-inquiry" variant="outline-dark">단체수업 문의</LinkButton>
-      </header>
+      {/* 바로 아래 상황 칩 줄이 이어지므로 머리 아래 선은 뺀다. */}
+      <PageHeader
+        title={heading.title}
+        actions={<LinkButton to="/group-classes#group-inquiry" variant="outline-dark" size="sm">단체수업 문의</LinkButton>}
+        divider={false}
+      />
 
       <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
         <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>

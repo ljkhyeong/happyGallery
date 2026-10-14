@@ -666,6 +666,12 @@ textarea {
   border-bottom: 1px solid var(--hg-border);
 }
 
+// 바로 아래 카테고리 탭·상황 칩이 선을 가지는 목록은 머리 아래 선을 두지 않는다.
+.store-section-header.is-plain {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .store-section-title {
   margin-bottom: 0.55rem;
   font-family: var(--hg-font-display);
@@ -814,19 +820,6 @@ textarea {
 
 .list-group-item {
   background: transparent;
-}
-
-// 작품 목록 머리: 조건에 맞춘 제목과 한 줄 안내. 아래 선은 카테고리 탭이 맡는다.
-.store-list-header {
-  margin-bottom: 0.5rem;
-}
-
-.store-list-title {
-  margin-bottom: 0.35rem;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
-  font-weight: 500;
-  letter-spacing: -0.03em;
 }
 
 @media (prefers-reduced-motion: reduce) {
