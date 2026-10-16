@@ -145,8 +145,12 @@ export interface ProductTextInputRequest {
 }
 
 export interface MergeCartItemRequest {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
   /**
      * @minimum 1
@@ -161,6 +165,7 @@ export interface MergeCartItemRequest {
 }
 
 export interface MergeCartRequest {
+  /** @exclusiveMinimum 0 */
   expectedCustomerId: number;
   idempotencyKey: string;
   /**
@@ -202,6 +207,7 @@ export interface ShippingAddress {
 
 export interface UpdateShippingAddressRequest {
   shippingAddress: ShippingAddress;
+  /** @minimum 0 */
   version: number;
 }
 
@@ -294,10 +300,12 @@ export interface UpdateMyGroupInquiryRequest {
      * @maxLength 200
      */
   preferredSchedule: string;
+  /** @minimum 0 */
   version: number;
 }
 
 export interface CancelMyGroupInquiryRequest {
+  /** @minimum 0 */
   version: number;
 }
 
@@ -305,11 +313,13 @@ export interface ClaimGuestRecordsRequest {
   /**
      * @minItems 0
      * @maxItems 100
+     * @items.exclusiveMinimum 0
      */
   bookingIds?: number[];
   /**
      * @minItems 0
      * @maxItems 100
+     * @items.exclusiveMinimum 0
      */
   orderIds?: number[];
 }
@@ -835,8 +845,12 @@ export interface RestockAlertResponse {
 }
 
 export interface RestockAlertRequest {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
 }
 
@@ -958,13 +972,27 @@ export const getCreateGuestGroupInquiryUrl = () => {
   return `/api/v1/group-inquiries`
 }
 
-export const createGuestGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+export const createGuestGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<GroupInquiryReceiptResponse> => {
 
-  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateGuestGroupInquiryUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<GroupInquiryReceiptResponse>(getCreateGuestGroupInquiryUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(groupInquiryRequest)
   }
 );}
@@ -979,7 +1007,7 @@ export const getGetMyCartUrl = () => {
   return `/api/v1/me/cart`
 }
 
-export const getMyCart = async ( options?: RequestInit): Promise<CartResponse> => {
+export const getMyCart = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<CartResponse> => {
 
   return generatedApiClient<CartResponse>(getGetMyCartUrl(),
   {
@@ -1000,7 +1028,7 @@ export const getRemoveMyCartItemUrl = (cartItemId: number,) => {
   return `/api/v1/me/cart/items/${cartItemId}`
 }
 
-export const removeMyCartItem = async (cartItemId: number, options?: RequestInit): Promise<void> => {
+export const removeMyCartItem = async (cartItemId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getRemoveMyCartItemUrl(cartItemId),
   {
@@ -1022,13 +1050,27 @@ export const getUpdateMyCartItemQuantityUrl = (cartItemId: number,) => {
 }
 
 export const updateMyCartItemQuantity = async (cartItemId: number,
-    updateCartItemRequest: UpdateCartItemRequest, options?: RequestInit): Promise<void> => {
+    updateCartItemRequest: UpdateCartItemRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateMyCartItemQuantityUrl(cartItemId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateMyCartItemQuantityUrl(cartItemId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateCartItemRequest)
   }
 );}
@@ -1043,13 +1085,27 @@ export const getMergeMyCartItemsUrl = () => {
   return `/api/v1/me/cart/merge`
 }
 
-export const mergeMyCartItems = async (mergeCartRequest: MergeCartRequest, options?: RequestInit): Promise<void> => {
+export const mergeMyCartItems = async (mergeCartRequest: MergeCartRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getMergeMyCartItemsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getMergeMyCartItemsUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(mergeCartRequest)
   }
 );}
@@ -1071,7 +1127,7 @@ export const getDeleteMyDefaultShippingAddressUrl = (params: DeleteMyDefaultShip
   return stringifiedParams.length > 0 ? `/api/v1/me/default-shipping-address?${stringifiedParams}` : `/api/v1/me/default-shipping-address`
 }
 
-export const deleteMyDefaultShippingAddress = async (params: DeleteMyDefaultShippingAddressParams, options?: RequestInit): Promise<void> => {
+export const deleteMyDefaultShippingAddress = async (params: DeleteMyDefaultShippingAddressParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteMyDefaultShippingAddressUrl(params),
   {
@@ -1092,7 +1148,7 @@ export const getGetMyDefaultShippingAddressUrl = () => {
   return `/api/v1/me/default-shipping-address`
 }
 
-export const getMyDefaultShippingAddress = async ( options?: RequestInit): Promise<DefaultShippingAddressResponse> => {
+export const getMyDefaultShippingAddress = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<DefaultShippingAddressResponse> => {
 
   return generatedApiClient<DefaultShippingAddressResponse>(getGetMyDefaultShippingAddressUrl(),
   {
@@ -1113,13 +1169,27 @@ export const getSaveMyDefaultShippingAddressUrl = () => {
   return `/api/v1/me/default-shipping-address`
 }
 
-export const saveMyDefaultShippingAddress = async (updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+export const saveMyDefaultShippingAddress = async (updateShippingAddressRequest: UpdateShippingAddressRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getSaveMyDefaultShippingAddressUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getSaveMyDefaultShippingAddressUrl(),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateShippingAddressRequest)
   }
 );}
@@ -1141,7 +1211,7 @@ export const getListMyFavoritesUrl = (params?: ListMyFavoritesParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/me/favorites?${stringifiedParams}` : `/api/v1/me/favorites`
 }
 
-export const listMyFavorites = async (params?: ListMyFavoritesParams, options?: RequestInit): Promise<FavoritePageResponse> => {
+export const listMyFavorites = async (params?: ListMyFavoritesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<FavoritePageResponse> => {
 
   return generatedApiClient<FavoritePageResponse>(getListMyFavoritesUrl(params),
   {
@@ -1164,7 +1234,7 @@ export const getRemoveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
 }
 
 export const removeMyFavorite = async (type: 'PRODUCT' | 'CLASS',
-    targetId: number, options?: RequestInit): Promise<void> => {
+    targetId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getRemoveMyFavoriteUrl(type,targetId),
   {
@@ -1187,7 +1257,7 @@ export const getGetMyFavoriteStatusUrl = (type: 'PRODUCT' | 'CLASS',
 }
 
 export const getMyFavoriteStatus = async (type: 'PRODUCT' | 'CLASS',
-    targetId: number, options?: RequestInit): Promise<FavoriteStatusResponse> => {
+    targetId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<FavoriteStatusResponse> => {
 
   return generatedApiClient<FavoriteStatusResponse>(getGetMyFavoriteStatusUrl(type,targetId),
   {
@@ -1210,7 +1280,7 @@ export const getSaveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
 }
 
 export const saveMyFavorite = async (type: 'PRODUCT' | 'CLASS',
-    targetId: number, options?: RequestInit): Promise<void> => {
+    targetId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getSaveMyFavoriteUrl(type,targetId),
   {
@@ -1238,7 +1308,7 @@ export const getListMyGroupInquiriesUrl = (params?: ListMyGroupInquiriesParams,)
   return stringifiedParams.length > 0 ? `/api/v1/me/group-inquiries?${stringifiedParams}` : `/api/v1/me/group-inquiries`
 }
 
-export const listMyGroupInquiries = async (params?: ListMyGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+export const listMyGroupInquiries = async (params?: ListMyGroupInquiriesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<GroupInquiryPageResponse> => {
 
   return generatedApiClient<GroupInquiryPageResponse>(getListMyGroupInquiriesUrl(params),
   {
@@ -1259,13 +1329,27 @@ export const getCreateMyGroupInquiryUrl = () => {
   return `/api/v1/me/group-inquiries`
 }
 
-export const createMyGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+export const createMyGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<GroupInquiryReceiptResponse> => {
 
-  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateMyGroupInquiryUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<GroupInquiryReceiptResponse>(getCreateMyGroupInquiryUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(groupInquiryRequest)
   }
 );}
@@ -1280,7 +1364,7 @@ export const getGetMyGroupInquiryUrl = (id: number,) => {
   return `/api/v1/me/group-inquiries/${id}`
 }
 
-export const getMyGroupInquiry = async (id: number, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+export const getMyGroupInquiry = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyGroupInquiryResponse> => {
 
   return generatedApiClient<MyGroupInquiryResponse>(getGetMyGroupInquiryUrl(id),
   {
@@ -1302,13 +1386,27 @@ export const getUpdateMyGroupInquiryUrl = (id: number,) => {
 }
 
 export const updateMyGroupInquiry = async (id: number,
-    updateMyGroupInquiryRequest: UpdateMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+    updateMyGroupInquiryRequest: UpdateMyGroupInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyGroupInquiryResponse> => {
 
-  return generatedApiClient<MyGroupInquiryResponse>(getUpdateMyGroupInquiryUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MyGroupInquiryResponse>(getUpdateMyGroupInquiryUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateMyGroupInquiryRequest)
   }
 );}
@@ -1324,13 +1422,27 @@ export const getCancelMyGroupInquiryUrl = (id: number,) => {
 }
 
 export const cancelMyGroupInquiry = async (id: number,
-    cancelMyGroupInquiryRequest: CancelMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+    cancelMyGroupInquiryRequest: CancelMyGroupInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyGroupInquiryResponse> => {
 
-  return generatedApiClient<MyGroupInquiryResponse>(getCancelMyGroupInquiryUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MyGroupInquiryResponse>(getCancelMyGroupInquiryUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(cancelMyGroupInquiryRequest)
   }
 );}
@@ -1345,13 +1457,27 @@ export const getClaimGuestRecordsUrl = () => {
   return `/api/v1/me/guest-claims`
 }
 
-export const claimGuestRecords = async (claimGuestRecordsRequest: ClaimGuestRecordsRequest, options?: RequestInit): Promise<GuestClaimResultResponse> => {
+export const claimGuestRecords = async (claimGuestRecordsRequest: ClaimGuestRecordsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestClaimResultResponse> => {
 
-  return generatedApiClient<GuestClaimResultResponse>(getClaimGuestRecordsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<GuestClaimResultResponse>(getClaimGuestRecordsUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(claimGuestRecordsRequest)
   }
 );}
@@ -1366,7 +1492,7 @@ export const getPreviewGuestClaimsUrl = () => {
   return `/api/v1/me/guest-claims/preview`
 }
 
-export const previewGuestClaims = async ( options?: RequestInit): Promise<GuestClaimPreviewResponse> => {
+export const previewGuestClaims = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestClaimPreviewResponse> => {
 
   return generatedApiClient<GuestClaimPreviewResponse>(getPreviewGuestClaimsUrl(),
   {
@@ -1387,13 +1513,27 @@ export const getVerifyPhoneAndPreviewGuestClaimsUrl = () => {
   return `/api/v1/me/guest-claims/verify`
 }
 
-export const verifyPhoneAndPreviewGuestClaims = async (verifyGuestClaimPhoneRequest: VerifyGuestClaimPhoneRequest, options?: RequestInit): Promise<GuestClaimPreviewResponse> => {
+export const verifyPhoneAndPreviewGuestClaims = async (verifyGuestClaimPhoneRequest: VerifyGuestClaimPhoneRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestClaimPreviewResponse> => {
 
-  return generatedApiClient<GuestClaimPreviewResponse>(getVerifyPhoneAndPreviewGuestClaimsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<GuestClaimPreviewResponse>(getVerifyPhoneAndPreviewGuestClaimsUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(verifyGuestClaimPhoneRequest)
   }
 );}
@@ -1408,13 +1548,27 @@ export const getCreateMyInquiryUrl = () => {
   return `/api/v1/me/inquiries`
 }
 
-export const createMyInquiry = async (createInquiryRequest: CreateInquiryRequest, options?: RequestInit): Promise<InquiryResponse> => {
+export const createMyInquiry = async (createInquiryRequest: CreateInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<InquiryResponse> => {
 
-  return generatedApiClient<InquiryResponse>(getCreateMyInquiryUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<InquiryResponse>(getCreateMyInquiryUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createInquiryRequest)
   }
 );}
@@ -1436,7 +1590,7 @@ export const getListMyInquiriesPageUrl = (params?: ListMyInquiriesPageParams,) =
   return stringifiedParams.length > 0 ? `/api/v1/me/inquiries/page?${stringifiedParams}` : `/api/v1/me/inquiries/page`
 }
 
-export const listMyInquiriesPage = async (params?: ListMyInquiriesPageParams, options?: RequestInit): Promise<MyInquiryPageResponse> => {
+export const listMyInquiriesPage = async (params?: ListMyInquiriesPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyInquiryPageResponse> => {
 
   return generatedApiClient<MyInquiryPageResponse>(getListMyInquiriesPageUrl(params),
   {
@@ -1457,7 +1611,7 @@ export const getListMyOrdersUrl = () => {
   return `/api/v1/me/orders`
 }
 
-export const listMyOrders = async ( options?: RequestInit): Promise<MyOrderSummary[]> => {
+export const listMyOrders = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<MyOrderSummary[]> => {
 
   return generatedApiClient<MyOrderSummary[]>(getListMyOrdersUrl(),
   {
@@ -1485,7 +1639,7 @@ export const getListMyOrdersPageUrl = (params?: ListMyOrdersPageParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/me/orders/page?${stringifiedParams}` : `/api/v1/me/orders/page`
 }
 
-export const listMyOrdersPage = async (params?: ListMyOrdersPageParams, options?: RequestInit): Promise<MyOrderPageResponse> => {
+export const listMyOrdersPage = async (params?: ListMyOrdersPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyOrderPageResponse> => {
 
   return generatedApiClient<MyOrderPageResponse>(getListMyOrdersPageUrl(params),
   {
@@ -1506,7 +1660,7 @@ export const getCancelMyOrderUrl = (id: number,) => {
   return `/api/v1/me/orders/${id}`
 }
 
-export const cancelMyOrder = async (id: number, options?: RequestInit): Promise<OrderCustomerActionResponse> => {
+export const cancelMyOrder = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderCustomerActionResponse> => {
 
   return generatedApiClient<OrderCustomerActionResponse>(getCancelMyOrderUrl(id),
   {
@@ -1527,7 +1681,7 @@ export const getGetMyOrderUrl = (id: number,) => {
   return `/api/v1/me/orders/${id}`
 }
 
-export const getMyOrder = async (id: number, options?: RequestInit): Promise<OrderDetailResponse> => {
+export const getMyOrder = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderDetailResponse> => {
 
   return generatedApiClient<OrderDetailResponse>(getGetMyOrderUrl(id),
   {
@@ -1549,13 +1703,27 @@ export const getRespondToMyOrderDelayUrl = (id: number,) => {
 }
 
 export const respondToMyOrderDelay = async (id: number,
-    orderDelayResponseRequest: OrderDelayResponseRequest, options?: RequestInit): Promise<OrderCustomerActionResponse> => {
+    orderDelayResponseRequest: OrderDelayResponseRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderCustomerActionResponse> => {
 
-  return generatedApiClient<OrderCustomerActionResponse>(getRespondToMyOrderDelayUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderCustomerActionResponse>(getRespondToMyOrderDelayUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(orderDelayResponseRequest)
   }
 );}
@@ -1571,13 +1739,27 @@ export const getUpdateMyOrderShippingAddressUrl = (id: number,) => {
 }
 
 export const updateMyOrderShippingAddress = async (id: number,
-    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateMyOrderShippingAddressUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateMyOrderShippingAddressUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateShippingAddressRequest)
   }
 );}
@@ -1592,7 +1774,7 @@ export const getListMyPassesUrl = () => {
   return `/api/v1/me/passes`
 }
 
-export const listMyPasses = async ( options?: RequestInit): Promise<MyPassSummary[]> => {
+export const listMyPasses = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<MyPassSummary[]> => {
 
   return generatedApiClient<MyPassSummary[]>(getListMyPassesUrl(),
   {
@@ -1620,7 +1802,7 @@ export const getListMyPassesPageUrl = (params?: ListMyPassesPageParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/me/passes/page?${stringifiedParams}` : `/api/v1/me/passes/page`
 }
 
-export const listMyPassesPage = async (params?: ListMyPassesPageParams, options?: RequestInit): Promise<MyPassPageResponse> => {
+export const listMyPassesPage = async (params?: ListMyPassesPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyPassPageResponse> => {
 
   return generatedApiClient<MyPassPageResponse>(getListMyPassesPageUrl(params),
   {
@@ -1641,7 +1823,7 @@ export const getRefundMyPassUrl = (id: number,) => {
   return `/api/v1/me/passes/${id}/refund`
 }
 
-export const refundMyPass = async (id: number, options?: RequestInit): Promise<MemberPassRefundResponse> => {
+export const refundMyPass = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberPassRefundResponse> => {
 
   return generatedApiClient<MemberPassRefundResponse>(getRefundMyPassUrl(id),
   {
@@ -1662,7 +1844,7 @@ export const getListMyRestockAlertsUrl = () => {
   return `/api/v1/me/restock-alerts`
 }
 
-export const listMyRestockAlerts = async ( options?: RequestInit): Promise<RestockAlertResponse[]> => {
+export const listMyRestockAlerts = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<RestockAlertResponse[]> => {
 
   return generatedApiClient<RestockAlertResponse[]>(getListMyRestockAlertsUrl(),
   {
@@ -1683,13 +1865,27 @@ export const getRegisterMyRestockAlertUrl = () => {
   return `/api/v1/me/restock-alerts`
 }
 
-export const registerMyRestockAlert = async (restockAlertRequest: RestockAlertRequest, options?: RequestInit): Promise<void> => {
+export const registerMyRestockAlert = async (restockAlertRequest: RestockAlertRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getRegisterMyRestockAlertUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getRegisterMyRestockAlertUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(restockAlertRequest)
   }
 );}
@@ -1704,7 +1900,7 @@ export const getCancelMyRestockAlertUrl = (id: number,) => {
   return `/api/v1/me/restock-alerts/${id}`
 }
 
-export const cancelMyRestockAlert = async (id: number, options?: RequestInit): Promise<void> => {
+export const cancelMyRestockAlert = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getCancelMyRestockAlertUrl(id),
   {

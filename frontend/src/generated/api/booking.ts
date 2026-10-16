@@ -368,13 +368,27 @@ export const getSendGuestBookingVerificationUrl = () => {
   return `/api/v1/bookings/phone-verifications`
 }
 
-export const sendGuestBookingVerification = async (sendVerificationRequest: SendVerificationRequest, options?: RequestInit): Promise<SendVerificationResponse> => {
+export const sendGuestBookingVerification = async (sendVerificationRequest: SendVerificationRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SendVerificationResponse> => {
 
-  return generatedApiClient<SendVerificationResponse>(getSendGuestBookingVerificationUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SendVerificationResponse>(getSendGuestBookingVerificationUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(sendVerificationRequest)
   }
 );}
@@ -389,7 +403,7 @@ export const getCancelGuestBookingUrl = (bookingId: number,) => {
   return `/api/v1/bookings/${bookingId}`
 }
 
-export const cancelGuestBooking = async (bookingId: number, options?: RequestInit): Promise<CancelResponse> => {
+export const cancelGuestBooking = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<CancelResponse> => {
 
   return generatedApiClient<CancelResponse>(getCancelGuestBookingUrl(bookingId),
   {
@@ -410,7 +424,7 @@ export const getGetGuestBookingUrl = (bookingId: number,) => {
   return `/api/v1/bookings/${bookingId}`
 }
 
-export const getGuestBooking = async (bookingId: number, options?: RequestInit): Promise<BookingDetailResponse> => {
+export const getGuestBooking = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingDetailResponse> => {
 
   return generatedApiClient<BookingDetailResponse>(getGetGuestBookingUrl(bookingId),
   {
@@ -432,13 +446,27 @@ export const getReduceGuestBookingParticipantsUrl = (bookingId: number,) => {
 }
 
 export const reduceGuestBookingParticipants = async (bookingId: number,
-    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: RequestInit): Promise<ReduceBookingParticipantsResponse> => {
+    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReduceBookingParticipantsResponse> => {
 
-  return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceGuestBookingParticipantsUrl(bookingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceGuestBookingParticipantsUrl(bookingId),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(reduceBookingParticipantsRequest)
   }
 );}
@@ -454,13 +482,27 @@ export const getRescheduleGuestBookingUrl = (bookingId: number,) => {
 }
 
 export const rescheduleGuestBooking = async (bookingId: number,
-    rescheduleRequest: RescheduleRequest, options?: RequestInit): Promise<RescheduleResponse> => {
+    rescheduleRequest: RescheduleRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<RescheduleResponse> => {
 
-  return generatedApiClient<RescheduleResponse>(getRescheduleGuestBookingUrl(bookingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<RescheduleResponse>(getRescheduleGuestBookingUrl(bookingId),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(rescheduleRequest)
   }
 );}
@@ -475,7 +517,7 @@ export const getListPublicClassesUrl = () => {
   return `/api/v1/classes`
 }
 
-export const listPublicClasses = async ( options?: RequestInit): Promise<ClassResponse[]> => {
+export const listPublicClasses = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<ClassResponse[]> => {
 
   return generatedApiClient<ClassResponse[]>(getListPublicClassesUrl(),
   {
@@ -496,7 +538,7 @@ export const getGetPublicClassUrl = (id: number,) => {
   return `/api/v1/classes/${id}`
 }
 
-export const getPublicClass = async (id: number, options?: RequestInit): Promise<ClassResponse> => {
+export const getPublicClass = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ClassResponse> => {
 
   return generatedApiClient<ClassResponse>(getGetPublicClassUrl(id),
   {
@@ -517,7 +559,7 @@ export const getListMyBookingsUrl = () => {
   return `/api/v1/me/bookings`
 }
 
-export const listMyBookings = async ( options?: RequestInit): Promise<MyBookingSummary[]> => {
+export const listMyBookings = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<MyBookingSummary[]> => {
 
   return generatedApiClient<MyBookingSummary[]>(getListMyBookingsUrl(),
   {
@@ -545,7 +587,7 @@ export const getListMyBookingsPageUrl = (params?: ListMyBookingsPageParams,) => 
   return stringifiedParams.length > 0 ? `/api/v1/me/bookings/page?${stringifiedParams}` : `/api/v1/me/bookings/page`
 }
 
-export const listMyBookingsPage = async (params?: ListMyBookingsPageParams, options?: RequestInit): Promise<MyBookingPageResponse> => {
+export const listMyBookingsPage = async (params?: ListMyBookingsPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyBookingPageResponse> => {
 
   return generatedApiClient<MyBookingPageResponse>(getListMyBookingsPageUrl(params),
   {
@@ -566,7 +608,7 @@ export const getCancelMyBookingUrl = (id: number,) => {
   return `/api/v1/me/bookings/${id}`
 }
 
-export const cancelMyBooking = async (id: number, options?: RequestInit): Promise<CancelResponse> => {
+export const cancelMyBooking = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<CancelResponse> => {
 
   return generatedApiClient<CancelResponse>(getCancelMyBookingUrl(id),
   {
@@ -587,7 +629,7 @@ export const getGetMyBookingUrl = (id: number,) => {
   return `/api/v1/me/bookings/${id}`
 }
 
-export const getMyBooking = async (id: number, options?: RequestInit): Promise<MyBookingDetail> => {
+export const getMyBooking = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyBookingDetail> => {
 
   return generatedApiClient<MyBookingDetail>(getGetMyBookingUrl(id),
   {
@@ -609,13 +651,27 @@ export const getReduceMyBookingParticipantsUrl = (id: number,) => {
 }
 
 export const reduceMyBookingParticipants = async (id: number,
-    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: RequestInit): Promise<ReduceBookingParticipantsResponse> => {
+    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReduceBookingParticipantsResponse> => {
 
-  return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceMyBookingParticipantsUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceMyBookingParticipantsUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(reduceBookingParticipantsRequest)
   }
 );}
@@ -631,13 +687,27 @@ export const getRescheduleMyBookingUrl = (id: number,) => {
 }
 
 export const rescheduleMyBooking = async (id: number,
-    memberRescheduleRequest: MemberRescheduleRequest, options?: RequestInit): Promise<MyBookingSummary> => {
+    memberRescheduleRequest: MemberRescheduleRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyBookingSummary> => {
 
-  return generatedApiClient<MyBookingSummary>(getRescheduleMyBookingUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MyBookingSummary>(getRescheduleMyBookingUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(memberRescheduleRequest)
   }
 );}
@@ -652,7 +722,7 @@ export const getCancelMyVacancyAlertUrl = (slotId: number,) => {
   return `/api/v1/me/slots/${slotId}/vacancy-alerts`
 }
 
-export const cancelMyVacancyAlert = async (slotId: number, options?: RequestInit): Promise<void> => {
+export const cancelMyVacancyAlert = async (slotId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getCancelMyVacancyAlertUrl(slotId),
   {
@@ -673,7 +743,7 @@ export const getRegisterMyVacancyAlertUrl = (slotId: number,) => {
   return `/api/v1/me/slots/${slotId}/vacancy-alerts`
 }
 
-export const registerMyVacancyAlert = async (slotId: number, options?: RequestInit): Promise<VacancyAlertResponse> => {
+export const registerMyVacancyAlert = async (slotId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<VacancyAlertResponse> => {
 
   return generatedApiClient<VacancyAlertResponse>(getRegisterMyVacancyAlertUrl(slotId),
   {
@@ -694,7 +764,7 @@ export const getListMyVacancyAlertsUrl = () => {
   return `/api/v1/me/vacancy-alerts`
 }
 
-export const listMyVacancyAlerts = async ( options?: RequestInit): Promise<VacancyAlertResponse[]> => {
+export const listMyVacancyAlerts = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<VacancyAlertResponse[]> => {
 
   return generatedApiClient<VacancyAlertResponse[]>(getListMyVacancyAlertsUrl(),
   {
@@ -722,7 +792,7 @@ export const getListAvailableSlotsUrl = (params: ListAvailableSlotsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/slots?${stringifiedParams}` : `/api/v1/slots`
 }
 
-export const listAvailableSlots = async (params: ListAvailableSlotsParams, options?: RequestInit): Promise<PublicSlotResponse[]> => {
+export const listAvailableSlots = async (params: ListAvailableSlotsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<PublicSlotResponse[]> => {
 
   return generatedApiClient<PublicSlotResponse[]>(getListAvailableSlotsUrl(params),
   {
@@ -750,7 +820,7 @@ export const getListUpcomingSlotsUrl = (params: ListUpcomingSlotsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/slots/upcoming?${stringifiedParams}` : `/api/v1/slots/upcoming`
 }
 
-export const listUpcomingSlots = async (params: ListUpcomingSlotsParams, options?: RequestInit): Promise<PublicSlotResponse[]> => {
+export const listUpcomingSlots = async (params: ListUpcomingSlotsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<PublicSlotResponse[]> => {
 
   return generatedApiClient<PublicSlotResponse[]>(getListUpcomingSlotsUrl(params),
   {
@@ -771,7 +841,7 @@ export const getCancelGuestVacancyAlertUrl = (slotId: number,) => {
   return `/api/v1/slots/${slotId}/vacancy-alerts`
 }
 
-export const cancelGuestVacancyAlert = async (slotId: number, options?: RequestInit): Promise<void> => {
+export const cancelGuestVacancyAlert = async (slotId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getCancelGuestVacancyAlertUrl(slotId),
   {
@@ -793,13 +863,27 @@ export const getRegisterGuestVacancyAlertUrl = (slotId: number,) => {
 }
 
 export const registerGuestVacancyAlert = async (slotId: number,
-    guestVacancyAlertRequest: GuestVacancyAlertRequest, options?: RequestInit): Promise<VacancyAlertResponse> => {
+    guestVacancyAlertRequest: GuestVacancyAlertRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<VacancyAlertResponse> => {
 
-  return generatedApiClient<VacancyAlertResponse>(getRegisterGuestVacancyAlertUrl(slotId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<VacancyAlertResponse>(getRegisterGuestVacancyAlertUrl(slotId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(guestVacancyAlertRequest)
   }
 );}

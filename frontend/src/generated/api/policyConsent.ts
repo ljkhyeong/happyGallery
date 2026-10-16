@@ -17,7 +17,7 @@ export const getGetCurrentPolicyConsentUrl = () => {
   return `/api/v1/policies/current`
 }
 
-export const getCurrentPolicyConsent = async ( options?: RequestInit): Promise<CurrentPolicyConsentResponse> => {
+export const getCurrentPolicyConsent = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<CurrentPolicyConsentResponse> => {
 
   return generatedApiClient<CurrentPolicyConsentResponse>(getGetCurrentPolicyConsentUrl(),
   {

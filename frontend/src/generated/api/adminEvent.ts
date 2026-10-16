@@ -22,7 +22,10 @@ export interface CreateEventRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   couponDefinitionId?: number | null;
   endAt: string;
   featured: boolean;
@@ -33,7 +36,10 @@ export interface CreateEventRequest {
      */
   imageUrl?: string | null;
   published: boolean;
-  /** @nullable */
+  /**
+     * @nullable
+     * @items.exclusiveMinimum 0
+     */
   relatedProductIds?: number[] | null;
   startAt: string;
   /**
@@ -54,9 +60,13 @@ export interface UpdateEventRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   couponDefinitionId?: number | null;
   endAt: string;
+  /** @minimum 0 */
   expectedVersion: number;
   featured: boolean;
   /**
@@ -66,7 +76,10 @@ export interface UpdateEventRequest {
      */
   imageUrl?: string | null;
   published: boolean;
-  /** @nullable */
+  /**
+     * @nullable
+     * @items.exclusiveMinimum 0
+     */
   relatedProductIds?: number[] | null;
   startAt: string;
   /**
@@ -96,7 +109,7 @@ export const getListAdminEventsUrl = () => {
   return `/api/v1/admin/events`
 }
 
-export const listAdminEvents = async ( options?: RequestInit): Promise<EventResponse[]> => {
+export const listAdminEvents = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse[]> => {
 
   return generatedApiClient<EventResponse[]>(getListAdminEventsUrl(),
   {
@@ -117,13 +130,27 @@ export const getCreateAdminEventUrl = () => {
   return `/api/v1/admin/events`
 }
 
-export const createAdminEvent = async (createEventRequest: CreateEventRequest, options?: RequestInit): Promise<EventResponse> => {
+export const createAdminEvent = async (createEventRequest: CreateEventRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse> => {
 
-  return generatedApiClient<EventResponse>(getCreateAdminEventUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<EventResponse>(getCreateAdminEventUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createEventRequest)
   }
 );}
@@ -147,7 +174,7 @@ export const getDeleteAdminEventUrl = (id: number,
 }
 
 export const deleteAdminEvent = async (id: number,
-    params: DeleteAdminEventParams, options?: RequestInit): Promise<void> => {
+    params: DeleteAdminEventParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteAdminEventUrl(id,params),
   {
@@ -168,7 +195,7 @@ export const getGetAdminEventUrl = (id: number,) => {
   return `/api/v1/admin/events/${id}`
 }
 
-export const getAdminEvent = async (id: number, options?: RequestInit): Promise<EventResponse> => {
+export const getAdminEvent = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse> => {
 
   return generatedApiClient<EventResponse>(getGetAdminEventUrl(id),
   {
@@ -190,13 +217,27 @@ export const getUpdateAdminEventUrl = (id: number,) => {
 }
 
 export const updateAdminEvent = async (id: number,
-    updateEventRequest: UpdateEventRequest, options?: RequestInit): Promise<EventResponse> => {
+    updateEventRequest: UpdateEventRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse> => {
 
-  return generatedApiClient<EventResponse>(getUpdateAdminEventUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<EventResponse>(getUpdateAdminEventUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateEventRequest)
   }
 );}

@@ -10,10 +10,26 @@ module CiCompatibility
     JSON.parse(output)
   end
 
-  def self.baseline(event, production:, repository:, api: method(:api))
-    return event.fetch('pull_request').fetch('base').fetch('sha') if event.key?('pull_request')
+  def self.reset_marker(revision)
+    marker = RollingRelease.git_blob_if_present(Dir.pwd, revision, RollingRelease::SCHEMA_RESET_PATH)
+    marker && JSON.parse(marker).fetch('id')
+  end
+
+  def self.baseline(event, production:, repository:, api: method(:api), reset_marker: method(:reset_marker))
+    if event.key?('pull_request')
+      base = event.fetch('pull_request').fetch('base').fetch('sha')
+      return base unless reset_marker.call(base)
+
+      # 운영에 아직 배포되지 않은 스키마 초기화가 base에 있으면 PR도 그 초기화 release에 포함되므로 운영 배포와 같은 기준으로 비교한다.
+      deployed = last_deploy(repository, api)
+      return reset_marker.call(deployed) == reset_marker.call(base) ? base : deployed
+    end
     return event['before'] if !production && event['before'].to_s.match?(/\A[a-f0-9]{40}\z/) && event['before'] != '0' * 40
 
+    last_deploy(repository, api)
+  end
+
+  def self.last_deploy(repository, api)
     runs = api.call("repos/#{repository}/actions/workflows/production.yml/runs?branch=main&status=success&per_page=100")
               .flat_map { |page| page.fetch('workflow_runs') }
               .sort_by { |run| run.fetch('updated_at') }.reverse

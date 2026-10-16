@@ -16,7 +16,18 @@ export function initSentry() {
     environment,
     release,
     tracesSampleRate: 0.1,
-    sendDefaultPii: false,
+    // Sentry 11은 dataCollection을 비워 두면 IP·쿠키·본문까지 수집한다. v10의 sendDefaultPii: false 기준을 명시하고 URL query는 보내지 않는다.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+      httpBodies: [],
+      urlQueryParams: false,
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      graphQL: { document: false, variables: false },
+    },
     beforeSend(event) {
       const request = event.request;
       if (request?.url) {

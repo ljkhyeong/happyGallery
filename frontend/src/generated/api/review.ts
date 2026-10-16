@@ -280,6 +280,7 @@ export interface UpdateReviewStatusRequest {
   /**
      * 관리자가 확인한 후기 본문·평점·사진의 revision
      * @minimum 1
+     * @exclusiveMinimum 0
      */
   expectedContentRevision: number;
   /**
@@ -433,7 +434,10 @@ export interface MemberReviewPageResponse {
 }
 
 export interface CreateClassReviewRequest {
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @exclusiveMinimum 0
+     */
   bookingId: number;
   /**
      * @minLength 1
@@ -522,7 +526,10 @@ export interface CreateProductReviewRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @exclusiveMinimum 0
+     */
   orderItemId: number;
   /**
      * @minimum 1
@@ -718,7 +725,7 @@ reviewIds: number[];
 
 export type AddMyReviewImageBody = {
   /** JPEG 또는 PNG 후기 이미지 */
-  file: Blob;
+  file: Blob | File;
 };
 
 export type ListProductReviewsParams = {
@@ -755,7 +762,7 @@ export const getGetAdminReviewEvidenceImageUrl = (evidenceId: number,
 }
 
 export const getAdminReviewEvidenceImage = async (evidenceId: number,
-    sortOrder: number, options?: RequestInit): Promise<Blob> => {
+    sortOrder: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<Blob> => {
 
   return generatedApiClient<Blob>(getGetAdminReviewEvidenceImageUrl(evidenceId,sortOrder),
   {
@@ -783,7 +790,7 @@ export const getListAdminReviewReportsUrl = (params?: ListAdminReviewReportsPara
   return stringifiedParams.length > 0 ? `/api/v1/admin/review-reports?${stringifiedParams}` : `/api/v1/admin/review-reports`
 }
 
-export const listAdminReviewReports = async (params?: ListAdminReviewReportsParams, options?: RequestInit): Promise<AdminReviewReportPageResponse> => {
+export const listAdminReviewReports = async (params?: ListAdminReviewReportsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewReportPageResponse> => {
 
   return generatedApiClient<AdminReviewReportPageResponse>(getListAdminReviewReportsUrl(params),
   {
@@ -804,7 +811,7 @@ export const getGetAdminReviewReportUrl = (reportId: number,) => {
   return `/api/v1/admin/review-reports/${reportId}`
 }
 
-export const getAdminReviewReport = async (reportId: number, options?: RequestInit): Promise<AdminReviewReportResponse> => {
+export const getAdminReviewReport = async (reportId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewReportResponse> => {
 
   return generatedApiClient<AdminReviewReportResponse>(getGetAdminReviewReportUrl(reportId),
   {
@@ -826,13 +833,27 @@ export const getDecideAdminReviewReportUrl = (reportId: number,) => {
 }
 
 export const decideAdminReviewReport = async (reportId: number,
-    decideReviewReportRequest: DecideReviewReportRequest, options?: RequestInit): Promise<AdminReviewReportResponse> => {
+    decideReviewReportRequest: DecideReviewReportRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewReportResponse> => {
 
-  return generatedApiClient<AdminReviewReportResponse>(getDecideAdminReviewReportUrl(reportId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminReviewReportResponse>(getDecideAdminReviewReportUrl(reportId),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(decideReviewReportRequest)
   }
 );}
@@ -854,7 +875,7 @@ export const getListAdminReviewsUrl = (params?: ListAdminReviewsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/reviews?${stringifiedParams}` : `/api/v1/admin/reviews`
 }
 
-export const listAdminReviews = async (params?: ListAdminReviewsParams, options?: RequestInit): Promise<AdminReviewPageResponse> => {
+export const listAdminReviews = async (params?: ListAdminReviewsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewPageResponse> => {
 
   return generatedApiClient<AdminReviewPageResponse>(getListAdminReviewsUrl(params),
   {
@@ -875,7 +896,7 @@ export const getGetAdminReviewUrl = (reviewId: number,) => {
   return `/api/v1/admin/reviews/${reviewId}`
 }
 
-export const getAdminReview = async (reviewId: number, options?: RequestInit): Promise<AdminReviewResponse> => {
+export const getAdminReview = async (reviewId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewResponse> => {
 
   return generatedApiClient<AdminReviewResponse>(getGetAdminReviewUrl(reviewId),
   {
@@ -898,7 +919,7 @@ export const getGetAdminReviewImageUrl = (reviewId: number,
 }
 
 export const getAdminReviewImage = async (reviewId: number,
-    imageId: number, options?: RequestInit): Promise<Blob> => {
+    imageId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<Blob> => {
 
   return generatedApiClient<Blob>(getGetAdminReviewImageUrl(reviewId,imageId),
   {
@@ -919,7 +940,7 @@ export const getListReviewModerationActionsUrl = (reviewId: number,) => {
   return `/api/v1/admin/reviews/${reviewId}/moderation-actions`
 }
 
-export const listReviewModerationActions = async (reviewId: number, options?: RequestInit): Promise<ReviewModerationActionResponse[]> => {
+export const listReviewModerationActions = async (reviewId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewModerationActionResponse[]> => {
 
   return generatedApiClient<ReviewModerationActionResponse[]>(getListReviewModerationActionsUrl(reviewId),
   {
@@ -949,7 +970,7 @@ export const getDeleteOfficialReviewReplyUrl = (reviewId: number,
 }
 
 export const deleteOfficialReviewReply = async (reviewId: number,
-    params: DeleteOfficialReviewReplyParams, options?: RequestInit): Promise<AdminReviewResponse> => {
+    params: DeleteOfficialReviewReplyParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewResponse> => {
 
   return generatedApiClient<AdminReviewResponse>(getDeleteOfficialReviewReplyUrl(reviewId,params),
   {
@@ -971,13 +992,27 @@ export const getUpsertOfficialReviewReplyUrl = (reviewId: number,) => {
 }
 
 export const upsertOfficialReviewReply = async (reviewId: number,
-    upsertReviewReplyRequest: UpsertReviewReplyRequest, options?: RequestInit): Promise<AdminReviewResponse> => {
+    upsertReviewReplyRequest: UpsertReviewReplyRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewResponse> => {
 
-  return generatedApiClient<AdminReviewResponse>(getUpsertOfficialReviewReplyUrl(reviewId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminReviewResponse>(getUpsertOfficialReviewReplyUrl(reviewId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(upsertReviewReplyRequest)
   }
 );}
@@ -993,13 +1028,27 @@ export const getUpdateAdminReviewStatusUrl = (reviewId: number,) => {
 }
 
 export const updateAdminReviewStatus = async (reviewId: number,
-    updateReviewStatusRequest: UpdateReviewStatusRequest, options?: RequestInit): Promise<AdminReviewResponse> => {
+    updateReviewStatusRequest: UpdateReviewStatusRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminReviewResponse> => {
 
-  return generatedApiClient<AdminReviewResponse>(getUpdateAdminReviewStatusUrl(reviewId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminReviewResponse>(getUpdateAdminReviewStatusUrl(reviewId),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateReviewStatusRequest)
   }
 );}
@@ -1023,7 +1072,7 @@ export const getListClassReviewsUrl = (classId: number,
 }
 
 export const listClassReviews = async (classId: number,
-    params?: ListClassReviewsParams, options?: RequestInit): Promise<PublicReviewPageResponse> => {
+    params?: ListClassReviewsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<PublicReviewPageResponse> => {
 
   return generatedApiClient<PublicReviewPageResponse>(getListClassReviewsUrl(classId,params),
   {
@@ -1051,7 +1100,7 @@ export const getListMyReviewsUrl = (params?: ListMyReviewsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/me/reviews?${stringifiedParams}` : `/api/v1/me/reviews`
 }
 
-export const listMyReviews = async (params?: ListMyReviewsParams, options?: RequestInit): Promise<MemberReviewPageResponse> => {
+export const listMyReviews = async (params?: ListMyReviewsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewPageResponse> => {
 
   return generatedApiClient<MemberReviewPageResponse>(getListMyReviewsUrl(params),
   {
@@ -1072,7 +1121,7 @@ export const getListMyBookingReviewsUrl = (bookingId: number,) => {
   return `/api/v1/me/reviews/bookings/${bookingId}`
 }
 
-export const listMyBookingReviews = async (bookingId: number, options?: RequestInit): Promise<MemberReviewResponse[]> => {
+export const listMyBookingReviews = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewResponse[]> => {
 
   return generatedApiClient<MemberReviewResponse[]>(getListMyBookingReviewsUrl(bookingId),
   {
@@ -1093,13 +1142,27 @@ export const getCreateClassReviewUrl = () => {
   return `/api/v1/me/reviews/classes`
 }
 
-export const createClassReview = async (createClassReviewRequest: CreateClassReviewRequest, options?: RequestInit): Promise<MemberReviewResponse> => {
+export const createClassReview = async (createClassReviewRequest: CreateClassReviewRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewResponse> => {
 
-  return generatedApiClient<MemberReviewResponse>(getCreateClassReviewUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MemberReviewResponse>(getCreateClassReviewUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createClassReviewRequest)
   }
 );}
@@ -1114,7 +1177,7 @@ export const getGetClassReviewCreationStateUrl = (bookingId: number,) => {
   return `/api/v1/me/reviews/classes/${bookingId}/creation-state`
 }
 
-export const getClassReviewCreationState = async (bookingId: number, options?: RequestInit): Promise<ReviewCreationStateResponse> => {
+export const getClassReviewCreationState = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewCreationStateResponse> => {
 
   return generatedApiClient<ReviewCreationStateResponse>(getGetClassReviewCreationStateUrl(bookingId),
   {
@@ -1142,7 +1205,7 @@ export const getListMyReviewOpportunitiesUrl = (params?: ListMyReviewOpportuniti
   return stringifiedParams.length > 0 ? `/api/v1/me/reviews/opportunities?${stringifiedParams}` : `/api/v1/me/reviews/opportunities`
 }
 
-export const listMyReviewOpportunities = async (params?: ListMyReviewOpportunitiesParams, options?: RequestInit): Promise<ReviewOpportunityPageResponse> => {
+export const listMyReviewOpportunities = async (params?: ListMyReviewOpportunitiesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewOpportunityPageResponse> => {
 
   return generatedApiClient<ReviewOpportunityPageResponse>(getListMyReviewOpportunitiesUrl(params),
   {
@@ -1163,7 +1226,7 @@ export const getListMyOrderReviewsUrl = (orderId: number,) => {
   return `/api/v1/me/reviews/orders/${orderId}`
 }
 
-export const listMyOrderReviews = async (orderId: number, options?: RequestInit): Promise<MemberReviewResponse[]> => {
+export const listMyOrderReviews = async (orderId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewResponse[]> => {
 
   return generatedApiClient<MemberReviewResponse[]>(getListMyOrderReviewsUrl(orderId),
   {
@@ -1184,13 +1247,27 @@ export const getCreateProductReviewUrl = () => {
   return `/api/v1/me/reviews/products`
 }
 
-export const createProductReview = async (createProductReviewRequest: CreateProductReviewRequest, options?: RequestInit): Promise<MemberReviewResponse> => {
+export const createProductReview = async (createProductReviewRequest: CreateProductReviewRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewResponse> => {
 
-  return generatedApiClient<MemberReviewResponse>(getCreateProductReviewUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MemberReviewResponse>(getCreateProductReviewUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createProductReviewRequest)
   }
 );}
@@ -1205,7 +1282,7 @@ export const getGetProductReviewCreationStateUrl = (orderItemId: number,) => {
   return `/api/v1/me/reviews/products/${orderItemId}/creation-state`
 }
 
-export const getProductReviewCreationState = async (orderItemId: number, options?: RequestInit): Promise<ReviewCreationStateResponse> => {
+export const getProductReviewCreationState = async (orderItemId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewCreationStateResponse> => {
 
   return generatedApiClient<ReviewCreationStateResponse>(getGetProductReviewCreationStateUrl(orderItemId),
   {
@@ -1239,7 +1316,7 @@ export const getListMyReviewReactionsUrl = (params: ListMyReviewReactionsParams,
   return stringifiedParams.length > 0 ? `/api/v1/me/reviews/reactions?${stringifiedParams}` : `/api/v1/me/reviews/reactions`
 }
 
-export const listMyReviewReactions = async (params: ListMyReviewReactionsParams, options?: RequestInit): Promise<ReviewReactionResponse[]> => {
+export const listMyReviewReactions = async (params: ListMyReviewReactionsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewReactionResponse[]> => {
 
   return generatedApiClient<ReviewReactionResponse[]>(getListMyReviewReactionsUrl(params),
   {
@@ -1260,7 +1337,7 @@ export const getDeleteMyReviewUrl = (reviewId: number,) => {
   return `/api/v1/me/reviews/${reviewId}`
 }
 
-export const deleteMyReview = async (reviewId: number, options?: RequestInit): Promise<void> => {
+export const deleteMyReview = async (reviewId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteMyReviewUrl(reviewId),
   {
@@ -1282,13 +1359,27 @@ export const getUpdateMyReviewUrl = (reviewId: number,) => {
 }
 
 export const updateMyReview = async (reviewId: number,
-    updateReviewRequest: UpdateReviewRequest, options?: RequestInit): Promise<MemberReviewResponse> => {
+    updateReviewRequest: UpdateReviewRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewResponse> => {
 
-  return generatedApiClient<MemberReviewResponse>(getUpdateMyReviewUrl(reviewId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MemberReviewResponse>(getUpdateMyReviewUrl(reviewId),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateReviewRequest)
   }
 );}
@@ -1303,7 +1394,7 @@ export const getUnmarkReviewHelpfulUrl = (reviewId: number,) => {
   return `/api/v1/me/reviews/${reviewId}/helpful`
 }
 
-export const unmarkReviewHelpful = async (reviewId: number, options?: RequestInit): Promise<ReviewHelpfulResponse> => {
+export const unmarkReviewHelpful = async (reviewId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewHelpfulResponse> => {
 
   return generatedApiClient<ReviewHelpfulResponse>(getUnmarkReviewHelpfulUrl(reviewId),
   {
@@ -1324,7 +1415,7 @@ export const getMarkReviewHelpfulUrl = (reviewId: number,) => {
   return `/api/v1/me/reviews/${reviewId}/helpful`
 }
 
-export const markReviewHelpful = async (reviewId: number, options?: RequestInit): Promise<ReviewHelpfulResponse> => {
+export const markReviewHelpful = async (reviewId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewHelpfulResponse> => {
 
   return generatedApiClient<ReviewHelpfulResponse>(getMarkReviewHelpfulUrl(reviewId),
   {
@@ -1346,7 +1437,7 @@ export const getAddMyReviewImageUrl = (reviewId: number,) => {
 }
 
 export const addMyReviewImage = async (reviewId: number,
-    addMyReviewImageBody: AddMyReviewImageBody, options?: RequestInit): Promise<ReviewImageResponse> => {
+    addMyReviewImageBody: AddMyReviewImageBody, options?: Parameters<typeof generatedApiClient>[1]): Promise<ReviewImageResponse> => {
     const formData = new FormData();
 formData.append(`file`, addMyReviewImageBody.file);
 
@@ -1371,7 +1462,7 @@ export const getDeleteMyReviewImageUrl = (reviewId: number,
 }
 
 export const deleteMyReviewImage = async (reviewId: number,
-    imageId: number, options?: RequestInit): Promise<void> => {
+    imageId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteMyReviewImageUrl(reviewId,imageId),
   {
@@ -1394,7 +1485,7 @@ export const getGetMyReviewImageUrl = (reviewId: number,
 }
 
 export const getMyReviewImage = async (reviewId: number,
-    imageId: number, options?: RequestInit): Promise<Blob> => {
+    imageId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<Blob> => {
 
   return generatedApiClient<Blob>(getGetMyReviewImageUrl(reviewId,imageId),
   {
@@ -1416,13 +1507,27 @@ export const getReportReviewUrl = (reviewId: number,) => {
 }
 
 export const reportReview = async (reviewId: number,
-    createReviewReportRequest: CreateReviewReportRequest, options?: RequestInit): Promise<MemberReviewReportResponse> => {
+    createReviewReportRequest: CreateReviewReportRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MemberReviewReportResponse> => {
 
-  return generatedApiClient<MemberReviewReportResponse>(getReportReviewUrl(reviewId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MemberReviewReportResponse>(getReportReviewUrl(reviewId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createReviewReportRequest)
   }
 );}
@@ -1446,7 +1551,7 @@ export const getListProductReviewsUrl = (productId: number,
 }
 
 export const listProductReviews = async (productId: number,
-    params?: ListProductReviewsParams, options?: RequestInit): Promise<PublicReviewPageResponse> => {
+    params?: ListProductReviewsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<PublicReviewPageResponse> => {
 
   return generatedApiClient<PublicReviewPageResponse>(getListProductReviewsUrl(productId,params),
   {

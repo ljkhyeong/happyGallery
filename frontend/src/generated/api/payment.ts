@@ -1,5 +1,6 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface ConfirmPaymentRequest {
+  /** @minimum 0 */
   amount: number;
   /** @minLength 1 */
   orderId: string;
@@ -68,8 +69,12 @@ export interface OrderTextInput {
 }
 
 export interface OrderItemRef {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
   /**
      * @minimum 1
@@ -118,7 +123,10 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      */
   expectedCartVersion?: string | null;
   fulfillmentType: OrderPayloadFulfillmentType;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   issuedCouponId?: number | null;
   /**
      * @minItems 0
@@ -144,6 +152,7 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      * @minItems 1
      * @maxItems 100
      * @nullable
+     * @items.exclusiveMinimum 0
      */
   selectedCartItemIds?: number[] | null;
   shippingAddress?: ShippingAddress | null;
@@ -233,13 +242,27 @@ export const getConfirmPaymentUrl = () => {
   return `/api/v1/payments/confirm`
 }
 
-export const confirmPayment = async (confirmPaymentRequest: ConfirmPaymentRequest, options?: RequestInit): Promise<ConfirmPaymentResponse> => {
+export const confirmPayment = async (confirmPaymentRequest: ConfirmPaymentRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ConfirmPaymentResponse> => {
 
-  return generatedApiClient<ConfirmPaymentResponse>(getConfirmPaymentUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ConfirmPaymentResponse>(getConfirmPaymentUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(confirmPaymentRequest)
   }
 );}
@@ -254,13 +277,27 @@ export const getPreparePaymentUrl = () => {
   return `/api/v1/payments/prepare`
 }
 
-export const preparePayment = async (preparePaymentRequest: PreparePaymentRequest, options?: RequestInit): Promise<PreparePaymentResponse> => {
+export const preparePayment = async (preparePaymentRequest: PreparePaymentRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<PreparePaymentResponse> => {
 
-  return generatedApiClient<PreparePaymentResponse>(getPreparePaymentUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<PreparePaymentResponse>(getPreparePaymentUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(preparePaymentRequest)
   }
 );}
@@ -275,7 +312,7 @@ export const getAbandonPaymentUrl = (orderId: string,) => {
   return `/api/v1/payments/${orderId}/abandon`
 }
 
-export const abandonPayment = async (orderId: string, options?: RequestInit): Promise<void> => {
+export const abandonPayment = async (orderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getAbandonPaymentUrl(orderId),
   {
