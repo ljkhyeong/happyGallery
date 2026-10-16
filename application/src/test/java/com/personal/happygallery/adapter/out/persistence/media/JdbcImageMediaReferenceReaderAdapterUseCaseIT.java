@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.media;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.personal.happygallery.support.SharedTestContainers;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -16,7 +17,7 @@ class JdbcImageMediaReferenceReaderAdapterUseCaseIT {
     @DisplayName("테이블 비교 규칙이 달라도 모든 이미지 참조와 대소문자가 다른 파일을 보존한다")
     @Test
     void findReferencedImageUrls_withMixedCollations() {
-        try (MySQLContainer mysql = new MySQLContainer("mysql:8.0")) {
+        try (MySQLContainer mysql = new MySQLContainer(SharedTestContainers.MYSQL_IMAGE)) {
             mysql.start();
             JdbcClient jdbc = JdbcClient.create(new DriverManagerDataSource(
                     mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword()));

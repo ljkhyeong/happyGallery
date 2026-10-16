@@ -9,6 +9,10 @@ import org.testcontainers.utility.DockerImageName;
 
 /** JVM 안에서 서버만 공유한다. DB와 Redis 키 공간은 호출자마다 분리하며 종료는 Ryuk이 맡는다. */
 public final class SharedTestContainers {
+    /** 운영 manifest({@code deploy/k3s/base})와 같은 이미지다. {@code validate.sh}가 일치를 검사한다. */
+    public static final String MYSQL_IMAGE = "mysql:8.4.10";
+    public static final String REDIS_IMAGE = "redis:7.4.9-alpine";
+
     private SharedTestContainers() {}
 
     public static Database newDatabase() {
@@ -40,7 +44,7 @@ public final class SharedTestContainers {
 
     private static final class MysqlServer {
         private static final AtomicInteger DATABASE_SEQUENCE = new AtomicInteger();
-        private static final MySQLContainer CONTAINER = new MySQLContainer("mysql:8.0")
+        private static final MySQLContainer CONTAINER = new MySQLContainer(MYSQL_IMAGE)
                 .withUsername("root");
 
         static {
@@ -52,7 +56,7 @@ public final class SharedTestContainers {
         private static final int DATABASE_COUNT = 256;
         private static final AtomicInteger DATABASE_SEQUENCE = new AtomicInteger();
         private static final GenericContainer<?> CONTAINER =
-                new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                new GenericContainer<>(DockerImageName.parse(REDIS_IMAGE))
                         .withCommand("redis-server", "--notify-keyspace-events", "Egx",
                                 "--databases", Integer.toString(DATABASE_COUNT))
                         .withExposedPorts(6379);
