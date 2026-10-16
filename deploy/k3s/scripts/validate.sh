@@ -575,6 +575,42 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   end
 RUBY
 
+# CI와 통합 테스트는 운영과 같은 실행 환경을 검증해야 한다. 운영 이미지만 올리는 갱신(Dependabot 등)은
+# 여기서 멈추므로 workflow·Gradle·Testcontainers의 버전을 같은 변경에서 함께 올린다.
+ruby - "$REPO_ROOT" <<'RUBY'
+  root = ARGV.fetch(0)
+  sources = lambda do |pattern|
+    Dir[File.join(root, pattern)].sort.map { |path| [path.delete_prefix("#{root}/"), File.read(path, encoding: "UTF-8")] }
+  end
+  single = lambda do |path, pattern|
+    values = File.read(File.join(root, path), encoding: "UTF-8").scan(pattern).flatten.uniq
+    abort "#{path}에서 버전을 하나로 정할 수 없습니다: #{values.inspect}" unless values.one?
+    values.first
+  end
+  found = lambda do |files, pattern|
+    files.flat_map { |path, text| text.scan(pattern).flatten.map { |value| [path, value] } }
+  end
+  same = lambda do |references, expected, label|
+    abort "비교할 CI·테스트 설정이 없습니다: #{label}" if references.empty?
+    references.each do |path, actual|
+      next if actual == expected
+      abort "운영과 버전이 다릅니다: #{path}의 #{label} #{actual}, 운영 #{expected}. 같은 변경에서 함께 올리세요."
+    end
+  end
+
+  workflows = sources.(".github/workflows/*.yml")
+  same.(found.(workflows, /node-version:\s*['"]?(\d+)/),
+        single.("deploy/k3s/images/Dockerfile.frontend", /^FROM node:(\d+)-alpine\b/), "Node 버전")
+  same.([["build.gradle", single.("build.gradle", /JavaLanguageVersion\.of\((\d+)\)/)]] +
+          found.(workflows, /java-version:\s*['"]?(\d+)/),
+        single.("deploy/k3s/images/Dockerfile.app", /^FROM eclipse-temurin:(\d+)-/), "Java 버전")
+  tests = sources.("*/src/{test,testFixtures}/**/*.java")
+  %w[mysql redis].each do |name|
+    same.(found.(workflows, /^\s*image:\s*(#{name}:\S+)/) + found.(tests, /"(#{name}:[^"]+)"/),
+          single.("deploy/k3s/base/#{name}.yaml", /^\s*image:\s*(#{name}:\S+)\s*$/), "#{name} 이미지")
+  end
+RUBY
+
 ruby "$SCRIPT_DIR/tests/verify-test.rb"
 ruby "$SCRIPT_DIR/tests/containerd-image-test.rb"
 ruby "$SCRIPT_DIR/tests/restore-images-test.rb"
