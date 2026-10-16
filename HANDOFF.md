@@ -1,5 +1,25 @@
 # HANDOFF
 
+## CI 실패 Dependabot PR 정리 (2026-10-16)
+
+- 시작 SHA `4aaba8ee`, 브랜치 `codex/work-20261016-dependabot-fixes`(사용자 결정으로 origin/main 기반). #170·#172·#174·#175·#177 브랜치를 그대로 병합해 PR 하나로 모았다. merge commit으로 main에 들어가면 각 PR은 병합됨으로 닫힌다. 넣지 않은 것: #171(@types/node 26, 런타임보다 높음), #169(setup-gradle v6, v5 유지 결정).
+- 결정(사용자): 운영 프론트 이미지와 CI의 Node를 24로 올리고 `@types/node`도 24 계열로 맞춘다. `engines`·README 하한은 기존 22.22.0과 같은 날(2026-01-12) 나온 보안 릴리스 24.13.0이다.
+- 수정:
+  - #172 Sentry 11: `sendDefaultPii`가 사라졌고 `dataCollection`을 비우면 IP 추정·쿠키·HTTP 본문을 수집한다. v10 기준을 `dataCollection`으로 명시하고 URL query도 끈다(ADR-0028). lockfile은 #172가 검토한 11.4.0으로 고정했다(11.8.0은 다음 Dependabot 묶음에서 받는다).
+  - #170 orval 8.41: 생성 함수의 `options`가 mutator 인자 타입이 되고 헤더는 `getHeaders`로 합친다. mutator 시그니처와 보내는 헤더는 그대로다.
+  - #177 springdoc 3.1: OpenAPI 차이는 기존 `@Positive`·`@PositiveOrZero`의 하한 표시와 `LocalTime`의 `format: time-local`뿐이다. 생성 TS는 JSDoc만 바뀌어 계약·동작 변화가 없다. Maven Central 429는 일시 장애였다.
+- 검증:
+  - frontend: `npm ci`·`audit:dependencies`(0건)·`test:unit` 81건·`lint`·`api:check`·`build` 통과(로컬 Node 25, Node 24는 PR CI에서 확인).
+  - backend: `./gradlew --no-daemon build` 통과(application 768·policy 122·architecture 11·web 192·REST Docs 303·external 94·bootstrap 15, `SentryEventSanitizerTest` 포함). Gradle 9.8.1 배포본·wrapper jar의 SHA-256이 공식 값과 같다.
+  - `LANG=ko_KR.UTF-8 bash deploy/k3s/scripts/validate.sh` 통과.
+  - Sentry: dev 서버에 가짜 DSN을 넣고 오류를 일으켜 전송 직전 envelope을 확인했다. `infer_ip: never`, `user` 없음, URL의 query·hash 제거, 헤더는 User-Agent만 있었다.
+  - cicd-review와 시험 병합(임시 worktree): 충돌은 HANDOFF.md 맨 위 절뿐이다. 합친 상태에서 `validate.sh`(Node·Java·MySQL·Redis 버전 일치 검사 포함)·frontend typecheck·lint 통과. CI Node만 22로 되돌리면 버전 일치 검사가 실패함도 확인했다.
+- 남은 행동:
+  - PR CI를 확인한다. 병합 시점은 사용자가 정한다. 운영은 초기화 release 대기 중이라 병합하면 CD가 preflight에서 멈춘다(`deploy/k3s/rolling-deployments.md`).
+  - `codex/work-20261016-cicd-review`가 먼저 병합되면 main을 이 브랜치에 병합하고 HANDOFF 충돌은 두 절을 모두 남겨 해소한다.
+  - 병합 뒤 #171과 #169를 `@dependabot ignore this major version`으로 닫는다. 사용자 확인이 필요하다.
+- 실행 조건: 샌드박스에서 npm은 `--cache "$TMPDIR/npm-cache"`를 쓴다(`~/.npm/_cacache` 쓰기 차단). `test:unit`은 로컬 포트를 열어서, `agent-feedback.rb`는 한글 경로 때문에 `LANG=ko_KR.UTF-8`에서 실행한다. `gradlew.bat`은 CRLF로 커밋돼 `.gitattributes`(`*.bat text eol=crlf`)와 맞지 않는다. 그래서 checkout 직후 항상 수정됨으로 보이지만 내용은 HEAD와 같다. 이 파일을 바꾸는 병합은 파일을 잠시 옮긴 뒤 진행한다.
+
 ## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
 
 - 시작 SHA `76dc6990`, 브랜치 `codex/work-20261013-ghcr-anonymous-pull`. 아래 절의 운영 배포가 서버의 만료된 GHCR 로그인으로 `denied` 실패해, 사용자가 "배포마다 토큰을 다시 받아야 하냐"고 물었다. 공개 패키지를 인증 없이 받는 권장안으로 진행하기로 했다.
