@@ -62,7 +62,7 @@ export const getListAdminNoticesUrl = () => {
   return `/api/v1/admin/notices`
 }
 
-export const listAdminNotices = async ( options?: RequestInit): Promise<NoticeListResponse[]> => {
+export const listAdminNotices = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeListResponse[]> => {
 
   return generatedApiClient<NoticeListResponse[]>(getListAdminNoticesUrl(),
   {
@@ -83,13 +83,27 @@ export const getCreateAdminNoticeUrl = () => {
   return `/api/v1/admin/notices`
 }
 
-export const createAdminNotice = async (createNoticeRequest: CreateNoticeRequest, options?: RequestInit): Promise<NoticeDetailResponse> => {
+export const createAdminNotice = async (createNoticeRequest: CreateNoticeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeDetailResponse> => {
 
-  return generatedApiClient<NoticeDetailResponse>(getCreateAdminNoticeUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<NoticeDetailResponse>(getCreateAdminNoticeUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createNoticeRequest)
   }
 );}
@@ -113,7 +127,7 @@ export const getDeleteAdminNoticeUrl = (id: number,
 }
 
 export const deleteAdminNotice = async (id: number,
-    params: DeleteAdminNoticeParams, options?: RequestInit): Promise<void> => {
+    params: DeleteAdminNoticeParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteAdminNoticeUrl(id,params),
   {
@@ -134,7 +148,7 @@ export const getGetAdminNoticeUrl = (id: number,) => {
   return `/api/v1/admin/notices/${id}`
 }
 
-export const getAdminNotice = async (id: number, options?: RequestInit): Promise<NoticeDetailResponse> => {
+export const getAdminNotice = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeDetailResponse> => {
 
   return generatedApiClient<NoticeDetailResponse>(getGetAdminNoticeUrl(id),
   {
@@ -156,13 +170,27 @@ export const getUpdateAdminNoticeUrl = (id: number,) => {
 }
 
 export const updateAdminNotice = async (id: number,
-    updateNoticeRequest: UpdateNoticeRequest, options?: RequestInit): Promise<NoticeDetailResponse> => {
+    updateNoticeRequest: UpdateNoticeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeDetailResponse> => {
 
-  return generatedApiClient<NoticeDetailResponse>(getUpdateAdminNoticeUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<NoticeDetailResponse>(getUpdateAdminNoticeUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateNoticeRequest)
   }
 );}

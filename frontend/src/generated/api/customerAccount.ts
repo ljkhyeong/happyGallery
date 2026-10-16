@@ -57,13 +57,27 @@ export const getCompleteSocialSignupUrl = () => {
   return `/api/v1/auth/social/signup-completion`
 }
 
-export const completeSocialSignup = async (socialSignupCompletionRequest: SocialSignupCompletionRequest, options?: RequestInit): Promise<CustomerUserResponse> => {
+export const completeSocialSignup = async (socialSignupCompletionRequest: SocialSignupCompletionRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<CustomerUserResponse> => {
 
-  return generatedApiClient<CustomerUserResponse>(getCompleteSocialSignupUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<CustomerUserResponse>(getCompleteSocialSignupUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(socialSignupCompletionRequest)
   }
 );}
@@ -79,13 +93,27 @@ export const getStartSocialSignupUrl = (provider: 'google' | 'naver' | 'kakao',)
 }
 
 export const startSocialSignup = async (provider: 'google' | 'naver' | 'kakao',
-    policyAcceptanceRequest: PolicyAcceptanceRequest, options?: RequestInit): Promise<SocialSignupAuthorizationResponse> => {
+    policyAcceptanceRequest: PolicyAcceptanceRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SocialSignupAuthorizationResponse> => {
 
-  return generatedApiClient<SocialSignupAuthorizationResponse>(getStartSocialSignupUrl(provider),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SocialSignupAuthorizationResponse>(getStartSocialSignupUrl(provider),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(policyAcceptanceRequest)
   }
 );}
@@ -100,7 +128,7 @@ export const getGetMySocialAccountsUrl = () => {
   return `/api/v1/me/social-accounts`
 }
 
-export const getMySocialAccounts = async ( options?: RequestInit): Promise<SocialAccountsResponse> => {
+export const getMySocialAccounts = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<SocialAccountsResponse> => {
 
   return generatedApiClient<SocialAccountsResponse>(getGetMySocialAccountsUrl(),
   {
@@ -121,7 +149,7 @@ export const getUnlinkMySocialAccountUrl = (provider: 'google' | 'naver' | 'kaka
   return `/api/v1/me/social-accounts/${provider}`
 }
 
-export const unlinkMySocialAccount = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<void> => {
+export const unlinkMySocialAccount = async (provider: 'google' | 'naver' | 'kakao', options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getUnlinkMySocialAccountUrl(provider),
   {
@@ -142,7 +170,7 @@ export const getStartMySocialAccountLinkUrl = (provider: 'google' | 'naver' | 'k
   return `/api/v1/me/social-accounts/${provider}/authorization`
 }
 
-export const startMySocialAccountLink = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
+export const startMySocialAccountLink = async (provider: 'google' | 'naver' | 'kakao', options?: Parameters<typeof generatedApiClient>[1]): Promise<SocialAccountAuthorizationResponse> => {
 
   return generatedApiClient<SocialAccountAuthorizationResponse>(getStartMySocialAccountLinkUrl(provider),
   {
@@ -163,7 +191,7 @@ export const getStartMySocialReauthenticationUrl = (provider: 'google' | 'naver'
   return `/api/v1/me/social-accounts/${provider}/reauthentication`
 }
 
-export const startMySocialReauthentication = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
+export const startMySocialReauthentication = async (provider: 'google' | 'naver' | 'kakao', options?: Parameters<typeof generatedApiClient>[1]): Promise<SocialAccountAuthorizationResponse> => {
 
   return generatedApiClient<SocialAccountAuthorizationResponse>(getStartMySocialReauthenticationUrl(provider),
   {

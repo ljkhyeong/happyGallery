@@ -162,7 +162,7 @@ export const getGetAdminWorkshopProfileUrl = () => {
   return `/api/v1/admin/workshop`
 }
 
-export const getAdminWorkshopProfile = async ( options?: RequestInit): Promise<WorkshopProfileResponse> => {
+export const getAdminWorkshopProfile = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<WorkshopProfileResponse> => {
 
   return generatedApiClient<WorkshopProfileResponse>(getGetAdminWorkshopProfileUrl(),
   {
@@ -183,13 +183,27 @@ export const getUpdateAdminWorkshopProfileUrl = () => {
   return `/api/v1/admin/workshop`
 }
 
-export const updateAdminWorkshopProfile = async (updateWorkshopProfileRequest: UpdateWorkshopProfileRequest, options?: RequestInit): Promise<WorkshopProfileResponse> => {
+export const updateAdminWorkshopProfile = async (updateWorkshopProfileRequest: UpdateWorkshopProfileRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<WorkshopProfileResponse> => {
 
-  return generatedApiClient<WorkshopProfileResponse>(getUpdateAdminWorkshopProfileUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<WorkshopProfileResponse>(getUpdateAdminWorkshopProfileUrl(),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateWorkshopProfileRequest)
   }
 );}
@@ -204,7 +218,7 @@ export const getGetWorkshopProfileUrl = () => {
   return `/api/v1/workshop`
 }
 
-export const getWorkshopProfile = async ( options?: RequestInit): Promise<WorkshopProfileResponse> => {
+export const getWorkshopProfile = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<WorkshopProfileResponse> => {
 
   return generatedApiClient<WorkshopProfileResponse>(getGetWorkshopProfileUrl(),
   {

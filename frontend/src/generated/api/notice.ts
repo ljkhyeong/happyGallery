@@ -26,7 +26,7 @@ export const getListPublicNoticesUrl = () => {
   return `/api/v1/notices`
 }
 
-export const listPublicNotices = async ( options?: RequestInit): Promise<NoticeListResponse[]> => {
+export const listPublicNotices = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeListResponse[]> => {
 
   return generatedApiClient<NoticeListResponse[]>(getListPublicNoticesUrl(),
   {
@@ -47,7 +47,7 @@ export const getGetPublicNoticeUrl = (id: number,) => {
   return `/api/v1/notices/${id}`
 }
 
-export const getPublicNotice = async (id: number, options?: RequestInit): Promise<NoticeDetailResponse> => {
+export const getPublicNotice = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<NoticeDetailResponse> => {
 
   return generatedApiClient<NoticeDetailResponse>(getGetPublicNoticeUrl(id),
   {

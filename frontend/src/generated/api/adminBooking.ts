@@ -339,7 +339,7 @@ export const getListBookingsUrl = (params: ListBookingsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/bookings?${stringifiedParams}` : `/api/v1/admin/bookings`
 }
 
-export const listBookings = async (params: ListBookingsParams, options?: RequestInit): Promise<AdminBookingResponse[]> => {
+export const listBookings = async (params: ListBookingsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminBookingResponse[]> => {
 
   return generatedApiClient<AdminBookingResponse[]>(getListBookingsUrl(params),
   {
@@ -360,13 +360,27 @@ export const getCreateAdminBookingUrl = () => {
   return `/api/v1/admin/bookings`
 }
 
-export const createAdminBooking = async (createAdminBookingRequest: CreateAdminBookingRequest, options?: RequestInit): Promise<AdminBookingResponse> => {
+export const createAdminBooking = async (createAdminBookingRequest: CreateAdminBookingRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminBookingResponse> => {
 
-  return generatedApiClient<AdminBookingResponse>(getCreateAdminBookingUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminBookingResponse>(getCreateAdminBookingUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createAdminBookingRequest)
   }
 );}
@@ -381,7 +395,7 @@ export const getListPendingBookingCancellationTasksUrl = () => {
   return `/api/v1/admin/bookings/cancellation-tasks`
 }
 
-export const listPendingBookingCancellationTasks = async ( options?: RequestInit): Promise<BookingCancellationTaskResponse[]> => {
+export const listPendingBookingCancellationTasks = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingCancellationTaskResponse[]> => {
 
   return generatedApiClient<BookingCancellationTaskResponse[]>(getListPendingBookingCancellationTasksUrl(),
   {
@@ -402,7 +416,7 @@ export const getCompleteBookingCancellationTaskUrl = (taskId: number,) => {
   return `/api/v1/admin/bookings/cancellation-tasks/${taskId}/complete`
 }
 
-export const completeBookingCancellationTask = async (taskId: number, options?: RequestInit): Promise<BookingCancellationTaskCompletionResponse> => {
+export const completeBookingCancellationTask = async (taskId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingCancellationTaskCompletionResponse> => {
 
   return generatedApiClient<BookingCancellationTaskCompletionResponse>(getCompleteBookingCancellationTaskUrl(taskId),
   {
@@ -430,7 +444,7 @@ export const getSearchBookingsUrl = (params?: SearchBookingsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/bookings/search?${stringifiedParams}` : `/api/v1/admin/bookings/search`
 }
 
-export const searchBookings = async (params?: SearchBookingsParams, options?: RequestInit): Promise<AdminBookingSearchPageResponse> => {
+export const searchBookings = async (params?: SearchBookingsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminBookingSearchPageResponse> => {
 
   return generatedApiClient<AdminBookingSearchPageResponse>(getSearchBookingsUrl(params),
   {
@@ -452,13 +466,27 @@ export const getUpdateArrearsUrl = (bookingId: number,) => {
 }
 
 export const updateArrears = async (bookingId: number,
-    updateBookingArrearsRequest: UpdateBookingArrearsRequest, options?: RequestInit): Promise<BookingSettlementResponse> => {
+    updateBookingArrearsRequest: UpdateBookingArrearsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingSettlementResponse> => {
 
-  return generatedApiClient<BookingSettlementResponse>(getUpdateArrearsUrl(bookingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<BookingSettlementResponse>(getUpdateArrearsUrl(bookingId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateBookingArrearsRequest)
   }
 );}
@@ -473,7 +501,7 @@ export const getMarkBalancePaidUrl = (bookingId: number,) => {
   return `/api/v1/admin/bookings/${bookingId}/balance-payment`
 }
 
-export const markBalancePaid = async (bookingId: number, options?: RequestInit): Promise<BookingSettlementResponse> => {
+export const markBalancePaid = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingSettlementResponse> => {
 
   return generatedApiClient<BookingSettlementResponse>(getMarkBalancePaidUrl(bookingId),
   {
@@ -495,13 +523,27 @@ export const getCancelAdminBookingUrl = (bookingId: number,) => {
 }
 
 export const cancelAdminBooking = async (bookingId: number,
-    adminBookingCancelRequest: AdminBookingCancelRequest, options?: RequestInit): Promise<AdminBookingCancelResponse> => {
+    adminBookingCancelRequest: AdminBookingCancelRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminBookingCancelResponse> => {
 
-  return generatedApiClient<AdminBookingCancelResponse>(getCancelAdminBookingUrl(bookingId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminBookingCancelResponse>(getCancelAdminBookingUrl(bookingId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminBookingCancelRequest)
   }
 );}
@@ -516,7 +558,7 @@ export const getCompleteUrl = (bookingId: number,) => {
   return `/api/v1/admin/bookings/${bookingId}/complete`
 }
 
-export const complete = async (bookingId: number, options?: RequestInit): Promise<BookingSettlementResponse> => {
+export const complete = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingSettlementResponse> => {
 
   return generatedApiClient<BookingSettlementResponse>(getCompleteUrl(bookingId),
   {
@@ -537,7 +579,7 @@ export const getMarkNoShowUrl = (bookingId: number,) => {
   return `/api/v1/admin/bookings/${bookingId}/no-show`
 }
 
-export const markNoShow = async (bookingId: number, options?: RequestInit): Promise<BookingNoShowResponse> => {
+export const markNoShow = async (bookingId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingNoShowResponse> => {
 
   return generatedApiClient<BookingNoShowResponse>(getMarkNoShowUrl(bookingId),
   {

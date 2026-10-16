@@ -115,7 +115,7 @@ export const getListProductsUrl = (params?: ListProductsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/products?${stringifiedParams}` : `/api/v1/products`
 }
 
-export const listProducts = async (params?: ListProductsParams, options?: RequestInit): Promise<ProductDetailResponse[]> => {
+export const listProducts = async (params?: ListProductsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductDetailResponse[]> => {
 
   return generatedApiClient<ProductDetailResponse[]>(getListProductsUrl(params),
   {
@@ -136,7 +136,7 @@ export const getListProductCategoriesUrl = () => {
   return `/api/v1/products/categories`
 }
 
-export const listProductCategories = async ( options?: RequestInit): Promise<string[]> => {
+export const listProductCategories = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<string[]> => {
 
   return generatedApiClient<string[]>(getListProductCategoriesUrl(),
   {
@@ -157,7 +157,7 @@ export const getGetProductUrl = (id: number,) => {
   return `/api/v1/products/${id}`
 }
 
-export const getProduct = async (id: number, options?: RequestInit): Promise<ProductDetailResponse> => {
+export const getProduct = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductDetailResponse> => {
 
   return generatedApiClient<ProductDetailResponse>(getGetProductUrl(id),
   {

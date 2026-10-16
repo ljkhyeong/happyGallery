@@ -109,13 +109,27 @@ export const getAdminLoginUrl = () => {
   return `/api/v1/admin/auth/login`
 }
 
-export const adminLogin = async (loginRequest: LoginRequest, options?: RequestInit): Promise<LoginResponse> => {
+export const adminLogin = async (loginRequest: LoginRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<LoginResponse> => {
 
-  return generatedApiClient<LoginResponse>(getAdminLoginUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<LoginResponse>(getAdminLoginUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(loginRequest)
   }
 );}
@@ -130,7 +144,7 @@ export const getAdminLogoutUrl = () => {
   return `/api/v1/admin/auth/logout`
 }
 
-export const adminLogout = async ( options?: RequestInit): Promise<void> => {
+export const adminLogout = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getAdminLogoutUrl(),
   {
@@ -151,13 +165,27 @@ export const getDisableAdminMfaUrl = () => {
   return `/api/v1/admin/auth/mfa`
 }
 
-export const disableAdminMfa = async (adminMfaDisableRequest: AdminMfaDisableRequest, options?: RequestInit): Promise<void> => {
+export const disableAdminMfa = async (adminMfaDisableRequest: AdminMfaDisableRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getDisableAdminMfaUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getDisableAdminMfaUrl(),
   {
     ...options,
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminMfaDisableRequest)
   }
 );}
@@ -172,7 +200,7 @@ export const getGetAdminMfaStatusUrl = () => {
   return `/api/v1/admin/auth/mfa`
 }
 
-export const getAdminMfaStatus = async ( options?: RequestInit): Promise<AdminMfaStatusResponse> => {
+export const getAdminMfaStatus = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminMfaStatusResponse> => {
 
   return generatedApiClient<AdminMfaStatusResponse>(getGetAdminMfaStatusUrl(),
   {
@@ -193,7 +221,7 @@ export const getBeginAdminMfaEnrollmentUrl = () => {
   return `/api/v1/admin/auth/mfa/enrollment`
 }
 
-export const beginAdminMfaEnrollment = async ( options?: RequestInit): Promise<AdminMfaEnrollmentResponse> => {
+export const beginAdminMfaEnrollment = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminMfaEnrollmentResponse> => {
 
   return generatedApiClient<AdminMfaEnrollmentResponse>(getBeginAdminMfaEnrollmentUrl(),
   {
@@ -214,13 +242,27 @@ export const getConfirmAdminMfaEnrollmentUrl = () => {
   return `/api/v1/admin/auth/mfa/enrollment/confirm`
 }
 
-export const confirmAdminMfaEnrollment = async (adminMfaCodeRequest: AdminMfaCodeRequest, options?: RequestInit): Promise<AdminMfaRecoveryCodesResponse> => {
+export const confirmAdminMfaEnrollment = async (adminMfaCodeRequest: AdminMfaCodeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminMfaRecoveryCodesResponse> => {
 
-  return generatedApiClient<AdminMfaRecoveryCodesResponse>(getConfirmAdminMfaEnrollmentUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminMfaRecoveryCodesResponse>(getConfirmAdminMfaEnrollmentUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminMfaCodeRequest)
   }
 );}
@@ -235,13 +277,27 @@ export const getRecoverAdminMfaUrl = () => {
   return `/api/v1/admin/auth/mfa/recovery`
 }
 
-export const recoverAdminMfa = async (adminMfaRecoveryRequest: AdminMfaRecoveryRequest, options?: RequestInit): Promise<void> => {
+export const recoverAdminMfa = async (adminMfaRecoveryRequest: AdminMfaRecoveryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getRecoverAdminMfaUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getRecoverAdminMfaUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminMfaRecoveryRequest)
   }
 );}
@@ -256,13 +312,27 @@ export const getVerifyAdminMfaUrl = () => {
   return `/api/v1/admin/auth/mfa/verify`
 }
 
-export const verifyAdminMfa = async (adminMfaVerificationRequest: AdminMfaVerificationRequest, options?: RequestInit): Promise<LoginResponse> => {
+export const verifyAdminMfa = async (adminMfaVerificationRequest: AdminMfaVerificationRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<LoginResponse> => {
 
-  return generatedApiClient<LoginResponse>(getVerifyAdminMfaUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<LoginResponse>(getVerifyAdminMfaUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminMfaVerificationRequest)
   }
 );}
@@ -277,13 +347,27 @@ export const getChangeAdminPasswordUrl = () => {
   return `/api/v1/admin/auth/password`
 }
 
-export const changeAdminPassword = async (adminPasswordChangeRequest: AdminPasswordChangeRequest, options?: RequestInit): Promise<void> => {
+export const changeAdminPassword = async (adminPasswordChangeRequest: AdminPasswordChangeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getChangeAdminPasswordUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getChangeAdminPasswordUrl(),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminPasswordChangeRequest)
   }
 );}

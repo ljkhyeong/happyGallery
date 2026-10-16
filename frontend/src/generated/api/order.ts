@@ -337,7 +337,7 @@ export const getGetOrderPricePolicyUrl = () => {
   return `/api/v1/orders/policy`
 }
 
-export const getOrderPricePolicy = async ( options?: RequestInit): Promise<OrderPricePolicyResponse> => {
+export const getOrderPricePolicy = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderPricePolicyResponse> => {
 
   return generatedApiClient<OrderPricePolicyResponse>(getGetOrderPricePolicyUrl(),
   {
@@ -358,7 +358,7 @@ export const getCancelGuestOrderUrl = (id: number,) => {
   return `/api/v1/orders/${id}`
 }
 
-export const cancelGuestOrder = async (id: number, options?: RequestInit): Promise<OrderCustomerActionResponse> => {
+export const cancelGuestOrder = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderCustomerActionResponse> => {
 
   return generatedApiClient<OrderCustomerActionResponse>(getCancelGuestOrderUrl(id),
   {
@@ -379,7 +379,7 @@ export const getGetGuestOrderUrl = (id: number,) => {
   return `/api/v1/orders/${id}`
 }
 
-export const getGuestOrder = async (id: number, options?: RequestInit): Promise<OrderDetailResponse> => {
+export const getGuestOrder = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderDetailResponse> => {
 
   return generatedApiClient<OrderDetailResponse>(getGetGuestOrderUrl(id),
   {
@@ -401,13 +401,27 @@ export const getRespondToGuestOrderDelayUrl = (id: number,) => {
 }
 
 export const respondToGuestOrderDelay = async (id: number,
-    orderDelayResponseRequest: OrderDelayResponseRequest, options?: RequestInit): Promise<OrderCustomerActionResponse> => {
+    orderDelayResponseRequest: OrderDelayResponseRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderCustomerActionResponse> => {
 
-  return generatedApiClient<OrderCustomerActionResponse>(getRespondToGuestOrderDelayUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderCustomerActionResponse>(getRespondToGuestOrderDelayUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(orderDelayResponseRequest)
   }
 );}
@@ -423,13 +437,27 @@ export const getUpdateGuestOrderShippingAddressUrl = (id: number,) => {
 }
 
 export const updateGuestOrderShippingAddress = async (id: number,
-    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateGuestOrderShippingAddressUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateGuestOrderShippingAddressUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateShippingAddressRequest)
   }
 );}

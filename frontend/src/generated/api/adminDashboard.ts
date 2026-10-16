@@ -156,7 +156,7 @@ export const getDailyRevenueUrl = (params: DailyRevenueParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/daily-revenue?${stringifiedParams}` : `/api/v1/admin/dashboard/daily-revenue`
 }
 
-export const dailyRevenue = async (params: DailyRevenueParams, options?: RequestInit): Promise<DailyRevenueResponse[]> => {
+export const dailyRevenue = async (params: DailyRevenueParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<DailyRevenueResponse[]> => {
 
   return generatedApiClient<DailyRevenueResponse[]>(getDailyRevenueUrl(params),
   {
@@ -177,7 +177,7 @@ export const getOrderStatusDistributionUrl = () => {
   return `/api/v1/admin/dashboard/order-status`
 }
 
-export const orderStatusDistribution = async ( options?: RequestInit): Promise<StatusCountResponse[]> => {
+export const orderStatusDistribution = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<StatusCountResponse[]> => {
 
   return generatedApiClient<StatusCountResponse[]>(getOrderStatusDistributionUrl(),
   {
@@ -205,7 +205,7 @@ export const getOverviewUrl = (params: OverviewParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/overview?${stringifiedParams}` : `/api/v1/admin/dashboard/overview`
 }
 
-export const overview = async (params: OverviewParams, options?: RequestInit): Promise<DashboardOverviewResponse> => {
+export const overview = async (params: OverviewParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<DashboardOverviewResponse> => {
 
   return generatedApiClient<DashboardOverviewResponse>(getOverviewUrl(params),
   {
@@ -233,7 +233,7 @@ export const getRefundStatsUrl = (params: RefundStatsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/refunds?${stringifiedParams}` : `/api/v1/admin/dashboard/refunds`
 }
 
-export const refundStats = async (params: RefundStatsParams, options?: RequestInit): Promise<RefundStatsResponse> => {
+export const refundStats = async (params: RefundStatsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<RefundStatsResponse> => {
 
   return generatedApiClient<RefundStatsResponse>(getRefundStatsUrl(params),
   {
@@ -261,7 +261,7 @@ export const getRevenueBreakdownUrl = (params: RevenueBreakdownParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/revenue-breakdown?${stringifiedParams}` : `/api/v1/admin/dashboard/revenue-breakdown`
 }
 
-export const revenueBreakdown = async (params: RevenueBreakdownParams, options?: RequestInit): Promise<RevenueBreakdownResponse> => {
+export const revenueBreakdown = async (params: RevenueBreakdownParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<RevenueBreakdownResponse> => {
 
   return generatedApiClient<RevenueBreakdownResponse>(getRevenueBreakdownUrl(params),
   {
@@ -289,7 +289,7 @@ export const getSalesSummaryUrl = (params: SalesSummaryParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/sales-summary?${stringifiedParams}` : `/api/v1/admin/dashboard/sales-summary`
 }
 
-export const salesSummary = async (params: SalesSummaryParams, options?: RequestInit): Promise<PeriodSalesSummaryResponse[]> => {
+export const salesSummary = async (params: SalesSummaryParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<PeriodSalesSummaryResponse[]> => {
 
   return generatedApiClient<PeriodSalesSummaryResponse[]>(getSalesSummaryUrl(params),
   {
@@ -317,7 +317,7 @@ export const getSlotUtilizationUrl = (params: SlotUtilizationParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/slot-utilization?${stringifiedParams}` : `/api/v1/admin/dashboard/slot-utilization`
 }
 
-export const slotUtilization = async (params: SlotUtilizationParams, options?: RequestInit): Promise<SlotUtilizationResponse[]> => {
+export const slotUtilization = async (params: SlotUtilizationParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SlotUtilizationResponse[]> => {
 
   return generatedApiClient<SlotUtilizationResponse[]>(getSlotUtilizationUrl(params),
   {
@@ -345,7 +345,7 @@ export const getTopProductsUrl = (params: TopProductsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/dashboard/top-products?${stringifiedParams}` : `/api/v1/admin/dashboard/top-products`
 }
 
-export const topProducts = async (params: TopProductsParams, options?: RequestInit): Promise<TopProductResponse[]> => {
+export const topProducts = async (params: TopProductsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<TopProductResponse[]> => {
 
   return generatedApiClient<TopProductResponse[]>(getTopProductsUrl(params),
   {
