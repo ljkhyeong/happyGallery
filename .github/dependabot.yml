@@ -34,6 +34,10 @@ updates:
       day: monday
       time: "04:30"
       timezone: Asia/Seoul
+    ignore:
+      # v6부터 캐시 구현이 Gradle 이용약관의 비공개 구성요소로 바뀌어 MIT 라이선스인 v5 계열을 유지한다(deploy/k3s/cicd.md).
+      - dependency-name: "gradle/actions*"
+        update-types: ["version-update:semver-major"]
     groups:
       actions-minor-and-patch:
         update-types:
