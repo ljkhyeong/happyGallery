@@ -1,5 +1,21 @@
 # HANDOFF
 
+## CI/CD 점검 (2026-10-16)
+
+- 시작 SHA `8046eaa5`, 브랜치 `codex/work-20261016-cicd-review`. 아래 디자인 브랜치 위에서 만들었다(main에 없는 디자인 커밋 9개 포함). 사용자가 "CI/CD가 잘 구성됐는지 확인해서 고칠 곳을 고치라"고 했다. workflow 3개·배포 스크립트·최근 실행 100건·GitHub 설정을 확인했다. 최근 CI는 6~7분, 매일 보안 검사는 계속 성공 중이다. 원격 푸시는 하지 않았다.
+- 고친 것:
+  - 백엔드 통합 테스트(Testcontainers)는 지원이 끝난 `mysql:8.0`, CI smoke는 떠다니는 `mysql:8.4`·`redis:7-alpine`이었다. 운영(`mysql:8.4.10`·`redis:7.4.9-alpine`)과 같게 맞추고 상수를 `SharedTestContainers`에 모았다. ADR-0026을 갱신했다.
+  - `validate.sh`가 workflow·Gradle toolchain·Testcontainers의 Node·Java·MySQL·Redis 버전을 운영 이미지·manifest와 비교한다. Dependabot #175(node 24)처럼 운영 이미지만 올리면 이제 CI에서 멈춘다.
+  - Dependabot이 Gradle Actions 메이저(v6, 캐시가 비공개 약관 구성요소)를 제안하지 않게 했다. 기존 결정(v5 유지)에 맞춘 것이다.
+  - `cicd.md`의 사라진 migration 테스트 그룹·옛 실행 시간·브랜치 보호 상태와 초기화 절차(`rolling-deployments.md`의 48시간 기한·실행 checkout·CD 잠금)를 고쳤다.
+- 검증: 새 이미지로 `:application:check :adapter-in-web:check` 통과(application 768·policy 122·architecture 11·web 192·REST Docs 303, `verifyOpenApi` 포함). `validate.sh` 통과(Ruby 161건, 샌드박스 밖). 새 검사는 사본에 운영과 다른 버전 5가지(node 24·temurin 26·IT mysql 8.0·운영 redis만 올림·CI mysql 8.4)를 넣어 모두 실패함을 확인했다. `agent-feedback final 8046eaa5` 통과. actionlint와 E2E smoke는 로컬에서 돌리지 않았다(PR CI에서 확인).
+- 남은 행동(사용자·운영자, 원격 설정이라 손대지 않음):
+  - `main` 브랜치 보호가 여전히 꺼져 있다(protection API 404, `jkrule` ruleset 비활성). `deploy/k3s/cicd.md` "브랜치 보호 적용"의 `gh api --method PUT ... --input .github/branch-protection.json`을 실행한다.
+  - AWS 시절 설정이 남아 있다: 저장소 secret `AWS_ROLE_TO_ASSUME`, 변수 `ECR_REPOSITORY`·`ECS_CLUSTER`·`ECS_SERVICE`·`S3_BUCKET`·`CLOUDFRONT_DISTRIBUTION_ID`. workflow에서 쓰지 않는다. 지우고, AWS의 해당 IAM 역할 신뢰 정책도 정리한다.
+  - 초기화 배포: 2026-10-13 CD의 복구 묶음은 48시간이 지나 3단계에 쓸 수 없다. main 병합(또는 Production 재실행)으로 1단계를 다시 한 뒤 48시간 안에 `rolling-deployments.md`의 2·3단계를 CD worktree에서 CD 잠금을 잡고 진행한다. 그동안 main에 병합하지 않는다.
+  - Dependabot: #169는 위 제외 규칙 반영 뒤 닫는다. 실패 3건(#170 orval 생성 코드, #172 Sentry 11의 `sendDefaultPii` 제거, #177 springdoc OpenAPI 스냅샷과 Maven Central 429 1회)은 코드 수정이 필요하다. #175는 CI의 Node도 함께 올려야 한다. 병합마다 배포되므로 작업 브랜치 하나에 모아 처리한다.
+- 결정: 문서만 바뀐 병합도 운영 배포(백업 포함)가 실행되지만 이번에는 바꾸지 않았다. 건너뛰려면 서버의 "main 최신 commit만 배포" 검사와 함께 설계해야 한다. 마지막 성공 배포 이후 변경 파일로 판단하는 방식이 후보다.
+
 ## 디자인 추가 점검: 색·모양·제목 글꼴과 배치 정리 (2026-10-14)
 
 - 시작 SHA `c60c4431`, 브랜치 `codex/work-20261014-design-polish`. 사용자가 "디자인 개선할 부분이 더 있는지 확인해서 진행하라"고 했다. 공개 화면 25개·회원 화면 14개를 1280·390px로 캡처해 보고(`output/playwright/design-polish/`, 전후는 `after/`), 탐색 에이전트로 고객 화면 코드를 README 디자인 기준과 대조했다.
