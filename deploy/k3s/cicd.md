@@ -8,14 +8,16 @@ PR은 `.github/workflows/ci.yml`을 실행한다. CI는 수동 실행도 지원�
 | --- | --- |
 | 소스 호환성 | PR 기준 브랜치 또는 마지막 성공 배포와 API·migration·설정 비교 |
 | 코드 검증 | 백엔드 모듈·application 세 그룹·웹 계약, 프런트 단위·lint·API·build, 브라우저 smoke |
-| 운영 구성 | `validate.sh`의 manifest·배포·백업·복구 검사, actionlint의 workflow·shell 검사 |
+| 운영 구성 | `validate.sh`의 manifest·배포·백업·복구 검사와 CI·통합 테스트의 Node·Java·MySQL·Redis 버전이 운영 이미지와 같은지 검사, actionlint의 workflow·shell 검사 |
 | 이미지 검증 | 공통 `ci-images.sh` 빌드·앱 사용자 JAR 읽기 검사, `scan-images` action의 양쪽 이미지 검사 |
 | CI Gate | 필요한 작업이 모두 성공해야 통과. PR 외 Dependency Review와 운영 배포가 뒤에서 수행할 이미지 검사만 생략 허용 |
 | 게시·배포 | 검사한 이미지를 재빌드 없이 게시하고 digest를 전달. 백업·서버 호환성·순차 rollout·공개 경로 검증 유지 |
 
 공통 이미지 검사는 HIGH/CRITICAL 취약점·비밀값과 OS 지원 종료를 확인한다. 한쪽이 실패해도 다른 쪽을 검사하고 JSON 보고서를 7일 보관한다. 어느 쪽이든 실패하거나 실행되지 않으면 다음 단계로 진행하지 않는다. `production` 태그 빌드와 게시에는 main 제한을 유지하며 `candidate`는 운영 설정으로 검증만 한다. PR용 `ci`는 운영 변수가 있어도 테스트 클라이언트 키와 빈 Sentry DSN을 사용한다.
 
-빌드·검사 작업은 2~30분으로 제한하고 운영 배포는 기존 60분을 유지한다. 실행 중인 배포를 취소하지 않으며, 재사용 CI의 동시 실행 그룹에는 호출 workflow 이름을 넣어 서로 다른 실행이 같은 대기열을 공유하지 않게 한다. JAR artifact는 누락 시 즉시 실패하고 7일 보관한다. 외부 Actions는 확인한 commit SHA로 고정하며 Dependabot으로 갱신한다. Node 24 실행 환경으로 전환하되 Gradle Actions는 기존 라이선스의 v5 계열을 유지한다.
+빌드·검사 작업은 2~30분으로 제한하고 운영 배포는 기존 60분을 유지한다. 실행 중인 배포를 취소하지 않으며, 재사용 CI의 동시 실행 그룹에는 호출 workflow 이름을 넣어 서로 다른 실행이 같은 대기열을 공유하지 않게 한다. JAR artifact는 누락 시 즉시 실패하고 7일 보관한다. 외부 Actions는 확인한 commit SHA로 고정하며 Dependabot으로 갱신한다. Node 24 실행 환경으로 전환하되 Gradle Actions는 기존 라이선스의 v5 계열을 유지한다. v6부터 캐시 구현이 Gradle 이용약관의 비공개 구성요소로 바뀌었기 때문이며, Dependabot도 Gradle Actions의 메이저 갱신은 제안하지 않는다.
+
+CI와 통합 테스트는 운영과 같은 실행 환경을 검증한다. workflow의 Node·Java, Gradle toolchain, CI smoke 서비스와 Testcontainers(`SharedTestContainers`)의 MySQL·Redis는 운영 이미지(`deploy/k3s/images`)·manifest(`deploy/k3s/base`)와 같은 버전으로 두고, `validate.sh`가 다르면 실패한다. Dependabot이 운영 이미지만 올리면 이 검사에서 멈추므로 CI·테스트 버전을 같은 PR에서 함께 올린다.
 
 GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://docs.github.com/en/billing/concepts/product-billing/github-actions)다. GHCR 이미지 저장·전송도 [현재 무료](https://docs.github.com/en/billing/concepts/product-billing/github-packages)다. Actions 로그·artifact 할당량과 GHCR 향후 정책 변경은 별도다. 별도 CI 서버나 Argo CD는 설치하지 않는다.
 
@@ -25,13 +27,13 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 
 사전 검사는 서버와 같은 `rolling-release.rb check-source <repo> <기존 SHA> <후보 SHA>`를 사용한다. 비호환 OpenAPI·migration과 보호 Spring 설정 변경을 이미지 생성과 서버 백업 전에 발견한다. 인증·세션 저장 계약은 웹 CI 테스트에서 검증하며, 서버의 최종 workload·설정 검사와 백업은 생략하지 않는다.
 
-application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분리한다. 주문·결제·예약과 migration 패키지를 각각 분리하고 core는 나머지 전부를 실행한다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
+application 검사는 `ciTestGroup=core|commerce` 두 실행기로 분리한다. commerce는 주문·결제·예약 패키지, core는 나머지 전부를 실행한다. migration 186개를 기준선 하나로 합치면서 migration 전용 그룹은 없앴다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
 
-2026-10-05 조회 기준 최근 운영 성공은 [Production 36722337863](https://github.com/ljkhyeong/happyGallery/actions/runs/36722337863), SHA `b4edd17d`다. 2026-09-30 22:32~22:50 KST에 약 17분 52초가 걸렸다. CI는 약 5분 37초, 이미지 게시 2분 35초, 서버 배포 9분 33초였다. application 세 그룹은 각각 3~4분으로, 현재 가장 긴 구간은 서버 백업·배포다. 이 기록은 이번 공통화 이전의 실측이며 새 구성의 시간은 원격 반영 후 비교한다. 백업을 생략해 시간을 줄이지 않는다.
+마지막 운영 성공은 [Production 37459985412](https://github.com/ljkhyeong/happyGallery/actions/runs/37459985412)(2026-10-06, SHA `982a88a2`, 약 23분)다. CI 11분(migration 기준선 통합 전 application-core 10분 45초), 이미지 게시 2분 36초, 서버 배포 9분 15초였다. 통합 뒤 [Production 38404325294](https://github.com/ljkhyeong/happyGallery/actions/runs/38404325294)(2026-10-13)는 CI 약 5분(가장 긴 작업은 Browser Smoke 3분 47초), 이미지 게시 2분 44초였고, 서버 배포는 의도대로 초기화 preflight에서 멈췄다(약 7분). 가장 긴 구간은 서버 백업·배포다. 백업을 생략해 시간을 줄이지 않는다.
 
 ## 브랜치 보호 적용
 
-2026-10-05 확인 결과 `main`·`codexReview`는 보호되지 않았고 기존 `jkrule` ruleset도 비활성 상태였다. `production` environment는 main만 허용했고 `CD_ENABLED=true`, Actions 기본 토큰은 읽기 권한이었다. 따라서 당시에는 CI 실패가 있어도 병합을 강제 차단하지 않았다. 저장소 파일 변경만으로 원격 보호 설정이 바뀌지는 않는다.
+2026-10-05 확인 결과 `main`·`codexReview`는 보호되지 않았고 기존 `jkrule` ruleset도 비활성 상태였다. `production` environment는 main만 허용했고 `CD_ENABLED=true`, Actions 기본 토큰은 읽기 권한이었다. 따라서 당시에는 CI 실패가 있어도 병합을 강제 차단하지 않았다. 저장소 파일 변경만으로 원격 보호 설정이 바뀌지는 않는다. 2026-10-16에 다시 확인했을 때도 `main`은 보호되지 않았다(protection API 404). 지금은 실패한 PR도 병합되고 main에 직접 push할 수 있다. Production이 CI를 다시 실행하므로 실패한 코드가 배포되지는 않지만, main에 남은 실패는 이후 모든 배포를 막는다.
 
 [branch-protection.json](../../.github/branch-protection.json)은 `main`에 적용할 설정이다. 검토 브랜치 `codexReview`는 2026-10-06에 폐지했다. PR 경유, 최신 대상 브랜치와의 CI Gate 성공, 대화 해결, 관리자 포함 적용, 강제 푸시·삭제 금지를 요구한다. 1인 개발 흐름을 유지해 다른 사람의 승인은 필수로 두지 않는다. 검사는 GitHub Actions 앱 ID `15368`로 제한한다. 기존 ruleset은 생성·갱신 차단과 광범위 우회 항목이 있어 그대로 활성화하지 않는다.
 

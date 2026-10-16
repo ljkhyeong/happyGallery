@@ -64,6 +64,22 @@ DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 →
 2. 운영자가 복구 묶음을 확인하고 앱을 멈춘 뒤 DB와 Redis를 비운다.
 3. 같은 변수와 1단계의 복구 묶음 경로(`VERIFIED_RECOVERY_BUNDLE_OVERRIDE`)를 지정해 `rollout.sh /etc/happygallery/release.env`를 실행한다. 새 앱이 빈 DB에 기준선을 적용하고 나머지 공개 경로 검증을 진행한다.
 
+main 병합으로 실행된 CD도 1단계와 같은 지점까지 진행한다. 변수 없이 실행돼 초기화 표식 확인에서 멈추지만 백업·복구 묶음 검증·이미지 반입·`release.env` 갱신은 같고, 복구 묶음 경로는 Actions 로그의 `배포 전 백업과 R2 복구 묶음 검증 완료:` 줄에 남는다. 이어서 2·3단계를 할 때 다음을 지킨다.
+
+- 복구 묶음이 48시간을 넘으면 3단계가 거부한다. 넘었으면 1단계부터 다시 한다(Production을 main으로 다시 실행해도 된다).
+- `rollout.sh`는 실행한 checkout의 manifest와 검사 스크립트를 쓴다. 1단계와 같은 commit에서 실행한다. CD가 1단계를 했다면 CD worktree이며, 그 commit이 `release.env`의 `IMAGE_TAG`와 같은지 먼저 확인한다.
+- 2·3단계 동안 main에 병합하지 않는다. 3단계는 CD 잠금을 잡고 실행해 그 사이 시작된 CD가 worktree를 다른 commit으로 바꾸지 못하게 한다. CD가 이미 실행 중이면 잠금을 못 잡고 바로 끝나므로 CD가 끝난 뒤 다시 실행한다.
+
+```bash
+cd ~/.local/state/happygallery/cd/source
+test "$(git rev-parse HEAD)" = "$(sed -n 's/^IMAGE_TAG=//p' /etc/happygallery/release.env)" && echo 'commit 일치'
+flock -n ~/.local/state/happygallery/cd/.lock env \
+  HAPPYGALLERY_SCHEMA_RESET=<초기화 id> \
+  VERIFIED_RECOVERY_BUNDLE_OVERRIDE=<1단계 복구 묶음 경로> \
+  KUBECTL_BIN=/usr/local/libexec/happygallery-kubectl \
+  ./deploy/k3s/scripts/rollout.sh /etc/happygallery/release.env
+```
+
 ## 변경 종류별 호환성 검사
 
 | 대상 | 자동 허용 | 차단 또는 별도 검토 |
