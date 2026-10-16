@@ -17,11 +17,12 @@
   - cicd-review와 시험 병합(임시 worktree): 충돌은 HANDOFF.md 맨 위 절뿐이다. 합친 상태에서 `validate.sh`(Node·Java·MySQL·Redis 버전 일치 검사 포함)·frontend typecheck·lint 통과. CI Node만 22로 되돌리면 버전 일치 검사가 실패함도 확인했다.
   - 호환성: `ci-compatibility-test.rb` 6건 통과. 가짜 PR 이벤트(base `4aaba8ee`)와 실제 배포 이력으로 `ci-compatibility.rb`를 실행해 `982a88a2` → HEAD 비교 통과(초기화 release 인식)를 확인했다.
   - `agent-feedback final 4aaba8ee`: 호환성 단계는 시작 SHA(=PR base)와 직접 비교해 위 154건으로 실패한다(로컬 도구는 운영 기준을 모름). 나머지 단계(기준 대비 diff 검사·Ruby 구문·ESLint·ArchUnit·typecheck)는 클래스를 직접 불러 실행해 통과했다. `gradlew.bat`의 기준 대비 `--cached --check`는 Dependabot이 CRLF blob으로 커밋한 줄을 trailing whitespace로 잡아 제외했다.
+- 결과: PR [#179](https://github.com/ljkhyeong/happyGallery/pull/179), CI `38927344809` 12개 작업 통과(Node 24의 Frontend Build·Browser Smoke E2E·Container Security, 새 기준의 Rolling Compatibility 포함). Codex 리뷰는 사용량 한도로 실행되지 않았다(지적 0건). 사용자 요청으로 CI 통과 뒤 #171(@types/node 26.x)·#169(setup-gradle 6.x)를 `@dependabot ignore this major version`으로 닫았다.
 - 남은 행동:
-  - PR CI를 확인한다. 병합 시점은 사용자가 정한다. 운영은 초기화 release 대기 중이라 병합하면 CD가 preflight에서 멈춘다(`deploy/k3s/rolling-deployments.md`).
+  - 병합 시점은 사용자가 정한다. 운영은 초기화 release 대기 중이라 병합하면 CD가 preflight에서 멈춘다(`deploy/k3s/rolling-deployments.md`).
   - 이 PR은 초기화 release 2·3단계 전에 main에 병합해야 한다. 초기화가 배포된 뒤 병합하면 운영 CD도 OpenAPI 하한 표시를 "제약 추가"로 막는다.
   - `codex/work-20261016-cicd-review`가 먼저 병합되면 main을 이 브랜치에 병합하고 HANDOFF 충돌은 두 절을 모두 남겨 해소한다.
-  - 병합 뒤 #171과 #169를 `@dependabot ignore this major version`으로 닫는다. 사용자 확인이 필요하다.
+  - 후속 후보(미적용): #171 ignore는 26.x만 막는다. #179 병합 뒤 Dependabot이 `@types/node` 25.x를 major PR로 다시 제안할 수 있다. 런타임 major를 따르려면 `.github/dependabot.yml`에 `@types/node` semver-major 제외 규칙을 두는 방안을 검토한다.
 - 실행 조건: 샌드박스에서 npm은 `--cache "$TMPDIR/npm-cache"`를 쓴다(`~/.npm/_cacache` 쓰기 차단). `test:unit`은 로컬 포트를 열어서, `agent-feedback.rb`는 한글 경로 때문에 `LANG=ko_KR.UTF-8`에서 실행한다. `gradlew.bat`은 CRLF로 커밋돼 `.gitattributes`(`*.bat text eol=crlf`)와 맞지 않는다. 그래서 checkout 직후 항상 수정됨으로 보이지만 내용은 HEAD와 같다. 이 파일을 바꾸는 병합은 파일을 잠시 옮긴 뒤 진행한다.
 
 ## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
