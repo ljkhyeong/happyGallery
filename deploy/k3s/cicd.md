@@ -6,7 +6,7 @@ PR은 `.github/workflows/ci.yml`을 실행한다. CI는 수동 실행도 지원�
 
 | 단계 | 담당과 통과 조건 |
 | --- | --- |
-| 소스 호환성 | PR 기준 브랜치 또는 마지막 성공 배포와 API·migration·설정 비교 |
+| 소스 호환성 | PR 기준 브랜치 또는 마지막 성공 배포와 API·migration·설정 비교. 기준 브랜치에 아직 배포되지 않은 초기화 표식이 있으면 PR도 그 초기화 release에 포함되므로 마지막 성공 배포와 비교 |
 | 코드 검증 | 백엔드 모듈·application 세 그룹·웹 계약, 프런트 단위·lint·API·build, 브라우저 smoke |
 | 운영 구성 | `validate.sh`의 manifest·배포·백업·복구 검사, actionlint의 workflow·shell 검사 |
 | 이미지 검증 | 공통 `ci-images.sh` 빌드·앱 사용자 JAR 읽기 검사, `scan-images` action의 양쪽 이미지 검사 |
