@@ -30,7 +30,7 @@
 ### 요구사항
 
 - Java 25
-- Node.js 22.22+
+- Node.js 24.13+
 - Docker / Docker Compose
 
 ### 실행
