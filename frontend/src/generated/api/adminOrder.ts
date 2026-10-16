@@ -894,6 +894,7 @@ export interface RequestSmartStoreSellerCancelRequest {
      * @maxLength 500
      */
   detailedReason?: string;
+  /** @exclusiveMinimum 0 */
   quantity?: number;
   /** @minLength 1 */
   reason: string;
@@ -923,6 +924,7 @@ export interface HoldSmartStoreExchangeRequest {
      * @maxLength 500
      */
   detailedReason: string;
+  /** @minimum 0 */
   extraExchangeFeeAmount?: number;
   /** @minLength 1 */
   holdbackClassType: string;
@@ -939,6 +941,7 @@ export interface RejectSmartStoreExchangeRequest {
 export interface HoldSmartStoreReturnRequest {
   /** @minLength 1 */
   detailedReason: string;
+  /** @minimum 0 */
   extraReturnFeeAmount?: number;
   /** @minLength 1 */
   holdbackClassType: string;
@@ -949,6 +952,7 @@ export interface RequestSmartStoreSellerReturnRequest {
   /** @minLength 1 */
   collectDeliveryMethod: string;
   collectTrackingNumber?: string;
+  /** @exclusiveMinimum 0 */
   returnQuantity?: number;
   /** @minLength 1 */
   returnReason: string;

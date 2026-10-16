@@ -38,6 +38,7 @@ export interface UpdateNoticeRequest {
      * @maxLength 16000
      */
   content: string;
+  /** @minimum 0 */
   expectedVersion: number;
   pinned: boolean;
   /**

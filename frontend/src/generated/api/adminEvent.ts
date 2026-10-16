@@ -22,7 +22,10 @@ export interface CreateEventRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   couponDefinitionId?: number | null;
   endAt: string;
   featured: boolean;
@@ -33,7 +36,10 @@ export interface CreateEventRequest {
      */
   imageUrl?: string | null;
   published: boolean;
-  /** @nullable */
+  /**
+     * @nullable
+     * @items.exclusiveMinimum 0
+     */
   relatedProductIds?: number[] | null;
   startAt: string;
   /**
@@ -54,9 +60,13 @@ export interface UpdateEventRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   couponDefinitionId?: number | null;
   endAt: string;
+  /** @minimum 0 */
   expectedVersion: number;
   featured: boolean;
   /**
@@ -66,7 +76,10 @@ export interface UpdateEventRequest {
      */
   imageUrl?: string | null;
   published: boolean;
-  /** @nullable */
+  /**
+     * @nullable
+     * @items.exclusiveMinimum 0
+     */
   relatedProductIds?: number[] | null;
   startAt: string;
   /**

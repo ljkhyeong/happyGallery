@@ -50,8 +50,12 @@ export const CreateClassRequestSituationTagsItem = {
 } as const;
 
 export interface CreateClassRequest {
+  /** @minimum 0 */
   bufferMin: number;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @exclusiveMinimum 0
+     */
   capacity: number;
   /**
      * @minLength 0
@@ -63,6 +67,7 @@ export interface CreateClassRequest {
      * @maxLength 5000
      */
   description?: string;
+  /** @exclusiveMinimum 0 */
   durationMin: number;
   /**
      * @minLength 0
@@ -276,6 +281,7 @@ export interface ProductOptionValueRequest {
      * @maxLength 25
      */
   name: string;
+  /** @minimum 0 */
   sortOrder?: number;
 }
 
@@ -290,7 +296,10 @@ export interface ProductOptionGroupRequest {
      * @maxLength 100
      */
   inputPlaceholder?: string;
-  /** @maximum 9007199254740991 */
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   inputPriceAdjustment?: number;
   /**
      * @minLength 1
@@ -303,6 +312,7 @@ export interface ProductOptionGroupRequest {
      */
   name: string;
   required?: boolean;
+  /** @minimum 0 */
   sortOrder?: number;
   type: ProductOptionGroupRequestType;
   /**
@@ -328,7 +338,10 @@ export interface ProductVariantSelectionRequest {
 export interface ProductVariantRequest {
   active: boolean;
   priceAdjustment: number;
-  /** 신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다. */
+  /**
+     * 신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다.
+     * @minimum 0
+     */
   quantity: number;
   /**
      * @minItems 0
@@ -368,14 +381,20 @@ export interface CreateProductRequest {
      * @maxItems 8
      */
   optionGroups?: ProductOptionGroupRequest[];
-  /** @maximum 9007199254740991 */
+  /**
+     * @maximum 9007199254740991
+     * @exclusiveMinimum 0
+     */
   price: number;
   /**
      * @minimum 1
      * @maximum 180
      */
   productionLeadDays?: number;
-  /** @nullable */
+  /**
+     * @minimum 0
+     * @nullable
+     */
   quantity?: number | null;
   /**
      * @minLength 0
@@ -471,7 +490,10 @@ export interface UpdateProductRequest {
      * @maxItems 8
      */
   optionGroups?: ProductOptionGroupRequest[];
-  /** @maximum 9007199254740991 */
+  /**
+     * @maximum 9007199254740991
+     * @exclusiveMinimum 0
+     */
   price: number;
   /**
      * @minimum 1
@@ -480,6 +502,7 @@ export interface UpdateProductRequest {
   productionLeadDays?: number;
   /**
      * 선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.
+     * @minimum 0
      * @nullable
      */
   quantity?: number | null;
@@ -528,8 +551,12 @@ export const AdjustInventoryRequestType = {
 } as const;
 
 export interface AdjustInventoryRequest {
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
+  /** @exclusiveMinimum 0 */
   quantity: number;
   /**
      * @minLength 0
@@ -573,14 +600,20 @@ export interface SmartStoreInventoryMappingResponse {
 }
 
 export interface SmartStoreVariantMappingRequest {
+  /** @exclusiveMinimum 0 */
   optionId: number;
+  /** @exclusiveMinimum 0 */
   productVariantId: number;
 }
 
 export interface SaveSmartStoreInventoryMappingRequest {
   enabled?: boolean;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   expectedMappingVersion: number | null;
+  /** @exclusiveMinimum 0 */
   originProductNo: number;
   previousOriginConfirmed: boolean;
   /**
@@ -770,6 +803,7 @@ export interface UpdateBookingCalendarDayRequest {
 export interface UpdateBookingCalendarSettingsRequest {
   blockPublicHolidays: boolean;
   closeTime: string;
+  /** @minimum 0 */
   expectedVersion: number;
   openTime: string;
   /**
@@ -914,12 +948,18 @@ export interface StockLevelResponse {
 export interface UpdateStockThresholdRequest {
   /**
      * null이면 재고 부족 기준을 해제하고 품절만 표시
+     * @minimum 0
      * @nullable
      */
   minimumStock?: number | null;
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
+  /** @minimum 0 */
   version: number;
 }
 

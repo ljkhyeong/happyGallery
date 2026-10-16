@@ -109,6 +109,7 @@ export interface ResolveOrderClaimRequest {
      * @maxLength 1000
      */
   note?: string;
+  /** @exclusiveMinimum 0 */
   refundAmount?: number;
   restoreInventory: boolean;
 }
@@ -133,6 +134,7 @@ export const OrderClaimRequestType = {
 
 export interface ClaimItemRequest {
   orderItemId: number;
+  /** @exclusiveMinimum 0 */
   quantity: number;
 }
 

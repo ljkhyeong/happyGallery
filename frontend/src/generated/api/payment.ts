@@ -1,5 +1,6 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface ConfirmPaymentRequest {
+  /** @minimum 0 */
   amount: number;
   /** @minLength 1 */
   orderId: string;
@@ -68,8 +69,12 @@ export interface OrderTextInput {
 }
 
 export interface OrderItemRef {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
   /**
      * @minimum 1
@@ -118,7 +123,10 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      */
   expectedCartVersion?: string | null;
   fulfillmentType: OrderPayloadFulfillmentType;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   issuedCouponId?: number | null;
   /**
      * @minItems 0
@@ -144,6 +152,7 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      * @minItems 1
      * @maxItems 100
      * @nullable
+     * @items.exclusiveMinimum 0
      */
   selectedCartItemIds?: number[] | null;
   shippingAddress?: ShippingAddress | null;

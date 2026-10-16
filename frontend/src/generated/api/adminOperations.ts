@@ -176,6 +176,7 @@ export interface GroupInquiryUpdateRequest {
      */
   note: string;
   status: GroupInquiryUpdateRequestStatus;
+  /** @minimum 0 */
   version: number;
 }
 
@@ -185,6 +186,7 @@ export interface GroupInquiryContactRequest {
      * @nullable
      */
   nextContactOn?: string | null;
+  /** @minimum 0 */
   version: number;
 }
 

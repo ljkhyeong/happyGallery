@@ -89,6 +89,7 @@ export interface CreateAdminBookingRequest {
      * @maxLength 20
      */
   phone: string;
+  /** @exclusiveMinimum 0 */
   slotId: number;
   source: CreateAdminBookingRequestSource;
 }

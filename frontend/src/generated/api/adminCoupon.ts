@@ -33,14 +33,21 @@ export const CreateCouponRequestDiscountType = {
 export interface CreateCouponRequest {
   active: boolean;
   discountType: CreateCouponRequestDiscountType;
-  /** @maximum 9007199254740991 */
+  /**
+     * @maximum 9007199254740991
+     * @exclusiveMinimum 0
+     */
   discountValue: number;
   /**
      * @maximum 9007199254740991
+     * @exclusiveMinimum 0
      * @nullable
      */
   maxDiscountAmount?: number | null;
-  /** @maximum 9007199254740991 */
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   minOrderAmount: number;
   /**
      * @minLength 0
@@ -63,15 +70,23 @@ export const UpdateCouponRequestDiscountType = {
 export interface UpdateCouponRequest {
   active: boolean;
   discountType: UpdateCouponRequestDiscountType;
-  /** @maximum 9007199254740991 */
+  /**
+     * @maximum 9007199254740991
+     * @exclusiveMinimum 0
+     */
   discountValue: number;
+  /** @minimum 0 */
   expectedVersion: number;
   /**
      * @maximum 9007199254740991
+     * @exclusiveMinimum 0
      * @nullable
      */
   maxDiscountAmount?: number | null;
-  /** @maximum 9007199254740991 */
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
   minOrderAmount: number;
   /**
      * @minLength 0

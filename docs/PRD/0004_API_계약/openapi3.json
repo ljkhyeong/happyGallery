@@ -36,10 +36,12 @@
       "AdjustInventoryRequest" : {
         "properties" : {
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
           "quantity" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "type" : "integer"
           },
@@ -1429,9 +1431,11 @@
             "type" : "boolean"
           },
           "closeTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "openTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "slotIntervalMin" : {
@@ -1735,6 +1739,7 @@
             "type" : "string"
           },
           "endTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "id" : {
@@ -1745,6 +1750,7 @@
             "type" : [ "string", "null" ]
           },
           "startTime" : {
+            "format" : "time-local",
             "type" : "string"
           }
         },
@@ -1794,6 +1800,7 @@
         "properties" : {
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -1958,6 +1965,7 @@
       "ClaimCouponRequest" : {
         "properties" : {
           "definitionId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           }
@@ -2020,6 +2028,7 @@
         "properties" : {
           "bookingIds" : {
             "items" : {
+              "exclusiveMinimum" : 0,
               "format" : "int64",
               "type" : "integer"
             },
@@ -2029,6 +2038,7 @@
           },
           "orderIds" : {
             "items" : {
+              "exclusiveMinimum" : 0,
               "format" : "int64",
               "type" : "integer"
             },
@@ -2046,6 +2056,7 @@
             "type" : "integer"
           },
           "quantity" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "type" : "integer"
           }
@@ -2263,6 +2274,7 @@
         "properties" : {
           "amount" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "orderId" : {
@@ -2320,6 +2332,7 @@
             "type" : "string"
           },
           "slotId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
@@ -2338,6 +2351,7 @@
             "type" : "string"
           },
           "endTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "reason" : {
@@ -2346,6 +2360,7 @@
             "type" : [ "string", "null" ]
           },
           "startTime" : {
+            "format" : "time-local",
             "type" : "string"
           }
         },
@@ -2356,9 +2371,11 @@
         "properties" : {
           "bufferMin" : {
             "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           },
           "capacity" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "minimum" : 1,
             "type" : "integer"
@@ -2374,6 +2391,7 @@
             "type" : "string"
           },
           "durationMin" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "type" : "integer"
           },
@@ -2421,6 +2439,7 @@
       "CreateClassReviewRequest" : {
         "properties" : {
           "bookingId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "minimum" : 1,
             "type" : "integer"
@@ -2450,11 +2469,13 @@
             "type" : "string"
           },
           "discountValue" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : "integer"
           },
           "maxDiscountAmount" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : [ "integer", "null" ]
@@ -2462,6 +2483,7 @@
           "minOrderAmount" : {
             "format" : "int64",
             "maximum" : 9007199254740991,
+            "minimum" : 0,
             "type" : "integer"
           },
           "name" : {
@@ -2492,6 +2514,7 @@
             "type" : "string"
           },
           "couponDefinitionId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
@@ -2512,6 +2535,7 @@
           },
           "relatedProductIds" : {
             "items" : {
+              "exclusiveMinimum" : 0,
               "format" : "int64",
               "type" : "integer"
             },
@@ -2607,6 +2631,7 @@
             "type" : "array"
           },
           "price" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : "integer"
@@ -2619,6 +2644,7 @@
           },
           "quantity" : {
             "format" : "int32",
+            "minimum" : 0,
             "type" : [ "integer", "null" ]
           },
           "specification" : {
@@ -2650,6 +2676,7 @@
             "type" : "string"
           },
           "orderItemId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "minimum" : 1,
             "type" : "integer"
@@ -3454,6 +3481,7 @@
           },
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -3634,6 +3662,7 @@
           },
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -3800,6 +3829,7 @@
           },
           "extraExchangeFeeAmount" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "holdbackClassType" : {
@@ -3818,6 +3848,7 @@
           },
           "extraReturnFeeAmount" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "holdbackClassType" : {
@@ -4268,10 +4299,12 @@
       "MergeCartItemRequest" : {
         "properties" : {
           "productId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
@@ -4296,6 +4329,7 @@
       "MergeCartRequest" : {
         "properties" : {
           "expectedCustomerId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
@@ -5229,10 +5263,12 @@
       "OrderItemRef" : {
         "properties" : {
           "productId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
@@ -5292,6 +5328,7 @@
               "type" : "string"
             },
             "issuedCouponId" : {
+              "exclusiveMinimum" : 0,
               "format" : "int64",
               "type" : [ "integer", "null" ]
             },
@@ -5332,6 +5369,7 @@
             "selectedCartItemIds" : {
               "description" : "선택 구매할 본인 장바구니 행 ID. 생략 또는 null이면 구매 가능한 전체 항목. 지정 시 expectedCartVersion 필수",
               "items" : {
+                "exclusiveMinimum" : 0,
                 "format" : "int64",
                 "type" : "integer"
               },
@@ -5935,6 +5973,7 @@
           "inputPriceAdjustment" : {
             "format" : "int64",
             "maximum" : 9007199254740991,
+            "minimum" : 0,
             "type" : "integer"
           },
           "key" : {
@@ -5952,6 +5991,7 @@
           },
           "sortOrder" : {
             "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           },
           "type" : {
@@ -6048,6 +6088,7 @@
           },
           "sortOrder" : {
             "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -6242,6 +6283,7 @@
           "quantity" : {
             "description" : "신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다.",
             "format" : "int32",
+            "minimum" : 0,
             "type" : "integer"
           },
           "selections" : {
@@ -6716,6 +6758,7 @@
             "type" : "string"
           },
           "quantity" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "type" : "integer"
           },
@@ -6740,6 +6783,7 @@
             "type" : "string"
           },
           "returnQuantity" : {
+            "exclusiveMinimum" : 0,
             "format" : "int32",
             "type" : "integer"
           },
@@ -6834,6 +6878,7 @@
             "type" : "string"
           },
           "refundAmount" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
@@ -6887,10 +6932,12 @@
       "RestockAlertRequest" : {
         "properties" : {
           "productId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           }
@@ -7350,10 +7397,12 @@
             "type" : "boolean"
           },
           "expectedMappingVersion" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
           "originProductNo" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
@@ -8611,10 +8660,12 @@
       "SmartStoreVariantMappingRequest" : {
         "properties" : {
           "optionId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           }
@@ -8887,13 +8938,16 @@
             "type" : "boolean"
           },
           "closeTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "expectedVersion" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "openTime" : {
+            "format" : "time-local",
             "type" : "string"
           },
           "slotIntervalMin" : {
@@ -8991,15 +9045,18 @@
             "type" : "string"
           },
           "discountValue" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : "integer"
           },
           "expectedVersion" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "maxDiscountAmount" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : [ "integer", "null" ]
@@ -9007,6 +9064,7 @@
           "minOrderAmount" : {
             "format" : "int64",
             "maximum" : 9007199254740991,
+            "minimum" : 0,
             "type" : "integer"
           },
           "name" : {
@@ -9037,6 +9095,7 @@
             "type" : "string"
           },
           "couponDefinitionId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
@@ -9046,6 +9105,7 @@
           },
           "expectedVersion" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "featured" : {
@@ -9061,6 +9121,7 @@
           },
           "relatedProductIds" : {
             "items" : {
+              "exclusiveMinimum" : 0,
               "format" : "int64",
               "type" : "integer"
             },
@@ -9115,6 +9176,7 @@
           },
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -9130,6 +9192,7 @@
           },
           "expectedVersion" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "pinned" : {
@@ -9180,6 +9243,7 @@
             "type" : "array"
           },
           "price" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "maximum" : 9007199254740991,
             "type" : "integer"
@@ -9193,6 +9257,7 @@
           "quantity" : {
             "description" : "선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.",
             "format" : "int32",
+            "minimum" : 0,
             "type" : [ "integer", "null" ]
           },
           "specification" : {
@@ -9248,6 +9313,7 @@
         "properties" : {
           "expectedContentRevision" : {
             "description" : "관리자가 확인한 후기 본문·평점·사진의 revision",
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "minimum" : 1,
             "type" : "integer"
@@ -9279,6 +9345,7 @@
           },
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -9290,18 +9357,22 @@
           "minimumStock" : {
             "description" : "null이면 재고 부족 기준을 해제하고 품절만 표시",
             "format" : "int32",
+            "minimum" : 0,
             "type" : [ "integer", "null" ]
           },
           "productId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : "integer"
           },
           "productVariantId" : {
+            "exclusiveMinimum" : 0,
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
           "version" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           }
         },
@@ -9337,6 +9408,7 @@
           },
           "expectedVersion" : {
             "format" : "int64",
+            "minimum" : 0,
             "type" : "integer"
           },
           "instagramUrl" : {

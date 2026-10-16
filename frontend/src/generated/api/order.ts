@@ -326,6 +326,7 @@ export interface ShippingAddress {
 
 export interface UpdateShippingAddressRequest {
   shippingAddress: ShippingAddress;
+  /** @minimum 0 */
   version: number;
 }
 

@@ -38,6 +38,7 @@ export interface MyCouponResponse {
 }
 
 export interface ClaimCouponRequest {
+  /** @exclusiveMinimum 0 */
   definitionId: number;
 }
 

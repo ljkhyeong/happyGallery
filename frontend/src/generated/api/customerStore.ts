@@ -145,8 +145,12 @@ export interface ProductTextInputRequest {
 }
 
 export interface MergeCartItemRequest {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
   /**
      * @minimum 1
@@ -161,6 +165,7 @@ export interface MergeCartItemRequest {
 }
 
 export interface MergeCartRequest {
+  /** @exclusiveMinimum 0 */
   expectedCustomerId: number;
   idempotencyKey: string;
   /**
@@ -202,6 +207,7 @@ export interface ShippingAddress {
 
 export interface UpdateShippingAddressRequest {
   shippingAddress: ShippingAddress;
+  /** @minimum 0 */
   version: number;
 }
 
@@ -294,10 +300,12 @@ export interface UpdateMyGroupInquiryRequest {
      * @maxLength 200
      */
   preferredSchedule: string;
+  /** @minimum 0 */
   version: number;
 }
 
 export interface CancelMyGroupInquiryRequest {
+  /** @minimum 0 */
   version: number;
 }
 
@@ -305,11 +313,13 @@ export interface ClaimGuestRecordsRequest {
   /**
      * @minItems 0
      * @maxItems 100
+     * @items.exclusiveMinimum 0
      */
   bookingIds?: number[];
   /**
      * @minItems 0
      * @maxItems 100
+     * @items.exclusiveMinimum 0
      */
   orderIds?: number[];
 }
@@ -835,8 +845,12 @@ export interface RestockAlertResponse {
 }
 
 export interface RestockAlertRequest {
+  /** @exclusiveMinimum 0 */
   productId: number;
-  /** @nullable */
+  /**
+     * @exclusiveMinimum 0
+     * @nullable
+     */
   productVariantId?: number | null;
 }
 

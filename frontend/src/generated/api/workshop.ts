@@ -69,6 +69,7 @@ export interface UpdateWorkshopProfileRequest {
      * @nullable
      */
   email?: string | null;
+  /** @minimum 0 */
   expectedVersion: number;
   /**
      * @minLength 0

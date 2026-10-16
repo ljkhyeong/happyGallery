@@ -280,6 +280,7 @@ export interface UpdateReviewStatusRequest {
   /**
      * 관리자가 확인한 후기 본문·평점·사진의 revision
      * @minimum 1
+     * @exclusiveMinimum 0
      */
   expectedContentRevision: number;
   /**
@@ -433,7 +434,10 @@ export interface MemberReviewPageResponse {
 }
 
 export interface CreateClassReviewRequest {
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @exclusiveMinimum 0
+     */
   bookingId: number;
   /**
      * @minLength 1
@@ -522,7 +526,10 @@ export interface CreateProductReviewRequest {
      * @maxLength 16000
      */
   content: string;
-  /** @minimum 1 */
+  /**
+     * @minimum 1
+     * @exclusiveMinimum 0
+     */
   orderItemId: number;
   /**
      * @minimum 1
