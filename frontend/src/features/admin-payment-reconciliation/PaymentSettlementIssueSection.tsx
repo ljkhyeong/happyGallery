@@ -5,13 +5,14 @@ import type { PaymentSettlementIssueResponse } from "@/shared/types";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
   onAuthError: () => void;
 }
 
-const queryKey = ["admin", "payment-settlements", "issues"];
+const queryKey = queryKeys.admin.payments.settlementIssues;
 
 export function PaymentSettlementIssueSection({ adminKey, onAuthError }: Props) {
   const { data, isLoading, error } = useAdminQuery(onAuthError, {

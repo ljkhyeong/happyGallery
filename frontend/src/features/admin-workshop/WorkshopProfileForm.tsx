@@ -9,6 +9,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -66,7 +67,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   const [actionError, setActionError] = useState<Error | null>(null);
   const initiallyHydrated = useRef(false);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "workshop-profile"],
+    queryKey: queryKeys.admin.workshopProfile,
     queryFn: () => fetchAdminWorkshopProfile(adminKey),
   });
   const edit = useVersionedEdit<WorkshopProfile>({
@@ -75,7 +76,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
     applyToForm: (profile) => setForm(profileToForm(profile)),
     setError: setActionError,
     onConflict: (latest) => {
-      if (latest) queryClient.setQueryData(["admin", "workshop-profile"], latest);
+      if (latest) queryClient.setQueryData(queryKeys.admin.workshopProfile, latest);
     },
   });
 
@@ -114,8 +115,8 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
     onMutate: () => setActionError(null),
     onSuccess: (saved) => {
       edit.applyLatest(saved);
-      queryClient.setQueryData(["admin", "workshop-profile"], saved);
-      queryClient.invalidateQueries({ queryKey: ["workshop-profile"] });
+      queryClient.setQueryData(queryKeys.admin.workshopProfile, saved);
+      queryClient.invalidateQueries({ queryKey: queryKeys.workshop });
       toast.show("공방 정보가 저장되었습니다.");
     },
     onError: (error) => edit.handleSaveError(error, () => fetchAdminWorkshopProfile(adminKey)),

@@ -8,6 +8,7 @@ import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthori
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -18,7 +19,7 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const queryKey = ["admin", "notifications", "failed"];
+  const queryKey = queryKeys.admin.notifications.failed;
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchFailedNotifications(adminKey),

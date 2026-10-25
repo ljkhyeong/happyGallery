@@ -51,7 +51,7 @@ export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
 /** 관리자 화면 여러 곳이 같은 캐시로 공유하는 전체 상품 목록 조회 */
 export function adminProductsQuery(adminKey: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.products,
+    queryKey: queryKeys.admin.products.all,
     queryFn: () => fetchProducts(adminKey),
   });
 }

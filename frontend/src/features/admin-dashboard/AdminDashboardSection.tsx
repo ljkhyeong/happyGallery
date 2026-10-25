@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -94,11 +95,11 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
   const [granularity, setGranularity] = useState<DashboardGranularity>("DAILY");
 
   const snapshotQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "dashboard", "snapshot", range.from, range.to],
+    queryKey: queryKeys.admin.dashboard.snapshot(range.from, range.to),
     queryFn: () => fetchDashboardSnapshot(adminKey, range),
   });
   const salesQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "dashboard", "sales", range.from, range.to, granularity],
+    queryKey: queryKeys.admin.dashboard.sales(range.from, range.to, granularity),
     queryFn: () => fetchSalesSummary(adminKey, range, granularity),
   });
 

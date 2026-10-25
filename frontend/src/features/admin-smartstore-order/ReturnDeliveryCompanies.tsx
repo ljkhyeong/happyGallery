@@ -3,6 +3,7 @@ import { Button, Table } from "react-bootstrap";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchSmartStoreReturnDeliveryCompanies } from "./api";
+import { queryKeys } from "@/shared/api";
 
 export function ReturnDeliveryCompanies({ adminKey, onAuthError }: {
   adminKey: string;
@@ -10,7 +11,7 @@ export function ReturnDeliveryCompanies({ adminKey, onAuthError }: {
 }) {
   const [open, setOpen] = useState(false);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-return-delivery-companies"],
+    queryKey: queryKeys.admin.smartStore.returnDeliveryCompanies,
     queryFn: () => fetchSmartStoreReturnDeliveryCompanies(adminKey),
     enabled: open,
   });

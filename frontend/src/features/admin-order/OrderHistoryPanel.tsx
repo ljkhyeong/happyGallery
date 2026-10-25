@@ -3,6 +3,7 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import { fetchOrderHistory } from "./api";
+import { queryKeys } from "@/shared/api";
 
 const DECISION_LABELS: Record<string, string> = {
   APPROVE: "승인",
@@ -29,7 +30,7 @@ interface Props {
 
 export function OrderHistoryPanel({ orderId, adminKey, onAuthError }: Props) {
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "orders", orderId, "history"],
+    queryKey: queryKeys.admin.orders.history(orderId),
     queryFn: () => fetchOrderHistory(adminKey, orderId),
   });
 

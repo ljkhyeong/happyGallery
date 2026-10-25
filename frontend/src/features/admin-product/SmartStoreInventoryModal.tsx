@@ -15,7 +15,7 @@ import {
 import { productVariantLabel } from "./productVariantLabel";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { ApiError } from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import type { ProductResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -66,7 +66,7 @@ export function SmartStoreInventoryModal({
   const [unlinkConfirmed, setUnlinkConfirmed] = useState(false);
   const variants = product.variants;
   const mappingQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product.id, "smartstore-inventory"],
+    queryKey: queryKeys.admin.products.smartStoreInventory(product.id),
     queryFn: () => fetchSmartStoreInventoryMapping(adminKey, product.id),
   });
   const mapping = mappingQuery.data;
@@ -91,7 +91,7 @@ export function SmartStoreInventoryModal({
     return Number.isSafeInteger(value) && value > 0;
   });
   const historyQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
+    queryKey: queryKeys.admin.products.smartStoreInventoryHistory(product.id),
     queryFn: () => fetchSmartStoreInventoryMappingHistory(adminKey, product.id),
   });
   const previousOriginProductNo = mapping?.originProductNo;
@@ -99,7 +99,7 @@ export function SmartStoreInventoryModal({
     && validOrigin
     && previousOriginProductNo !== originNumber;
   const catalogQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", catalogPage],
+    queryKey: queryKeys.admin.smartStore.products.page(catalogPage),
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
   });
   const catalogProducts = useMemo(() => {
@@ -111,12 +111,12 @@ export function SmartStoreInventoryModal({
       || String(item.channelProductNo).includes(keyword));
   }, [catalogQuery.data?.products, catalogSearch]);
   const channelProductQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", "detail", originNumber],
+    queryKey: queryKeys.admin.smartStore.products.detail(originNumber),
     queryFn: () => fetchSmartStoreProduct(adminKey, originNumber),
     enabled: validOrigin,
   });
   const previewQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
+    queryKey: queryKeys.admin.products.smartStorePreview(product.id),
     queryFn: () => fetchSmartStoreProductPreview(adminKey, product.id),
     enabled: mapping?.enabled === true,
   });
@@ -133,7 +133,7 @@ export function SmartStoreInventoryModal({
   const refreshMappingOnConflict = async (error: unknown) => {
     if (error instanceof ApiError && error.status === 409) {
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "smartstore-inventory"],
+        queryKey: queryKeys.admin.products.smartStoreInventory(product.id),
       });
     }
   };
@@ -153,17 +153,17 @@ export function SmartStoreInventoryModal({
     }),
     onSuccess: async (mapping) => {
       queryClient.setQueryData(
-        ["admin", "products", product.id, "smartstore-inventory"],
+        queryKeys.admin.products.smartStoreInventory(product.id),
         mapping,
       );
       toast.show(mapping.enabled
         ? "연동 설정을 저장하고 스마트스토어에 최신 재고 반영을 요청했습니다."
         : "스마트스토어 재고 자동 반영을 중지했습니다.");
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
+        queryKey: queryKeys.admin.products.smartStorePreview(product.id),
       });
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
+        queryKey: queryKeys.admin.products.smartStoreInventoryHistory(product.id),
       });
     },
     onError: refreshMappingOnConflict,
@@ -173,7 +173,7 @@ export function SmartStoreInventoryModal({
     mutationFn: () => retrySmartStoreSync(adminKey, product.id),
     onSuccess: (mapping) => {
       queryClient.setQueryData(
-        ["admin", "products", product.id, "smartstore-inventory"],
+        queryKeys.admin.products.smartStoreInventory(product.id),
         mapping,
       );
       toast.show("스마트스토어 재고 반영을 다시 요청했습니다.");
@@ -189,11 +189,11 @@ export function SmartStoreInventoryModal({
     ),
     onSuccess: async () => {
       queryClient.setQueryData(
-        ["admin", "products", product.id, "smartstore-inventory"],
+        queryKeys.admin.products.smartStoreInventory(product.id),
         null,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
+        queryKey: queryKeys.admin.products.smartStoreInventoryHistory(product.id),
       });
       toast.show("스마트스토어 재고 연동을 해제했습니다.");
       onClose();
@@ -210,13 +210,13 @@ export function SmartStoreInventoryModal({
     onSuccess: async () => {
       toast.show("해피갤러리의 가격·판매 상태·옵션 가격을 스마트스토어에 반영했습니다.");
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
+        queryKey: queryKeys.admin.products.smartStorePreview(product.id),
       });
     },
     onError: async (error) => {
       if (error instanceof ApiError && error.status === 409) {
         await queryClient.invalidateQueries({
-          queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
+          queryKey: queryKeys.admin.products.smartStorePreview(product.id),
         });
       }
     },

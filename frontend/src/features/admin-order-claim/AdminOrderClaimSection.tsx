@@ -28,6 +28,7 @@ import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -60,7 +61,7 @@ export function AdminOrderClaimSection({
     resetCursor,
   } = useCursorHistory();
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const queryKey = ["admin", "order-claims", status, cursor] as const;
+  const queryKey = queryKeys.admin.orderClaims.page(status, cursor);
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchAdminOrderClaims(adminKey, status || undefined, cursor),
@@ -79,7 +80,7 @@ export function AdminOrderClaimSection({
   }
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["admin", "order-claims"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.orderClaims.all });
   }
 
   const resolve = useAdminMutation(onAuthError, {

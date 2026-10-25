@@ -96,10 +96,15 @@ export function BookingListSection({
   const [showCreate, setShowCreate] = useState(false);
 
   const { data: bookings, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "bookings", date, statusFilter],
+    queryKey: queryKeys.admin.bookingList(date, statusFilter),
     queryFn: () => fetchBookings(adminKey, date, statusFilter || undefined),
     enabled: date.length > 0,
   });
+
+  /** 현재 조회 중인 날짜·상태 목록만 다시 읽는다. */
+  const invalidateCurrentBookings = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.bookingList(date, statusFilter) });
+  };
 
   const bookingScheduleItems = useMemo<HalfHourScheduleItem[]>(() => {
     const grouped = new Map<string, {
@@ -147,7 +152,7 @@ export function BookingListSection({
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId}을 고객 불참으로 표시했습니다.`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+      invalidateCurrentBookings();
     },
   });
 
@@ -155,7 +160,7 @@ export function BookingListSection({
     mutationFn: (bookingId: number) => markBalancePaid(adminKey, bookingId),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId}의 잔금을 수납 완료로 표시했습니다.`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+      invalidateCurrentBookings();
     },
   });
 
@@ -164,7 +169,7 @@ export function BookingListSection({
       updateArrears(adminKey, bookingId, arrears),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId}의 잔금 수납 여부를 변경했습니다.`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+      invalidateCurrentBookings();
     },
   });
 
@@ -172,7 +177,7 @@ export function BookingListSection({
     mutationFn: (bookingId: number) => completeBooking(adminKey, bookingId),
     onSuccess: (res) => {
       toast.show(`예약 #${res.bookingId} 수업 완료 처리 완료`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
+      invalidateCurrentBookings();
     },
   });
 
@@ -439,7 +444,7 @@ export function BookingListSection({
           setStatusFilter("BOOKED");
           toast.show(`${booking.bookingNumber} 예약을 등록했습니다.`);
           queryClient.invalidateQueries({ queryKey: queryKeys.admin.bookings });
-          queryClient.invalidateQueries({ queryKey: ["admin", "slots"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
         }}
       />
     </div>

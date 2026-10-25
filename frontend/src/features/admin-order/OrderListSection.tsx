@@ -17,6 +17,7 @@ import { OrderHistoryPanel } from "./OrderHistoryPanel";
 import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { OrderOptionList } from "@/features/order/OrderOptionList";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -70,7 +71,7 @@ export function OrderListSection({
   });
 
   const focusedFulfillment = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "orders", focusedOrder?.id, "fulfillment"],
+    queryKey: queryKeys.admin.orders.fulfillment(focusedOrder?.id),
     queryFn: () => fetchOrderFulfillment(adminKey, focusedOrder!.id),
     enabled: focusedOrder != null,
   });
@@ -85,7 +86,7 @@ export function OrderListSection({
     fetchNextPage,
     isFetchNextPageError,
   } = useAdminInfiniteQuery(onAuthError, {
-    queryKey: ["admin", "orders", statusFilter],
+    queryKey: queryKeys.admin.orders.page(statusFilter),
     queryFn: ({ pageParam }) => fetchOrders(adminKey, statusFilter || undefined, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined),

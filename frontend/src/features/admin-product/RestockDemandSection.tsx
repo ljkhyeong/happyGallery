@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Table } from "react-bootstrap";
 import { Link } from "react-router";
 import { listAdminRestockDemand } from "@/generated/api/adminCatalog";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { adminProductHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -10,7 +10,7 @@ import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 export function RestockDemandSection({ adminKey, onAuthError }: { adminKey: string; onAuthError: () => void }) {
   const [page, setPage] = useState(0);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "restock-demand", page],
+    queryKey: queryKeys.admin.restockDemand(page),
     queryFn: () => listAdminRestockDemand({ page, size: 20 }, { headers: adminHeaders(adminKey) }),
   });
   return <div id="admin-restock-demand">

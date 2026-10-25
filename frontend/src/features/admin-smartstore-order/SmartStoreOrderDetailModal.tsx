@@ -36,6 +36,7 @@ import {
 import { DeliveryCompanyDatalist, DeliveryFields } from "./DeliveryFields";
 import { STATUS_LABELS } from "./labels";
 import { SmartStoreOrderActionHistory } from "./SmartStoreOrderActionHistory";
+import { queryKeys } from "@/shared/api";
 
 type ChannelAction =
   | { kind: "confirm" }
@@ -93,11 +94,11 @@ export function SmartStoreOrderDetailModal({
   const [returnQuantity, setReturnQuantity] = useState("");
 
   const detailQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
+    queryKey: queryKeys.admin.smartStore.orders.detail(productOrderId),
     queryFn: () => fetchSmartStoreChannelOrder(adminKey, productOrderId),
   });
   const historyQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-orders", "actions", productOrderId],
+    queryKey: queryKeys.admin.smartStore.orders.actions(productOrderId),
     queryFn: () => fetchSmartStoreChannelOrderActions(adminKey, productOrderId),
   });
 
@@ -139,10 +140,10 @@ export function SmartStoreOrderDetailModal({
       toast.show("스마트스토어에 주문 처리를 요청했습니다. 주문 상태는 다음 자동 조회 후 갱신됩니다.");
       onChanged();
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
+        queryKey: queryKeys.admin.smartStore.orders.detail(productOrderId),
       });
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "smartstore-orders", "actions", productOrderId],
+        queryKey: queryKeys.admin.smartStore.orders.actions(productOrderId),
       });
     },
   });

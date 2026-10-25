@@ -5,6 +5,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { applyNoticeToSmartStoreProducts, fetchSmartStoreProducts } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -18,7 +19,7 @@ export function SmartStoreNoticeApplyModal({ adminKey, notice, onAuthError, onCl
   const [catalogPage, setCatalogPage] = useState(1);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const catalog = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", "notice", catalogPage],
+    queryKey: queryKeys.admin.smartStore.products.noticeCatalog(catalogPage),
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
   });
   const apply = useAdminMutation(onAuthError, {

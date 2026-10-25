@@ -18,6 +18,7 @@ import {
   removeSmartStoreNotice,
   saveSmartStoreNotice,
 } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -40,13 +41,12 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     Pick<SmartStoreNoticeResponse, "sellerNoticeId" | "title"> | null
   >(null);
   const [draft, setDraft] = useState<NoticeForm | null>(null);
-  const noticesKey = ["admin", "smartstore-notices"] as const;
   const notices = useAdminQuery(onAuthError, {
-    queryKey: [...noticesKey, "page", noticePage],
+    queryKey: queryKeys.admin.smartStore.notices.page(noticePage),
     queryFn: () => fetchSmartStoreNotices(adminKey, noticePage),
   });
   const detail = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-notices", editingId],
+    queryKey: queryKeys.admin.smartStore.notices.detail(editingId),
     queryFn: () => fetchSmartStoreNotice(adminKey, editingId!),
     enabled: typeof editingId === "number",
   });
@@ -68,7 +68,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
         ? "스마트스토어 상품 공지를 수정했습니다."
         : "스마트스토어 상품 공지를 등록했습니다.");
       setEditingId(undefined);
-      await queryClient.invalidateQueries({ queryKey: noticesKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.notices.all });
     },
   });
   const remove = useAdminMutation(onAuthError, {
@@ -76,7 +76,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     onSuccess: async () => {
       toast.show("스마트스토어 상품 공지를 삭제했습니다.");
       if (notices.data?.notices.length === 1 && noticePage > 1) setNoticePage(noticePage - 1);
-      await queryClient.invalidateQueries({ queryKey: noticesKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.notices.all });
     },
   });
   const canSave = editingId !== undefined

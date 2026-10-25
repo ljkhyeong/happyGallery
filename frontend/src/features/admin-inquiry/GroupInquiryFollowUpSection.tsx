@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "react-bootstrap";
 import { listAdminGroupInquiryFollowUps } from "@/generated/api/adminOperations";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -12,7 +12,7 @@ export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: str
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const paging = useCursorHistory();
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "group-inquiries", "follow-ups", paging.cursor],
+    queryKey: queryKeys.admin.groupInquiries.followUps(paging.cursor),
     queryFn: () => listAdminGroupInquiryFollowUps({ cursor: paging.cursor, size: 20 }, { headers: adminHeaders(token) }),
     refetchInterval: 60_000,
   });

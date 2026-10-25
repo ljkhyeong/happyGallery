@@ -11,6 +11,7 @@ import {
 } from "./api";
 import type { MarkPickupReadyRequest, MarkShippedRequest, SetExpectedShipDateRequest } from "@/shared/types";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
+import { queryKeys } from "@/shared/api";
 
 interface UseOrderMutationsOptions {
   adminKey: string;
@@ -27,7 +28,7 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
 
   function invalidate() {
     onInvalidate();
-    queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders.all });
   }
 
   function startOrderAction(id: number) {

@@ -11,6 +11,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatKRW, formatDateTime } from "@/shared/lib";
 import type { AdminRefundStatus, FailedRefundResponse } from "@/shared/types";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -30,7 +31,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   } = useCursorHistory();
 
   const { data: page, isLoading, isFetching, error, refetch } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "refunds", "failed", cursor],
+    queryKey: queryKeys.admin.refunds.failedPage(cursor),
     queryFn: () => fetchFailedRefunds(adminKey, cursor),
     refetchInterval: 5_000,
   });
@@ -42,7 +43,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
     onSuccess: (result) => {
       showRetryResult(toast.show, result.status);
       setRetryTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.refunds.failed });
     },
     onSettled: () => setPendingId(null),
   });

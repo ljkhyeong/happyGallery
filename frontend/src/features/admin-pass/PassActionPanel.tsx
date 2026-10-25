@@ -31,6 +31,7 @@ import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusL
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 import { AdminSearchPagination } from "@/features/admin-search/AdminSearchPagination";
 import type { AdminPassResponse } from "@/shared/types";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -50,7 +51,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const [showRefundConfirm, setShowRefundConfirm] = useState(false);
 
   const passSearch = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "passes", "search", submittedKeyword, page],
+    queryKey: queryKeys.admin.passes.search(submittedKeyword, page),
     queryFn: () => searchAdminPasses(
       adminKey,
       submittedKeyword || undefined,
@@ -60,7 +61,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
   });
 
   const passDetail = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "passes", "detail", selectedPassId],
+    queryKey: queryKeys.admin.passes.detail(selectedPassId),
     queryFn: () => getAdminPass(adminKey, selectedPassId!),
     enabled: selectedPassId !== null,
   });
@@ -69,7 +70,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
     mutationFn: () => expirePasses(adminKey),
     onSuccess: (result) => {
       toast.show(`기간 지난 이용권 처리: 완료 ${result.successCount}건 · 확인 필요 ${result.failureCount}건`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "passes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.passes.all });
     },
   });
 
@@ -89,7 +90,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
       } else {
         toast.show(`환불할 금액이 없습니다. 함께 취소된 예약은 ${result.canceledBookings}건입니다.`);
       }
-      queryClient.invalidateQueries({ queryKey: ["admin", "passes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.passes.all });
     },
   });
 

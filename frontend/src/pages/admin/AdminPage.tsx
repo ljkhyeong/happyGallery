@@ -48,6 +48,7 @@ import { parseEnumValue } from "@/shared/lib/enum";
 import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
 import { ListBookingsStatus } from "@/generated/api/adminBooking";
 import { AdminOrderListItemResponseStatus } from "@/generated/api/adminOrder";
+import { queryKeys } from "@/shared/api";
 
 const ADMIN_VIEWS = [
   {
@@ -118,7 +119,7 @@ function parsePositiveId(value: string | null): number | undefined {
 function AdminSectionBoundary({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   return (
-    <SectionErrorBoundary onReset={() => void queryClient.resetQueries({ queryKey: ["admin"] })}>
+    <SectionErrorBoundary onReset={() => void queryClient.resetQueries({ queryKey: queryKeys.admin.all })}>
       {children}
     </SectionErrorBoundary>
   );
@@ -224,7 +225,7 @@ export function AdminPage() {
 
   // 운영 빌드(또는 설정)에서만 조회한다. 조회하지 않으면 isLoading·error·data가 모두 비어 아래 등록 안내 분기도 건너뛴다.
   const productionMfaStatus = useAdminQuery(handleAuthError, {
-    queryKey: ["admin", "auth", "mfa", "enrollment-gate"],
+    queryKey: queryKeys.admin.auth.mfaEnrollmentGate,
     queryFn: () => getAdminMfaStatus(adminKey),
     enabled: REQUIRE_ADMIN_MFA_ENROLLMENT && isAuthenticated,
   });

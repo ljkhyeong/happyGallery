@@ -8,13 +8,14 @@ import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthori
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
   onAuthError: () => void;
 }
 
-const queryKey = ["admin", "payment-attempts", "reconciliation-required"];
+const queryKey = queryKeys.admin.payments.reconciliationRequired;
 
 export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();

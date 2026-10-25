@@ -9,6 +9,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { AdminReplyCard } from "./AdminReplyCard";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   token: string;
@@ -23,7 +24,7 @@ export function AdminInquirySection({ token, onAuthError }: Props) {
     showPreviousPage,
   } = useCursorHistory();
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "inquiries", cursor],
+    queryKey: queryKeys.admin.inquiries.page(cursor),
     queryFn: () => fetchAdminInquiries(token, cursor),
   });
   const inquiries = page?.content;
@@ -70,7 +71,7 @@ function AdminInquiryItem({
     onSuccess: () => {
       toast.show("답변이 등록되었습니다.");
       setReplyText("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "inquiries"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.inquiries.all });
     },
   });
 

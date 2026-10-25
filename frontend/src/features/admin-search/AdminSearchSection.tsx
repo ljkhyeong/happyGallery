@@ -27,6 +27,7 @@ import {
 } from "./api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -212,7 +213,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
   const [submitted, setSubmitted] = useState<AdminSearchCriteria | null>(null);
 
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "search", submitted],
+    queryKey: queryKeys.admin.search(submitted),
     queryFn: () => searchAdminRecords(adminKey, submitted!),
     enabled: submitted != null,
   });

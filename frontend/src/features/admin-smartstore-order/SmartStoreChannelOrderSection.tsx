@@ -6,7 +6,7 @@ import type {
   SmartStoreChannelOrderResponse,
   SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
-import { ApiError } from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -79,7 +79,7 @@ export function SmartStoreChannelOrderSection({
   }
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["admin", "smartstore-orders"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.orders.all });
   }
 
   const retryInventory = useAdminMutation(onAuthError, {

@@ -8,6 +8,19 @@ const reviewTargetSegment = (targetType: ReviewTargetType) =>
 export const queryKeys = {
   admin: {
     all: ["admin"] as const,
+    auth: {
+      mfa: ["admin", "auth", "mfa"] as const,
+      /** 운영 MFA 등록 안내는 설정 화면과 같은 상태를 별도 캐시로 읽어 등록 완료 뒤 복구 코드 화면을 유지한다. */
+      mfaEnrollmentGate: ["admin", "auth", "mfa", "enrollment-gate"] as const,
+    },
+    dashboard: {
+      snapshot: (from: string, to: string) =>
+        ["admin", "dashboard", "snapshot", from, to] as const,
+      sales: (from: string, to: string, granularity: string) =>
+        ["admin", "dashboard", "sales", from, to, granularity] as const,
+    },
+    search: (criteria: object | null) => ["admin", "search", criteria] as const,
+    workshopProfile: ["admin", "workshop-profile"] as const,
     notices: ["admin", "notices"] as const,
     events: ["admin", "events"] as const,
     coupons: ["admin", "coupons"] as const,
@@ -34,7 +47,22 @@ export const queryKeys = {
           ["admin", "reviews", "reports", "detail", reportId] as const,
       },
     },
-    products: ["admin", "products"] as const,
+    /** 상품별 보조 조회는 상품 목록 접두사 아래에 두어 상품 목록 무효화에 함께 다시 읽힌다. */
+    products: {
+      all: ["admin", "products"] as const,
+      stockLevels: ["admin", "products", "stock-levels"] as const,
+      stockLevelsByProduct: (productId: number) =>
+        ["admin", "products", productId, "stock-levels"] as const,
+      inventoryAdjustments: (productId: number) =>
+        ["admin", "products", productId, "inventory-adjustments"] as const,
+      smartStoreInventory: (productId: number) =>
+        ["admin", "products", productId, "smartstore-inventory"] as const,
+      smartStoreInventoryHistory: (productId: number) =>
+        ["admin", "products", productId, "smartstore-inventory-history"] as const,
+      smartStorePreview: (productId: number) =>
+        ["admin", "products", productId, "smartstore-product-preview"] as const,
+    },
+    restockDemand: (page: number) => ["admin", "restock-demand", page] as const,
     classes: ["admin", "classes"] as const,
     slots: {
       all: ["admin", "slots"] as const,
@@ -43,7 +71,103 @@ export const queryKeys = {
         ["admin", "slots", "calendar", dateFrom, dateTo] as const,
     },
     bookings: ["admin", "bookings"] as const,
+    bookingList: (date: string, status: string) =>
+      ["admin", "bookings", date, status] as const,
     bookingCancellationTasks: ["admin", "bookings", "cancellation-tasks"] as const,
+    orders: {
+      all: ["admin", "orders"] as const,
+      page: (status: string) => ["admin", "orders", status] as const,
+      fulfillment: (orderId: number | undefined) =>
+        ["admin", "orders", orderId, "fulfillment"] as const,
+      history: (orderId: number) => ["admin", "orders", orderId, "history"] as const,
+    },
+    orderClaims: {
+      all: ["admin", "order-claims"] as const,
+      page: (status: string, cursor: string | undefined) =>
+        ["admin", "order-claims", status, cursor] as const,
+    },
+    passes: {
+      all: ["admin", "passes"] as const,
+      search: (keyword: string, page: number) =>
+        ["admin", "passes", "search", keyword, page] as const,
+      detail: (passId: number | null) => ["admin", "passes", "detail", passId] as const,
+    },
+    refunds: {
+      failed: ["admin", "refunds", "failed"] as const,
+      failedPage: (cursor: string | undefined) =>
+        ["admin", "refunds", "failed", cursor] as const,
+    },
+    /** 환불 상태 확인은 실패 목록 접두사와 별개로 한 건씩 읽는다. */
+    refund: (refundId: number) => ["admin", "refund", refundId] as const,
+    payments: {
+      reconciliationRequired: ["admin", "payment-attempts", "reconciliation-required"] as const,
+      settlementIssues: ["admin", "payment-settlements", "issues"] as const,
+    },
+    notifications: {
+      failed: ["admin", "notifications", "failed"] as const,
+    },
+    inquiries: {
+      all: ["admin", "inquiries"] as const,
+      page: (cursor: string | undefined) => ["admin", "inquiries", cursor] as const,
+    },
+    groupInquiries: {
+      all: ["admin", "group-inquiries"] as const,
+      page: (status: string, filters: object, cursor: string | undefined) =>
+        ["admin", "group-inquiries", status, filters, cursor] as const,
+      followUps: (cursor: string | undefined) =>
+        ["admin", "group-inquiries", "follow-ups", cursor] as const,
+    },
+    /** 단체 문의 상세는 목록 접두사 밖에 두어 목록을 다시 읽어도 상세는 다시 읽지 않는다. */
+    groupInquiry: {
+      detail: (inquiryId: number) => ["admin", "group-inquiry", inquiryId] as const,
+    },
+    smartStore: {
+      products: {
+        page: (page: number) => ["admin", "smartstore-products", page] as const,
+        detail: (originProductNo: number) =>
+          ["admin", "smartstore-products", "detail", originProductNo] as const,
+        noticeCatalog: (page: number) =>
+          ["admin", "smartstore-products", "notice", page] as const,
+      },
+      notices: {
+        all: ["admin", "smartstore-notices"] as const,
+        page: (page: number) => ["admin", "smartstore-notices", "page", page] as const,
+        detail: (sellerNoticeId: number | null | undefined) =>
+          ["admin", "smartstore-notices", sellerNoticeId] as const,
+      },
+      inspections: {
+        all: ["admin", "smartstore-inspections"] as const,
+        page: (page: number) => ["admin", "smartstore-inspections", page] as const,
+      },
+      inquiries: {
+        all: ["admin", "smartstore-inquiries"] as const,
+        product: (params: object) =>
+          ["admin", "smartstore-inquiries", "product", params] as const,
+        customer: (params: object) =>
+          ["admin", "smartstore-inquiries", "customer", params] as const,
+        template: ["admin", "smartstore-inquiries", "template"] as const,
+      },
+      orders: {
+        all: ["admin", "smartstore-orders"] as const,
+        detail: (productOrderId: string) =>
+          ["admin", "smartstore-orders", "detail", productOrderId] as const,
+        actions: (productOrderId: string) =>
+          ["admin", "smartstore-orders", "actions", productOrderId] as const,
+        currentStatus: (productOrderId: string | undefined) =>
+          ["admin", "smartstore-orders", productOrderId, "current-status"] as const,
+      },
+      orderActions: {
+        unresolved: ["admin", "smartstore-order-actions", "unresolved"] as const,
+        unresolvedPage: (cursor: string | null) =>
+          ["admin", "smartstore-order-actions", "unresolved", cursor] as const,
+      },
+      returnDeliveryCompanies: ["admin", "smartstore-return-delivery-companies"] as const,
+      settlements: {
+        issues: ["admin", "smartstore-settlements", "issues"] as const,
+        accounting: (from: string, to: string) =>
+          ["admin", "smartstore-settlements", "accounting", from, to] as const,
+      },
+    },
   },
   catalog: {
     products: ["products"] as const,

@@ -8,6 +8,7 @@ import {
   fetchSmartStoreInspections,
   requestSmartStoreInspectionRestore,
 } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -18,9 +19,8 @@ export function SmartStoreInspectionSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [page, setPage] = useState(1);
-  const queryKey = ["admin", "smartstore-inspections"] as const;
   const query = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, page],
+    queryKey: queryKeys.admin.smartStore.inspections.page(page),
     queryFn: () => fetchSmartStoreInspections(adminKey, page),
   });
   const restore = useAdminMutation(onAuthError, {
@@ -29,7 +29,7 @@ export function SmartStoreInspectionSection({ adminKey, onAuthError }: Props) {
     onSuccess: async () => {
       toast.show("스마트스토어에 상품 복원 요청을 보냈습니다.");
       if (query.data?.products.length === 1 && page > 1) setPage(page - 1);
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.inspections.all });
     },
   });
 
