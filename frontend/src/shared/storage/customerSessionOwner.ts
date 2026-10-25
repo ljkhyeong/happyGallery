@@ -3,6 +3,7 @@ import {
   isCurrentCustomerSession,
   type CustomerSessionSnapshot,
 } from "@/shared/api/customerSession";
+import { parseApiDateTime } from "@/shared/lib";
 
 export interface CustomerSessionStorageOwner {
   boundaryEpoch: string | null;
@@ -122,4 +123,80 @@ export function removeOwnedSessionValue<T>(
   } catch {
     // 세션 저장소를 사용할 수 없으면 정리할 값도 없다.
   }
+}
+
+export interface OwnedRecoverySessionStoreOptions<T extends { expiresAt: string }> {
+  key: string;
+  isValue: (value: unknown) => value is T;
+  /** 봉투를 sessionStorage에 쓰기 전에 함께 저장할 값을 처리한다(예: 주문별 상태 토큰). */
+  beforeStore?: (
+    recovery: CustomerSessionStorageHandle<T>,
+    expectedSnapshot?: CustomerSessionSnapshot,
+  ) => void;
+  /** 봉투를 지운 뒤 함께 정리할 값을 처리한다. */
+  afterClear?: (recovery: CustomerSessionStorageHandle<T>) => void;
+}
+
+export interface OwnedRecoverySessionStore<T> {
+  /** 현재 세션(또는 기대한 snapshot) 소유로 저장한다. 세션이 바뀌었으면 저장하지 않고 null. */
+  save: (
+    result: T,
+    expectedSnapshot?: CustomerSessionSnapshot,
+  ) => CustomerSessionStorageHandle<T> | null;
+  /** 현재 세션 소유자가 저장한 값만 읽는다. 만료된 값은 지우고 null. */
+  load: (expectedSnapshot?: CustomerSessionSnapshot) => CustomerSessionStorageHandle<T> | null;
+  /** 저장된 소유자·값이 기대한 봉투(없으면 지금 읽은 값)와 같을 때만 지운다. */
+  clear: (expected?: CustomerSessionStorageHandle<T>) => void;
+}
+
+function sameSerializedValue<T>(left: T, right: T): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * 휴대폰 인증으로 받은 만료 시각이 있는 복구 결과를 현재 회원 세션 소유로 sessionStorage에 보관한다.
+ * 저장 실패는 삼키고 현재 화면의 결과는 계속 사용한다.
+ */
+export function createOwnedRecoverySessionStore<T extends { expiresAt: string }>({
+  key,
+  isValue,
+  beforeStore,
+  afterClear,
+}: OwnedRecoverySessionStoreOptions<T>): OwnedRecoverySessionStore<T> {
+  function save(
+    result: T,
+    expectedSnapshot?: CustomerSessionSnapshot,
+  ): CustomerSessionStorageHandle<T> | null {
+    const recovery = ownedSessionValue(result, expectedSnapshot);
+    if (!recovery) return null;
+    beforeStore?.(recovery, expectedSnapshot);
+    try {
+      sessionStorage.setItem(key, JSON.stringify(recovery));
+    } catch {
+      // 세션 저장소를 사용할 수 없어도 현재 화면의 복구 결과는 계속 사용할 수 있다.
+    }
+    return recovery;
+  }
+
+  function load(
+    expectedSnapshot?: CustomerSessionSnapshot,
+  ): CustomerSessionStorageHandle<T> | null {
+    const recovery = readOwnedSessionValue(key, isValue, expectedSnapshot);
+    if (!recovery) return null;
+    const expiresAt = parseApiDateTime(recovery.value.expiresAt);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      clear(recovery);
+      return null;
+    }
+    return recovery;
+  }
+
+  function clear(expected?: CustomerSessionStorageHandle<T>): void {
+    const recovery = expected ?? load();
+    if (!recovery) return;
+    removeOwnedSessionValue(key, isValue, recovery, sameSerializedValue);
+    afterClear?.(recovery);
+  }
+
+  return { save, load, clear };
 }

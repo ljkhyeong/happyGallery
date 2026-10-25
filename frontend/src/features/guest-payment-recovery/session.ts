@@ -3,12 +3,8 @@ import {
   storePaymentStatusToken,
   type PaymentSessionHandle,
 } from "@/features/payment";
-import type { CustomerSessionSnapshot } from "@/shared/api";
-import { parseApiDateTime } from "@/shared/lib";
 import {
-  ownedSessionValue,
-  readOwnedSessionValue,
-  removeOwnedSessionValue,
+  createOwnedRecoverySessionStore,
   type CustomerSessionStorageHandle,
 } from "@/shared/storage/customerSessionOwner";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -24,13 +20,6 @@ function isRecoveryResult(value: unknown): value is GuestPaymentStatusRecoveryRe
     && result.statusToken.length > 0
     && typeof result.expiresAt === "string"
     && Array.isArray(result.payments);
-}
-
-function sameRecoveryResult(
-  left: GuestPaymentStatusRecoveryResponse,
-  right: GuestPaymentStatusRecoveryResponse,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function paymentTokenHandle(
@@ -51,57 +40,18 @@ function clearPaymentStatusTokens(
   });
 }
 
-export function saveGuestPaymentStatusRecovery(
-  result: GuestPaymentStatusRecoveryResponse,
-  expectedSnapshot?: CustomerSessionSnapshot,
-): GuestPaymentStatusRecoverySession | null {
-  const recovery = ownedSessionValue(result, expectedSnapshot);
-  if (!recovery) return null;
-  result.payments.forEach((payment) => {
-    storePaymentStatusToken(
-      payment.orderId,
-      result.statusToken,
-      expectedSnapshot,
-    );
-  });
-  try {
-    sessionStorage.setItem(
-      SESSION_KEYS.guestPaymentStatusRecovery,
-      JSON.stringify(recovery),
-    );
-  } catch {
-    // 상세 조회용 토큰 저장에 성공했다면 현재 화면의 복구 결과는 계속 사용할 수 있다.
-  }
-  return recovery;
-}
-
-export function loadGuestPaymentStatusRecovery(
-  expectedSnapshot?: CustomerSessionSnapshot,
-): GuestPaymentStatusRecoverySession | null {
-  const recovery = readOwnedSessionValue(
-    SESSION_KEYS.guestPaymentStatusRecovery,
-    isRecoveryResult,
-    expectedSnapshot,
-  );
-  if (!recovery) return null;
-  const expiresAt = parseApiDateTime(recovery.value.expiresAt);
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    clearGuestPaymentStatusRecovery(recovery);
-    return null;
-  }
-  return recovery;
-}
-
-export function clearGuestPaymentStatusRecovery(
-  expected?: GuestPaymentStatusRecoverySession,
-): void {
-  const recovery = expected ?? loadGuestPaymentStatusRecovery();
-  if (!recovery) return;
-  removeOwnedSessionValue(
-    SESSION_KEYS.guestPaymentStatusRecovery,
-    isRecoveryResult,
-    recovery,
-    sameRecoveryResult,
-  );
-  clearPaymentStatusTokens(recovery);
-}
+export const {
+  save: saveGuestPaymentStatusRecovery,
+  load: loadGuestPaymentStatusRecovery,
+  clear: clearGuestPaymentStatusRecovery,
+} = createOwnedRecoverySessionStore({
+  key: SESSION_KEYS.guestPaymentStatusRecovery,
+  isValue: isRecoveryResult,
+  // 상세 조회용 주문별 토큰을 봉투보다 먼저 저장해, 봉투 저장이 실패해도 결제 상세는 열 수 있다.
+  beforeStore: (recovery, expectedSnapshot) => {
+    recovery.value.payments.forEach((payment) => {
+      storePaymentStatusToken(payment.orderId, recovery.value.statusToken, expectedSnapshot);
+    });
+  },
+  afterClear: clearPaymentStatusTokens,
+});
