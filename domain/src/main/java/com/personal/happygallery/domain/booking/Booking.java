@@ -232,7 +232,7 @@ public class Booking {
      */
     public void cancel() {
         status.requireBooked();
-        if (!isCustomerCancellationAllowedAfterBooked()) {
+        if (hasPaidBalance()) {
             throw new HappyGalleryException(
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
@@ -251,7 +251,7 @@ public class Booking {
     /** 예약을 유지하면서 취소한 인원만큼 예약금·잔금과 슬롯 점유를 줄인다. */
     public ParticipantReduction reduceParticipants(int newParticipantCount) {
         status.requireBooked();
-        if (!isCustomerCancellationAllowedAfterBooked()) {
+        if (hasPaidBalance()) {
             throw new HappyGalleryException(
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 인원을 줄일 수 없습니다. 관리자 정산이 필요합니다.");
@@ -286,7 +286,12 @@ public class Booking {
     }
 
     public boolean isCustomerCancellationAllowed() {
-        return status == BookingStatus.BOOKED && isCustomerCancellationAllowedAfterBooked();
+        return status == BookingStatus.BOOKED && !hasPaidBalance();
+    }
+
+    /** 잔금이 있고 결제까지 끝난 예약인지. 이때의 취소·인원 축소는 관리자 정산이 필요하다. */
+    public boolean hasPaidBalance() {
+        return balanceAmount > 0 && balanceStatus == BalanceStatus.PAID;
     }
 
     public record ParticipantReduction(
@@ -294,10 +299,6 @@ public class Booking {
             long refundAmount,
             long reducedBalanceAmount
     ) {}
-
-    private boolean isCustomerCancellationAllowedAfterBooked() {
-        return balanceAmount == 0 || balanceStatus != BalanceStatus.PAID;
-    }
 
     /** 수업 종료 후 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
     public void markNoShow(LocalDateTime now) {

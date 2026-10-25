@@ -11,7 +11,6 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.application.payment.RefundExecutionService;
-import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
@@ -195,8 +194,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
         CancellationCompensation compensation = applyRefundableCompensation(booking, lockedPass);
         bookingStorePort.save(booking);
-        boolean balanceSettlementRequired = booking.getBalanceAmount() > 0
-                && booking.getBalanceStatus() == BalanceStatus.PAID;
+        boolean balanceSettlementRequired = booking.hasPaidBalance();
         boolean passCreditRestored = lockedPass != null && compensation.refundable();
         boolean manualCompensationRequired = compensation.manualCompensationRequired()
                 || (lockedPass != null && !passCreditRestored);
