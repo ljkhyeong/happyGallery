@@ -47,6 +47,14 @@ public class PendingSocialSignupStore {
         return pending.profile();
     }
 
+    /** 세션이 없으면 새로 만들지 않는다. */
+    public static void clear(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            clear(session);
+        }
+    }
+
     public static void clear(HttpSession session) {
         session.removeAttribute(ATTRIBUTE);
     }

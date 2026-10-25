@@ -60,9 +60,7 @@ public class SocialLoginAuthenticationHandler
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        if (request.getSession(false) != null) {
-            PendingSocialSignupStore.clear(request.getSession(false));
-        }
+        PendingSocialSignupStore.clear(request);
         try {
             SocialIdentity identity = profileResolver.resolveIdentity(authentication);
             SocialAccountLinkIntentStore.LinkIntent linkIntent =
@@ -129,7 +127,7 @@ public class SocialLoginAuthenticationHandler
             throws IOException, ServletException {
         linkIntentStore.clear(request);
         signupIntentStore.clear(request);
-        if (request.getSession(false) != null) PendingSocialSignupStore.clear(request.getSession(false));
+        PendingSocialSignupStore.clear(request);
         if (exception instanceof OAuth2AuthenticationException oauth2Exception) {
             log.warn("Social OAuth authentication failed: {}", oauth2Exception.getError().getErrorCode());
         } else {
