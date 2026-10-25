@@ -8,7 +8,7 @@ import { bookingDepositLabel, buildStatusFilterOptions } from "@/features/my/lis
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
-import { CursorLoadMore, LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
+import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "SOONEST";
@@ -44,11 +44,7 @@ export function MyBookingsPage() {
         <LinkButton to="/bookings/new" variant="outline-dark" size="sm">새 예약 만들기</LinkButton>
       )}
     >
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => { void query.refetch(); }}
-        retrying={query.isFetching && !query.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={query} />
       <MyListFilterBar
         idPrefix="my-bookings"
         searchLabel="예약 검색"

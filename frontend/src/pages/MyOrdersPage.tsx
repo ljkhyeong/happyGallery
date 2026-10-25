@@ -9,7 +9,7 @@ import { buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
-import { CursorLoadMore, LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
+import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
@@ -46,11 +46,7 @@ export function MyOrdersPage() {
         <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
       )}
     >
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => { void query.refetch(); }}
-        retrying={query.isFetching && !query.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={query} />
       <MyListFilterBar
         idPrefix="my-orders"
         searchLabel="주문 번호·작품명 검색"

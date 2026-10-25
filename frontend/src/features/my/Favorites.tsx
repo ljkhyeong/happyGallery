@@ -7,7 +7,7 @@ import { getMyFavoriteStatus, saveMyFavorite, removeMyFavorite, listMyFavorites,
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession, cursorPageParams, flattenCursorPages, type CustomerSessionSnapshot } from "@/shared/api";
-import { ErrorAlert, LoadingSpinner, EmptyState, LinkButton, useToast, CursorLoadMore } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, EmptyState, LinkButton, useToast, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import { reviewTargetHref } from "@/features/review/reviewTarget";
 
 type TargetType = FavoriteResponse["targetType"];
@@ -107,10 +107,7 @@ export function MyFavoritesSection() {
       </Form.Select>
     </div>
     {query.isLoading && <LoadingSpinner />}
-    <ErrorAlert error={query.isFetchNextPageError ? null : query.error}
-      onRetry={() => { void query.refetch(); }}
-      retrying={query.isFetching || mutation.isPending}
-      retryLabel="목록 다시 불러오기" />
+    <CursorQueryErrorAlert query={query} retrying={query.isFetching || mutation.isPending} retryLabel="목록 다시 불러오기" />
     <ErrorAlert error={mutation.error}
       onRetry={() => { if (mutation.variables) mutation.mutate(mutation.variables); }}
       retrying={mutation.isPending} retryLabel="찜 해제 다시 시도" />

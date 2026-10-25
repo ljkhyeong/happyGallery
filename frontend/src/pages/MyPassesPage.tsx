@@ -20,7 +20,7 @@ import {
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast, ConfirmModal, CursorLoadMore } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast, ConfirmModal, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   customerRefundRefetchInterval,
   formatDateTime,
@@ -97,11 +97,7 @@ export function MyPassesPage() {
         <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
       )}
     >
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => { void query.refetch(); }}
-        retrying={query.isFetching && !query.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={query} />
       {expiringSoonCount > 0 && (
         <Alert variant="warning" className="mb-3">
           7일 안에 만료되는 이용권이 {expiringSoonCount}건 있습니다. 만료 전에 예약해 주세요.

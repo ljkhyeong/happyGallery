@@ -27,7 +27,7 @@ interface Props {
 /**
  * 커서 목록 아래의 "더 보기" 버튼과 다음 페이지 조회 실패 안내.
  * 다음 페이지 실패는 목록 전체를 다시 받지 않고 실패한 페이지부터 이어서 조회한다.
- * 목록 위의 오류 안내는 `isFetchNextPageError ? null : error`로 첫 페이지·재조회 실패만 보여 준다.
+ * 목록 위의 첫 페이지·재조회 실패 안내는 CursorQueryErrorAlert가 맡는다.
  */
 export function CursorLoadMore({
   query,
@@ -56,5 +56,34 @@ export function CursorLoadMore({
       )}
       {showButton && (wrapperClassName === null ? button : <div className={wrapperClassName}>{button}</div>)}
     </>
+  );
+}
+
+interface ErrorAlertProps {
+  query: Pick<
+    UseInfiniteQueryResult<unknown, unknown>,
+    "error" | "isFetchNextPageError" | "isFetching" | "isFetchingNextPage" | "refetch"
+  >;
+  /** 기본은 첫 페이지를 다시 받는 동안만 재시도를 막는다. */
+  retrying?: boolean;
+  retryLabel?: string;
+}
+
+/**
+ * 커서 목록 위의 첫 페이지·재조회 실패 안내.
+ * 다음 페이지 실패는 CursorLoadMore가 목록 아래에서 이어서 조회하므로 여기서는 숨긴다.
+ */
+export function CursorQueryErrorAlert({
+  query,
+  retrying = query.isFetching && !query.isFetchingNextPage,
+  retryLabel,
+}: ErrorAlertProps) {
+  return (
+    <ErrorAlert
+      error={query.isFetchNextPageError ? null : query.error}
+      onRetry={() => { void query.refetch(); }}
+      retrying={retrying}
+      retryLabel={retryLabel}
+    />
   );
 }

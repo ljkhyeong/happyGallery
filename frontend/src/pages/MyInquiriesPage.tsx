@@ -3,7 +3,7 @@ import { Badge } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, ErrorAlert, EmptyState, CursorLoadMore } from "@/shared/ui";
+import { LoadingSpinner, EmptyState, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
 import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
@@ -31,11 +31,7 @@ export function MyInquiriesPage() {
       )}
     >
       {inquiriesQuery.isLoading && <LoadingSpinner />}
-      <ErrorAlert
-        error={inquiriesQuery.isFetchNextPageError ? null : inquiriesQuery.error}
-        onRetry={() => { void inquiriesQuery.refetch(); }}
-        retrying={inquiriesQuery.isFetching && !inquiriesQuery.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={inquiriesQuery} />
 
       {hasLoadedInquiries && inquiries.length === 0 && (
         <EmptyState message="등록된 문의가 없습니다." />

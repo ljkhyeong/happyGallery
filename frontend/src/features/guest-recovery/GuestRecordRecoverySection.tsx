@@ -9,7 +9,7 @@ import {
   flattenCursorPages,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   fetchRecoveredGuestBookings,
   fetchRecoveredGuestOrders,
@@ -111,16 +111,8 @@ export function GuestRecordRecoverySection() {
           </div>
         )}
 
-        <ErrorAlert
-          error={ordersQuery.isFetchNextPageError ? null : ordersQuery.error}
-          onRetry={() => { void ordersQuery.refetch(); }}
-          retrying={ordersQuery.isFetching && !ordersQuery.isFetchingNextPage}
-        />
-        <ErrorAlert
-          error={bookingsQuery.isFetchNextPageError ? null : bookingsQuery.error}
-          onRetry={() => { void bookingsQuery.refetch(); }}
-          retrying={bookingsQuery.isFetching && !bookingsQuery.isFetchingNextPage}
-        />
+        <CursorQueryErrorAlert query={ordersQuery} />
+        <CursorQueryErrorAlert query={bookingsQuery} />
 
         {result && recoveryPagesLoaded && !hasRecords && (
           <Alert variant="light" className="mt-4 mb-0">

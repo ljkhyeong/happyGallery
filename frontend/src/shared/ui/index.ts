@@ -2,7 +2,7 @@ export { Layout } from "./Layout";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { describeError, ErrorAlert } from "./ErrorAlert";
 export { ConfirmModal } from "./ConfirmModal";
-export { CursorLoadMore } from "./CursorLoadMore";
+export { CursorLoadMore, CursorQueryErrorAlert } from "./CursorLoadMore";
 export { ErrorBoundary } from "./ErrorBoundary";
 export { SectionErrorBoundary } from "./SectionErrorBoundary";
 export { EmptyState } from "./EmptyState";
