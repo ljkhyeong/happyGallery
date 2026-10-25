@@ -1,5 +1,6 @@
-package com.personal.happygallery.adapter.out.persistence.media;
+package com.personal.happygallery.adapter.out.persistence.batch;
 
+import com.personal.happygallery.adapter.out.persistence.media.MediaStorageProperties;
 import com.personal.happygallery.application.batch.port.out.BatchExecutionLeasePort;
 import java.io.IOException;
 import java.io.UncheckedIOException;

@@ -1,8 +1,9 @@
-package com.personal.happygallery.adapter.out.persistence.media;
+package com.personal.happygallery.adapter.out.persistence.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.personal.happygallery.adapter.out.persistence.media.MediaStorageProperties;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
