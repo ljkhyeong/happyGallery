@@ -129,8 +129,8 @@ class NotificationDeliveryConfigTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties({AlimtalkNotificationProperties.class, SmsNotificationProperties.class,
-            NotificationResilienceProperties.class, EmailVerificationProperties.class,
-            NcpMailProperties.class, MailProperties.class})
+    @EnableConfigurationProperties({NotificationDeliveryProperties.class, AlimtalkNotificationProperties.class,
+            SmsNotificationProperties.class, NotificationResilienceProperties.class,
+            EmailVerificationProperties.class, NcpMailProperties.class, MailProperties.class})
     static class PropertiesConfig {}
 }

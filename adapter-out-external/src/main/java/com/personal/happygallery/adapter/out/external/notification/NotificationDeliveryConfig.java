@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -17,7 +16,6 @@ import org.springframework.core.annotation.Order;
 /** 심사 대기 중에도 운영 보안 설정을 유지하며 발송만 중지한다. */
 @Configuration(proxyBeanMethods = false)
 @Profile("prod")
-@EnableConfigurationProperties(NotificationDeliveryProperties.class)
 class NotificationDeliveryConfig {
 
     NotificationDeliveryConfig(NotificationDeliveryProperties properties) {
