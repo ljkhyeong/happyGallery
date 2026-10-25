@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.inquiry;
 
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.application.crypto.EncryptedJsonCodec;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
 import com.personal.happygallery.application.inquiry.port.out.GroupInquiryActivityPort;
@@ -8,6 +8,7 @@ import com.personal.happygallery.application.inquiry.port.out.GroupInquiryPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -21,7 +22,6 @@ import java.time.LocalDate;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional
@@ -29,16 +29,16 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     private final GroupInquiryPort inquiries;
     private final GroupInquiryActivityPort activities;
     private final FieldEncryptor encryptor;
-    private final ObjectMapper mapper;
+    private final EncryptedJsonCodec detailsCodec;
     private final MemberAccountGuard members;
     private final Clock clock;
 
     public DefaultGroupInquiryService(GroupInquiryPort inquiries, GroupInquiryActivityPort activities,
-            FieldEncryptor encryptor, ObjectMapper mapper, MemberAccountGuard members, Clock clock) {
+            FieldEncryptor encryptor, EncryptedJsonCodec detailsCodec, MemberAccountGuard members, Clock clock) {
         this.inquiries = inquiries;
         this.activities = activities;
         this.encryptor = encryptor;
-        this.mapper = mapper;
+        this.detailsCodec = detailsCodec;
         this.members = members;
         this.clock = clock;
     }
@@ -61,7 +61,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     private View save(Long userId, GroupInquiry.Source source, GroupInquiryDetails details) {
         GroupInquiry inquiry = inquiries.saveAndFlush(new GroupInquiry(userId, source,
-                encryptor.encrypt(mapper.writeValueAsString(details)), LocalDateTime.now(clock)));
+                detailsCodec.encrypt(details), LocalDateTime.now(clock)));
         return new View(inquiry, details);
     }
 
@@ -114,7 +114,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
         var revised = new GroupInquiryDetails(previous.organization(), previous.contactName(), previous.phone(), previous.email(),
                 headcount, preferredSchedule, previous.location(), previous.classInterest(), previous.message());
         var now = LocalDateTime.now(clock);
-        inquiry.reviseByMember(version, encryptor.encrypt(mapper.writeValueAsString(revised)), now);
+        inquiry.reviseByMember(version, detailsCodec.encrypt(revised), now);
         inquiries.saveAndFlush(inquiry);
         String note = "참여 인원: " + previous.headcount() + "명 → " + revised.headcount()
                 + "명 / 희망 일정: " + previous.preferredSchedule() + " → " + revised.preferredSchedule();
@@ -190,7 +190,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     }
 
     private View view(GroupInquiry inquiry) {
-        return new View(inquiry, mapper.readValue(encryptor.decrypt(inquiry.getDetailsEnc()), GroupInquiryDetails.class));
+        return new View(inquiry, detailsCodec.decrypt(inquiry.getDetailsEnc(), GroupInquiryDetails.class));
     }
 
     private Detail detail(GroupInquiry inquiry) {
