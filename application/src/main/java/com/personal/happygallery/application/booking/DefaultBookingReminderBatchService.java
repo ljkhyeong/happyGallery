@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
  * 예약 리마인드 배치 서비스 (§10.2).
  *
  * <p>D-1(전날 자정)과 당일(당일 07:00) 두 번 발송한다.
- * guest booking 은 notifyByGuestId, member booking 은 notifyByUserId 로 분기한다.
+ * 대상 예약의 회원 ID 또는 비회원 ID로 알림 요청 이벤트를 만들어 outbox에 예약당 한 번만 적재한다.
  */
 @Service
 public class DefaultBookingReminderBatchService implements BookingReminderBatchUseCase {

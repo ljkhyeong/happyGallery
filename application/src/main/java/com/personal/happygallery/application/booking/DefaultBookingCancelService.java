@@ -69,7 +69,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
      *
      * <ol>
      *   <li>access_token으로 예약 조회 및 검증</li>
-     *   <li>상태 확인 → 슬롯 반납 → 이력 → 환불 → 취소 → 알림</li>
+     *   <li>이용권·슬롯 잠금 → 취소 전이 → 슬롯 반납 → 이력 → 예약금 환불 또는 이용권 복원 → 저장 → 후속 작업 → 알림</li>
      * </ol>
      *
      * @return 취소된 예약, 보상 가능 여부, 생성된 예약금 환불 요청
