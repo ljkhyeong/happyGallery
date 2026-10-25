@@ -99,6 +99,23 @@ require_private_file() {
     [ -z "$exposed" ] || die "파일 권한을 600으로 제한한 뒤 다시 실행하세요: $file"
 }
 
+# 상태 경로 기본값은 호출 시점에 계산한다. source만 하는 스크립트는 HOME이 없어도 실패하지 않는다.
+release_state_dir() {
+    printf '%s' "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}"
+}
+
+restore_state_dir() {
+    printf '%s' "${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$(release_state_dir)")/restores}"
+}
+
+cd_backup_env_file() {
+    printf '%s' "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}"
+}
+
+cd_backup_dir() {
+    printf '%s' "${HAPPYGALLERY_CD_BACKUP_DIR:-$(release_state_dir)/../cd/backups}"
+}
+
 newline='
 '
 

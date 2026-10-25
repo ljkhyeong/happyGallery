@@ -28,8 +28,8 @@ printf '%s' "$reconciliation_token" \
 [ "${CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION:-}" = "$reconciliation_token" ] \
     || die "개인정보 요청 대사 완료 후 CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION을 복원 대사 토큰으로 지정해야 합니다."
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
-restore_state_root=${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$state_root")/restores}
+state_root=$(release_state_dir)
+restore_state_root=$(restore_state_dir)
 pending_marker="$restore_state_root/$reconciliation_token.pending"
 activation_owner="${BASHPID:-$$}-$RANDOM-$RANDOM"
 activating_marker="$restore_state_root/$reconciliation_token-$activation_owner.activating"

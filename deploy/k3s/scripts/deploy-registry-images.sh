@@ -60,9 +60,7 @@ if [ -n "$current_app" ]; then
     current_app_replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
     if [ "$current_app_replicas" = 1 ] &&
        ! kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 >/dev/null 2>&1; then
-        registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" \
-            "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}" \
-            "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups")
+        registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$(cd_backup_env_file)" "$(cd_backup_dir)")
         export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$registry_bundle"
         export HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP=true
         info "현재 앱이 온라인 백업 표식을 제공하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다."

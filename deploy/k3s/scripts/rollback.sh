@@ -45,6 +45,6 @@ kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+state_root=$(release_state_dir)
 ln -sfn "$release_dir" "$state_root/current"
 info "app/frontend digest rollback 완료. 데이터베이스와 stateful/cluster 리소스는 변경하지 않았습니다."

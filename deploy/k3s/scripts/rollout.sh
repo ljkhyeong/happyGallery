@@ -78,7 +78,7 @@ if [ -n "$existing_mysql" ]; then
     info "배포 전 DB·미디어·호환 release 복구 묶음과 생성 시각을 확인했습니다."
 fi
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+state_root=$(release_state_dir)
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 release_dir="$state_root/$timestamp-$IMAGE_TAG"
 mkdir -p "$release_dir"

@@ -52,7 +52,7 @@ recovery_metadata_tmp="$recovery_metadata.partial"
 tmp_checksum="$tmp.sha256"
 media_tmp_checksum="$media_tmp.sha256"
 recovery_metadata_tmp_checksum="$recovery_metadata_tmp.sha256"
-release_state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+release_state_root=$(release_state_dir)
 current_release=$(CDPATH= cd -- "$release_state_root/current" 2>/dev/null && pwd -P) \
     || die "현재 release 메타데이터를 찾을 수 없습니다: $release_state_root/current"
 release_metadata="$current_release/metadata.env"

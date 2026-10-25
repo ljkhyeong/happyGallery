@@ -20,8 +20,7 @@ printf '%s' "$backup_created_at" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$' \
     || die "BACKUP_CREATED_AT 형식이 올바르지 않습니다."
 recovery_metadata_sha256=$(sha256_file "$recovery_metadata")
 reconciliation_token="$backup_created_at-$recovery_metadata_sha256"
-release_state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
-restore_state_root=${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$release_state_root")/restores}
+restore_state_root=$(restore_state_dir)
 umask 077
 mkdir -p "$restore_state_root"
 chmod 700 "$restore_state_root"

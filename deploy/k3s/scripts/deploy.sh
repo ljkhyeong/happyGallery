@@ -18,7 +18,7 @@ ruby "$SCRIPT_DIR/update-release-images.rb" --check "$release_env"
 
 cd "$REPO_ROOT"
 image_tag=$(git rev-parse --verify "$requested_ref^{commit}")
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+state_root=$(release_state_dir)
 umask 077
 mkdir -p "$state_root"
 exec 8> "$state_root/.deploy.lock"
@@ -137,8 +137,8 @@ else
         report_backup_failure
         die "배포 전 백업이 실패해 rollout을 시작하지 않습니다. 위 백업 상태·기록을 확인하세요."
     fi
-    cd_backup_env=${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}
-    cd_backup_root=${HAPPYGALLERY_CD_BACKUP_DIR:-${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups}
+    cd_backup_env=$(cd_backup_env_file)
+    cd_backup_root=$(cd_backup_dir)
     [ -f "$cd_backup_env" ] || die "배포용 백업 검증 설정이 없습니다: $cd_backup_env"
     recovery_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$cd_backup_env" "$cd_backup_root")
     export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$recovery_bundle"
