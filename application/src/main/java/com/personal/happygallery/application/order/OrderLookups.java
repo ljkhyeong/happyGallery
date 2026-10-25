@@ -29,6 +29,12 @@ final class OrderLookups {
                 .orElseThrow(NotFoundException.supplier("주문"));
     }
 
+    /** 소유자와 무관하게 주문 행을 잠그고 읽는다. 관리자 전이처럼 소유권 검사가 뒤따르거나 필요 없는 경로에서 쓴다. */
+    static Order requireOrderForUpdate(OrderReaderPort reader, Long orderId) {
+        return reader.findByIdForUpdate(orderId)
+                .orElseThrow(NotFoundException.supplier("주문"));
+    }
+
     static Order requireMemberOrder(OrderReaderPort reader, Long orderId, Long userId) {
         return requireOwned(reader.findById(orderId), ownedBy(userId));
     }

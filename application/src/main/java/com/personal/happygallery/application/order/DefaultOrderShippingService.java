@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -57,12 +56,15 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 준비 시작. APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING.
      * 결제 confirm에서 생성된 Fulfillment가 SHIPPING 타입이어야 한다.
+     *
+     * <p>고객 배송지 변경({@link DefaultOrderShippingAddressService})이 주문 행을 잠근 뒤 배송 준비 전 상태인지
+     * 검사하므로, 이 전이도 주문 행을 잠가 두 작업을 직렬화한다. 출발·완료 전이는 배송지 변경과 경합하지 않아
+     * 낙관 잠금만 쓴다.
      */
     @Override
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
-        Order order = orderReader.findByIdForUpdate(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireOrderForUpdate(orderReader, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
         order.markShippingPreparing();

@@ -94,7 +94,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView requestMemberClaim(Long orderId, Long userId, RequestCommand command) {
-        Order order = requireOrderForUpdate(orderId);
+        Order order = OrderLookups.requireOrderForUpdate(orderReader, orderId);
         memberAccountGuard.requireActiveForUpdate(userId);
         if (!Objects.equals(order.getUserId(), userId)) {
             throw new NotFoundException("주문");
@@ -144,7 +144,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command) {
         Long expectedOrderId = orderClaimPort.findOrderIdById(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
-        Order order = requireOrderForUpdate(expectedOrderId);
+        Order order = OrderLookups.requireOrderForUpdate(orderReader, expectedOrderId);
         OrderClaim claim = requireClaimForUpdate(claimId);
         if (!Objects.equals(claim.getOrderId(), expectedOrderId)) {
             throw new HappyGalleryException(
@@ -303,8 +303,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                         claimItems.stream().map(OrderClaimItem::getOrderItemId).toList()).stream()
                 .collect(Collectors.toMap(OrderItem::getId, Function.identity()));
         return claimItems.stream()
-                .map(item -> new OrderClaimLine(
-                        item, requireOrderItem(orderItemsById, item.getOrderItemId())))
+                .map(item -> OrderClaimLine.of(item, orderItemsById))
                 .toList();
     }
 
@@ -359,22 +358,9 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         }
     }
 
-    private Order requireOrderForUpdate(Long orderId) {
-        return orderReader.findByIdForUpdate(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
-    }
-
     private OrderClaim requireClaimForUpdate(Long claimId) {
         return orderClaimPort.findByIdForUpdate(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
-    }
-
-    private OrderItem requireOrderItem(Map<Long, OrderItem> itemsById, Long orderItemId) {
-        OrderItem item = itemsById.get(orderItemId);
-        if (item == null) {
-            throw new NotFoundException("주문 상품");
-        }
-        return item;
     }
 
     private LocalDateTime now() {
