@@ -26,7 +26,7 @@ export function MyOrderDetailPage() {
 
   const { data: order, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: queryKeys.member.orders.detail(orderId),
-    queryFn: () => getMyOrder(orderId),
+    queryFn: () => runForCurrentCustomer(() => getMyOrder(orderId)),
     enabled: isAuthenticated && validOrderId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });

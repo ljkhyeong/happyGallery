@@ -6,14 +6,15 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState, CursorLoadMore } from "@/shared/ui";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
-import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 
 export function MyInquiriesPage() {
   const { isAuthenticated } = useCustomerAuth();
 
   const inquiriesQuery = useInfiniteQuery({
     queryKey: queryKeys.member.inquiryHistory,
-    queryFn: ({ pageParam, signal }) => fetchMyInquiriesPage(pageParam, signal),
+    queryFn: ({ pageParam, signal }) =>
+      runForCurrentCustomer(() => fetchMyInquiriesPage(pageParam, signal)),
     ...cursorPageParams,
     enabled: isAuthenticated,
   });

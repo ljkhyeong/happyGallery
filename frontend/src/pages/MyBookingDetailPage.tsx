@@ -18,7 +18,7 @@ import {
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
 import { customerRefundRefetchInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { BookingReviewSection } from "@/features/review/BookingReviewSection";
 import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
@@ -38,7 +38,7 @@ export function MyBookingDetailPage() {
     refetch,
   } = useQuery({
     queryKey: queryKeys.member.bookings.detail(bookingId),
-    queryFn: () => fetchMyBooking(bookingId),
+    queryFn: () => runForCurrentCustomer(() => fetchMyBooking(bookingId)),
     enabled: isAuthenticated && validBookingId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });

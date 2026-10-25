@@ -36,7 +36,7 @@ export function CustomerStepUpPrompt({
   const [socialPending, setSocialPending] = useState(false);
   const linkedProviders = useQuery({
     queryKey: queryKeys.member.socialAccounts,
-    queryFn: fetchLinkedSocialProviders,
+    queryFn: () => runForCurrentCustomer(fetchLinkedSocialProviders),
   });
   const passwordReauthentication = useMutation({
     mutationFn: () =>

@@ -56,7 +56,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     refetch: refetchLinkedProviders,
   } = useQuery({
     queryKey: queryKeys.member.socialAccounts,
-    queryFn: fetchLinkedSocialProviders,
+    queryFn: () => runForCurrentCustomer(fetchLinkedSocialProviders),
   });
   const unlinkMutation = useMutation({
     mutationFn: (provider: SocialProvider) =>

@@ -7,7 +7,7 @@ import { myCouponsQuery } from "@/features/coupon/queries";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatKRW, parsePositiveId } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
@@ -46,7 +46,7 @@ export function MemberOrderBenefits({
   const couponsQuery = useQuery(myCouponsQuery());
   const rewardQuery = useQuery({
     queryKey: queryKeys.member.rewards,
-    queryFn: ({ signal }) => fetchMyRewardWallet(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyRewardWallet(signal)),
   });
 
   const selectableCoupons = useMemo(

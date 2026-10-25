@@ -5,7 +5,7 @@ import {
   type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMyListFilters } from "./useMyListFilters";
 
@@ -66,7 +66,8 @@ export function useMyHistoryList<TPage extends HistoryPage, TStatus extends stri
   };
   const query = useInfiniteQuery({
     queryKey: [...queryKey, requestFilters],
-    queryFn: ({ pageParam, signal }): Promise<TPage> => fetchPage(pageParam, signal, requestFilters),
+    queryFn: ({ pageParam, signal }): Promise<TPage> =>
+      runForCurrentCustomer(() => fetchPage(pageParam, signal, requestFilters)),
     ...cursorPageParams,
     enabled: isAuthenticated,
     refetchInterval,

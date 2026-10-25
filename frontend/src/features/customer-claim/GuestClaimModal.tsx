@@ -31,7 +31,7 @@ export function GuestClaimModal({
 
   const previewQuery = useQuery({
     queryKey: queryKeys.member.guestClaimPreview,
-    queryFn: getGuestClaimPreview,
+    queryFn: () => runForCurrentCustomer(getGuestClaimPreview),
     enabled: phoneVerified,
   });
 

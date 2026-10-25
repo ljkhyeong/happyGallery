@@ -21,7 +21,7 @@ import { MyAccountCard } from "@/features/my/MyAccountCard";
 import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -51,7 +51,7 @@ export function MyPage() {
     refetch: refetchOrders,
   } = useQuery({
     queryKey: queryKeys.member.orders.all,
-    queryFn: ({ signal }) => fetchRecentMyOrders(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyOrders(signal)),
     enabled: isAuthenticated,
   });
 
@@ -63,7 +63,7 @@ export function MyPage() {
     refetch: refetchBookings,
   } = useQuery({
     queryKey: queryKeys.member.bookings.all,
-    queryFn: ({ signal }) => fetchRecentMyBookings(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyBookings(signal)),
     enabled: isAuthenticated,
   });
 
@@ -75,7 +75,7 @@ export function MyPage() {
     refetch: refetchPasses,
   } = useQuery({
     queryKey: queryKeys.member.passes,
-    queryFn: ({ signal }) => fetchRecentMyPasses(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyPasses(signal)),
     enabled: isAuthenticated,
   });
 

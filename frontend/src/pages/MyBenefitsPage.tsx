@@ -10,7 +10,7 @@ import {
   fetchMyRewardWallet,
   type RewardHistoryResponse,
 } from "@/features/reward/api";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -39,7 +39,7 @@ export function MyBenefitsPage() {
   const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
   const rewardsQuery = useQuery({
     queryKey: queryKeys.member.rewards,
-    queryFn: ({ signal }) => fetchMyRewardWallet(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyRewardWallet(signal)),
     enabled: isAuthenticated,
   });
   const claimMutation = useClaimCoupon();

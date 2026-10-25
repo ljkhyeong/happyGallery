@@ -16,7 +16,7 @@ import {
   useCheckoutSelection,
 } from "@/features/payment";
 import type { BookingPayload } from "@/generated/api/payment";
-import { ApiError, queryKeys } from "@/shared/api";
+import { ApiError, queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel, parsePositiveId } from "@/shared/lib";
 import {
   CheckoutAmounts,
@@ -168,7 +168,7 @@ function BookingCreateContent({
     refetch: refetchPasses,
   } = useQuery({
     queryKey: queryKeys.member.passCandidates,
-    queryFn: ({ signal }) => fetchAllMyPasses(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchAllMyPasses(signal)),
     enabled: isAuthenticated,
   });
   const passAccepted = selectedClass !== null && classAcceptsPass(selectedClass);

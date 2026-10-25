@@ -6,14 +6,16 @@ import { claimCoupon, fetchClaimableCoupons, fetchMyCoupons } from "./api";
 export function myCouponsQuery() {
   return {
     queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }: { signal: AbortSignal }) => fetchMyCoupons(signal),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      runForCurrentCustomer(() => fetchMyCoupons(signal)),
   };
 }
 
 export function claimableCouponsQuery() {
   return {
     queryKey: queryKeys.member.claimableCoupons,
-    queryFn: ({ signal }: { signal: AbortSignal }) => fetchClaimableCoupons(signal),
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      runForCurrentCustomer(() => fetchClaimableCoupons(signal)),
   };
 }
 

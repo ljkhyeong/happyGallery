@@ -3,7 +3,7 @@ import { Card, Badge, Button } from "react-bootstrap";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { fetchMyProductQnaDetail, fetchProductQnaDetail } from "./api";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import type { ProductQnaListItem } from "@/shared/types";
@@ -22,7 +22,7 @@ export function QnaItem({ item, productId, owned }: Props) {
       ? queryKeys.member.productQna.detail(productId, item.id)
       : queryKeys.productQna.detail(productId, item.id),
     queryFn: ({ signal }) => item.secret
-      ? fetchMyProductQnaDetail(productId, item.id, signal)
+      ? runForCurrentCustomer(() => fetchMyProductQnaDetail(productId, item.id, signal))
       : fetchProductQnaDetail(productId, item.id, signal),
     enabled: expanded && (!item.secret || owned === true),
   });
