@@ -33,7 +33,7 @@ export function CartPage() {
   } = useCustomerAuth();
   if (status === "error") {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
       </Container>
@@ -186,7 +186,7 @@ function CartContent() {
 
   if (cartError && isAuthenticated) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
@@ -201,7 +201,7 @@ function CartContent() {
 
   if (items.length === 0) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
@@ -256,7 +256,7 @@ function CartContent() {
   );
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       <PageHeader title="장바구니" />
       {mergeRecovery}
       {discardConfirmModal}

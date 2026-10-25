@@ -311,7 +311,7 @@ export function PaymentSuccessPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="notice"
           title="회원 계정이 변경되었습니다"
@@ -333,7 +333,7 @@ export function PaymentSuccessPage() {
   // 결제창을 거치지 않고 들어왔거나 결제 정보 보관 시간이 지난 경우. 오류가 아니라 확인할 곳을 안내한다.
   if (missingPaymentInfo) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="danger"
           title="확인할 결제 정보가 없습니다"
@@ -353,7 +353,7 @@ export function PaymentSuccessPage() {
 
   if (paymentStatus && paymentStatus.status !== "COMPLETED") {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="notice"
           title="결제 결과 확인"
@@ -396,7 +396,7 @@ export function PaymentSuccessPage() {
     const reconciliationRequired = requiresPaymentReconciliation(error);
     const statusCheckRequired = retryable || reconciliationRequired;
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="danger"
           title={completedOrderId
@@ -429,7 +429,7 @@ export function PaymentSuccessPage() {
   }
 
   return (
-    <Container className="page-container payment-result-page">
+    <Container className="page-container">
       <PaymentResultCard
         tone="success"
         title="결제 완료"

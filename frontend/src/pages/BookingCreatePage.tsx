@@ -355,7 +355,7 @@ function BookingCreateContent({
   );
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       <PageHeader
         title={hasRequestedPass ? "이용권으로 예약" : "체험 예약"}
         description={hasRequestedPass

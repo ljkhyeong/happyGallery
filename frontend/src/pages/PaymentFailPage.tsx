@@ -60,7 +60,7 @@ export function PaymentFailPage() {
   }, []);
 
   return (
-    <Container className="page-container payment-result-page">
+    <Container className="page-container">
       <PaymentResultCard
         tone="danger"
         title="결제 실패"

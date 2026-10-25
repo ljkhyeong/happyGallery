@@ -82,7 +82,7 @@ export function GuestPaymentStatusPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="notice"
           title="회원 계정이 변경되었습니다"
@@ -95,7 +95,7 @@ export function GuestPaymentStatusPage() {
 
   if (!statusToken) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="notice"
           title="휴대폰 인증 후 결제 결과를 확인해 주세요"
@@ -108,7 +108,7 @@ export function GuestPaymentStatusPage() {
 
   if (isLoading) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <LoadingSpinner text="결제 상태를 확인하는 중..." />
       </Container>
     );
@@ -116,7 +116,7 @@ export function GuestPaymentStatusPage() {
 
   if (error && !status) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container">
         <PaymentResultCard
           tone="danger"
           title="결제 상태를 불러오지 못했습니다"
@@ -133,7 +133,7 @@ export function GuestPaymentStatusPage() {
   const completedResult = isCompletedPayment(status) ? status : null;
 
   return (
-    <Container className="page-container payment-result-page">
+    <Container className="page-container">
       <Link to="/guest#payment-help" className="page-back-link">&larr; 조회한 결제 목록</Link>
       <PaymentResultCard
         tone={completedResult ? "success" : "notice"}

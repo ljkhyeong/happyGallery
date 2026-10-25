@@ -64,7 +64,7 @@ export function PassPurchasePage() {
   );
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       <PageHeader
         title="4회권 구매"
         description="정규 공예 수업을 원하는 날짜에 네 번 예약할 수 있는 이용권입니다."

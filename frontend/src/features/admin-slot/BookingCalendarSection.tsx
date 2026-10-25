@@ -282,10 +282,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                 <ChevronRight size={18} />
               </Button>
             </div>
-            <div
-              className="booking-calendar-grid"
-              style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6 }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6 }}>
               {WEEKDAYS.map((weekday) => (
                 <div key={weekday} className="text-center small text-muted py-1">{weekday}</div>
               ))}

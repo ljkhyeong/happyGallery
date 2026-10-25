@@ -5,10 +5,10 @@ import { formatSlotStart, isFewSeats, nextOpenSlot, remainingSeatLabel, UPCOMING
 /** 클래스 카드 아래에 가장 가까운 예약 가능 일정과 남은 자리를 보여 준다. */
 export function ClassNextSlot({
   result,
-  className = "class-next-slot",
+  className,
 }: {
   result: UseQueryResult<PublicSlotResponse[]> | undefined;
-  className?: string;
+  className: string;
 }) {
   if (!result || result.isPending) {
     return <p className={className}>일정 확인 중</p>;

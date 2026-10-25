@@ -36,7 +36,7 @@ export function MyShell({ children }: { children: ReactNode }) {
   if (!isAuthenticated || !user) {
     const item = findMyNavItem(pathname);
     return (
-      <Container className="page-container my-gate-page">
+      <Container className="page-container">
         {isHome || !item ? (
           <MyAuthGateCard
             title="로그인이 필요합니다"

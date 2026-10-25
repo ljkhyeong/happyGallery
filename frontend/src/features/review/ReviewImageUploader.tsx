@@ -88,7 +88,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
   return (
     <section className="review-image-manager" aria-label="후기 사진 관리">
       {review.images.length > 0 && (
-        <div className="review-image-gallery review-image-gallery-editable">
+        <div className="review-image-gallery">
           {review.images.map((image, index) => (
             <div key={image.id} className="review-image-edit-item">
               {review.status === "HIDDEN" ? (

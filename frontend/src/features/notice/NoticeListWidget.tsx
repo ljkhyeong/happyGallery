@@ -16,7 +16,7 @@ export function NoticeListWidget({ initialNotices }: { initialNotices: NoticeLis
   const recent = notices.slice(0, 5);
 
   return (
-    <section className="home-update-panel home-notice-panel" aria-labelledby="home-notice-title">
+    <section className="home-update-panel" aria-labelledby="home-notice-title">
       <header className="home-update-heading">
         <h2 id="home-notice-title">공지사항</h2>
         <Link to="/notices" className="gallery-section-more">전체 공지 보기</Link>

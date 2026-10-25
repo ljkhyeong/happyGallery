@@ -203,7 +203,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     || Boolean(product.careInstructions) || product.productionLeadDays != null;
 
   return (
-    <Container className="page-container store-product-page">
+    <Container className="page-container">
       <nav className="store-detail-breadcrumb" aria-label="경로">
         <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
         <span aria-hidden="true">/</span>
@@ -234,7 +234,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
           </figure>
         </div>
 
-        <div className="store-product-buy">
+        <div>
           <header className="store-product-intro">
             <div className="store-detail-meta">
               <span className="store-detail-kicker">

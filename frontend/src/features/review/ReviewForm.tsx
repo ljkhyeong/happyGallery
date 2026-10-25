@@ -47,7 +47,7 @@ export function ReviewForm({
   }
 
   return (
-    <Form onSubmit={handleSubmit} className="review-form">
+    <Form onSubmit={handleSubmit}>
       {hiddenNotice && (
         <Alert variant="warning" className="small py-2">
           비공개 상태에서 내용을 수정해도 자동으로 다시 공개되지 않습니다.

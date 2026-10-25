@@ -230,9 +230,9 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
   if (shouldShowManualEntryGate) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         {header}
-        <Card className="mb-4 border-0 my-claim-card checkout-gate">
+        <Card className="mb-4 border-0 my-claim-card">
           <Card.Body className="py-4">
             <h2 className="h5 display-heading mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
@@ -280,7 +280,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const showConsentPanel = requiresMadeToOrderConsent || !user;
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       {header}
 
       <CheckoutLayout

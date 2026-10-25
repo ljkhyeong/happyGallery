@@ -14,7 +14,7 @@ interface Props {
 export function MyDashboardHero({ user, nextBooking }: Props) {
   return (
     <section className="my-dashboard-hero" aria-labelledby="my-dashboard-title">
-      <div className="my-dashboard-hello">
+      <div>
         <h1 id="my-dashboard-title">{user.name}님</h1>
         <div className="my-dashboard-meta">
           <Badge bg={user.phoneVerified ? "dark" : "warning"}>

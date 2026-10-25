@@ -43,7 +43,7 @@ export function ForgotPasswordPage() {
     && passwordMatches;
 
   return (
-    <Container className="page-container auth-shell" style={{ maxWidth: 560 }}>
+    <Container className="page-container" style={{ maxWidth: 560 }}>
       <Card className="auth-form-card border-0">
         <Card.Body className="p-4 p-lg-5">
           <h1 className="h3 display-heading mb-2">비밀번호 재설정</h1>
