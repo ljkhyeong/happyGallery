@@ -31,6 +31,7 @@ import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -145,10 +146,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Transactional(propagation = Propagation.NEVER)
     public CurrentOrderStatusResult currentStatus(String productOrderId) {
         requireEnabled();
-        SmartStoreOrderProvider.ProductOrderDetail detail = orderProvider.fetchDetails(List.of(productOrderId))
-                .stream()
-                .filter(candidate -> productOrderId.equals(candidate.productOrderId()))
-                .findFirst()
+        SmartStoreOrderProvider.ProductOrderDetail detail = fetchDetail(productOrderId)
                 .orElseThrow(NotFoundException.supplier("네이버 스마트스토어 상품 주문"));
         return new CurrentOrderStatusResult(
                 detail.productOrderId(), detail.productOrderStatus(), detail.placeOrderStatus(),
@@ -160,8 +158,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public void confirm(String productOrderId, AdminActor actor) {
-        requireEnabled();
-        executeAudited(
+        executeEnabledAction(
                 productOrderId, SmartStoreOrderAction.ORDER_CONFIRMED, null, actor,
                 () -> orderProvider.confirm(productOrderId));
     }
@@ -181,8 +178,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public void dispatch(SmartStoreDispatchCommand command, AdminActor actor) {
-        requireEnabled();
-        executeAudited(
+        executeEnabledAction(
                 command.productOrderId(),
                 SmartStoreOrderAction.ORDER_DISPATCHED,
                 dispatchSummary(command),
@@ -210,8 +206,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public void delay(SmartStoreDelayCommand command, AdminActor actor) {
-        requireEnabled();
-        executeAudited(
+        executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.ORDER_DELAYED,
                 "발송 기한 %s, 사유 코드 %s, 상세 사유 %s".formatted(
                         command.dispatchDueDate(), command.reasonCode(), command.detailedReason()),
@@ -335,6 +330,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 () -> orderProvider.requestSellerCancel(command));
     }
 
+    /** 연동이 켜져 있을 때만 단건 주문 처리를 실행하고 시작·성공·실패를 감사 이력에 남긴다. */
     private void executeEnabledAction(
             String productOrderId,
             SmartStoreOrderAction action,
@@ -342,15 +338,6 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             AdminActor actor,
             Runnable operation) {
         requireEnabled();
-        executeAudited(productOrderId, action, requestSummary, actor, operation);
-    }
-
-    private void executeAudited(
-            String productOrderId,
-            SmartStoreOrderAction action,
-            String requestSummary,
-            AdminActor actor,
-            Runnable operation) {
         long historyId = actionHistoryService.start(productOrderId, action, requestSummary, actor);
         try {
             operation.run();
@@ -462,12 +449,17 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         if (!orderProvider.isEnabled()) {
             return null;
         }
+        return fetchDetail(productOrderId)
+                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
+                .orElse(null);
+    }
+
+    /** 네이버에서 상품 주문 한 건의 현재 상세를 조회한다. 응답에 요청한 주문이 없으면 비어 있다. */
+    private Optional<SmartStoreOrderProvider.ProductOrderDetail> fetchDetail(String productOrderId) {
         return orderProvider.fetchDetails(List.of(productOrderId))
                 .stream()
                 .filter(detail -> productOrderId.equals(detail.productOrderId()))
-                .findFirst()
-                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
-                .orElse(null);
+                .findFirst();
     }
 
     private SmartStoreProductOrder order(String productOrderId) {
