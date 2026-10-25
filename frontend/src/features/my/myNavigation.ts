@@ -2,14 +2,14 @@
  * 내 정보 메뉴와 각 화면 제목의 단일 원본.
  * 메뉴 이름과 화면 h1을 같게 두고, 로그인 안내 문구도 여기서 만든다.
  */
-export interface MyNavItem {
+interface MyNavItem {
   to: string;
   label: string;
   /** 로그인하지 않은 고객에게 보이는 안내 */
   gateDescription: string;
 }
 
-export interface MyNavGroup {
+interface MyNavGroup {
   title: string;
   items: MyNavItem[];
 }

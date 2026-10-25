@@ -18,7 +18,7 @@ export type CustomerStepUpReturnAction =
   | "email-registration"
   | "account-withdrawal";
 
-export type CustomerStepUpContinuation =
+type CustomerStepUpContinuation =
   | { kind: "return"; action: CustomerStepUpReturnAction }
   | { kind: "social-link"; provider: SocialProvider }
   | { kind: "social-unlink"; provider: SocialProvider };

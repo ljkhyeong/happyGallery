@@ -29,10 +29,6 @@ export function registerMyVacancyAlert(slotId: number): Promise<VacancyAlertResp
   return requestMyVacancyAlert(slotId);
 }
 
-export function fetchMyVacancyAlerts(signal?: AbortSignal): Promise<VacancyAlertResponse[]> {
-  return requestMyVacancyAlerts({ signal });
-}
-
 export function cancelMyVacancyAlert(slotId: number): Promise<void> {
   return requestMyVacancyAlertCancellation(slotId);
 }
@@ -42,6 +38,6 @@ export function myVacancyAlertsQuery() {
   return {
     queryKey: queryKeys.member.vacancyAlerts,
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      runForCurrentCustomer(() => fetchMyVacancyAlerts(signal)),
+      runForCurrentCustomer(() => requestMyVacancyAlerts({ signal })),
   };
 }

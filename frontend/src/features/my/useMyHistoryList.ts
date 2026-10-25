@@ -8,7 +8,7 @@ import { cursorPageParams, flattenCursorPages, runForCurrentCustomer, type Curso
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMyListFilters } from "./useMyListFilters";
 
-export interface MyHistoryFilters<TStatus extends string, TSort extends string> {
+interface MyHistoryFilters<TStatus extends string, TSort extends string> {
   keyword: string | undefined;
   status: TStatus | undefined;
   sort: TSort;

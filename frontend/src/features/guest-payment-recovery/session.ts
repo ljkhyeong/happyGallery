@@ -10,7 +10,7 @@ import {
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import type { GuestPaymentStatusRecoveryResponse } from "./api";
 
-export type GuestPaymentStatusRecoverySession =
+type GuestPaymentStatusRecoverySession =
   CustomerSessionStorageHandle<GuestPaymentStatusRecoveryResponse>;
 
 function isRecoveryResult(value: unknown): value is GuestPaymentStatusRecoveryResponse {

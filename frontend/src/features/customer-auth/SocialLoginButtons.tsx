@@ -68,14 +68,12 @@ export function SocialLoginButtons({
             key={provider}
             type="button"
             variant="outline-dark"
-            className={`social-login-button ${details.buttonClassName ?? ""}`}
+            className={`social-login-button ${details.buttonClassName}`}
             disabled={startingProvider !== null || consentRequired}
             onClick={() => void startSocialLogin(provider)}
           >
             <span className="social-login-button-content">
-              {details.iconSrc && (
-                <img className="social-login-button-icon" src={details.iconSrc} alt="" aria-hidden="true" />
-              )}
+              <img className="social-login-button-icon" src={details.iconSrc} alt="" aria-hidden="true" />
               <span>{isStarting ? `${details.label} 연결 중...` : `${details.label}로 ${action}`}</span>
             </span>
           </Button>
