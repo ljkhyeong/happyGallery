@@ -16,7 +16,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
-/** 선택한 메일 서비스의 자격 증명과 전송 제한만 검증한다. */
+/** 선택한 메일 서비스의 자격 증명·발신 주소·전송 제한을 검증한다. */
 @Configuration(proxyBeanMethods = false)
 @Profile("prod")
 class EmailVerificationTransportConfig {
@@ -35,7 +35,7 @@ class EmailVerificationTransportConfig {
             havingValue = "smtp", matchIfMissing = true)
     static class Smtp {
         @Bean
-        EmailVerificationTransport smtpEmailVerificationTransport(
+        VerificationTransport smtpEmailVerificationTransport(
                 JavaMailSender sender, MailProperties mail, EmailVerificationProperties properties) {
             validateEmailVerificationTransport(properties, mail);
             return new RealEmailVerificationSender(sender, properties);
@@ -64,11 +64,17 @@ class EmailVerificationTransportConfig {
         }
 
         @Bean
-        EmailVerificationTransport ncpEmailVerificationTransport(
+        VerificationTransport ncpEmailVerificationTransport(
                 @Qualifier("ncpMailRestClient") RestClient client,
                 NcpMailProperties properties, EmailVerificationProperties email, Clock clock) {
+            requireFrom(email);
             return new NcpEmailVerificationSender(client, properties, email, clock);
         }
+    }
+
+    /** 발신 주소는 local·test에서 비어 있을 수 있어 바인딩 제약 대신 prod 전송기 생성 시 검증한다. */
+    private static void requireFrom(EmailVerificationProperties properties) {
+        Assert.hasText(properties.from(), "이메일 인증 발신 주소는 필수입니다.");
     }
 
     private static void validateEmailVerificationTransport(
@@ -80,7 +86,7 @@ class EmailVerificationTransportConfig {
                 "이메일 인증 SMTP port는 0보다 커야 합니다.");
         Assert.hasText(mailProperties.getUsername(), "이메일 인증 SMTP username은 필수입니다.");
         Assert.hasText(mailProperties.getPassword(), "이메일 인증 SMTP password는 필수입니다.");
-        Assert.hasText(properties.from(), "이메일 인증 발신 주소는 필수입니다.");
+        requireFrom(properties);
 
         boolean startTlsEnabled = booleanMailProperty(mailProperties, SMTP_STARTTLS_ENABLED);
         boolean startTlsRequired = booleanMailProperty(mailProperties, SMTP_STARTTLS_REQUIRED);

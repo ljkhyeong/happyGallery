@@ -5,7 +5,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 /** 운영 환경에서 회원 이메일 소유 확인 코드를 SMTP로 발송한다. */
-public class RealEmailVerificationSender implements EmailVerificationTransport {
+public class RealEmailVerificationSender implements VerificationTransport {
 
     private final JavaMailSender mailSender;
     private final EmailVerificationProperties properties;

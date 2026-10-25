@@ -81,7 +81,7 @@ class NcpEmailVerificationSenderTest {
     @DisplayName("응답 타임아웃은 인증 발송 실패로 반환하고 같은 요청을 재발송하지 않는다")
     void timeoutDoesNotResend() {
         server.expect(anything()).andRespond(withException(new SocketTimeoutException("response timeout")));
-        var resilient = new ResilientEmailVerificationSender(sender,
+        var resilient = new ResilientVerificationSender("EMAIL:EMAIL_VERIFICATION", sender,
                 CircuitBreaker.ofDefaults("email-test"), TimeLimiter.of(Duration.ofSeconds(7)),
                 Runnable::run, Duration.ofSeconds(7));
         assertThat(resilient.send("member@example.com", "123456")).isFalse();

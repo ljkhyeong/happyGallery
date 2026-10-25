@@ -76,7 +76,6 @@ class NotificationResilienceConfig {
 
     @Bean
     TimeLimiter emailVerificationTimeLimiter(EmailVerificationProperties properties) {
-        Assert.hasText(properties.from(), "이메일 인증 발신 주소는 필수입니다.");
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(properties.timeout())
                 .cancelRunningFuture(true)
@@ -201,29 +200,32 @@ class NotificationResilienceConfig {
                                                      Executor timeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props.http());
-        RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
-        return new ResilientPhoneVerificationSender(
-                raw,
+        ResilientVerificationSender resilient = new ResilientVerificationSender(
+                "SMS:PHONE_VERIFICATION",
+                new RealPhoneVerificationSender(props, smsRestClient),
                 circuitBreaker,
                 notificationTimeLimiter,
                 timeoutExecutor,
                 resilience.timeout());
+        return resilient::send;
     }
 
     @Bean
     EmailVerificationSender emailVerificationSender(
             EmailVerificationProperties props,
-            EmailVerificationTransport transport,
+            VerificationTransport transport,
             @Qualifier("emailVerificationCircuitBreaker") CircuitBreaker circuitBreaker,
             @Qualifier("emailVerificationTimeLimiter") TimeLimiter timeLimiter,
             @Qualifier("emailVerificationTimeoutExecutor") Executor timeoutExecutor
     ) {
-        return new ResilientEmailVerificationSender(
+        ResilientVerificationSender resilient = new ResilientVerificationSender(
+                "EMAIL:EMAIL_VERIFICATION",
                 transport,
                 circuitBreaker,
                 timeLimiter,
                 timeoutExecutor,
                 props.timeout());
+        return resilient::send;
     }
 
     private static boolean isFailureResult(Object result) {

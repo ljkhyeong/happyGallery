@@ -89,11 +89,10 @@ class NotificationDeliveryConfigTest {
     void defaultUsesNhn() {
         nhnRunner().run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(PhoneVerificationSender.class)
-                    .doesNotHaveBean("disabledPhoneVerificationSender");
+                    .hasBean("phoneVerificationSender").doesNotHaveBean("disabledPhoneVerificationSender");
             assertThat(context.getBeansOfType(NotificationSenderPort.class).values()).hasSize(2)
                     .allSatisfy(sender -> assertThat(sender).isInstanceOf(ResilientNotificationSender.class));
             assertThat(context.getBeansOfType(NotificationDeliveryResultProvider.class)).hasSize(2);
-            assertThat(context.getBean(PhoneVerificationSender.class)).isInstanceOf(ResilientPhoneVerificationSender.class);
         });
     }
 
