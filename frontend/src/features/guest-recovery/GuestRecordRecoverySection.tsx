@@ -7,6 +7,7 @@ import {
   runForCustomerSession,
   cursorPageParams,
   flattenCursorPages,
+  type CursorPage,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
@@ -25,14 +26,8 @@ import { useOwnedRecoveryResult, type OwnedRecoveryView } from "./useOwnedRecove
 
 type RecoveryView = OwnedRecoveryView<GuestRecordRecoverySession>;
 
-interface RecoveredPage {
-  content: unknown[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}
-
 /** 재발급한 조회 코드로 비회원 주문·예약 이력을 이어 받는다. 키에는 토큰 대신 소유자·만료 시각을 쓴다. */
-function useRecoveredRecords<TPage extends RecoveredPage>(
+function useRecoveredRecords<TPage extends CursorPage>(
   kind: "orders" | "bookings",
   recoveryView: RecoveryView | null,
   fetchPage: (accessToken: string, cursor?: string, signal?: AbortSignal) => Promise<TPage>,

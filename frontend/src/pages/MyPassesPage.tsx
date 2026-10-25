@@ -5,11 +5,7 @@ import { useState } from "react";
 import { Alert, Button, Card, Col, Row } from "react-bootstrap";
 import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
-import {
-  getPassFilterKey,
-  isPassAvailableForBooking,
-  isPassRefundable,
-} from "@/features/my/listUtils";
+import { getPassFilterKey, isPassAvailableForBooking } from "@/features/my/listUtils";
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import {
@@ -134,27 +130,28 @@ export function MyPassesPage() {
                 <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
                 <div className="d-flex flex-wrap justify-content-md-end gap-2 mt-2">
                   <PaymentReceiptLink receiptUrl={pass.receiptUrl} />
+                  {/* 환불은 예약에 쓸 수 있는 이용권만 받으므로 두 버튼이 같은 조건을 쓴다. */}
                   {isPassAvailableForBooking(pass) && (
-                    <LinkButton
-                      to={`/bookings/new?passId=${pass.passId}`}
-                      variant="outline-primary"
-                      size="sm"
-                    >
-                      이 이용권으로 예약
-                    </LinkButton>
-                  )}
-                  {isPassRefundable(pass) && (
-                    <Button
-                      type="button"
-                      variant="outline-dark"
-                      size="sm"
-                      onClick={() => {
-                        refundMutation.reset();
-                        setRefundTarget(pass);
-                      }}
-                    >
-                      환불 요청
-                    </Button>
+                    <>
+                      <LinkButton
+                        to={`/bookings/new?passId=${pass.passId}`}
+                        variant="outline-primary"
+                        size="sm"
+                      >
+                        이 이용권으로 예약
+                      </LinkButton>
+                      <Button
+                        type="button"
+                        variant="outline-dark"
+                        size="sm"
+                        onClick={() => {
+                          refundMutation.reset();
+                          setRefundTarget(pass);
+                        }}
+                      >
+                        환불 요청
+                      </Button>
+                    </>
                   )}
                 </div>
               </Col>

@@ -4,15 +4,9 @@ import {
   type QueryKey,
   type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
-import { cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
+import { cursorPageParams, flattenCursorPages, runForCurrentCustomer, type CursorPage } from "@/shared/api";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMyListFilters } from "./useMyListFilters";
-
-interface HistoryPage {
-  content: unknown[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}
 
 export interface MyHistoryFilters<TStatus extends string, TSort extends string> {
   keyword: string | undefined;
@@ -28,7 +22,7 @@ type HistoryRefetchInterval<TPage> = UseInfiniteQueryOptions<
   string | undefined
 >["refetchInterval"];
 
-interface Options<TPage extends HistoryPage, TStatus extends string, TSort extends string> {
+interface Options<TPage extends CursorPage, TStatus extends string, TSort extends string> {
   /** 필터 객체를 덧붙일 이력 key 접두사. */
   queryKey: QueryKey;
   fetchPage: (
@@ -43,7 +37,7 @@ interface Options<TPage extends HistoryPage, TStatus extends string, TSort exten
 }
 
 /** 내 정보 예약·주문·이용권 이력: 주소의 검색 조건, 입력 지연, 커서 페이지 조회를 함께 맡는다. */
-export function useMyHistoryList<TPage extends HistoryPage, TStatus extends string, TSort extends string>({
+export function useMyHistoryList<TPage extends CursorPage, TStatus extends string, TSort extends string>({
   queryKey,
   fetchPage,
   statusValues,
