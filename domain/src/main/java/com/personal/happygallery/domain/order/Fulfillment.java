@@ -150,18 +150,17 @@ public class Fulfillment {
         this.carrier = Objects.requireNonNull(carrier, "carrier must not be null").displayName();
         this.trackingNumber = DomainText.required(
                 trackingNumber, "운송장 번호는", MAX_TRACKING_NUMBER_LENGTH);
-        setTrackingRegistrationPending(carrier);
-        this.trackingNextAttemptAt = Objects.requireNonNull(now, "now must not be null");
+        setTrackingRegistrationPending(carrier, Objects.requireNonNull(now, "now must not be null"));
     }
 
-    private void setTrackingRegistrationPending(ShippingCarrier carrier) {
+    private void setTrackingRegistrationPending(ShippingCarrier carrier, LocalDateTime nextAttemptAt) {
         this.trackingCheckedAt = null;
         this.carrierCode = carrier;
         this.trackingRegistrationStatus = TrackingRegistrationStatus.PENDING;
         this.trackingRegistrationAttempts = 0;
         this.trackingRequestId = null;
         this.trackingRegistrationStartedAt = null;
-        this.trackingNextAttemptAt = null;
+        this.trackingNextAttemptAt = nextAttemptAt;
         this.trackingLastError = null;
         this.trackingStatus = ShipmentTrackingStatus.PENDING;
         this.trackingStatusText = "배송조회 등록 대기";
@@ -183,13 +182,8 @@ public class Fulfillment {
     }
 
     public void completeTrackingRegistration(String requestId, LocalDateTime now) {
-        trackingRegistrationStatus = trackingStatus == ShipmentTrackingStatus.DELIVERED
-                ? TrackingRegistrationStatus.COMPLETED
-                : TrackingRegistrationStatus.ACTIVE;
+        settleTrackingRegistration();
         trackingRequestId = requestId;
-        trackingRegistrationStartedAt = null;
-        trackingNextAttemptAt = null;
-        trackingLastError = null;
         if (trackingStatus == null || trackingStatus == ShipmentTrackingStatus.PENDING) {
             trackingStatus = ShipmentTrackingStatus.REGISTERED;
             trackingStatusText = "배송조회 등록 완료";
@@ -215,7 +209,12 @@ public class Fulfillment {
         trackingStatus = Objects.requireNonNull(status, "status must not be null");
         trackingStatusText = abbreviate(statusText, 100);
         trackingUpdatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
-        trackingRegistrationStatus = status == ShipmentTrackingStatus.DELIVERED
+        settleTrackingRegistration();
+    }
+
+    /** 등록 요청이 끝났거나 조회 결과가 들어오면 등록 lease·재시도 예약·마지막 오류를 비우고, 등록 상태는 현재 조회 상태로 정한다. */
+    private void settleTrackingRegistration() {
+        trackingRegistrationStatus = trackingStatus == ShipmentTrackingStatus.DELIVERED
                 ? TrackingRegistrationStatus.COMPLETED
                 : TrackingRegistrationStatus.ACTIVE;
         trackingRegistrationStartedAt = null;

@@ -237,15 +237,13 @@ public class Booking {
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
         }
-        this.status = BookingStatus.CANCELED;
-        this.ownerPhoneHmac = null;
+        closeAs(BookingStatus.CANCELED);
     }
 
     /** 공방 사정으로 예약을 취소한다. 고객 취소 제한과 관계없이 관리자 정산 흐름에서만 호출한다. */
     public void cancelByAdmin() {
         status.requireBooked();
-        this.status = BookingStatus.CANCELED;
-        this.ownerPhoneHmac = null;
+        closeAs(BookingStatus.CANCELED);
     }
 
     /** 예약을 유지하면서 취소한 인원만큼 예약금·잔금과 슬롯 점유를 줄인다. */
@@ -296,11 +294,8 @@ public class Booking {
     /** 수업 종료 후 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
     public void markNoShow(LocalDateTime now) {
         status.requireBooked();
-        if (now.isBefore(slot.getEndAt())) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
-        }
-        this.status = BookingStatus.NO_SHOW;
-        this.ownerPhoneHmac = null;
+        requireClassEnded(now, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
+        closeAs(BookingStatus.NO_SHOW);
     }
 
     /** 현장 잔금 결제를 기록한다. 이미 결제된 예약은 최초 결제 시각을 유지한다. */
@@ -326,13 +321,25 @@ public class Booking {
     /** 수업 종료 후 예약을 완료한다. 미결제 잔금은 먼저 미수로 명시해야 한다. */
     public void complete(LocalDateTime now) {
         status.requireBooked();
-        if (now.isBefore(slot.getEndAt())) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 예약을 완료할 수 없습니다.");
-        }
+        requireClassEnded(now, "수업 종료 전에는 예약을 완료할 수 없습니다.");
         if (balanceStatus == BalanceStatus.UNPAID && !arrearsFlag) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "미결제 잔금은 미수로 표시한 뒤 완료해 주세요.");
         }
-        this.status = BookingStatus.COMPLETED;
+        closeAs(BookingStatus.COMPLETED);
+    }
+
+    private void requireClassEnded(LocalDateTime now, String message) {
+        if (now.isBefore(slot.getEndAt())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, message);
+        }
+    }
+
+    /**
+     * 예약을 종료 상태로 전이한다. BOOKED가 아닌 예약은 owner_phone_hmac을 비워야 하는
+     * DB 제약(chk_bookings_owner_phone_hmac_lifecycle)과 활성 예약 유니크 키를 함께 지킨다.
+     */
+    private void closeAs(BookingStatus next) {
+        this.status = next;
         this.ownerPhoneHmac = null;
     }
 
