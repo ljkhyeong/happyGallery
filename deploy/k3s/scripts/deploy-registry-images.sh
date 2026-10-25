@@ -71,9 +71,7 @@ docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
 k3s_ctr images import "$registry_tmp/images.tar"
 for local_ref in "${registry_local_images[@]}"; do
     local_digest=$(containerd_image_digest "$local_ref") || die "반입한 이미지 digest가 없습니다."
-    for local_alias in "$local_ref@$local_digest" "${local_ref%:*}@$local_digest"; do
-        ensure_containerd_image_alias "$local_ref" "$local_alias" "$local_digest"
-    done
+    register_containerd_digest_aliases "$local_ref" "$local_digest"
 done
 
 # Docker archive를 containerd로 변환하면 registry manifest와 digest가 달라질 수 있다.

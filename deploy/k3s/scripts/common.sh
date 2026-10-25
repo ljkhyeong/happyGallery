@@ -213,13 +213,28 @@ ensure_containerd_image_alias() (
     fi
 )
 
+# release 이미지는 tag@digest와 tag 없는 이름@digest 두 이름을 가진다. CRI는 tag@digest 조회 시 tag를 제외하고,
+# 백업용 기존 이름도 두 이름으로 보존한다. 한 줄에 하나씩 출력한다.
+containerd_digest_aliases() {
+    printf '%s@%s\n' "$1" "$2" "${1%:*}" "$2"
+}
+
+# ensure_containerd_image_alias처럼 서브셸로 두어 루프 변수가 호출부에 남지 않는다.
+register_containerd_digest_aliases() (
+    while IFS= read -r alias_reference; do
+        ensure_containerd_image_alias "$1" "$alias_reference" "$2"
+    done <<EOF
+$(containerd_digest_aliases "$1" "$2")
+EOF
+)
+
 # app/frontend Deployment는 Deployment와 같은 이름의 컨테이너 하나만 둔다.
 deployment_container_image() {
     kube -n "$NAMESPACE" get deployment "$1" \
         -o "jsonpath={.spec.template.spec.containers[?(@.name==\"$1\")].image}"
 }
 
-# 실행 중인 이미지 참조는 release의 tag@digest 또는 CRI가 쓰는 tag 없는 이름@digest다.
+# 실행 중인 이미지 참조는 containerd_digest_aliases가 만드는 두 이름 중 하나다.
 image_matches_release() {
     case "$1" in
         "$2@$3"|"${2%:*}@$3") ;;

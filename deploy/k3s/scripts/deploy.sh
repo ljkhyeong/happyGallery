@@ -36,10 +36,10 @@ for pair in "$app_image|$app_digest" "$frontend_image|$frontend_digest"; do
     image=${pair%%|*}
     digest=${pair#*|}
     is_sha256_digest "$digest" || die "이미지 digest 형식이 올바르지 않습니다."
-    for reference in "$image@$digest" "${image%:*}@$digest"; do
+    while IFS= read -r reference; do
         actual=$(containerd_image_digest "$reference") || die "이미지의 digest 별칭이 없습니다: $reference"
         [ "$actual" = "$digest" ] || die "이미지 별칭의 digest가 다릅니다: $reference"
-    done
+    done <<< "$(containerd_digest_aliases "$image" "$digest")"
 done
 
 systemctl_write() {
