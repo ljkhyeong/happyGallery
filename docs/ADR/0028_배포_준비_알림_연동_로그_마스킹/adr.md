@@ -111,6 +111,10 @@
 - 운영 프런트 access log를 비활성화해 query string과 Referer를 기록하지 않는다.
 - Toss와 결제 resilience 경계는 결제 키가 포함될 수 있는 throwable 원문을 로그 호출에 전달하지 않고 예외 타입과 안전한 내부 식별자만 남긴다.
 
+## Update (2026-10-25)
+
+- 사용처가 없던 `NotificationChannel.EMAIL` 상수를 삭제했다. 일반 Email/Push 알림 채널은 여전히 미구현이며, 도입 시 enum 값과 outbox 어댑터를 함께 추가한다.
+
 ## 참고
 
 - PRD §3.3 (픽업 규칙), PRD §7 (알림 정책)
