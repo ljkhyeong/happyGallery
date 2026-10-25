@@ -33,15 +33,18 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     private final PaymentPort paymentPort;
     private final PaymentConfirmClaimTransactionService claimTransactionService;
     private final PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService;
+    private final PaymentFulfillmentCoordinator fulfillmentCoordinator;
     private final AppMetrics appMetrics;
 
     public DefaultPaymentConfirmService(PaymentPort paymentPort,
                                         PaymentConfirmClaimTransactionService claimTransactionService,
                                         PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService,
+                                        PaymentFulfillmentCoordinator fulfillmentCoordinator,
                                         AppMetrics appMetrics) {
         this.paymentPort = paymentPort;
         this.claimTransactionService = claimTransactionService;
         this.fulfillmentTransactionService = fulfillmentTransactionService;
+        this.fulfillmentCoordinator = fulfillmentCoordinator;
         this.appMetrics = appMetrics;
     }
 
@@ -126,16 +129,9 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     }
 
     private ConfirmResult fulfill(ReadyForFulfillment ready) {
-        try {
-            return fulfillmentTransactionService.fulfillAndConfirm(ready.attemptId());
-        } catch (RuntimeException fulfillmentFailure) {
-            if (ready.amount() > 0L) {
-                compensateAfterFulfillmentFailure(ready, fulfillmentFailure);
-            } else {
-                recordZeroAmountFailure(ready, fulfillmentFailure);
-            }
-            throw fulfillmentFailure;
-        }
+        return fulfillmentCoordinator.fulfillOrCompensate(
+                ready.attemptId(), ready.orderId(), ready.amount(), ready.confirmedPaymentKey(),
+                "PG 승인 후 도메인 생성에 실패했습니다.");
     }
 
     private PaymentConfirmResult callPayment(PgConfirmationRequired required) {
@@ -164,41 +160,6 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
             log.error("PG 승인 결제의 보상 환불 요청 저장 실패 — 자동 복구 대상 유지 "
                             + "[attemptId={}, orderId={}, type={}]",
                     required.attemptId(), required.orderId(), compensationFailure.getClass().getSimpleName());
-        }
-    }
-
-    private void compensateAfterFulfillmentFailure(
-            ReadyForFulfillment ready,
-            RuntimeException originalFailure) {
-        try {
-            boolean requested = fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
-                    ready.attemptId(), ready.confirmedPaymentKey(),
-                    "PG 승인 후 도메인 생성에 실패했습니다.");
-            if (!requested) {
-                log.warn("완료되었거나 다른 요청이 처리한 결제의 보상 환불을 건너뜁니다 [attemptId={}, orderId={}]",
-                        ready.attemptId(), ready.orderId());
-            }
-        } catch (RuntimeException compensationFailure) {
-            originalFailure.addSuppressed(compensationFailure);
-            log.error("PG 승인 결제의 보상 환불 요청 저장 실패 — 자동 복구 대상 유지 "
-                            + "[attemptId={}, orderId={}, type={}]",
-                    ready.attemptId(), ready.orderId(), compensationFailure.getClass().getSimpleName());
-        }
-    }
-
-    private void recordZeroAmountFailure(ReadyForFulfillment ready,
-                                         RuntimeException originalFailure) {
-        try {
-            boolean recorded = fulfillmentTransactionService.tryMarkZeroAmountFulfillmentFailed(
-                    ready.attemptId(), "도메인 생성에 실패했습니다.");
-            if (!recorded) {
-                log.warn("stale amount=0 결제 실패 결과를 건너뜁니다 [attemptId={}, orderId={}]",
-                        ready.attemptId(), ready.orderId());
-            }
-        } catch (RuntimeException stateFailure) {
-            originalFailure.addSuppressed(stateFailure);
-            log.error("amount=0 결제 실패 상태 저장 실패 [attemptId={}, orderId={}, type={}]",
-                    ready.attemptId(), ready.orderId(), stateFailure.getClass().getSimpleName());
         }
     }
 

@@ -270,6 +270,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `PaymentConfirmRecoveryTransactionService`
 - `PaymentConfirmAttemptResolver`
 - `DefaultPaymentConfirmService`
+- `PaymentFulfillmentCoordinator` (confirm·관리자 대사 공통의 fulfillment 실행과 실패 보상 요청)
 - `DefaultPaymentConfirmRecoveryService`, `PaymentConfirmRecoveryUseCase`, `BatchScheduler`
 - `DefaultPaymentAttemptExpiryBatchService`, `PaymentAttemptExpiryProcessor`
 - `DefaultPaymentReconciliationAdminService`, `PaymentReconciliationTransactionService`

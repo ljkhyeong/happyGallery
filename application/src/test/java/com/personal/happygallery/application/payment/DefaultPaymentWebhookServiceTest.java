@@ -101,7 +101,7 @@ class DefaultPaymentWebhookServiceTest {
                 mock(PaymentReconciliationTransactionService.class);
         var reconciler = new DefaultPaymentReconciliationAdminService(
                 attemptReader, paymentPort, reconciliationTransactions,
-                mock(PaymentConfirmFulfillmentTransactionService.class));
+                mock(PaymentFulfillmentCoordinator.class));
         service = new DefaultPaymentWebhookService(
                 attemptReader, receiptPort, receiptTransactionService, reconciler, clock);
         LocalDateTime staleBefore = LocalDateTime.now(clock).minusMinutes(1);

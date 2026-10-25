@@ -38,6 +38,7 @@ class DefaultPaymentConfirmServiceTest {
     @Mock PaymentPort paymentPort;
     @Mock PaymentConfirmClaimTransactionService claimTransactionService;
     @Mock PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService;
+    @Mock PaymentFulfillmentCoordinator fulfillmentCoordinator;
     @Mock AppMetrics appMetrics;
     @InjectMocks DefaultPaymentConfirmService service;
 
@@ -65,11 +66,9 @@ class DefaultPaymentConfirmServiceTest {
 
         assertThatThrownBy(() -> service.confirm(COMMAND)).isSameAs(approvalFailure);
 
-        verifyNoInteractions(paymentPort);
+        verifyNoInteractions(paymentPort, fulfillmentCoordinator);
         verify(fulfillmentTransactionService, never()).requestCompensationForUnpersistedApproval(
                 anyLong(), anyString(), anyString(), anyString(), anyString());
-        verify(fulfillmentTransactionService, never()).requestCompensationAfterFulfillmentFailure(
-                anyLong(), anyString(), anyString());
     }
 
     @DisplayName("PG 승인 상태 저장 실패는 같은 실행권으로 보상 환불을 요청한다")
@@ -216,31 +215,13 @@ class DefaultPaymentConfirmServiceTest {
                 .thenReturn(false);
         when(claimTransactionService.reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD", null))
                 .thenReturn(ready);
-        when(fulfillmentTransactionService.fulfillAndConfirm(1L)).thenReturn(completed);
+        when(fulfillmentCoordinator.fulfillOrCompensate(
+                1L, "order-id", 10_000L, "confirmed-key", "PG 승인 후 도메인 생성에 실패했습니다."))
+                .thenReturn(completed);
 
         assertThat(service.confirm(COMMAND)).isEqualTo(completed);
 
         verify(claimTransactionService).reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD", null);
-    }
-
-    @DisplayName("0원 fulfillment 실패 상태 저장 오류는 원래 fulfillment 예외를 가리지 않는다")
-    @Test
-    void confirm_zeroAmountFailurePersistenceError_preservesFulfillmentFailure() {
-        ReadyForFulfillment ready = new ReadyForFulfillment(1L, "order-id", 0L, null);
-        RuntimeException fulfillmentFailure = new IllegalStateException("fulfillment failed");
-        RuntimeException stateFailure = new IllegalStateException("state save failed");
-        when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(ready);
-        when(fulfillmentTransactionService.fulfillAndConfirm(1L)).thenThrow(fulfillmentFailure);
-        when(fulfillmentTransactionService.tryMarkZeroAmountFulfillmentFailed(
-                1L, "도메인 생성에 실패했습니다."))
-                .thenThrow(stateFailure);
-
-        assertThatThrownBy(() -> service.confirm(COMMAND))
-                .isSameAs(fulfillmentFailure)
-                .satisfies(thrown -> assertThat(thrown.getSuppressed()).containsExactly(stateFailure));
-
-        verify(fulfillmentTransactionService, never()).requestCompensationAfterFulfillmentFailure(
-                anyLong(), anyString(), anyString());
     }
 
     private PgConfirmationRequired paidConfirmationRequired() {
