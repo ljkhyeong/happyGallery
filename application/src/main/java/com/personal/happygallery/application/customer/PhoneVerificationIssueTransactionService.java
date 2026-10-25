@@ -1,4 +1,4 @@
-package com.personal.happygallery.application.booking;
+package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -9,11 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** SMS 외부 호출 전에 인증 코드를 독립 트랜잭션으로 확정한다. */
 @Service
-public class PhoneVerificationIssueTransactionService {
+class PhoneVerificationIssueTransactionService {
 
     private final PhoneVerificationStorePort phoneVerificationStore;
 
-    public PhoneVerificationIssueTransactionService(PhoneVerificationStorePort phoneVerificationStore) {
+    PhoneVerificationIssueTransactionService(PhoneVerificationStorePort phoneVerificationStore) {
         this.phoneVerificationStore = phoneVerificationStore;
     }
 

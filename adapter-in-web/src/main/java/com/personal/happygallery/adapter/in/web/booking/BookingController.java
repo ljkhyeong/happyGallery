@@ -3,8 +3,8 @@ package com.personal.happygallery.adapter.in.web.booking;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/bookings")
 public class BookingController {
 
-    private final GuestBookingUseCase guestBookingUseCase;
+    private final PhoneVerificationIssueUseCase phoneVerificationIssueUseCase;
     private final BookingQueryUseCase bookingQueryUseCase;
     private final BookingRescheduleUseCase bookingRescheduleUseCase;
     private final BookingCancelUseCase bookingCancelUseCase;
@@ -48,7 +48,7 @@ public class BookingController {
     private final BotProtectionUseCase botProtection;
     private final Clock clock;
 
-    public BookingController(GuestBookingUseCase guestBookingUseCase,
+    public BookingController(PhoneVerificationIssueUseCase phoneVerificationIssueUseCase,
                              BookingQueryUseCase bookingQueryUseCase,
                              BookingRescheduleUseCase bookingRescheduleUseCase,
                              BookingCancelUseCase bookingCancelUseCase,
@@ -56,7 +56,7 @@ public class BookingController {
                              SubjectRateLimitGuard rateLimitGuard,
                              BotProtectionUseCase botProtection,
                              Clock clock) {
-        this.guestBookingUseCase = guestBookingUseCase;
+        this.phoneVerificationIssueUseCase = phoneVerificationIssueUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
         this.bookingRescheduleUseCase = bookingRescheduleUseCase;
         this.bookingCancelUseCase = bookingCancelUseCase;
@@ -74,7 +74,7 @@ public class BookingController {
             @RequestBody @Valid SendVerificationRequest request) {
         rateLimitGuard.checkPhoneVerification(request.phone());
         botProtection.verify(botToken, "phone_verification");
-        PhoneVerification pv = guestBookingUseCase.sendVerificationCode(
+        PhoneVerification pv = phoneVerificationIssueUseCase.sendVerificationCode(
                 request.phone(), request.purpose());
         return SendVerificationResponse.from(pv);
     }

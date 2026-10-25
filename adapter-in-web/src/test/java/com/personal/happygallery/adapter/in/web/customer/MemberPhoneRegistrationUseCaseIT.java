@@ -3,11 +3,11 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMemberPhoneRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -57,7 +57,7 @@ class MemberPhoneRegistrationUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired ObjectMapper objectMapper;
     @Autowired SocialAuthUseCase socialAuth;
-    @Autowired GuestBookingUseCase guestBookingUseCase;
+    @Autowired PhoneVerificationIssueUseCase phoneVerificationIssue;
     @Autowired MemberBookingUseCase memberBookingUseCase;
     @Autowired BookingReaderPort bookingReader;
     @Autowired ClassStorePort classStore;
@@ -110,7 +110,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("PHONE_VERIFICATION_REQUIRED"));
 
-        String code = guestBookingUseCase.sendVerificationCode(
+        String code = phoneVerificationIssue.sendVerificationCode(
                 PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -140,7 +140,7 @@ class MemberPhoneRegistrationUseCaseIT {
         long originalBookingVersion = booking.getVersion();
 
         markStepUp(session, registered);
-        String changeCode = guestBookingUseCase.sendVerificationCode(
+        String changeCode = phoneVerificationIssue.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -180,7 +180,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 "phone-step-up@example.com",
                 "본인 확인 회원",
                 acceptedPolicies())).user();
-        String registrationCode = guestBookingUseCase.sendVerificationCode(
+        String registrationCode = phoneVerificationIssue.sendVerificationCode(
                 PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -191,7 +191,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 .andExpect(status().isOk());
 
         User registered = userReader.findById(member.getId()).orElseThrow();
-        String changeCode = guestBookingUseCase.sendVerificationCode(
+        String changeCode = phoneVerificationIssue.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
 
         mockMvc.perform(patch("/api/v1/me/phone")
@@ -213,7 +213,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 "phone-owner@example.com",
                 "번호 소유자",
                 acceptedPolicies())).user();
-        String ownerCode = guestBookingUseCase.sendVerificationCode(
+        String ownerCode = phoneVerificationIssue.sendVerificationCode(
                 PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -229,7 +229,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 "phone-another@example.com",
                 "다른 회원",
                 acceptedPolicies())).user();
-        String anotherCode = guestBookingUseCase.sendVerificationCode(
+        String anotherCode = phoneVerificationIssue.sendVerificationCode(
                 PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
 
         mockMvc.perform(patch("/api/v1/me/phone")
@@ -252,7 +252,7 @@ class MemberPhoneRegistrationUseCaseIT {
                 "예약 회원",
                 acceptedPolicies())).user();
         MockHttpSession session = customerSession(member);
-        String registrationCode = guestBookingUseCase.sendVerificationCode(
+        String registrationCode = phoneVerificationIssue.sendVerificationCode(
                 PHONE, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())
@@ -269,13 +269,13 @@ class MemberPhoneRegistrationUseCaseIT {
                 slot(bookingClass, startAt, startAt.plusHours(2)));
         Booking memberBooking = memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L, 1);
-        String guestCode = guestBookingUseCase.sendVerificationCode(
+        String guestCode = phoneVerificationIssue.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.GUEST_BOOKING).getCode();
         new PaymentTestHelper(mockMvc, objectMapper).createGuestBooking(
                 CHANGED_PHONE, guestCode, "비회원 예약자", slot.getId(), 1);
 
         markStepUp(session, userReader.findById(member.getId()).orElseThrow());
-        String changeCode = guestBookingUseCase.sendVerificationCode(
+        String changeCode = phoneVerificationIssue.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.MEMBER_PHONE_CHANGE).getCode();
         mockMvc.perform(patch("/api/v1/me/phone")
                         .with(csrf())

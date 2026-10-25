@@ -3,9 +3,9 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.customer.dto.ChangePasswordRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CustomerLoginRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.ResetPasswordRequest;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase.UpdatePhoneCommand;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.SocialLoginCommand;
 import com.personal.happygallery.application.customer.port.out.CustomerSessionRevocationPort;
@@ -56,7 +56,7 @@ class CustomerCredentialUseCaseIT {
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ObjectMapper objectMapper;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
-    @Autowired GuestBookingUseCase guestBookingUseCase;
+    @Autowired PhoneVerificationIssueUseCase phoneVerificationIssue;
     @Autowired SocialAuthUseCase socialAuth;
     @Autowired MemberPhoneUpdateUseCase phoneUpdate;
     @Autowired UserReaderPort userReader;
@@ -145,7 +145,7 @@ class CustomerCredentialUseCaseIT {
         credentialScopes.add(new CredentialScope(
                 socialUser.getId(), socialUser.getCredentialVersion()));
 
-        String registrationCode = guestBookingUseCase.sendVerificationCode(
+        String registrationCode = phoneVerificationIssue.sendVerificationCode(
                 phone, PhoneVerificationPurpose.MEMBER_PHONE_REGISTRATION).getCode();
         phoneUpdate.update(new UpdatePhoneCommand(
                 socialUser.getId(),
@@ -153,7 +153,7 @@ class CustomerCredentialUseCaseIT {
                 phone,
                 registrationCode,
                 true));
-        String resetCode = guestBookingUseCase.sendVerificationCode(
+        String resetCode = phoneVerificationIssue.sendVerificationCode(
                 phone, PhoneVerificationPurpose.PASSWORD_RESET).getCode();
 
         mockMvc.perform(post("/api/v1/auth/password/reset")
@@ -171,7 +171,7 @@ class CustomerCredentialUseCaseIT {
         assertThat(sessionRepository.findByPrincipalName(
                 principalName(socialUser.getId(), localCredentialVersion))).hasSize(2);
 
-        String nextResetCode = guestBookingUseCase.sendVerificationCode(
+        String nextResetCode = phoneVerificationIssue.sendVerificationCode(
                 phone, PhoneVerificationPurpose.PASSWORD_RESET).getCode();
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .with(csrf())

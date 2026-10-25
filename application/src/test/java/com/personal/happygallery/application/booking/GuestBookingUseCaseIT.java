@@ -4,11 +4,11 @@ import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequ
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.PhoneVerificationRepository;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
@@ -69,7 +69,7 @@ class GuestBookingUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
-    @Autowired GuestBookingUseCase guestBookingUseCase;
+    @Autowired PhoneVerificationIssueUseCase phoneVerificationIssue;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired PhoneVerificationRepository phoneVerificationRepository;
     @Autowired GuestStorePort guestStorePort;
@@ -217,12 +217,12 @@ class GuestBookingUseCaseIT {
 
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<PhoneVerification> first = executor.submit(
-                    () -> guestBookingUseCase.sendVerificationCode(
+                    () -> phoneVerificationIssue.sendVerificationCode(
                             PHONE, PhoneVerificationPurpose.GUEST_BOOKING));
             assertThat(firstSendStarted.await(10, TimeUnit.SECONDS)).isTrue();
 
             Future<PhoneVerification> second = executor.submit(
-                    () -> guestBookingUseCase.sendVerificationCode(
+                    () -> phoneVerificationIssue.sendVerificationCode(
                             PHONE, PhoneVerificationPurpose.GUEST_BOOKING));
             PhoneVerification latestIssued = second.get(10, TimeUnit.SECONDS);
             releaseFirstSend.countDown();

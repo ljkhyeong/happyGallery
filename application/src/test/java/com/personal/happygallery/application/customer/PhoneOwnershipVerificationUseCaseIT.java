@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.customer;
 
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -26,7 +26,7 @@ class PhoneOwnershipVerificationUseCaseIT {
 
     private static final String PHONE = "01012345678";
 
-    @Autowired GuestBookingUseCase guestBookingUseCase;
+    @Autowired PhoneVerificationIssueUseCase phoneVerificationIssue;
     @Autowired PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -39,7 +39,7 @@ class PhoneOwnershipVerificationUseCaseIT {
     @DisplayName("동일 인증 코드를 동시에 소비해도 한 요청만 성공한다")
     @Test
     void verify_concurrently_consumesCodeOnce() throws Exception {
-        String code = guestBookingUseCase
+        String code = phoneVerificationIssue
                 .sendVerificationCode(PHONE, PhoneVerificationPurpose.GUEST_BOOKING)
                 .getCode();
         CountDownLatch start = new CountDownLatch(1);
@@ -61,7 +61,7 @@ class PhoneOwnershipVerificationUseCaseIT {
     @DisplayName("인증 코드는 발급 목적과 다른 흐름에서 소비할 수 없다")
     @Test
     void rejectsCodeIssuedForDifferentPurpose() {
-        String code = guestBookingUseCase
+        String code = phoneVerificationIssue
                 .sendVerificationCode(PHONE, PhoneVerificationPurpose.SIGNUP)
                 .getCode();
 

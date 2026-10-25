@@ -8,8 +8,8 @@ import com.personal.happygallery.adapter.in.web.security.bot.BotProtectionContro
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.PhoneVerificationIssueUseCase;
 import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
 import com.personal.happygallery.application.security.DefaultBotProtectionService;
 import com.personal.happygallery.application.security.port.out.BotChallengeVerifier;
@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BotProtectionApiRestDocsTest extends RestDocsTestSupport {
     private final BotChallengeVerifier verifier = mock(BotChallengeVerifier.class);
     private final GroupInquiryUseCase inquiries = mock(GroupInquiryUseCase.class);
-    private final GuestBookingUseCase bookings = mock(GuestBookingUseCase.class);
+    private final PhoneVerificationIssueUseCase phoneVerifications = mock(PhoneVerificationIssueUseCase.class);
     private MockMvc mvc;
 
     @BeforeEach
@@ -48,7 +48,7 @@ class BotProtectionApiRestDocsTest extends RestDocsTestSupport {
                 new BotProtectionController(protection),
                 new GroupInquiryController(inquiries, protection),
                 new MeGroupInquiryController(inquiries, protection),
-                new BookingController(bookings, mock(BookingQueryUseCase.class),
+                new BookingController(phoneVerifications, mock(BookingQueryUseCase.class),
                         mock(BookingRescheduleUseCase.class), mock(BookingCancelUseCase.class),
                         mock(GuestPersonalDataProtector.class), mock(SubjectRateLimitGuard.class),
                         protection, RestDocsFixtures.clock()));
@@ -76,7 +76,7 @@ class BotProtectionApiRestDocsTest extends RestDocsTestSupport {
     void missingTokenStopsWork(String path) throws Exception {
         mvc.perform(post(path).with(customerUser()).contentType(APPLICATION_JSON).content(body(path)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
-        verifyNoInteractions(inquiries, bookings);
+        verifyNoInteractions(inquiries, phoneVerifications);
     }
 
     @ParameterizedTest
@@ -86,7 +86,7 @@ class BotProtectionApiRestDocsTest extends RestDocsTestSupport {
         mvc.perform(post(path).with(customerUser()).header("X-Bot-Token", "spent-token")
                         .contentType(APPLICATION_JSON).content(body(path)))
                 .andExpect(status().isBadRequest());
-        verifyNoInteractions(inquiries, bookings);
+        verifyNoInteractions(inquiries, phoneVerifications);
     }
 
     @Test
@@ -97,7 +97,7 @@ class BotProtectionApiRestDocsTest extends RestDocsTestSupport {
         mvc.perform(post(path).header("X-Bot-Token", "token").contentType(APPLICATION_JSON).content(body(path)))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
-        verifyNoInteractions(bookings);
+        verifyNoInteractions(phoneVerifications);
     }
 
     private String body(String path) {
