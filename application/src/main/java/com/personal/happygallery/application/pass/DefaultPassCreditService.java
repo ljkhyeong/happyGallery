@@ -9,7 +9,6 @@ import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +39,7 @@ class DefaultPassCreditService implements PassCreditService {
     public PassPurchase requireOwnedForUpdate(Long passId, Long ownerUserId) {
         PassPurchase pass = requireForUpdate(passId);
 
-        if (ownerUserId == null || !Objects.equals(pass.getUserId(), ownerUserId)) {
+        if (!pass.isOwnedBy(ownerUserId)) {
             throw new NotFoundException("이용권");
         }
         return pass;

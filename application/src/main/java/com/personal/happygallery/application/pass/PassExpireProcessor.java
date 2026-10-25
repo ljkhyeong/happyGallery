@@ -1,7 +1,5 @@
 package com.personal.happygallery.application.pass;
 
-import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,19 +12,18 @@ public class PassExpireProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(PassExpireProcessor.class);
 
-    private final PassPurchaseReaderPort passPurchaseReader;
+    private final PassCreditService passCreditService;
     private final PassExpirationSupport expirationSupport;
 
-    public PassExpireProcessor(PassPurchaseReaderPort passPurchaseReader,
+    public PassExpireProcessor(PassCreditService passCreditService,
                                PassExpirationSupport expirationSupport) {
-        this.passPurchaseReader = passPurchaseReader;
+        this.passCreditService = passCreditService;
         this.expirationSupport = expirationSupport;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean process(Long passId) {
-        PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
-                .orElseThrow(NotFoundException.supplier("이용권"));
+        PassPurchase pass = passCreditService.requireForUpdate(passId);
         int creditsToExpire = expirationSupport.expireIfReached(pass).orElse(0);
         if (creditsToExpire == 0) {
             return false;

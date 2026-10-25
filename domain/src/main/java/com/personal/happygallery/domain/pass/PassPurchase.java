@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.OptionalInt;
 
 /** 이용권 구매 — pass_purchases 테이블 */
@@ -81,6 +82,11 @@ public class PassPurchase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 회원 정보가 누락되었습니다.");
         }
         return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice, plan);
+    }
+
+    /** 이용권이 해당 회원의 소유인지 확인한다. 회원 이용권만 존재하므로 null 회원은 항상 false다. */
+    public boolean isOwnedBy(Long expectedUserId) {
+        return Objects.equals(userId, expectedUserId);
     }
 
     /** 구매 시 확정한 상품 정책에 현재 클래스 카테고리가 포함되는지 검증한다. */
