@@ -1,8 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type {
-  CartResponse,
-  OrderDetailResponse,
-} from "../../src/generated/api/customerStore";
+import type { CartResponse } from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
@@ -15,6 +12,8 @@ import {
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderDetailFixture,
+  orderItemFixture,
   productDetailFixture,
 } from "./mock-support";
 
@@ -414,45 +413,13 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
 
     if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/73") {
-      await fulfillJson(route, {
-        approvalDeadlineAt: null,
-        couponDiscountAmount: 0,
-        fulfillment: null,
-        issuedCouponId: null,
-        couponStatus: null,
-        items: [{
-          basePrice: 12000,
-          careInstructions: null,
-          couponDiscountAmount: 0,
-          grossAmount: 12000,
-          netPaidAmount: 12000,
-          options: [],
-          orderItemId: 731,
-          productId: 42,
-          productName: "클레임 대상 작품",
-          productType: "READY_STOCK",
-          productVariantId: null,
-          productionLeadDays: null,
-          qty: 1,
-          rewardUsedAmount: 0,
-          specification: null,
-          textOptionPriceAdjustment: 0,
-          unitPrice: 12000,
-          variantPriceAdjustment: 0,
-        }],
+      await fulfillJson(route, orderDetailFixture({
         orderId: 73,
         orderNumber: "HG-RESILIENCE-73",
-        receiptUrl: null,
-        paidAt: "2026-07-28T10:00:00",
-        pgPaidAmount: 12000,
-        productAmount: 12000,
-        refund: null,
-        rewardEarnBase: 12000,
-        rewardUsedAmount: 0,
-        shippingFee: 0,
         status: "DELIVERED",
-        totalAmount: 12000,
-      } satisfies OrderDetailResponse);
+        paidAt: "2026-07-28T10:00:00",
+        items: [orderItemFixture({ orderItemId: 731, productId: 42, productName: "클레임 대상 작품", qty: 1 })],
+      }));
       return;
     }
     if (pathname === "/api/v1/me/orders/73/claims") {
@@ -482,38 +449,19 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
 test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대로 구분해 표시한다", async ({
   page,
 }) => {
-  const order = {
-    approvalDeadlineAt: null,
-    couponDiscountAmount: 2000,
-    fulfillment: null,
-    issuedCouponId: 71,
-    items: [{
-      basePrice: 12000,
-      careInstructions: null,
-      couponDiscountAmount: 2000,
-      grossAmount: 12000,
-      netPaidAmount: 7000,
-      options: [],
-      orderItemId: 751,
-      productId: 44,
-      productName: "혜택 적용 작품",
-      productType: "READY_STOCK",
-      productVariantId: null,
-      productionLeadDays: null,
-      qty: 1,
-      rewardUsedAmount: 3000,
-      specification: null,
-      textOptionPriceAdjustment: 0,
-      unitPrice: 12000,
-      variantPriceAdjustment: 0,
-    }],
+  const order = orderDetailFixture({
     orderId: 75,
     orderNumber: "HG-BENEFIT-75",
-    couponStatus: "AVAILABLE",
-    receiptUrl: null,
+    status: "CUSTOMER_CANCELED",
     paidAt: "2026-08-08T10:00:00",
-    pgPaidAmount: 7000,
     productAmount: 12000,
+    couponDiscountAmount: 2000,
+    rewardUsedAmount: 3000,
+    pgPaidAmount: 7000,
+    totalAmount: 10000,
+    rewardEarnBase: 7000,
+    issuedCouponId: 71,
+    couponStatus: "AVAILABLE",
     refund: {
       amount: 10000,
       pgRefundAmount: 7000,
@@ -522,12 +470,15 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
       rewardRevokeAmount: 70,
       status: "SUCCEEDED",
     },
-    rewardEarnBase: 7000,
-    rewardUsedAmount: 3000,
-    shippingFee: 0,
-    status: "CUSTOMER_CANCELED",
-    totalAmount: 10000,
-  } satisfies OrderDetailResponse;
+    items: [orderItemFixture({
+      orderItemId: 751,
+      productId: 44,
+      productName: "혜택 적용 작품",
+      couponDiscountAmount: 2000,
+      rewardUsedAmount: 3000,
+      netPaidAmount: 7000,
+    })],
+  });
 
   const member = memberFixture({ id: 106, email: "benefit-display@example.com", name: "혜택 표시 회원" });
   await page.route("**/api/v1/**", async (route) => {
@@ -612,45 +563,26 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
 
     if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "GET") {
-      await fulfillJson(route, {
+      await fulfillJson(route, orderDetailFixture({
+        orderId: 74,
+        orderNumber: "HG-RESILIENCE-74",
+        status: "PAID_APPROVAL_PENDING",
         approvalDeadlineAt: "2099-01-02T10:00:00",
-        couponDiscountAmount: 0,
-        fulfillment: null,
-        issuedCouponId: null,
-        couponStatus: null,
-        items: [{
-          basePrice: 15000,
-          careInstructions: null,
-          couponDiscountAmount: 0,
-          grossAmount: 15000,
-          netPaidAmount: 15000,
-          options: [],
+        paidAt: "2026-07-28T10:00:00",
+        totalAmount: 15000,
+        productAmount: 15000,
+        pgPaidAmount: 15000,
+        rewardEarnBase: 15000,
+        items: [orderItemFixture({
           orderItemId: 741,
           productId: 43,
           productName: "취소 복구 작품",
-          productType: "READY_STOCK",
-          productVariantId: null,
-          productionLeadDays: null,
-          qty: 1,
-          rewardUsedAmount: 0,
-          specification: null,
-          textOptionPriceAdjustment: 0,
+          basePrice: 15000,
           unitPrice: 15000,
-          variantPriceAdjustment: 0,
-        }],
-        orderId: 74,
-        orderNumber: "HG-RESILIENCE-74",
-        receiptUrl: null,
-        paidAt: "2026-07-28T10:00:00",
-        pgPaidAmount: 15000,
-        productAmount: 15000,
-        refund: null,
-        rewardEarnBase: 15000,
-        rewardUsedAmount: 0,
-        shippingFee: 0,
-        status: "PAID_APPROVAL_PENDING",
-        totalAmount: 15000,
-      } satisfies OrderDetailResponse);
+          grossAmount: 15000,
+          netPaidAmount: 15000,
+        })],
+      }));
       return;
     }
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "DELETE") {

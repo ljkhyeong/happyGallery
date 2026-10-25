@@ -3,7 +3,7 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, restockAlertFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -21,8 +21,8 @@ async function mockRestock(page: Page, { registered = false, withOptions = false
     product.variants = ["brown", "blue"].map((color, index) => ({ id: 801 + index, active: true,
       quantity: 0, priceAdjustment: 0, selections: [{ groupKey: "color", valueKey: color }] }));
   }
-  const alert = (id: number): RestockAlertResponse => ({ id, productId: 42, productVariantId: null,
-    productName: product.name, optionLabel: "기본 상품", status: "WAITING", createdAt: "2026-09-12T10:00:00", notifiedAt: null });
+  const alert = (id: number): RestockAlertResponse =>
+    restockAlertFixture({ id, productName: product.name, createdAt: "2026-09-12T10:00:00" });
   const state = {
     accountId: 501, failRead: false, failWrite: false, holdWrite: false, finishAsNotified: false, release: () => {},
     reads: 0, writes: [] as Array<{ method: string; accountId: number; body: unknown; id: number | null }>,

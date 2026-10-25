@@ -3,7 +3,7 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, restockAlertFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -32,9 +32,10 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
         selections: [{ groupKey: "color", valueKey: "brown" }, { groupKey: "size", valueKey: "large" }] },
     ],
   };
-  const alerts: RestockAlertResponse[] = [{ id: 901, productId: product.id, productVariantId: 802,
-    productName: product.name, optionLabel: "색상: 블루 / 크기: 대형", status: "NOTIFIED",
-    createdAt: "2026-09-11T10:00:00", notifiedAt: "2026-09-12T10:00:00" }];
+  const alerts: RestockAlertResponse[] = [restockAlertFixture({
+    productId: product.id, productVariantId: 802, productName: product.name, optionLabel: "색상: 블루 / 크기: 대형",
+    status: "NOTIFIED", createdAt: "2026-09-11T10:00:00", notifiedAt: "2026-09-12T10:00:00",
+  })];
   const state = { loggedIn, product, writes: [] as unknown[], productReads: 0 };
   const member = memberFixture({ email: "restock@example.com" });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));

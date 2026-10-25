@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import {
+  bookingCancelPolicyFixture,
+  classFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  myBookingDetailFixture,
+} from "./mock-support";
 
 test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,
@@ -28,22 +36,7 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
 
     if (await fulfillMemberCommon(route, { member: null })) return;
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "빈자리 알림 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        capacity: 4,
-        price: 50000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "빈자리 알림 클래스", bufferMin: 10, capacity: 4 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -192,7 +185,7 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
       return;
     }
     if (pathname === `/api/v1/me/bookings/${bookingId}`) {
-      await fulfillJson(route, {
+      await fulfillJson(route, myBookingDetailFixture({
         bookingId,
         classId: 1,
         slotId: 88,
@@ -202,19 +195,8 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
         endAt: "2099-01-12T19:00:00",
         participantCount,
         depositAmount: participantCount === 3 ? 30000 : 20000,
-        balanceAmount: 0,
-        balanceStatus: "UNPAID",
-        passBooking: false,
-        cancelPolicy: {
-          cancellable: true,
-          refundable: true,
-          deadlineAt: "2099-01-11T00:00:00",
-          passCreditRestorable: false,
-          manualCompensationRequired: false,
-          warningCode: null,
-        },
-        refund: null,
-      });
+        cancelPolicy: bookingCancelPolicyFixture({ cancellable: true, refundable: true, deadlineAt: "2099-01-11T00:00:00" }),
+      }));
       return;
     }
     if (pathname === `/api/v1/me/reviews/bookings/${bookingId}`) {
@@ -258,7 +240,7 @@ test("잔금까지 낸 예약은 취소·인원 변경 대신 공방 문의 안�
     if (await fulfillMemberCommon(route, { member })) return;
     switch (pathname) {
       case `/api/v1/me/bookings/${bookingId}`:
-        return fulfillJson(route, {
+        return fulfillJson(route, myBookingDetailFixture({
           bookingId,
           classId: 1,
           slotId: 88,
@@ -270,18 +252,8 @@ test("잔금까지 낸 예약은 취소·인원 변경 대신 공방 문의 안�
           depositAmount: 30000,
           balanceAmount: 60000,
           balanceStatus: "PAID",
-          passBooking: false,
-          receiptUrl: null,
-          refund: null,
-          cancelPolicy: {
-            cancellable: false,
-            refundable: false,
-            deadlineAt: "2099-01-11T00:00:00",
-            passCreditRestorable: false,
-            manualCompensationRequired: false,
-            warningCode: null,
-          },
-        });
+          cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2099-01-11T00:00:00" }),
+        }));
       case `/api/v1/me/reviews/classes/${bookingId}/creation-state`:
         return fulfillJson(route, { sourceId: bookingId, sourceType: "BOOKING", targetType: "CLASS", status: "NOT_REVIEWABLE" });
       default:

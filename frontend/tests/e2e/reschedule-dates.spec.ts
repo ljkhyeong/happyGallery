@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { MyBookingDetail, PublicSlotResponse } from "../../src/generated/api/booking";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import type { PublicSlotResponse } from "../../src/generated/api/booking";
+import { fulfillJson, fulfillMemberCommon, memberFixture, myBookingDetailFixture } from "./mock-support";
 
 function slot(id: number, date: string, remainingCapacity: number, hour = "10"): PublicSlotResponse {
   return { id, classId: 27, capacity: 6, bookedCount: 6 - remainingCapacity, remainingCapacity,
@@ -16,14 +16,11 @@ const slots = [
 ];
 
 async function openBooking(page: Page, member: boolean, options = { upcomingFailure: false, dateFailure: false, noUpcoming: false }) {
-  const booking: MyBookingDetail = {
+  const booking = myBookingDetailFixture({
     bookingId: 7, classId: 27, className: "가죽 공예", slotId: 70,
     startAt: slots[0].startAt, endAt: slots[0].endAt, status: "BOOKED",
-    participantCount: 3, depositAmount: 30000, balanceAmount: 60000, balanceStatus: "UNPAID",
-    passBooking: false, receiptUrl: null, refund: null,
-    cancelPolicy: { cancellable: true, refundable: true, deadlineAt: "2099-01-11T00:00:00",
-      passCreditRestorable: false, manualCompensationRequired: false, warningCode: null },
-  };
+    participantCount: 3, depositAmount: 30000, balanceAmount: 60000,
+  });
   const changes: number[] = [];
   const account = member ? memberFixture({ email: "reschedule@example.com" }) : null;
   await page.route("**/api/v1/**", async (route) => {

@@ -1,7 +1,18 @@
 // API를 모의하는 E2E spec의 공용 응답·세션·fixture. 실제 백엔드를 쓰는 준비 helper는 support.ts에 둔다.
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
+import type {
+  BookingCancelPolicyResponse,
+  ClassResponse,
+  MyBookingDetail,
+} from "../../src/generated/api/booking";
 import type { CustomerUserResponse } from "../../src/generated/api/customerAuth";
-import type { CartResponse } from "../../src/generated/api/customerStore";
+import type {
+  CartResponse,
+  GroupInquirySummaryResponse,
+  ItemDto,
+  OrderDetailResponse,
+  RestockAlertResponse,
+} from "../../src/generated/api/customerStore";
 import type { MyCouponResponse, RewardWalletResponse } from "../../src/generated/api/memberBenefit";
 import type { UnreadCountResponse } from "../../src/generated/api/notification";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
@@ -121,6 +132,166 @@ export function productDetailFixture(overrides: Partial<ProductDetailResponse> =
     variants: [],
     ...overrides,
   } satisfies ProductDetailResponse;
+}
+
+/**
+ * 이용권 대상이 아닌 운영 중인 가죽 수업(90분·50,000원·정원 8). 시나리오에 필요한 값만 overrides로 바꾼다.
+ * 이름·이용권 여부·상황 태그처럼 화면이 보여 주거나 거르는 값은 spec이 넘긴다.
+ */
+export function classFixture<Overrides extends Partial<ClassResponse> = Partial<ClassResponse>>(
+  overrides: Overrides = {} as Overrides,
+): ClassResponse & Overrides {
+  const base: ClassResponse = {
+    id: 42,
+    name: "테스트 클래스",
+    category: "LEATHER",
+    durationMin: 90,
+    price: 50000,
+    bufferMin: 30,
+    capacity: 8,
+    passEligible: false,
+    description: null,
+    imageUrl: null,
+    preparationInfo: null,
+    targetAudience: null,
+    situationTags: [],
+    status: "ACTIVE",
+  };
+  return { ...base, ...overrides };
+}
+
+/**
+ * 혜택 없이 12,000원을 결제해 배송된 회원 주문. 품목은 비어 있으므로 품목·클레임을 단정하는 spec은 items를 orderItemFixture로 넘긴다.
+ * 상태·금액·환불처럼 시나리오를 정하는 값은 기본값에 맡기지 않고 overrides로 넘긴다.
+ */
+export function orderDetailFixture<Overrides extends Partial<OrderDetailResponse> = Partial<OrderDetailResponse>>(
+  overrides: Overrides = {} as Overrides,
+): OrderDetailResponse & Overrides {
+  const base: OrderDetailResponse = {
+    orderId: 701,
+    orderNumber: "HG-701",
+    status: "DELIVERED",
+    totalAmount: 12000,
+    productAmount: 12000,
+    shippingFee: 0,
+    couponDiscountAmount: 0,
+    rewardUsedAmount: 0,
+    pgPaidAmount: 12000,
+    rewardEarnBase: 12000,
+    paidAt: "2026-08-01T10:00:00",
+    approvalDeadlineAt: null,
+    receiptUrl: null,
+    fulfillment: null,
+    issuedCouponId: null,
+    couponStatus: null,
+    refund: null,
+    items: [],
+  };
+  return { ...base, ...overrides };
+}
+
+/** 옵션 없는 재고 작품을 혜택 없이 12,000원에 1개 산 주문 품목. 금액을 단정하는 spec은 단가와 합계를 함께 넘긴다. */
+export function orderItemFixture<Overrides extends Partial<ItemDto> = Partial<ItemDto>>(
+  overrides: Overrides = {} as Overrides,
+): ItemDto & Overrides {
+  const base: ItemDto = {
+    orderItemId: 7011,
+    productId: 42,
+    productName: "테스트 작품",
+    productType: "READY_STOCK",
+    productVariantId: null,
+    qty: 1,
+    basePrice: 12000,
+    unitPrice: 12000,
+    variantPriceAdjustment: 0,
+    textOptionPriceAdjustment: 0,
+    grossAmount: 12000,
+    couponDiscountAmount: 0,
+    rewardUsedAmount: 0,
+    netPaidAmount: 12000,
+    options: [],
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+  return { ...base, ...overrides };
+}
+
+/** 마감 전이라 취소와 환불이 모두 가능한 예약 취소 정책. 취소 가능 여부·마감을 단정하는 spec은 그 값을 넘긴다. */
+export function bookingCancelPolicyFixture<
+  Overrides extends Partial<BookingCancelPolicyResponse> = Partial<BookingCancelPolicyResponse>,
+>(overrides: Overrides = {} as Overrides): BookingCancelPolicyResponse & Overrides {
+  const base: BookingCancelPolicyResponse = {
+    cancellable: true,
+    refundable: true,
+    deadlineAt: "2099-01-11T00:00:00",
+    passCreditRestorable: false,
+    manualCompensationRequired: false,
+    warningCode: null,
+  };
+  return { ...base, ...overrides };
+}
+
+/**
+ * 예약금 10,000원만 낸 1인 회원 예약(BOOKED). 상태·인원·금액·일정·취소 정책처럼 시나리오를 정하는 값은 overrides로 넘긴다.
+ * 비회원 상세(BookingDetailResponse)는 이 결과에 bookingNumber·guestName·guestPhone을 더해 만든다.
+ */
+export function myBookingDetailFixture<Overrides extends Partial<MyBookingDetail> = Partial<MyBookingDetail>>(
+  overrides: Overrides = {} as Overrides,
+): MyBookingDetail & Overrides {
+  const base: MyBookingDetail = {
+    bookingId: 7,
+    classId: 42,
+    className: "테스트 클래스",
+    slotId: 70,
+    status: "BOOKED",
+    startAt: "2099-01-12T10:00:00",
+    endAt: "2099-01-12T11:30:00",
+    participantCount: 1,
+    depositAmount: 10000,
+    balanceAmount: 0,
+    balanceStatus: "UNPAID",
+    passBooking: false,
+    receiptUrl: null,
+    refund: null,
+    cancelPolicy: bookingCancelPolicyFixture(),
+  };
+  return { ...base, ...overrides };
+}
+
+/** 옵션 없는 작품의 대기 중 재입고 알림. 작품 이름·옵션·상태·알림 시각을 단정하는 spec은 그 값을 넘긴다. */
+export function restockAlertFixture<Overrides extends Partial<RestockAlertResponse> = Partial<RestockAlertResponse>>(
+  overrides: Overrides = {} as Overrides,
+): RestockAlertResponse & Overrides {
+  const base: RestockAlertResponse = {
+    id: 901,
+    productId: 42,
+    productVariantId: null,
+    productName: "테스트 작품",
+    optionLabel: "기본 상품",
+    status: "WAITING",
+    createdAt: "2026-09-05T10:00:00",
+    notifiedAt: null,
+  };
+  return { ...base, ...overrides };
+}
+
+/** 웹사이트로 접수된 20명 단체 수업 문의 요약. 기관명·상태·일정·인원처럼 화면이 보여 주는 값은 spec이 넘긴다. */
+export function groupInquirySummaryFixture<
+  Overrides extends Partial<GroupInquirySummaryResponse> = Partial<GroupInquirySummaryResponse>,
+>(overrides: Overrides = {} as Overrides): GroupInquirySummaryResponse & Overrides {
+  const base: GroupInquirySummaryResponse = {
+    id: 51,
+    source: "WEBSITE",
+    status: "RECEIVED",
+    organization: "단체 수업 기관",
+    headcount: 20,
+    preferredSchedule: "10월 오전",
+    location: "기관 강당",
+    classInterest: "레진아트",
+    createdAt: "2026-09-05T10:00:00",
+  };
+  return { ...base, ...overrides };
 }
 
 /** 전체 문서를 다시 받지 않고 React Router의 클라이언트 이동으로 path를 연다. */

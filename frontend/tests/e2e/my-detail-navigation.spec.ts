@@ -1,26 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { OrderDetailResponse } from "../../src/generated/api/order";
-import type { MyBookingDetailResponse } from "../../src/shared/types";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import {
+  bookingCancelPolicyFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  myBookingDetailFixture,
+  orderDetailFixture,
+} from "./mock-support";
 
-const order = {
-  orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED",
-  totalAmount: 12000, pgPaidAmount: 12000, productAmount: 12000,
-  shippingFee: 0, couponDiscountAmount: 0, rewardUsedAmount: 0, rewardEarnBase: 12000,
-  paidAt: "2026-08-01T12:00:00", approvalDeadlineAt: null, receiptUrl: null,
-  fulfillment: null, issuedCouponId: null, couponStatus: null, refund: null, items: [],
-} satisfies OrderDetailResponse;
+const order = orderDetailFixture({
+  orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED", paidAt: "2026-08-01T12:00:00",
+});
 
-const booking = {
+const booking = myBookingDetailFixture({
   bookingId: 9090, classId: 1, slotId: 88, status: "CANCELED", className: "이력 검색 클래스",
-  startAt: "2026-08-01T10:00:00", endAt: "2026-08-01T11:00:00", participantCount: 1,
-  depositAmount: 10000, balanceAmount: 0, balanceStatus: "UNPAID", passBooking: false,
-  receiptUrl: null, refund: null,
-  cancelPolicy: {
-    cancellable: false, refundable: false, deadlineAt: "2026-07-31T00:00:00",
-    passCreditRestorable: false, manualCompensationRequired: false, warningCode: null,
-  },
-} satisfies MyBookingDetailResponse;
+  startAt: "2026-08-01T10:00:00", endAt: "2026-08-01T11:00:00",
+  cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2026-07-31T00:00:00" }),
+});
 
 const scenarios = [
   {

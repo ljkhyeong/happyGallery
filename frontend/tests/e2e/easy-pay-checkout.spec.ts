@@ -1,10 +1,13 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import {
+  bookingCancelPolicyFixture,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   installTossRequestRecorder,
   memberFixture,
+  myBookingDetailFixture,
+  orderDetailFixture,
   readTossRequests,
   TOSS_REQUESTS_GLOBAL,
 } from "./mock-support";
@@ -404,19 +407,15 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
 test("@payment 회원 주문·예약·이용권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   const receiptUrl = "https://dashboard.tosspayments.com/receipt/member-history";
-  await page.route("**/api/v1/me/orders/701", (route) => fulfillJson(route, {
-    orderId: 701, orderNumber: "ORD-00000701", status: "COMPLETED", totalAmount: 12000,
-    productAmount: 12000, shippingFee: 0, couponDiscountAmount: 0, rewardUsedAmount: 0,
-    pgPaidAmount: 12000, rewardEarnBase: 12000, issuedCouponId: null,
-    paidAt: "2026-08-30T10:00:00", approvalDeadlineAt: null, items: [], fulfillment: null, refund: null, receiptUrl,
-  }));
-  await page.route("**/api/v1/me/bookings/702", (route) => fulfillJson(route, {
-    bookingId: 702, classId: 7, slotId: 70, status: "CANCELED", className: "영수증 클래스",
-    startAt: "2026-08-30T10:00:00", endAt: "2026-08-30T12:00:00", participantCount: 1,
-    depositAmount: 5000, balanceAmount: 45000, balanceStatus: "UNPAID", passBooking: false,
-    cancelPolicy: { cancellable: false, refundable: false, deadlineAt: null, passCreditRestorable: false },
-    refund: null, receiptUrl,
-  }));
+  await page.route("**/api/v1/me/orders/701", (route) => fulfillJson(route, orderDetailFixture({
+    orderId: 701, orderNumber: "ORD-00000701", status: "COMPLETED", paidAt: "2026-08-30T10:00:00", receiptUrl,
+  })));
+  await page.route("**/api/v1/me/bookings/702", (route) => fulfillJson(route, myBookingDetailFixture({
+    bookingId: 702, classId: 7, status: "CANCELED", className: "영수증 클래스",
+    startAt: "2026-08-30T10:00:00", endAt: "2026-08-30T12:00:00", depositAmount: 5000, balanceAmount: 45000,
+    cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2026-08-29T10:00:00" }),
+    receiptUrl,
+  })));
   await page.route("**/api/v1/me/passes/page**", (route) => fulfillJson(route, {
     content: [true, false].map((hasReceipt, index) => ({
       passId: 703 + index, planCode: "REGULAR_CRAFT_4", planName: "정규 공예 4회권",

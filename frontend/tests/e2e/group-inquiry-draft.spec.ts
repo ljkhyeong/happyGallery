@@ -1,12 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyGroupInquiryResponse } from "../../src/generated/api/customerStore";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, groupInquirySummaryFixture, memberFixture } from "./mock-support";
 
 function inquiry(id: number, organization: string): MyGroupInquiryResponse {
   return {
     version: 1, changes: [],
-    summary: { id, organization, source: "WEBSITE", status: "CONSULTING", headcount: 20,
-      preferredSchedule: "10월 오전", location: "기관 강당", classInterest: "가죽공예", createdAt: "2026-09-12T10:00:00" },
+    summary: groupInquirySummaryFixture({
+      id, organization, status: "CONSULTING", headcount: 20, preferredSchedule: "10월 오전",
+      classInterest: "가죽공예", createdAt: "2026-09-12T10:00:00",
+    }),
   };
 }
 

@@ -1,20 +1,20 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { BookingDetailResponse, ClassResponse, MyBookingDetail } from "../../src/generated/api/booking";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import type { BookingDetailResponse } from "../../src/generated/api/booking";
+import {
+  bookingCancelPolicyFixture,
+  classFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  myBookingDetailFixture,
+} from "./mock-support";
 
-const bookingClass: ClassResponse = {
-  id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 90,
-  price: 45000, bufferMin: 30, capacity: 6, passEligible: true,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
-};
+const bookingClass = classFixture({ id: 27, name: "가죽 공예", price: 45000, capacity: 6, passEligible: true });
 const previousBooking = {
   bookingId: 7, classId: 27, className: "가죽 공예", slotId: 70,
   startAt: "2026-01-12T10:00:00", endAt: "2026-01-12T11:30:00",
   participantCount: 3, depositAmount: 30000, balanceAmount: 60000, refund: null,
-  cancelPolicy: {
-    cancellable: false, refundable: false, deadlineAt: "2026-01-11T10:00:00",
-    passCreditRestorable: false, manualCompensationRequired: false, warningCode: null,
-  },
+  cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2026-01-11T10:00:00" }),
 };
 
 async function mockBookingFlow(page: Page, member: boolean, currentClasses = [bookingClass]) {
@@ -33,9 +33,9 @@ async function mockBookingFlow(page: Page, member: boolean, currentClasses = [bo
         terms: { version: "2026-09", documentPath: "/terms" },
         privacy: { version: "2026-09", documentPath: "/privacy" },
       });
-      case "/api/v1/me/bookings/7": return fulfillJson(route, {
-        ...previousBooking, status: "COMPLETED", balanceStatus: "PAID", passBooking: false, receiptUrl: null,
-      } satisfies MyBookingDetail);
+      case "/api/v1/me/bookings/7": return fulfillJson(route, myBookingDetailFixture({
+        ...previousBooking, status: "COMPLETED", balanceStatus: "PAID",
+      }));
       case "/api/v1/bookings/7":
         expect(route.request().headers()["x-access-token"]).toBe("guest-booking-code");
         return fulfillJson(route, {

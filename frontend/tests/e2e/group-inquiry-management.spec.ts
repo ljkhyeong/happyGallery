@@ -1,8 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture, seedAdminSession } from "./mock-support";
+import type { GroupInquirySummaryResponse } from "../../src/generated/api/customerStore";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  groupInquirySummaryFixture,
+  installCsrfCookie,
+  memberFixture,
+  seedAdminSession,
+} from "./mock-support";
 
-const initialSummary = { id: 51, source: "WEBSITE", status: "CONSULTING", organization: "일정 변경 기관", headcount: 20,
-  preferredSchedule: "10월 오전", location: "기관 강당", classInterest: "레진아트", createdAt: "2026-09-05T10:00:00" };
+// 시나리오가 상태·인원·일정을 바꾸므로 overrides의 리터럴 타입으로 좁히지 않는다.
+const initialSummary: GroupInquirySummaryResponse = groupInquirySummaryFixture({
+  status: "CONSULTING", organization: "일정 변경 기관", headcount: 20, preferredSchedule: "10월 오전",
+});
 
 test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변경 이력을 확인한 뒤 취소한다 @identity", async ({ page, context, baseURL }) => {
   await installCsrfCookie(context, baseURL);

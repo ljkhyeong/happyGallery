@@ -1,11 +1,20 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture, seedAdminSession } from "./mock-support";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  groupInquirySummaryFixture,
+  installCsrfCookie,
+  memberFixture,
+  seedAdminSession,
+} from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
   headcount: 20, preferredSchedule: "10월 평일 오전", location: "기관 강당", classInterest: "레진아트", message: null };
-const summary = { id: 51, source: "WEBSITE", status: "RECEIVED", organization: details.organization, headcount: 20,
-  preferredSchedule: details.preferredSchedule, location: details.location, classInterest: details.classInterest, createdAt: "2026-09-05T10:00:00" };
+const summary = groupInquirySummaryFixture({
+  status: "RECEIVED", organization: details.organization, headcount: details.headcount,
+  preferredSchedule: details.preferredSchedule, location: details.location, classInterest: details.classInterest,
+});
 
 async function fillInquiry(form: Locator) {
   await form.getByLabel("기관·모임명", { exact: true }).fill(details.organization);

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { RestockAlertResponseStatus } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
   EMPTY_REVIEW_PAGE,
@@ -7,6 +8,7 @@ import {
   installCsrfCookie,
   memberFixture,
   productDetailFixture,
+  restockAlertFixture,
 } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
@@ -15,7 +17,7 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
   await installCsrfCookie(context, baseURL);
   const product = productDetailFixture({ name: "재입고 확인 작품", category: "공예", available: false, stockQuantity: 0 });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
-  let status: string | null = null;
+  let status: RestockAlertResponseStatus | null = null;
   const member = memberFixture({ email: "restock@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -31,8 +33,7 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
         status = "WAITING";
         return route.fulfill({ status: 204 });
       }
-      return fulfillJson(route, status ? [{ id: 901, productId: 42, productVariantId: null, productName: product.name,
-        optionLabel: "기본 상품", status, createdAt: "2026-09-05T10:00:00", notifiedAt: null }] : []);
+      return fulfillJson(route, status ? [restockAlertFixture({ productName: product.name, status })] : []);
     }
     if (path === "/api/v1/me/restock-alerts/901") {
       expect(route.request().method()).toBe("DELETE");
