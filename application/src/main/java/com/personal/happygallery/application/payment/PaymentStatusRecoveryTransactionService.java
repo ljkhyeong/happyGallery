@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
+import com.personal.happygallery.application.customer.PhoneVerificationConsumptionService;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase.RecoveredPayment;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase.RecoveryResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
@@ -34,7 +34,7 @@ class PaymentStatusRecoveryTransactionService {
             .filter(PaymentAttemptStatus::isSensitiveDataCleanupAllowed)
             .toList();
 
-    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
+    private final PhoneVerificationConsumptionService phoneVerification;
     private final PaymentAttemptReaderPort attemptReader;
     private final RefundPort refundPort;
     private final BlindIndexKeyRing blindIndexKeyRing;
@@ -44,7 +44,7 @@ class PaymentStatusRecoveryTransactionService {
     private final Clock clock;
 
     PaymentStatusRecoveryTransactionService(
-            PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
+            PhoneVerificationConsumptionService phoneVerification,
             PaymentAttemptReaderPort attemptReader,
             RefundPort refundPort,
             BlindIndexKeyRing blindIndexKeyRing,
@@ -52,7 +52,7 @@ class PaymentStatusRecoveryTransactionService {
             GuestTokenProperties guestTokenProperties,
             CustomerPaymentStatusResolver statusResolver,
             Clock clock) {
-        this.phoneOwnershipVerification = phoneOwnershipVerification;
+        this.phoneVerification = phoneVerification;
         this.attemptReader = attemptReader;
         this.refundPort = refundPort;
         this.blindIndexKeyRing = blindIndexKeyRing;
@@ -62,10 +62,11 @@ class PaymentStatusRecoveryTransactionService {
         this.clock = clock;
     }
 
+    /** 이미 시도 제한을 통과한 인증 코드를 독립 트랜잭션에서 소비한다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void verifyPhoneOwnership(String phone, String verificationCode) {
-        phoneOwnershipVerification.verify(
-                phone,
+    public void verifyPhoneOwnership(String normalizedPhone, String verificationCode) {
+        phoneVerification.consume(
+                normalizedPhone,
                 verificationCode,
                 PhoneVerificationPurpose.GUEST_PAYMENT_STATUS_RECOVERY);
     }

@@ -3,57 +3,46 @@ package com.personal.happygallery.application.customer;
 import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
 import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
-import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
-import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.GuestRecordRecoveryTargetPort;
-import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
-import com.personal.happygallery.application.token.GuestTokenService;
-import com.personal.happygallery.application.token.GuestTokenService.IssuedToken;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.PageParams;
+import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUseCase {
 
-    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
-    private final GuestReaderPort guestReader;
+    private final PhoneVerificationAttemptGuard attemptGuard;
+    private final GuestRecordRecoveryTransactionService transactionService;
     private final GuestRecordRecoveryTargetPort recoveryTargets;
-    private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final GuestTokenService guestTokenService;
 
     public DefaultGuestRecordRecoveryService(
-            PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
-            GuestReaderPort guestReader,
+            PhoneVerificationAttemptGuard attemptGuard,
+            GuestRecordRecoveryTransactionService transactionService,
             GuestRecordRecoveryTargetPort recoveryTargets,
-            GuestPersonalDataProtector guestPersonalDataProtector,
             GuestTokenService guestTokenService) {
-        this.phoneOwnershipVerification = phoneOwnershipVerification;
-        this.guestReader = guestReader;
+        this.attemptGuard = attemptGuard;
+        this.transactionService = transactionService;
         this.recoveryTargets = recoveryTargets;
-        this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.guestTokenService = guestTokenService;
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public RecoveryResult recover(String phone, String verificationCode) {
-        phoneOwnershipVerification.verify(
-                phone, verificationCode, PhoneVerificationPurpose.GUEST_RECORD_RECOVERY);
-
-        IssuedToken token = guestTokenService.issueRecoveryToken();
-        guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone))
-                .ifPresent(guest -> {
-                    recoveryTargets.replaceOrderAccessTokens(guest.getId(), token.tokenHash());
-                    recoveryTargets.replaceBookingAccessTokens(guest.getId(), token.tokenHash());
-                });
-        return new RecoveryResult(token.rawToken(), token.expiresAt());
+        String normalizedPhone = KoreanPhoneNumber.required(phone);
+        attemptGuard.check(normalizedPhone);
+        return transactionService.recover(normalizedPhone, verificationCode);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
-import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort.LoginSnapshot;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
@@ -38,7 +38,8 @@ class DefaultCustomerAuthServiceTest {
 
     @Mock UserReaderPort userReader;
     @Mock UserStorePort userStore;
-    @Mock PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
+    @Mock PhoneVerificationAttemptGuard attemptGuard;
+    @Mock PhoneVerificationConsumptionService phoneVerification;
     @Mock PasswordEncoder passwordEncoder;
     @Mock PolicyConsentService policyConsentService;
 
@@ -159,15 +160,15 @@ class DefaultCustomerAuthServiceTest {
     }
 
     private DefaultCustomerAuthService createService(Clock clock) {
-        CustomerAuthenticationTransactionService authenticationService =
-                new CustomerAuthenticationTransactionService(userReader, passwordEncoder, clock);
+        CustomerAuthenticationTransactionService transactionService =
+                new CustomerAuthenticationTransactionService(
+                        userReader, userStore, phoneVerification, policyConsentService, passwordEncoder, clock);
         return new DefaultCustomerAuthService(
                 userReader,
-                userStore,
-                phoneOwnershipVerification,
+                attemptGuard,
                 passwordEncoder,
                 policyConsentService,
-                authenticationService);
+                transactionService);
     }
 
     private static void assertInvalidCredentials(DefaultCustomerAuthService service, String email) {

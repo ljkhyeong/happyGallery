@@ -1,15 +1,13 @@
 package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
-import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort.LoginSnapshot;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.policy.PolicyConsentService;
-import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
-import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,50 +22,30 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
             "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     private final UserReaderPort userReader;
-    private final UserStorePort userStore;
-    private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
+    private final PhoneVerificationAttemptGuard attemptGuard;
     private final PasswordEncoder passwordEncoder;
     private final PolicyConsentService policyConsentService;
-    private final CustomerAuthenticationTransactionService authenticationService;
+    private final CustomerAuthenticationTransactionService transactionService;
 
     public DefaultCustomerAuthService(UserReaderPort userReader,
-                                      UserStorePort userStore,
-                                      PhoneOwnershipVerificationUseCase phoneOwnershipVerification,
+                                      PhoneVerificationAttemptGuard attemptGuard,
                                       PasswordEncoder passwordEncoder,
                                       PolicyConsentService policyConsentService,
-                                      CustomerAuthenticationTransactionService authenticationService) {
+                                      CustomerAuthenticationTransactionService transactionService) {
         this.userReader = userReader;
-        this.userStore = userStore;
-        this.phoneOwnershipVerification = phoneOwnershipVerification;
+        this.attemptGuard = attemptGuard;
         this.passwordEncoder = passwordEncoder;
         this.policyConsentService = policyConsentService;
-        this.authenticationService = authenticationService;
+        this.transactionService = transactionService;
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public User signup(SignupCommand command) {
         policyConsentService.requireCurrent(command.policyAcceptance());
-        phoneOwnershipVerification.verify(
-                command.phone(), command.verificationCode(), PhoneVerificationPurpose.SIGNUP);
-        if (userReader.existsByEmail(command.email())) {
-            throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
-        }
-        if (userReader.existsByPhone(command.phone())) {
-            throw new HappyGalleryException(ErrorCode.PHONE_ALREADY_IN_USE);
-        }
-        User user = new User(
-                command.email(),
-                passwordEncoder.encode(command.rawPassword()),
-                command.name(),
-                command.phone());
-        user.markPhoneVerified();
-        User savedUser = userStore.save(user);
-        policyConsentService.recordForUser(
-                savedUser.getId(),
-                PolicyConsentPurpose.MEMBER_SIGNUP,
-                command.policyAcceptance());
-        return savedUser;
+        String normalizedPhone = KoreanPhoneNumber.required(command.phone());
+        attemptGuard.check(normalizedPhone);
+        return transactionService.signup(command, normalizedPhone);
     }
 
     @Override
@@ -79,7 +57,7 @@ public class DefaultCustomerAuthService implements CustomerAuthUseCase {
         if (!isLoginCandidate(snapshot) || !passwordMatches) {
             throw invalidCredentials();
         }
-        return authenticationService.authenticate(snapshot, command.rawPassword());
+        return transactionService.authenticate(snapshot, command.rawPassword());
     }
 
     @Override
