@@ -2,9 +2,9 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.money.Proration;
 import com.personal.happygallery.domain.order.OrderClaimItem;
 import com.personal.happygallery.domain.order.OrderItem;
-import java.math.BigInteger;
 
 record OrderClaimLine(
         OrderClaimItem claimItem,
@@ -37,14 +37,7 @@ record OrderClaimLine(
 
     private long componentShare(long componentAmount) {
         long throughCurrent = previousApprovedQuantity + claimItem.getQuantity();
-        return prorated(componentAmount, throughCurrent, orderItem.getQty())
-                - prorated(componentAmount, previousApprovedQuantity, orderItem.getQty());
-    }
-
-    private static long prorated(long amount, long quantity, long totalQuantity) {
-        return BigInteger.valueOf(amount)
-                .multiply(BigInteger.valueOf(quantity))
-                .divide(BigInteger.valueOf(totalQuantity))
-                .longValueExact();
+        return Proration.floor(componentAmount, throughCurrent, orderItem.getQty())
+                - Proration.floor(componentAmount, previousApprovedQuantity, orderItem.getQty());
     }
 }

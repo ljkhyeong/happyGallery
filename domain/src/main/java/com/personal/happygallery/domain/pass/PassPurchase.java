@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.PassCreditInsufficientException;
 import com.personal.happygallery.domain.error.PassExpiredException;
+import com.personal.happygallery.domain.money.Proration;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -170,7 +171,7 @@ public class PassPurchase {
 
     /** 환불 크레딧을 총 결제액에 비례해 원 단위 버림으로 정산한다. 관리자 예상 환불액도 이 식을 쓴다. */
     public static long refundAmount(long totalPrice, int refundCredits, int totalCredits) {
-        return Math.multiplyExact(totalPrice, refundCredits) / totalCredits;
+        return Proration.floor(totalPrice, refundCredits, totalCredits);
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */

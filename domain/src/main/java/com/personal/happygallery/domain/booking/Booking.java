@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.money.Proration;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import jakarta.persistence.Column;
@@ -16,7 +17,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 /** 체험 예약 — bookings 테이블 */
@@ -269,20 +269,13 @@ public class Booking {
         int previousParticipantCount = participantCount;
         long previousDepositAmount = depositAmount;
         long previousBalanceAmount = balanceAmount;
-        depositAmount = prorated(previousDepositAmount, newParticipantCount, previousParticipantCount);
-        balanceAmount = prorated(previousBalanceAmount, newParticipantCount, previousParticipantCount);
+        depositAmount = Proration.floor(previousDepositAmount, newParticipantCount, previousParticipantCount);
+        balanceAmount = Proration.floor(previousBalanceAmount, newParticipantCount, previousParticipantCount);
         participantCount = newParticipantCount;
         return new ParticipantReduction(
                 previousParticipantCount - newParticipantCount,
                 previousDepositAmount - depositAmount,
                 previousBalanceAmount - balanceAmount);
-    }
-
-    private static long prorated(long amount, int numerator, int denominator) {
-        return BigInteger.valueOf(amount)
-                .multiply(BigInteger.valueOf(numerator))
-                .divide(BigInteger.valueOf(denominator))
-                .longValueExact();
     }
 
     public boolean isCustomerCancellationAllowed() {
