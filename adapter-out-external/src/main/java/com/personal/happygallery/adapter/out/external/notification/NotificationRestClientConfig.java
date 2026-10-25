@@ -16,7 +16,7 @@ import org.springframework.web.client.RestClient;
  * prod 프로필 전용 RestClient 빈 설정.
  * NHN Cloud Alimtalk과 SMS 발송에 사용한다.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @Profile("prod")
 @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
         havingValue = "nhn", matchIfMissing = true)

@@ -29,7 +29,7 @@ import org.springframework.web.client.RestClient;
  * <p>raw sender는 컨텍스트에 빈으로 노출하지 않고 데코레이터만 노출해야
  * {@code NotificationService}의 채널 fallback 체인에 같은 채널이 두 번 들어가지 않는다.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @Profile("prod")
 class NotificationResilienceConfig {
 

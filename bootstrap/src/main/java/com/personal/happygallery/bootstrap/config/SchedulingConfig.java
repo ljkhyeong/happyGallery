@@ -4,7 +4,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableScheduling
 @ConditionalOnProperty(prefix = "app.key-rotation", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class SchedulingConfig {}
