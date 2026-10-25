@@ -9,9 +9,9 @@ import com.personal.happygallery.application.order.port.out.ShipmentTrackingEven
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
-import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
-import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
-import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderView;
+import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentView;
+import com.personal.happygallery.application.order.port.in.OrderHistoryView;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -53,7 +53,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
 
     /** 관리자 주문 목록 조회 — 커서 기반 페이지네이션 */
     @Override
-    public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
+    public CursorPage<AdminOrderView> listOrders(OrderStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
         var after = CursorUtils.decodeOrFirst(cursor);
@@ -61,20 +61,20 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
                 ? orderReaderPort.findAdminOrdersByStatus(status, after.timestamp(), after.id(), fetchSize)
                 : orderReaderPort.findAdminOrders(after.timestamp(), after.id(), fetchSize);
 
-        List<AdminOrderResponse> items = toResponses(orders);
+        List<AdminOrderView> items = toViews(orders);
 
         return CursorPage.of(items, pageSize,
                 r -> CursorUtils.encode(r.createdAt().toLocalDateTime(), r.orderId()));
     }
 
     @Override
-    public AdminOrderFulfillmentResponse getFulfillment(Long orderId) {
+    public AdminOrderFulfillmentView getFulfillment(Long orderId) {
         OrderLookups.requireOrder(orderReaderPort, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         var shippingAddress = fulfillment.getType() == FulfillmentType.SHIPPING
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
-        return AdminOrderFulfillmentResponse.from(
+        return AdminOrderFulfillmentView.from(
                 fulfillment,
                 shippingAddress,
                 trackingEventPort.findByOrderIdOrderByOccurredAtAsc(orderId));
@@ -82,13 +82,13 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
 
     /** 관리자 주문 처리 이력 조회 — 처리 시간순 */
     @Override
-    public List<OrderHistoryResponse> getOrderHistory(Long orderId) {
+    public List<OrderHistoryView> getOrderHistory(Long orderId) {
         return orderHistoryPort.findByOrderIdOrderByDecidedAtAsc(orderId).stream()
-                .map(OrderHistoryResponse::from)
+                .map(OrderHistoryView::from)
                 .toList();
     }
 
-    private List<AdminOrderResponse> toResponses(List<Order> orders) {
+    private List<AdminOrderView> toViews(List<Order> orders) {
         if (orders.isEmpty()) {
             return List.of();
         }
@@ -99,7 +99,7 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         Map<Long, List<OrderItem>> itemsByOrderId = orderItemPort.findByOrderIdIn(orderIds).stream()
                 .collect(groupingBy(item -> item.getOrder().getId()));
         return orders.stream()
-                .map(order -> AdminOrderResponse.from(
+                .map(order -> AdminOrderView.from(
                         order,
                         fulfillmentsByOrderId.get(order.getId()),
                         itemsByOrderId.getOrDefault(order.getId(), List.of())))

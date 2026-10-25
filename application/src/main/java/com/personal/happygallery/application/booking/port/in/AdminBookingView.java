@@ -7,7 +7,7 @@ import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 
-public record AdminBookingResponse(
+public record AdminBookingView(
         Long bookingId,
         String bookingNumber,
         CustomerSummary customerSummary,
@@ -26,11 +26,11 @@ public record AdminBookingResponse(
         boolean passBooking
 ) {
 
-    public static AdminBookingResponse fromMember(Booking booking, User user) {
+    public static AdminBookingView fromMember(Booking booking, User user) {
         return from(booking, new CustomerSummary("MEMBER", user.getName(), user.getPhone()));
     }
 
-    public static AdminBookingResponse fromGuest(
+    public static AdminBookingView fromGuest(
             Booking booking,
             String guestName,
             String guestPhone
@@ -38,11 +38,11 @@ public record AdminBookingResponse(
         return from(booking, new CustomerSummary("GUEST", guestName, guestPhone));
     }
 
-    private static AdminBookingResponse from(
+    private static AdminBookingView from(
             Booking booking,
             CustomerSummary customerSummary
     ) {
-        return new AdminBookingResponse(
+        return new AdminBookingView(
                 booking.getId(),
                 booking.bookingNumber(),
                 customerSummary,

@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
-public record AdminOrderResponse(
+public record AdminOrderView(
         Long orderId,
         String orderNumber,
         OrderStatus status,
@@ -26,7 +26,7 @@ public record AdminOrderResponse(
         OffsetDateTime createdAt
 ) {
 
-    public AdminOrderResponse {
+    public AdminOrderView {
         items = List.copyOf(items);
     }
 
@@ -76,9 +76,9 @@ public record AdminOrderResponse(
         }
     }
 
-    public static AdminOrderResponse from(
+    public static AdminOrderView from(
             Order order, Fulfillment fulfillment, List<OrderItem> orderItems) {
-        return new AdminOrderResponse(
+        return new AdminOrderView(
                 order.getId(),
                 order.orderNumber(),
                 order.getStatus(),

@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.booking.BookingSource;
 
 public interface AdminBookingCreateUseCase {
 
-    AdminBookingResponse create(CreateAdminBookingCommand command);
+    AdminBookingView create(CreateAdminBookingCommand command);
 
     record CreateAdminBookingCommand(
             Long slotId,

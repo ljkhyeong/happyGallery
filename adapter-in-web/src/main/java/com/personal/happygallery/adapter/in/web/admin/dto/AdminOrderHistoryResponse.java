@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
+import com.personal.happygallery.application.order.port.in.OrderHistoryView;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -13,12 +13,12 @@ public record AdminOrderHistoryResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime decidedAt
 ) {
 
-    public static AdminOrderHistoryResponse from(OrderHistoryResponse response) {
+    public static AdminOrderHistoryResponse from(OrderHistoryView view) {
         return new AdminOrderHistoryResponse(
-                response.id(),
-                response.decision(),
-                response.decidedByAdminId(),
-                response.reason(),
-                response.decidedAt());
+                view.id(),
+                view.decision(),
+                view.decidedByAdminId(),
+                view.reason(),
+                view.decidedAt());
     }
 }

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.BookingSource;
 import com.personal.happygallery.domain.booking.BookingStatus;
@@ -27,24 +28,24 @@ public record AdminBookingResponse(
 ) {
 
     public static AdminBookingResponse from(
-            com.personal.happygallery.application.booking.port.in.AdminBookingResponse response) {
+            AdminBookingView view) {
         return new AdminBookingResponse(
-                response.bookingId(),
-                response.bookingNumber(),
-                CustomerSummary.from(response.customerSummary()),
-                response.className(),
-                response.startAt(),
-                response.endAt(),
-                response.status(),
-                response.source(),
-                response.participantCount(),
-                response.depositAmount(),
-                response.depositPaidAt(),
-                response.balanceAmount(),
-                response.balanceStatus(),
-                response.balancePaidAt(),
-                response.arrears(),
-                response.passBooking());
+                view.bookingId(),
+                view.bookingNumber(),
+                CustomerSummary.from(view.customerSummary()),
+                view.className(),
+                view.startAt(),
+                view.endAt(),
+                view.status(),
+                view.source(),
+                view.participantCount(),
+                view.depositAmount(),
+                view.depositPaidAt(),
+                view.balanceAmount(),
+                view.balanceStatus(),
+                view.balancePaidAt(),
+                view.arrears(),
+                view.passBooking());
     }
 
     public record CustomerSummary(
@@ -55,7 +56,7 @@ public record AdminBookingResponse(
     ) {
 
         private static CustomerSummary from(
-                com.personal.happygallery.application.booking.port.in.AdminBookingResponse.CustomerSummary summary) {
+                AdminBookingView.CustomerSummary summary) {
             return new CustomerSummary(summary.type(), summary.name(), summary.phone());
         }
     }

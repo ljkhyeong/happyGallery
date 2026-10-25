@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** 관리자에게만 노출하는 주문 이행 상세. */
-public record AdminOrderFulfillmentResponse(
+public record AdminOrderFulfillmentView(
         Long orderId,
         FulfillmentType type,
         ShippingAddress shippingAddress,
@@ -28,15 +28,15 @@ public record AdminOrderFulfillmentResponse(
         List<ShipmentTrackingEvent> trackingEvents
 ) {
 
-    public AdminOrderFulfillmentResponse {
+    public AdminOrderFulfillmentView {
         trackingEvents = List.copyOf(trackingEvents);
     }
 
-    public static AdminOrderFulfillmentResponse from(
+    public static AdminOrderFulfillmentView from(
             Fulfillment fulfillment,
             ShippingAddress shippingAddress,
             List<ShipmentTrackingEvent> trackingEvents) {
-        return new AdminOrderFulfillmentResponse(
+        return new AdminOrderFulfillmentView(
                 fulfillment.getOrderId(),
                 fulfillment.getType(),
                 shippingAddress,

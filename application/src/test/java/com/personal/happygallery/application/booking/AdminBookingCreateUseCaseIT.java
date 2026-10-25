@@ -9,7 +9,7 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCancelU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase.CreateAdminBookingCommand;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
@@ -63,7 +63,7 @@ class AdminBookingCreateUseCaseIT {
         Slot slot = slotStorePort.save(
                 slot(bookingClass, startAt, startAt.plusHours(2)));
 
-        AdminBookingResponse created = adminBookingCreateUseCase.create(
+        AdminBookingView created = adminBookingCreateUseCase.create(
                 new CreateAdminBookingCommand(
                         slot.getId(),
                         "전화예약자",

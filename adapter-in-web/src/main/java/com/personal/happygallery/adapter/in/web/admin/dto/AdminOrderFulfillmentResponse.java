@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentView;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.order.ShipmentTrackingEvent;
@@ -29,21 +30,21 @@ public record AdminOrderFulfillmentResponse(
 ) {
 
     public static AdminOrderFulfillmentResponse from(
-            com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse response) {
+            AdminOrderFulfillmentView view) {
         return new AdminOrderFulfillmentResponse(
-                response.orderId(),
-                response.type(),
-                Address.from(response.shippingAddress()),
-                response.expectedShipDate(),
-                response.pickupDeadlineAt(),
-                response.carrier(),
-                response.trackingNumber(),
-                response.carrierCode(),
-                response.trackingRegistrationStatus(),
-                response.trackingStatus(),
-                response.trackingStatusText(),
-                response.trackingUpdatedAt(),
-                response.trackingEvents().stream().map(TrackingEvent::from).toList());
+                view.orderId(),
+                view.type(),
+                Address.from(view.shippingAddress()),
+                view.expectedShipDate(),
+                view.pickupDeadlineAt(),
+                view.carrier(),
+                view.trackingNumber(),
+                view.carrierCode(),
+                view.trackingRegistrationStatus(),
+                view.trackingStatus(),
+                view.trackingStatusText(),
+                view.trackingUpdatedAt(),
+                view.trackingEvents().stream().map(TrackingEvent::from).toList());
     }
 
     public record TrackingEvent(

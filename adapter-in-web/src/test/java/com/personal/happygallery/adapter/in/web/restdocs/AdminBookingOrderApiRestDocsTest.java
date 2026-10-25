@@ -14,17 +14,17 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCancelU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase.CompletionResult;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase.TaskView;
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
-import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentView;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
-import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderView;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
-import com.personal.happygallery.application.order.port.in.OrderHistoryResponse;
+import com.personal.happygallery.application.order.port.in.OrderHistoryView;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
@@ -119,8 +119,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
         Refund orderRefund = RestDocsFixtures.orderRefund();
 
         when(adminBookingQueryUseCase.listBookings(any(), any()))
-                .thenReturn(List.of(adminBookingResponse()));
-        when(adminBookingCreateUseCase.create(any())).thenReturn(adminBookingResponse());
+                .thenReturn(List.of(adminBookingView()));
+        when(adminBookingCreateUseCase.create(any())).thenReturn(adminBookingView());
         when(adminBookingSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminBookingSearchRow()), 0, 20, 1));
         when(bookingNoShowUseCase.markNoShow(100L, ADMIN_USER_ID)).thenReturn(booking);
@@ -140,8 +140,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
         when(bookingCancellationTaskUseCase.complete(501L, ADMIN_USER_ID))
                 .thenReturn(new CompletionResult(completedTask, true));
         when(adminOrderQueryUseCase.listOrders(any(), any(), eq(20)))
-                .thenReturn(new CursorPage<>(List.of(adminOrderResponse()), "cursor-next", true));
-        when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentResponse());
+                .thenReturn(new CursorPage<>(List.of(adminOrderView()), "cursor-next", true));
+        when(adminOrderQueryUseCase.getFulfillment(200L)).thenReturn(adminOrderFulfillmentView());
         when(adminOrderSearchUseCase.search(any(), any(), any(), any(), eq(0), eq(20)))
                 .thenReturn(OffsetPage.of(List.of(adminOrderSearchRow()), 0, 20, 1));
         when(orderApprovalUseCase.reject(200L, ADMIN_USER_ID))
@@ -519,11 +519,11 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk());
     }
 
-    private static AdminBookingResponse adminBookingResponse() {
-        return new AdminBookingResponse(
+    private static AdminBookingView adminBookingView() {
+        return new AdminBookingView(
                 100L,
                 "BK-00000100",
-                new AdminBookingResponse.CustomerSummary("GUEST", "홍길동", "01012345678"),
+                new AdminBookingView.CustomerSummary("GUEST", "홍길동", "01012345678"),
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
                 LocalDateTime.of(2026, 5, 7, 21, 0), BookingStatus.BOOKED,
                 BookingSource.PHONE,
@@ -561,15 +561,15 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
-    private static AdminOrderResponse adminOrderResponse() {
-        return new AdminOrderResponse(
+    private static AdminOrderView adminOrderView() {
+        return new AdminOrderView(
                 200L,
                 "ORD-00000200",
                 OrderStatus.PAID_APPROVAL_PENDING,
                 39000L,
                 0L,
                 FulfillmentType.PICKUP,
-                List.of(new AdminOrderResponse.OrderItemView(
+                List.of(new AdminOrderView.OrderItemView(
                         1L, "시그니처 캔들", ProductType.READY_STOCK,
                         1, 39000L,
                         null, 39000L, 0L, 0L, List.of(),
@@ -579,8 +579,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
-    private static AdminOrderFulfillmentResponse adminOrderFulfillmentResponse() {
-        return new AdminOrderFulfillmentResponse(
+    private static AdminOrderFulfillmentView adminOrderFulfillmentView() {
+        return new AdminOrderFulfillmentView(
                 200L,
                 FulfillmentType.SHIPPING,
                 new ShippingAddress("홍길동", "01012345678", "06236", "서울시 강남구 테헤란로 1", "2층"),
@@ -626,8 +626,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 5, 2, 9, 0));
     }
 
-    private static OrderHistoryResponse orderHistory() {
-        return new OrderHistoryResponse(1L, OrderApprovalDecision.APPROVE, ADMIN_USER_ID,
+    private static OrderHistoryView orderHistory() {
+        return new OrderHistoryView(1L, OrderApprovalDecision.APPROVE, ADMIN_USER_ID,
                 "정상 승인", LocalDateTime.of(2026, 5, 1, 21, 5));
     }
 

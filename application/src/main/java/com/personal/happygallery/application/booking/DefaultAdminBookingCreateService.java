@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -37,7 +37,7 @@ public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCa
     }
 
     @Override
-    public AdminBookingResponse create(CreateAdminBookingCommand command) {
+    public AdminBookingView create(CreateAdminBookingCommand command) {
         command.source().requireOperatorManaged();
         Guest guest = guestStore.getOrCreateByPhoneHmac(
                 guestProtector.newGuest(command.name(), command.phone()));
@@ -66,7 +66,7 @@ public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCa
                 booking, slot, BookingHistoryActor.ADMIN, command.adminId(),
                 "접수 경로: " + command.source().name());
 
-        return AdminBookingResponse.fromGuest(
+        return AdminBookingView.fromGuest(
                 booking,
                 guestProtector.decryptName(guest),
                 guestProtector.decryptPhone(guest));

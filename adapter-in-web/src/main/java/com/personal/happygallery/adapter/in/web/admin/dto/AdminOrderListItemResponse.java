@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.adapter.in.web.order.dto.OrderOptionSnapshotResponse;
-import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
+import com.personal.happygallery.application.order.port.in.AdminOrderView;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.ProductType;
@@ -37,7 +37,7 @@ public record AdminOrderListItemResponse(
         items = List.copyOf(items);
     }
 
-    public static AdminOrderListItemResponse from(AdminOrderResponse order) {
+    public static AdminOrderListItemResponse from(AdminOrderView order) {
         return new AdminOrderListItemResponse(
                 order.orderId(),
                 order.orderNumber(),
@@ -79,7 +79,7 @@ public record AdminOrderListItemResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             Integer productionLeadDays
     ) {
-        private static AdminOrderItemResponse from(AdminOrderResponse.OrderItemView item) {
+        private static AdminOrderItemResponse from(AdminOrderView.OrderItemView item) {
             return new AdminOrderItemResponse(
                     item.productId(),
                     item.productName(),
