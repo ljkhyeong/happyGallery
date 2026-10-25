@@ -13,6 +13,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -203,8 +204,6 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
 
     private String failureReason(String reason, String fallback) {
         String resolved = StringUtils.hasText(reason) ? reason : fallback;
-        return resolved.length() <= MAX_FAILURE_REASON_LENGTH
-                ? resolved
-                : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);
+        return DomainText.truncate(resolved, MAX_FAILURE_REASON_LENGTH);
     }
 }

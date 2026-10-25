@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.search;
 
+import com.personal.happygallery.domain.text.DomainText;
 import org.springframework.util.StringUtils;
 
 /**
@@ -14,9 +15,6 @@ public final class SearchParams {
     /** keyword의 앞뒤 공백을 제거하고 빈 값은 null, 긴 값은 최대 100자로 정제한다. */
     public static String clampKeyword(String keyword) {
         if (!StringUtils.hasText(keyword)) return null;
-        String trimmed = keyword.strip();
-        return trimmed.length() > MAX_KEYWORD_LENGTH
-                ? trimmed.substring(0, MAX_KEYWORD_LENGTH)
-                : trimmed;
+        return DomainText.truncate(keyword.strip(), MAX_KEYWORD_LENGTH);
     }
 }

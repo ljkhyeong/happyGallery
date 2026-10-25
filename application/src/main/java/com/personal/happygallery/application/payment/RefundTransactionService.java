@@ -14,6 +14,7 @@ import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.text.DomainText;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -171,9 +172,7 @@ class RefundTransactionService {
         String resolved = StringUtils.hasText(reason)
                 ? reason
                 : "PG 환불 처리 결과를 확인할 수 없습니다.";
-        return resolved.length() <= MAX_FAILURE_REASON_LENGTH
-                ? resolved
-                : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);
+        return DomainText.truncate(resolved, MAX_FAILURE_REASON_LENGTH);
     }
 
     private void markPaymentAttemptCompensated(Refund refund) {

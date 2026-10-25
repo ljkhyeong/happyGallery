@@ -31,6 +31,8 @@ public class Fulfillment {
 
     public static final int MAX_CARRIER_LENGTH = 50;
     public static final int MAX_TRACKING_NUMBER_LENGTH = 100;
+    private static final int MAX_TRACKING_LAST_ERROR_LENGTH = 500;
+    private static final int MAX_TRACKING_STATUS_TEXT_LENGTH = 100;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -78,14 +80,14 @@ public class Fulfillment {
     @Column(name = "tracking_registration_started_at")
     private LocalDateTime trackingRegistrationStartedAt;
 
-    @Column(name = "tracking_last_error", length = 500)
+    @Column(name = "tracking_last_error", length = MAX_TRACKING_LAST_ERROR_LENGTH)
     private String trackingLastError;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tracking_status", length = 30)
     private ShipmentTrackingStatus trackingStatus;
 
-    @Column(name = "tracking_status_text", length = 100)
+    @Column(name = "tracking_status_text", length = MAX_TRACKING_STATUS_TEXT_LENGTH)
     private String trackingStatusText;
 
     @Column(name = "tracking_updated_at")
@@ -193,7 +195,7 @@ public class Fulfillment {
 
     public void failTrackingRegistration(String reason, LocalDateTime retryAt, int maxAttempts) {
         trackingRegistrationStartedAt = null;
-        trackingLastError = abbreviate(reason, 500);
+        trackingLastError = DomainText.truncate(reason, MAX_TRACKING_LAST_ERROR_LENGTH);
         if (trackingRegistrationAttempts >= maxAttempts || retryAt == null) {
             trackingRegistrationStatus = TrackingRegistrationStatus.FAILED;
             trackingNextAttemptAt = null;
@@ -207,7 +209,7 @@ public class Fulfillment {
                                     String statusText,
                                     LocalDateTime updatedAt) {
         trackingStatus = Objects.requireNonNull(status, "status must not be null");
-        trackingStatusText = abbreviate(statusText, 100);
+        trackingStatusText = DomainText.truncate(statusText, MAX_TRACKING_STATUS_TEXT_LENGTH);
         trackingUpdatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
         settleTrackingRegistration();
     }
@@ -237,13 +239,6 @@ public class Fulfillment {
         }
         trackingCheckedAt = Objects.requireNonNull(now);
         return true;
-    }
-
-    private static String abbreviate(String value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     public void setPickupDeadline(LocalDateTime pickupDeadlineAt) {

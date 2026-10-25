@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.notification;
 
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notification_log")
 public class NotificationLog {
+
+    private static final int FAIL_REASON_LIMIT = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +40,7 @@ public class NotificationLog {
     @Column(name = "status", nullable = false, length = 10)
     private NotificationLogStatus status;
 
-    @Column(name = "fail_reason", length = 500)
+    @Column(name = "fail_reason", length = FAIL_REASON_LIMIT)
     private String failReason;
 
     @Column(name = "provider_request_id", length = 100)
@@ -109,9 +112,7 @@ public class NotificationLog {
 
     public void markFailed(String reason, LocalDateTime failedAt) {
         status = NotificationLogStatus.FAILED;
-        failReason = reason == null || reason.length() <= 500
-                ? reason
-                : reason.substring(0, 500);
+        failReason = DomainText.truncate(reason, FAIL_REASON_LIMIT);
         sentAt = failedAt;
     }
 

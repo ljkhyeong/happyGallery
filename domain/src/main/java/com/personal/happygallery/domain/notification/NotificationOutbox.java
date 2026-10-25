@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForGuest;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent.ForUser;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -222,7 +223,7 @@ public class NotificationOutbox {
     }
 
     public boolean markSentWithAuditFailure(String token, LocalDateTime now, String reason) {
-        return completeSent(token, now, truncate(reason));
+        return completeSent(token, now, DomainText.truncate(reason, LAST_ERROR_LIMIT));
     }
 
     public boolean markDeliveryPending(
@@ -277,7 +278,7 @@ public class NotificationOutbox {
         }
         status = NotificationOutboxStatus.DELIVERY_PENDING;
         nextAttemptAt = nextCheckAt;
-        lastError = truncate(reason);
+        lastError = DomainText.truncate(reason, LAST_ERROR_LIMIT);
         clearProcessing();
         return true;
     }
@@ -300,7 +301,7 @@ public class NotificationOutbox {
         }
         this.status = NotificationOutboxStatus.OBSOLETE;
         this.processedAt = now;
-        this.lastError = truncate(reason);
+        this.lastError = DomainText.truncate(reason, LAST_ERROR_LIMIT);
         clearProcessing();
         return true;
     }
@@ -348,7 +349,7 @@ public class NotificationOutbox {
             return false;
         }
         this.attemptCount++;
-        this.lastError = truncate(reason);
+        this.lastError = DomainText.truncate(reason, LAST_ERROR_LIMIT);
         clearProcessing();
         if (this.attemptCount >= maxAttempts) {
             this.status = NotificationOutboxStatus.FAILED;
@@ -395,13 +396,6 @@ public class NotificationOutbox {
     private void clearProcessing() {
         this.lockedAt = null;
         this.processingToken = null;
-    }
-
-    private String truncate(String reason) {
-        if (reason == null || reason.length() <= LAST_ERROR_LIMIT) {
-            return reason;
-        }
-        return reason.substring(0, LAST_ERROR_LIMIT);
     }
 
     public Long getId() { return id; }

@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.product;
 
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,6 +16,7 @@ import java.util.UUID;
 public class SmartStoreStockSync {
 
     public static final int MAX_ATTEMPTS = 10;
+    private static final int LAST_ERROR_LIMIT = 500;
 
     @Id
     @Column(name = "product_id")
@@ -39,7 +41,7 @@ public class SmartStoreStockSync {
     @Column(name = "processing_started_at")
     private LocalDateTime processingStartedAt;
 
-    @Column(name = "last_error", length = 500)
+    @Column(name = "last_error", length = LAST_ERROR_LIMIT)
     private String lastError;
 
     @Column(name = "synced_at")
@@ -135,7 +137,7 @@ public class SmartStoreStockSync {
             return;
         }
         attemptCount++;
-        lastError = trim(reason);
+        lastError = DomainText.truncate(reason, LAST_ERROR_LIMIT);
         if (attemptCount >= MAX_ATTEMPTS) {
             status = SmartStoreStockSyncStatus.FAILED;
             processingStartedAt = null;
@@ -151,13 +153,6 @@ public class SmartStoreStockSync {
         if (status == SmartStoreStockSyncStatus.PROCESSING || status == SmartStoreStockSyncStatus.SYNCED) {
             request(now);
         }
-    }
-
-    private static String trim(String reason) {
-        if (reason == null) {
-            return null;
-        }
-        return reason.length() <= 500 ? reason : reason.substring(0, 500);
     }
 
     public Long getProductId() { return productId; }
