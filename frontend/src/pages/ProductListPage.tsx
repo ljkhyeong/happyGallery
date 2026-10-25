@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
@@ -37,17 +36,13 @@ export function ProductListPage({
   const heading = productListHeading(filterParams);
 
   const hasActiveFilter = Object.keys(filterParams).length > 0;
-  const productsQueryKey = useMemo(
-    () => queryKeys.catalog.productList(filterParams),
-    [filterParams],
-  );
 
   const {
     data: products,
     error,
     isLoading,
   } = useLoaderBackedQuery({
-    queryKey: productsQueryKey,
+    queryKey: queryKeys.catalog.productList(filterParams),
     queryFn: () => fetchProducts(hasActiveFilter ? filterParams : undefined),
     staleTime: PUBLIC_DATA_STALE_TIME,
   }, JSON.stringify(filterParams) === JSON.stringify(initialFilters) ? initialProducts : undefined);

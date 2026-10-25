@@ -1,5 +1,4 @@
 import { FavoriteButton } from "@/features/my/Favorites";
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
@@ -30,15 +29,11 @@ import { ErrorAlert, LinkButton } from "@/shared/ui";
 
 export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse }) {
   const classId = initialClass.id;
-  const classQueryKey = useMemo(
-    () => queryKeys.catalog.classDetail(classId),
-    [classId],
-  );
   const {
     data: bookingClass,
     error,
   } = useLoaderBackedQuery({
-    queryKey: classQueryKey,
+    queryKey: queryKeys.catalog.classDetail(classId),
     queryFn: ({ signal }) => getPublicClass(classId, { signal }),
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialClass);

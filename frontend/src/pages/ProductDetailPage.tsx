@@ -1,6 +1,6 @@
 import { FavoriteButton } from "@/features/my/Favorites";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Container, Card, Button, Form } from "react-bootstrap";
@@ -56,10 +56,6 @@ export function ProductDetailPage({ initialProduct }: { initialProduct: ProductD
 
 function ProductDetailContent({ initialProduct, variantId }: { initialProduct: ProductDetailResponse; variantId: string | null }) {
   const productId = initialProduct.id;
-  const productQueryKey = useMemo(
-    () => queryKeys.catalog.productDetail(productId),
-    [productId],
-  );
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
@@ -82,7 +78,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     data: product,
     error,
   } = useLoaderBackedQuery({
-    queryKey: productQueryKey,
+    queryKey: queryKeys.catalog.productDetail(productId),
     queryFn: () => fetchProduct(productId),
     staleTime: PUBLIC_DATA_STALE_TIME,
   }, initialProduct);

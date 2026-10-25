@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvent, type EventResponse } from "@/features/event/api";
@@ -19,16 +18,12 @@ interface Props {
 
 export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   const eventId = initialEvent.id;
-  const eventQueryKey = useMemo(
-    () => queryKeys.events.detail(eventId),
-    [eventId],
-  );
   const {
     data: event,
     error,
     query: eventQuery,
   } = useLoaderBackedQuery({
-    queryKey: eventQueryKey,
+    queryKey: queryKeys.events.detail(eventId),
     queryFn: ({ signal }) => fetchEvent(eventId, signal),
     retry: (failureCount, error) => !isNotFoundError(error) && failureCount < 3,
     refetchInterval: ({ state }) => state.error
