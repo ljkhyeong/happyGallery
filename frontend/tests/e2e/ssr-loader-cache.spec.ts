@@ -4,7 +4,15 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson, navigateInApp, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  navigateInApp,
+  orderPolicyFixture,
+  productDetailFixture,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -24,7 +32,7 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
       return;
     }
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -36,15 +44,11 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     await fulfillJson(route, []);
@@ -100,7 +104,7 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
       return;
     }
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -112,11 +116,11 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
       return;
     }
     if (pathname.endsWith("/qna/page")) {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     await fulfillJson(route, []);
@@ -157,7 +161,7 @@ test("머리글 카테고리는 그 카테고리 제목·경로·탭이 있는 �
       return;
     }
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {

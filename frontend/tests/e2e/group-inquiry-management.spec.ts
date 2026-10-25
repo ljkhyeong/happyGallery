@@ -7,6 +7,7 @@ import {
   installCsrfCookie,
   memberFixture,
   seedAdminSession,
+  UNAUTHORIZED_ERROR,
 } from "./mock-support";
 
 // 시나리오가 상태·인원·일정을 바꾸므로 overrides의 리터럴 타입으로 좁히지 않는다.
@@ -70,7 +71,7 @@ test("관리자 문의 검색은 접수 번호와 날짜 및 경로를 다음 �
   const queries: URLSearchParams[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (url.pathname === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (url.pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (url.pathname === "/api/v1/admin/group-inquiries") {
       queries.push(url.searchParams);

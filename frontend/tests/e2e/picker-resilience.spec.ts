@@ -1,15 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, memberFixture, openMockedAdmin } from "./mock-support";
+import {
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  openMockedAdmin,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
-const EMPTY_CURSOR_PAGE = {
-  content: [],
-  nextCursor: null,
-  hasMore: false,
-};
-const temporaryError = {
-  code: "SERVICE_UNAVAILABLE",
-  message: "잠시 후 다시 시도해 주세요.",
-};
 const adminClass = {
   id: 1,
   name: "회복 클래스",
@@ -41,11 +40,11 @@ test("@admin 클래스 목록과 회차 관리 선택기는 조회 실패를 빈
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/admin/classes") {
-      await fulfillJson(route, classesAvailable ? [adminClass] : temporaryError, classesAvailable ? 200 : 503);
+      await fulfillJson(route, classesAvailable ? [adminClass] : TEMPORARY_ERROR, classesAvailable ? 200 : 503);
       return;
     }
     if (pathname === "/api/v1/admin/slots") {
-      await fulfillJson(route, slotsAvailable ? [] : temporaryError, slotsAvailable ? 200 : 503);
+      await fulfillJson(route, slotsAvailable ? [] : TEMPORARY_ERROR, slotsAvailable ? 200 : 503);
       return;
     }
     if (pathname === "/api/v1/admin/slots/calendar") {
@@ -90,11 +89,11 @@ test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/admin/classes") {
-      await fulfillJson(route, classesAvailable ? [adminClass] : temporaryError, classesAvailable ? 200 : 503);
+      await fulfillJson(route, classesAvailable ? [adminClass] : TEMPORARY_ERROR, classesAvailable ? 200 : 503);
       return;
     }
     if (pathname === "/api/v1/admin/slots") {
-      await fulfillJson(route, slotsAvailable ? [] : temporaryError, slotsAvailable ? 200 : 503);
+      await fulfillJson(route, slotsAvailable ? [] : TEMPORARY_ERROR, slotsAvailable ? 200 : 503);
       return;
     }
     if (pathname === "/api/v1/admin/bookings/cancellation-tasks") {
@@ -149,7 +148,7 @@ test("@admin 환불 조회 실패는 확인 필요 0건으로 단정하지 않�
     if (pathname === "/api/v1/admin/refunds/failed") {
       await fulfillJson(
         route,
-        refundsAvailable ? EMPTY_CURSOR_PAGE : temporaryError,
+        refundsAvailable ? EMPTY_CURSOR_PAGE : TEMPORARY_ERROR,
         refundsAvailable ? 200 : 503,
       );
       return;
@@ -192,16 +191,13 @@ test("예약 슬롯과 소셜 본인 확인 선택기는 조회 실패 후 수�
     if (pathname === "/api/v1/classes") {
       await fulfillJson(
         route,
-        publicClassesAvailable ? [] : temporaryError,
+        publicClassesAvailable ? [] : TEMPORARY_ERROR,
         publicClassesAvailable ? 200 : 503,
       );
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms" },
-        privacy: { version: "2026-07", documentPath: "/privacy" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
       return;
     }
 
@@ -233,7 +229,7 @@ test("@identity 소셜 provider 조회 실패 중에는 동작하지 않는 step
     if (pathname === "/api/v1/me/social-accounts") {
       await fulfillJson(
         route,
-        providersAvailable ? { linkedProviders: ["GOOGLE"] } : temporaryError,
+        providersAvailable ? { linkedProviders: ["GOOGLE"] } : TEMPORARY_ERROR,
         providersAvailable ? 200 : 503,
       );
       return;

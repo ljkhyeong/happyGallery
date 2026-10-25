@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { classFixture, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+} from "./mock-support";
 
 test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 않고 새 세션에서 선택을 확인한다", async ({
   baseURL,
@@ -68,14 +76,11 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
       return;
     }
     if (pathname === "/api/v1/me/passes/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-        privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-      });
+      await fulfillJson(route, currentPoliciesFixture());
       return;
     }
 
@@ -157,14 +162,11 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
       return;
     }
     if (pathname === "/api/v1/me/passes/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
 

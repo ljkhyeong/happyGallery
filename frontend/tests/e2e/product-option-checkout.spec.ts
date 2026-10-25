@@ -2,7 +2,17 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import {
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  orderPolicyFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -42,10 +52,8 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
     if (await fulfillMemberCommon(route, { member: account })) return;
     if (pathname === "/api/v1/products/80") return fulfillJson(route, product);
     if (pathname === "/api/v1/products") return fulfillJson(route, [product]);
-    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
-      shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
-    });
-    if (pathname.endsWith("/qna/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture({ madeToOrderConsentText: "주문제작 조건에 동의합니다." }));
+    if (pathname.endsWith("/qna/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (pathname.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
     return fulfillJson(route, []);
   });
@@ -58,10 +66,7 @@ async function mockGuestCheckout(page: Page) {
   const prepared: unknown[] = [];
   await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
-  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
-    terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-    privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-  }));
+  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, currentPoliciesFixture()));
   await page.route("**/api/v1/payments/prepare", async (route) => {
     prepared.push(route.request().postDataJSON());
     return fulfillJson(route, { code: "INVALID_INPUT", message: "요청 확인용 응답" }, 400);
@@ -312,10 +317,7 @@ test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 �
   const prepared: unknown[] = [];
   await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
-  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
-    terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-    privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-  }));
+  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, currentPoliciesFixture()));
   await page.route("**/api/v1/payments/prepare", async (route) => {
     prepared.push(route.request().postDataJSON());
     return fulfillJson(route, { orderId: "option-order", amount: 27000, context: "ORDER", statusToken: "option-status" });
@@ -434,7 +436,7 @@ test("@payment 회원 다건 담기는 한 요청을 보내고 응답 실패 뒤
   await page.route("**/api/v1/me/cart/merge", async (route) => {
     requests.push(route.request().postDataJSON());
     return requests.length === 1
-      ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      ? fulfillJson(route, TEMPORARY_ERROR, 503)
       : route.fulfill({ status: 204 });
   });
   const color = page.getByRole("combobox", { name: /색상/ });

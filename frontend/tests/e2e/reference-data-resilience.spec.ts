@@ -5,16 +5,19 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  TEMPORARY_ERROR,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-const temporaryError = {
-  code: "SERVICE_UNAVAILABLE",
-  message: "잠시 후 다시 시도해 주세요.",
-};
 
 const workshop = {
   name: "해피갤러리",
@@ -25,7 +28,7 @@ const workshop = {
 
 test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문서 요청에서 복구한다", async ({ page }) => {
   await replaceSsrUpstreamFixtures({
-    ...ssrApiFixture("/workshop", temporaryError),
+    ...ssrApiFixture("/workshop", TEMPORARY_ERROR),
     status: 503,
   });
 
@@ -33,7 +36,7 @@ test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문�
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -59,7 +62,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/products", []),
     {
-      ...ssrApiFixture("/products/categories", temporaryError),
+      ...ssrApiFixture("/products/categories", TEMPORARY_ERROR),
       status: 503,
     },
   );
@@ -68,7 +71,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -88,7 +91,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
       await fulfillJson(
         route,
         policyAttempts <= 2
-          ? temporaryError
+          ? TEMPORARY_ERROR
           : { totalPrice: 240000, totalCredits: 4, validityDays: 45 },
         policyAttempts <= 2 ? 503 : 200,
       );
@@ -132,7 +135,7 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
       unreadAttempts += 1;
       await fulfillJson(
         route,
-        unreadAttempts <= 2 ? temporaryError : { count: 3 },
+        unreadAttempts <= 2 ? TEMPORARY_ERROR : { count: 3 },
         unreadAttempts <= 2 ? 503 : 200,
       );
       return;
@@ -176,10 +179,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
       member: memberFixture({ id: 104, email: "pass-intent@example.com", name: "이용권 의도 회원" }),
     })) return;
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms" },
-        privacy: { version: "2026-07", documentPath: "/privacy" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
       return;
     }
     if (pathname === "/api/v1/classes") {
@@ -203,7 +203,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
       await fulfillJson(
         route,
         passAttempts <= 3
-          ? temporaryError
+          ? TEMPORARY_ERROR
           : {
               content: [{
                 expiresAt: "2099-12-31T00:00:00",
@@ -254,10 +254,7 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
       member: memberFixture({ id: 106, email: "pass-class-switch@example.com", name: "이용권 클래스 전환 회원" }),
     })) return;
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms" },
-        privacy: { version: "2026-07", documentPath: "/privacy" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
       return;
     }
     if (pathname === "/api/v1/classes") {

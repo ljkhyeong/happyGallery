@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, seedAdminSession } from "./mock-support";
+import { fulfillJson, seedAdminSession, UNAUTHORIZED_ERROR } from "./mock-support";
 
 test("관리자는 재입고 대기 인원을 페이지로 확인하고 재고 관리로 이동한다", async ({ page }) => {
   await seedAdminSession(page);
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (url.pathname === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (url.pathname === "/api/v1/admin/restock-demand") {
       const pageNumber = Number(url.searchParams.get("page") ?? 0);
       return fulfillJson(route, { content: [{ productId: pageNumber ? 43 : 42, productName: pageNumber ? "두번째 상품" : "레진 키링",

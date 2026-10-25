@@ -6,7 +6,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { classFixture } from "./mock-support";
+import { classFixture, UNAUTHORIZED_ERROR } from "./mock-support";
 
 const resin = classFixture({
   id: 61, name: "레진 키링 원데이", category: "RESIN", price: 42000, situationTags: ["DATE", "FRIENDS"],
@@ -30,7 +30,7 @@ test.afterEach(async () => {
 test("홈 상황별 바로가기와 클래스 목록 상황 필터가 태그·주말 일정으로 거르고 새로고침에도 유지된다", async ({ page }) => {
   await replaceSsrUpstreamFixtures(
     ...homeSsrFixtures({ workshop: { name: "해피갤러리" }, classes: [resin, upcycling] }),
-    { ...ssrApiFixture("/me", { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }), status: 401 },
+    { ...ssrApiFixture("/me", UNAUTHORIZED_ERROR), status: 401 },
     // 2099-01-05(월) 기준: 레진은 수요일, 양말목은 이번 주 토요일에만 자리가 있다.
     slotsFixture(61, [slot(801, 61, "2099-01-07T10:00:00")]),
     slotsFixture(62, [slot(802, 62, "2099-01-10T10:00:00")]),

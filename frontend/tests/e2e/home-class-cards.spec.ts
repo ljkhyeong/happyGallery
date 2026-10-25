@@ -5,7 +5,15 @@ import {
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  orderPolicyFixture,
+} from "./mock-support";
 
 const leather = classFixture({ id: 41, name: "가죽 카드지갑 정규", durationMin: 120, passEligible: true });
 const resin = classFixture({ id: 42, name: "레진아트 원데이", category: "RESIN", price: 42000, passEligible: false });
@@ -44,18 +52,15 @@ test("홈 클래스 카드는 마감 일정을 건너뛴 다음 수업과 남은
     }
     if (await fulfillMemberCommon(route, { member: memberFixture({ id: 601, email: "quick@example.com" }) })) return;
     switch (url.pathname) {
-      case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/passes/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
       case "/api/v1/me/vacancy-alerts": return fulfillJson(route, []);
-      case "/api/v1/policies/current": return fulfillJson(route, {
-        terms: { version: "2026-09", documentPath: "/terms" },
-        privacy: { version: "2026-09", documentPath: "/privacy" },
-      });
+      case "/api/v1/policies/current": return fulfillJson(route, currentPoliciesFixture("2026-09", { terms: "/terms", privacy: "/privacy" }));
       case "/api/v1/classes": return fulfillJson(route, [leather, resin]);
       case "/api/v1/products":
       case "/api/v1/events":
       case "/api/v1/notices":
         return fulfillJson(route, []);
-      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000 });
+      case "/api/v1/orders/policy": return fulfillJson(route, orderPolicyFixture());
       case "/api/v1/slots/upcoming":
         return fulfillJson(route, slotsByClass[Number(url.searchParams.get("classId"))] ?? []);
       default:

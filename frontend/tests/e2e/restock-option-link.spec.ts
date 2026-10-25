@@ -3,7 +3,15 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, restockAlertFixture } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  orderPolicyFixture,
+  restockAlertFixture,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -59,9 +67,9 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
       }
       case "/api/v1/products/42": state.productReads += 1; return fulfillJson(route, product);
       case "/api/v1/products/42/qna/page":
-      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
       case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
-      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/orders/policy": return fulfillJson(route, orderPolicyFixture());
       default: throw new Error(`정의하지 않은 재입고 옵션 테스트 요청: ${request.method()} ${pathname}`);
     }
   });

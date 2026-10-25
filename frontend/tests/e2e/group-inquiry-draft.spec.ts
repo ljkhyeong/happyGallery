@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyGroupInquiryResponse } from "../../src/generated/api/customerStore";
-import { fulfillJson, fulfillMemberCommon, groupInquirySummaryFixture, memberFixture } from "./mock-support";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  groupInquirySummaryFixture,
+  memberFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 function inquiry(id: number, organization: string): MyGroupInquiryResponse {
   return {
@@ -32,14 +38,14 @@ async function mockInquiries(page: Page) {
       if (!detail) return fulfillJson(route, { code: "NOT_FOUND" }, 404);
       if (request.method() === "GET") {
         state.readCount += 1;
-        return state.failRead ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, detail);
+        return state.failRead ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, detail);
       }
       const body = request.postDataJSON();
       const action = match[2] ? "cancel" : "update";
       state.requests.push({ id, action, ...body });
       if (state.failWrite) {
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        return fulfillJson(route, TEMPORARY_ERROR, 503);
       }
       if (body.version !== detail.version) return fulfillJson(route, { code: "CONFLICT" }, 409);
       detail.version += 1;

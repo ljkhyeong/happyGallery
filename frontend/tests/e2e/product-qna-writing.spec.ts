@@ -2,7 +2,15 @@ import { expect, test, type Page } from "@playwright/test";
 import type { CreateQnaRequest, ProductQnaDetail } from "../../src/generated/api/productQna";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  orderPolicyFixture,
+  productDetailFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -29,7 +37,7 @@ async function mockQna(page: Page) {
         const accountId = state.accountId;
         state.requests.push({ accountId, body });
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        if (state.fail) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.fail) return fulfillJson(route, TEMPORARY_ERROR, 503);
         const row = { ...body, id: 91, userId: accountId, productId: 42, authorName: `회원${accountId}`,
           createdAt: "2026-09-12T10:00:00", repliedAt: "2026-09-12T11:00:00", replyContent: "첫 번째 답변\n두 번째 답변" };
         state.rows.push(row);
@@ -48,7 +56,7 @@ async function mockQna(page: Page) {
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/products/42": return route.fallback();
       case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
-      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/orders/policy": return fulfillJson(route, orderPolicyFixture());
       default: throw new Error(`정의하지 않은 상품 문의 작성 테스트 요청: ${request.method()} ${pathname}`);
     }
   });

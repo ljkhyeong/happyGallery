@@ -5,7 +5,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { classFixture } from "./mock-support";
+import { classFixture, UNAUTHORIZED_ERROR } from "./mock-support";
 
 const craftClass = classFixture({
   id: 41,
@@ -26,7 +26,7 @@ async function registerClasses(rows: ClassResponse[]) {
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/classes", rows),
     ssrApiFixture("/workshop", { name: "해피갤러리" }),
-    { ...ssrApiFixture("/me", { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }), status: 401 },
+    { ...ssrApiFixture("/me", UNAUTHORIZED_ERROR), status: 401 },
     ssrApiFixture("/payments/pass-policy", { totalPrice: 120000, totalCredits: 4, validityDays: 90 }),
   );
 }

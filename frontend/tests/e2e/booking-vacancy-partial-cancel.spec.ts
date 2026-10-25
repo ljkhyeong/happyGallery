@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   bookingCancelPolicyFixture,
   classFixture,
+  currentPoliciesFixture,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
@@ -62,10 +63,7 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
     await fulfillJson(route, []);
@@ -125,10 +123,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
     await fulfillJson(route, []);

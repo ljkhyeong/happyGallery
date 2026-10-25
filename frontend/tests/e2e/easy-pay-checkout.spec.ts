@@ -8,8 +8,11 @@ import {
   memberFixture,
   myBookingDetailFixture,
   orderDetailFixture,
+  orderPolicyFixture,
   readTossRequests,
+  TEMPORARY_ERROR,
   TOSS_REQUESTS_GLOBAL,
+  UNAUTHORIZED_ERROR,
 } from "./mock-support";
 
 async function openCheckout(page: Page, amount = 12000) {
@@ -34,7 +37,7 @@ async function openCheckout(page: Page, amount = 12000) {
     if (await fulfillMemberCommon(route, { member })) return;
     switch (pathname) {
       case "/api/v1/orders/policy":
-        return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의" });
+        return fulfillJson(route, orderPolicyFixture({ madeToOrderConsentText: "제작 동의" }));
       case "/api/v1/payments/prepare":
         prepares.push(route.request().postDataJSON());
         return fulfillJson(route, { orderId: "easy-pay-test", amount, context: "ORDER", statusToken: "payment-status" });
@@ -97,7 +100,7 @@ test("@payment 0원 확정 응답이 유실되면 새 결제 준비 없이 기�
   await page.route("**/api/v1/payments/easy-pay-test", async (route) => {
     statusReads += 1;
     if (statusReads === 1) {
-      return route.fulfill({ status: 503, json: { code: "SERVICE_UNAVAILABLE" } });
+      return route.fulfill({ status: 503, json: TEMPORARY_ERROR });
     }
     return fulfillJson(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
       domainId: 701, accessToken: null, accessRecoveryRequired: false, receiptUrl: null });
@@ -136,7 +139,7 @@ test("@payment 0원 완료 화면은 새로고침과 조회 재시도에 승인�
   await page.route("**/api/v1/payments/easy-pay-test", async (route) => {
     statusReads += 1;
     if (statusReads === 1) {
-      return route.fulfill({ status: 503, json: { code: "SERVICE_UNAVAILABLE" } });
+      return route.fulfill({ status: 503, json: TEMPORARY_ERROR });
     }
     return fulfillJson(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
       domainId: 701, accessToken: null, accessRecoveryRequired: false, receiptUrl: null });
@@ -175,7 +178,7 @@ test("@payment 비회원 유료 결제 완료를 새로고침하면 같은 소�
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") {
-      return route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } });
+      return route.fulfill({ status: 401, json: UNAUTHORIZED_ERROR });
     }
     if (pathname === "/api/v1/payments/confirm") {
       confirms.push(route.request().postDataJSON());
@@ -269,7 +272,7 @@ for (const checkout of [
       const { pathname } = new URL(route.request().url());
       if (pathname === "/api/v1/me") {
         return checkout.customerId === null
-          ? route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } })
+          ? route.fulfill({ status: 401, json: UNAUTHORIZED_ERROR })
           : fulfillJson(route, memberFixture({ id: checkout.customerId, name: "결제 테스트" }));
       }
       if (pathname.endsWith("/unread-count")) return fulfillJson(route, { count: 0 });

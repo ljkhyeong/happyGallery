@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
 } from "./mock-support";
 
@@ -38,10 +40,10 @@ test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다",
       }
       return fulfillJson(route, { version, shippingAddress: address });
     }
-    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/favorites") return fulfillJson(route, EMPTY_CURSOR_PAGE);
+    if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
-    if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture());
     return fulfillJson(route, []);
   });
   await page.goto("/my/shipping-address");

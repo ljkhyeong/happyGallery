@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { DefaultShippingAddressResponse, ShippingAddress } from "../../src/generated/api/customerStore";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture, TEMPORARY_ERROR } from "./mock-support";
 
 const originalAddress = {
   recipientName: "회원", phone: "01012345678", postalCode: "12345", addressLine1: "서울시 기존 주소 10", addressLine2: "101호",
@@ -28,12 +28,12 @@ async function mockAddress(page: Page) {
         const method = route.request().method();
         if (method === "GET") {
           state.readCount += 1;
-          return state.failRead ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, saved);
+          return state.failRead ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, saved);
         }
         const change = method === "PUT" ? route.request().postDataJSON() : { version: Number(searchParams.get("version")), shippingAddress: null };
         state.requests.push({ method, ...change });
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.failWrite) return fulfillJson(route, TEMPORARY_ERROR, 503);
         if (change.version !== saved.version) return fulfillJson(route, { code: "CONFLICT" }, 409);
         saved.version += 1;
         saved.shippingAddress = change.shippingAddress;

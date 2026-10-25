@@ -2,11 +2,13 @@ import { expect, test } from "@playwright/test";
 import type { RestockAlertResponseStatus } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
   restockAlertFixture,
 } from "./mock-support";
@@ -24,9 +26,9 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
     if (path === "/api/v1/products/42") return route.fallback();
     if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 1 });
     if (await fulfillMemberCommon(route, { member })) return;
-    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/favorites") return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path === "/api/v1/me/notifications") return fulfillJson(route, [{ id: 70, eventType: "PRODUCT_RESTOCK_AVAILABLE", aggregateType: "RESTOCK_ALERT", aggregateId: 901, read: true, readAt: "2026-09-05T10:00:00", deliveredAt: "2026-09-05T10:00:00" }]);
-    if (path === "/api/v1/me/group-inquiries") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/group-inquiries") return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path === "/api/v1/me/restock-alerts") {
       if (route.request().method() === "POST") {
         expect(route.request().postDataJSON()).toEqual({ productId: 42, productVariantId: null });
@@ -41,8 +43,8 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
       return route.fulfill({ status: 204 });
     }
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
-    if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+    if (path.endsWith("/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture());
     return fulfillJson(route, []);
   });
   await page.goto("/products/42");
@@ -74,10 +76,10 @@ test("휴대폰 인증이 없는 회원은 내 정보에서 번호를 등록한 
       return fulfillJson(route, member);
     }
     if (path === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { phone: "01055556666", verificationId: 801 });
-    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/favorites") return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
-    if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+    if (path.endsWith("/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture());
     return fulfillJson(route, []);
   });
 

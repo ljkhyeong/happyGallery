@@ -5,12 +5,14 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
   orderDetailFixture,
   orderItemFixture,
+  orderPolicyFixture,
   productDetailFixture,
   seedAdminSession,
 } from "./mock-support";
@@ -157,7 +159,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       return;
     }
     if (pathname === "/api/v1/admin/reviews") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/reviews/11" && request.method() === "GET") {
@@ -503,11 +505,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (pathname === "/api/v1/media/images/broken-review-image.png") {
@@ -550,7 +548,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     }
     if (pathname === "/api/v1/products/42/qna/page"
       || pathname === "/api/v1/me/products/42/qna/page") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -624,7 +622,7 @@ test("@smoke 작성 가능한 후기 이용 내역은 커서 다음 페이지까
       return;
     }
     if (pathname === "/api/v1/me/reviews") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -691,7 +689,7 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
 
     if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/reviews/opportunities") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/me/reviews/51/images/61" && request.method() === "GET") {

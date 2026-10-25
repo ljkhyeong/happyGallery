@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { CreateInquiryRequest, InquiryResponse } from "../../src/generated/api/customerStore";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture, TEMPORARY_ERROR } from "./mock-support";
 
 async function mockInquiries(page: Page) {
   const state = {
@@ -23,7 +23,7 @@ async function mockInquiries(page: Page) {
         const request = route.request().postDataJSON() as CreateInquiryRequest;
         state.requests.push(request);
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        if (state.fail) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.fail) return fulfillJson(route, TEMPORARY_ERROR, 503);
         const row: InquiryResponse = { ...request, id: state.requests.length,
           createdAt: "2026-09-12T10:00:00", hasReply: false, repliedAt: null, replyContent: null };
         rows.unshift(row);

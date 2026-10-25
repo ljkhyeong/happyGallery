@@ -6,11 +6,14 @@ import {
 } from "./ssr-upstream-fixture";
 import {
   classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
   seedAdminSession,
 } from "./mock-support";
@@ -146,11 +149,7 @@ test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함�
       return;
     }
     if (url.pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
 
@@ -222,7 +221,7 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
     }
     if (url.pathname === "/api/v1/guest-records/recovery/bookings") {
       observedTokens.push(request.headers()["x-access-token"] ?? "");
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -271,7 +270,7 @@ test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 
       return;
     }
     if (url.pathname === "/api/v1/admin/qna/unanswered") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (url.pathname === "/api/v1/admin/qna/page") {
@@ -313,7 +312,7 @@ test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 
       return;
     }
     if (url.pathname === "/api/v1/admin/inquiries") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (url.pathname === "/api/v1/admin/notices") {
@@ -392,10 +391,7 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
       return;
     }
     if (url.pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
 

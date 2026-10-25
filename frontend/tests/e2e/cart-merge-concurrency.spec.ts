@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { EMPTY_CART, fulfillMemberCommon, installCsrfCookie, memberFixture, WORKSHOP } from "./mock-support";
+import {
+  EMPTY_CART,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  UNAUTHORIZED_ERROR,
+  WORKSHOP,
+} from "./mock-support";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -31,7 +38,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     if (!authenticated) {
       await route.fulfill({
         status: 401,
-        json: { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
+        json: UNAUTHORIZED_ERROR,
       });
       return;
     }

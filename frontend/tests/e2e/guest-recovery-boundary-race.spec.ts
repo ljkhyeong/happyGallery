@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import { EMPTY_CURSOR_PAGE, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저장한 capability를 되돌린다", async ({
   baseURL,
@@ -71,7 +71,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
       || pathname === "/api/v1/guest-records/recovery/bookings"
     ) {
       recoveredPageReads += 1;
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 

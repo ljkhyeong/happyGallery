@@ -15,6 +15,8 @@ import type {
 } from "../../src/generated/api/customerStore";
 import type { MyCouponResponse, RewardWalletResponse } from "../../src/generated/api/memberBenefit";
 import type { UnreadCountResponse } from "../../src/generated/api/notification";
+import type { OrderPricePolicyResponse } from "../../src/generated/api/order";
+import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { PublicReviewPageResponse } from "../../src/generated/api/review";
 import type { WorkshopProfileResponse } from "../../src/generated/api/workshop";
@@ -24,6 +26,15 @@ export const ADMIN_TOKEN_KEY = "hg_admin_token";
 
 /** 값을 확인하지 않는 모의 관리자 API에 쓰는 기본 토큰 */
 export const MOCK_ADMIN_TOKEN = "e2e-admin-token";
+
+/** 로그인하지 않은 요청의 401 응답 본문. 화면 문구는 code 매핑(src/shared/lib/errorMessages.ts)이 정하므로 message는 단정에 쓰지 않는다. */
+export const UNAUTHORIZED_ERROR = { code: "UNAUTHORIZED", message: "로그인이 필요합니다." };
+
+/** 재시도하면 회복되는 일시 장애의 503 응답 본문. 화면 문구는 SERVICE_UNAVAILABLE 매핑이 정한다. */
+export const TEMPORARY_ERROR = { code: "SERVICE_UNAVAILABLE", message: "잠시 후 다시 시도해 주세요." };
+
+/** 항목이 없는 커서 페이지. 자원마다 생성 타입이 달라 타입을 붙이지 않는다. 공유 객체이므로 spec에서 수정하지 않는다. */
+export const EMPTY_CURSOR_PAGE = { content: [], nextCursor: null, hasMore: false };
 
 /** 빈 회원 장바구니의 cartVersion */
 export const EMPTY_CART_VERSION = "0".repeat(64);
@@ -75,7 +86,7 @@ export async function fulfillMemberCommon(
     case "/api/v1/me":
       if (member === undefined) return false;
       if (member === null) {
-        await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+        await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       } else {
         await fulfillJson(route, member);
       }
@@ -112,6 +123,35 @@ export const EMPTY_REVIEW_PAGE = {
     histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
   },
 } satisfies PublicReviewPageResponse;
+
+/** 배송비 3,000원과 2026-08 주문제작 동의 문구. 배송비·동의 문구·버전을 단정하는 spec은 그 값을 넘긴다. */
+export function orderPolicyFixture(overrides: Partial<OrderPricePolicyResponse> = {}): OrderPricePolicyResponse {
+  return {
+    shippingFee: 3000,
+    madeToOrderConsentVersion: "2026-08",
+    madeToOrderConsentText: "주문제작 동의",
+    ...overrides,
+  } satisfies OrderPricePolicyResponse;
+}
+
+/** 약관·개인정보 처리방침 두 문서에 각각 줄 값 */
+type PolicyDocumentValues = Record<keyof CurrentPolicyConsentResponse, string>;
+
+/**
+ * 현재 약관·개인정보 처리방침. 기본은 두 문서 모두 2026-07이고 문서 경로는 /terms/<버전>·/privacy/<버전>이다.
+ * 문서별 버전이 다르면 version을 { terms, privacy }로, 경로에 버전이 없으면 documentPaths를 넘긴다.
+ * policyAcceptance 버전을 단정하는 spec은 버전을 명시한다.
+ */
+export function currentPoliciesFixture(
+  version: string | PolicyDocumentValues = "2026-07",
+  documentPaths?: PolicyDocumentValues,
+): CurrentPolicyConsentResponse {
+  const versions = typeof version === "string" ? { terms: version, privacy: version } : version;
+  return {
+    terms: { version: versions.terms, documentPath: documentPaths?.terms ?? `/terms/${versions.terms}` },
+    privacy: { version: versions.privacy, documentPath: documentPaths?.privacy ?? `/privacy/${versions.privacy}` },
+  };
+}
 
 /** 옵션 없는 재고 작품 상세. 시나리오에 필요한 값만 overrides로 바꾼다. */
 export function productDetailFixture(overrides: Partial<ProductDetailResponse> = {}): ProductDetailResponse {

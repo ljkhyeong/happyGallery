@@ -6,6 +6,7 @@ import {
   installCsrfCookie,
   installTossRequestRecorder,
   memberFixture,
+  orderPolicyFixture,
   readTossRequests,
 } from "./mock-support";
 
@@ -88,11 +89,7 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (await fulfillMemberCommon(route, { member })) return;
@@ -201,11 +198,7 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (await fulfillMemberCommon(route, { member })) return;
@@ -271,10 +264,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000, madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentText: "주문제작 동의" }));
       return;
     }
     if (await fulfillMemberCommon(route, { member })) return;

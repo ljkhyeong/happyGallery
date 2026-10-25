@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { FavoriteResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { classFixture, EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import {
+  classFixture,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -31,11 +38,11 @@ async function mockFavorites(page: Page) {
       const target = pathname.split("/").slice(-2).join(":");
       const method = request.method();
       if (method === "GET") {
-        return state.failStatus ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, { saved: saved.has(target) });
+        return state.failStatus ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, { saved: saved.has(target) });
       }
       state.writes.push({ method, target, accountId: state.accountId });
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-      if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      if (state.failWrite) return fulfillJson(route, TEMPORARY_ERROR, 503);
       if (method === "PUT") saved.add(target);
       else if (method === "DELETE") saved.delete(target);
       else throw new Error(`지원하지 않는 찜 변경 요청: ${method}`);
@@ -51,7 +58,7 @@ async function mockFavorites(page: Page) {
         const type = searchParams.get("type");
         const cursor = searchParams.get("cursor");
         state.listReads.push({ type, cursor });
-        if (state.failList || (cursor && state.failNextPage)) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.failList || (cursor && state.failNextPage)) return fulfillJson(route, TEMPORARY_ERROR, 503);
         const rows = favorites.filter((item) => saved.has(`${item.targetType}:${item.targetId}`)
           && (!type || item.targetType === type));
         const hasMore = state.paginated && !cursor && rows.length > 1;

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, seedAdminSession } from "./mock-support";
+import { fulfillJson, seedAdminSession, UNAUTHORIZED_ERROR } from "./mock-support";
 
 test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제하면 목록에서 빠진다", async ({ page }) => {
   await seedAdminSession(page);
@@ -8,7 +8,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   const product = { id: 42, name: "재고 기준 작품", type: "READY_STOCK", category: null, price: 10000, status: "ACTIVE", quantity: 2, available: true, variants: [], optionGroups: [] };
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path === "/api/v1/admin/products") return fulfillJson(route, [product]);
     if (path === "/api/v1/admin/products/42/inventory-adjustments") return fulfillJson(route, []);

@@ -1,12 +1,14 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   groupInquirySummaryFixture,
   installCsrfCookie,
   memberFixture,
   seedAdminSession,
+  UNAUTHORIZED_ERROR,
 } from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
@@ -38,7 +40,7 @@ for (const member of [false, true]) {
       const path = new URL(route.request().url()).pathname;
       if (path === "/api/v1/workshop") return route.fallback();
       if (await fulfillMemberCommon(route, { member: account })) return;
-      if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      if (path === "/api/v1/me/favorites") return fulfillJson(route, EMPTY_CURSOR_PAGE);
       if (path === "/api/v1/me/group-inquiries/51") return fulfillJson(route, { summary, version: 1, changes: [] });
       if (path.endsWith("/group-inquiries")) {
         if (route.request().method() === "POST") {
@@ -49,7 +51,7 @@ for (const member of [false, true]) {
         }
         return fulfillJson(route, { content: submitted ? [summary] : [], hasMore: false, nextCursor: null });
       }
-      if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      if (path.endsWith("/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
       return fulfillJson(route, []);
     });
     await page.goto("/group-classes");
@@ -79,7 +81,7 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
   const detail = () => ({ summary: { ...summary, source: "EXTERNAL", status }, details, version, nextContactOn, activities });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path === "/api/v1/admin/group-inquiries") {
       if (route.request().method() === "POST") {

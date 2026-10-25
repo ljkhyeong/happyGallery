@@ -5,11 +5,13 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   memberFixture,
   navigateInApp,
+  orderPolicyFixture,
   productDetailFixture,
   seedAdminSession,
 } from "./mock-support";
@@ -57,11 +59,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {
@@ -199,7 +197,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
     }
     if (pathname === "/api/v1/admin/inquiries"
       || pathname === "/api/v1/admin/group-inquiries") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-inquiries/page") {

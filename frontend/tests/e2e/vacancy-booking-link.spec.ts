@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { PublicSlotResponse, VacancyAlertResponse } from "../../src/generated/api/booking";
 import type { NotificationResponse } from "../../src/generated/api/notification";
-import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+} from "./mock-support";
 
 const bookingClass = classFixture({ id: 42, name: "가죽 카드지갑", bufferMin: 10 });
 const notified: VacancyAlertResponse = {
@@ -66,13 +73,10 @@ async function mockVacancyFlow(page: Page) {
     if (await fulfillMemberCommon(route, { member: memberFixture({ email: "vacancy@example.com" }) })) return;
     switch (pathname) {
       case "/api/v1/me/notifications": return fulfillJson(route, [notification]);
-      case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/passes/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
       case "/api/v1/me/vacancy-alerts": return fulfillJson(route, state.alerts);
       case "/api/v1/classes": return fulfillJson(route, state.classes);
-      case "/api/v1/policies/current": return fulfillJson(route, {
-        terms: { version: "2026-09", documentPath: "/terms" },
-        privacy: { version: "2026-09", documentPath: "/privacy" },
-      });
+      case "/api/v1/policies/current": return fulfillJson(route, currentPoliciesFixture("2026-09", { terms: "/terms", privacy: "/privacy" }));
       case "/api/v1/slots/upcoming":
         state.slotReads += 1;
         return state.slotError

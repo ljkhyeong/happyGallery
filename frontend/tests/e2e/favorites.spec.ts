@@ -2,11 +2,13 @@ import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
   classFixture,
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
 } from "./mock-support";
 
@@ -41,9 +43,9 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
       }));
       return fulfillJson(route, { content: rows, nextCursor: null, hasMore: false });
     }
-    if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
-    if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture());
     return fulfillJson(route, []);
   });
   await page.goto("/products/42");

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { EMPTY_CURSOR_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 test("내 정보는 관리 화면을 열 때 해당 목록을 조회하고 이전 링크도 연결한다 @identity", async ({ page }) => {
   const requested: string[] = [];
@@ -8,7 +8,7 @@ test("내 정보는 관리 화면을 열 때 해당 목록을 조회하고 이�
     const path = new URL(route.request().url()).pathname;
     requested.push(path);
     if (await fulfillMemberCommon(route, { member })) return;
-    if (path === "/api/v1/me/favorites" || path === "/api/v1/me/group-inquiries") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/favorites" || path === "/api/v1/me/group-inquiries") return fulfillJson(route, EMPTY_CURSOR_PAGE);
     if (path === "/api/v1/me/default-shipping-address") return fulfillJson(route, { version: 0, shippingAddress: null });
     return fulfillJson(route, []);
   });

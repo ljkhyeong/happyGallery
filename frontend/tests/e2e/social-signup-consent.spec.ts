@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { TERMS_POLICY_VERSION, PRIVACY_POLICY_VERSION } from "../../src/features/policy-consent/policyVersions";
 import { clearSsrUpstreamFixtures, homeSsrFixtures, replaceSsrUpstreamFixtures } from "./ssr-upstream-fixture";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import {
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+} from "./mock-support";
 
 test.afterEach(async () => { await clearSsrUpstreamFixtures(); });
 
@@ -36,10 +42,7 @@ for (const provider of ["naver", "kakao", "google"] as const) {
           return fulfillJson(route, newMember);
         }
         if (await fulfillMemberCommon(route, { member: signedUp ? newMember : null })) return;
-        if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-          terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
-          privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
-        });
+        if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture({ terms: TERMS_POLICY_VERSION, privacy: PRIVACY_POLICY_VERSION }));
         return fulfillJson(route, []);
       });
       await page.goto(`/login?${new URLSearchParams({ redirect: "/?from=social" })}`);
@@ -73,10 +76,7 @@ for (const errorCode of ["SOCIAL_LOGIN_FAILED", "SOCIAL_PHONE_REQUIRED", "SOCIAL
       const { pathname } = new URL(route.request().url());
       if (pathname === "/api/v1/auth/social/signup-completion") return fulfillJson(route, { code: errorCode, message: "다시 로그인해 주세요." }, errorCode === "SOCIAL_LOGIN_FAILED" ? 401 : errorCode === "SOCIAL_ACCOUNT_LINK_REQUIRED" ? 409 : 422);
       if (await fulfillMemberCommon(route, { member: null })) return;
-      if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-        terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
-        privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
-      });
+      if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture({ terms: TERMS_POLICY_VERSION, privacy: PRIVACY_POLICY_VERSION }));
       return fulfillJson(route, []);
     });
     await page.goto("/auth/callback?signupAttempt=expired-attempt");

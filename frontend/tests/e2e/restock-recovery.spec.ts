@@ -3,7 +3,16 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, restockAlertFixture } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  orderPolicyFixture,
+  restockAlertFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -38,7 +47,7 @@ async function mockRestock(page: Page, { registered = false, withOptions = false
       const body = request.postDataJSON();
       state.writes.push({ method: request.method(), accountId: state.accountId, body, id });
       if (state.holdWrite) await new Promise<void>((resolve) => { state.release = resolve; });
-      if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      if (state.failWrite) return fulfillJson(route, TEMPORARY_ERROR, 503);
       if (request.method() === "POST") rows.push({ ...alert(901 + rows.length), productVariantId: body.productVariantId });
       else {
         const row = rows.find((item) => item.id === id)!;
@@ -52,13 +61,13 @@ async function mockRestock(page: Page, { registered = false, withOptions = false
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=restock-recovery; Path=/" }, json: {} });
-      case "/api/v1/me/restock-alerts": state.reads += 1; return state.failRead ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, rows);
+      case "/api/v1/me/restock-alerts": state.reads += 1; return state.failRead ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, rows);
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/products/42": return route.fallback();
       case "/api/v1/products/42/qna/page":
-      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
       case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
-      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/orders/policy": return fulfillJson(route, orderPolicyFixture());
       default: throw new Error(`정의하지 않은 재입고 복구 테스트 요청: ${request.method()} ${pathname}`);
     }
   });

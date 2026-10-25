@@ -7,11 +7,13 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
 } from "./mock-support";
 
@@ -159,11 +161,7 @@ test.afterEach(async () => {
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ shippingFee: 3000 }));
       return;
     }
     if (pathname === "/api/v1/products/52") {
@@ -171,7 +169,7 @@ test.afterEach(async () => {
       return;
     }
     if (pathname.endsWith("/qna/page")) {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/52/reviews") {

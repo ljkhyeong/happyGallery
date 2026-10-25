@@ -7,6 +7,7 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
@@ -14,22 +15,15 @@ import {
   memberFixture,
   orderDetailFixture,
   orderItemFixture,
+  orderPolicyFixture,
   productDetailFixture,
+  TEMPORARY_ERROR,
+  UNAUTHORIZED_ERROR,
 } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-const guestCustomerError = {
-  code: "UNAUTHORIZED",
-  message: "로그인이 필요합니다.",
-};
-
-const temporaryError = {
-  code: "SERVICE_UNAVAILABLE",
-  message: "잠시 후 다시 시도해 주세요.",
-};
 
 test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세션의 링크로 상태를 조회한다", async ({
   baseURL,
@@ -249,8 +243,8 @@ for (const scenario of [
       }
       if (pathname === "/api/v1/me") {
         return callbackStarted && !scenario.error
-          ? fulfillJson(route, temporaryError, 503)
-          : fulfillJson(route, guestCustomerError, 401);
+          ? fulfillJson(route, TEMPORARY_ERROR, 503)
+          : fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       }
       if (await fulfillMemberCommon(route)) return;
       return fulfillJson(route, []);
@@ -289,8 +283,8 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
       await fulfillJson(
         route,
         qnaAttempts <= 3
-          ? temporaryError
-          : { content: [], hasMore: false, nextCursor: null },
+          ? TEMPORARY_ERROR
+          : EMPTY_CURSOR_PAGE,
         qnaAttempts <= 3 ? 503 : 200,
       );
       return;
@@ -300,11 +294,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
     if (pathname === "/api/v1/products" || pathname === "/api/v1/classes") {
@@ -324,7 +314,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
 
   const homeFixtures = homeSsrFixtures({ workshop: { name: "해피갤러리" } })
     .map((fixture) => fixture.path === "/api/v1/notices"
-      ? { ...fixture, status: 503, json: temporaryError }
+      ? { ...fixture, status: 503, json: TEMPORARY_ERROR }
       : fixture);
   await replaceSsrUpstreamFixtures(...homeFixtures);
   await page.goto("/");
@@ -349,7 +339,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
 
     if (await fulfillMemberCommon(route, { member })) return;
     if (failingPaths.has(pathname)) {
-      await fulfillJson(route, temporaryError, 503);
+      await fulfillJson(route, TEMPORARY_ERROR, 503);
       return;
     }
     if (pathname === "/api/v1/me/social-accounts") {
@@ -365,7 +355,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
       return;
     }
     if (pathname === "/api/v1/me/inquiries/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -426,7 +416,7 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
       claimAttempts += 1;
       await fulfillJson(
         route,
-        claimAttempts <= 2 ? temporaryError : [],
+        claimAttempts <= 2 ? TEMPORARY_ERROR : [],
         claimAttempts <= 2 ? 503 : 200,
       );
       return;
@@ -586,7 +576,7 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
       return;
     }
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "DELETE") {
-      await fulfillJson(route, temporaryError, 503);
+      await fulfillJson(route, TEMPORARY_ERROR, 503);
       return;
     }
 
@@ -632,7 +622,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
     if (pathname === "/api/v1/me") {
       meAttempts += 1;
       if (meAttempts === 1) {
-        await fulfillJson(route, temporaryError, 503);
+        await fulfillJson(route, TEMPORARY_ERROR, 503);
         return;
       }
       await fulfillJson(route, memberFixture({ id: 103, email: "cart-resilience@example.com", name: "장바구니 복구 회원" }));
@@ -641,7 +631,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
     if (pathname === "/api/v1/me/cart" && request.method() === "GET") {
       cartAttempts += 1;
       if (cartAttempts <= 2) {
-        await fulfillJson(route, temporaryError, 503);
+        await fulfillJson(route, TEMPORARY_ERROR, 503);
         return;
       }
       await fulfillJson(route, {
@@ -672,23 +662,19 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
     if (pathname === "/api/v1/me/cart/items/42" && request.method() === "PUT") {
       updateAttempts += 1;
       await updateBlocked;
-      await fulfillJson(route, temporaryError, 503);
+      await fulfillJson(route, TEMPORARY_ERROR, 503);
       return;
     }
     if (pathname === "/api/v1/me/cart/items/42" && request.method() === "DELETE") {
       deleteAttempts += 1;
       await deleteBlocked;
-      await fulfillJson(route, temporaryError, 503);
+      await fulfillJson(route, TEMPORARY_ERROR, 503);
       return;
     }
     // /me와 장바구니는 위에서 실패 뒤 복구 순서로 응답했으므로 나머지 세션 조회만 공통 fixture로 처리한다.
     if (await fulfillMemberCommon(route)) return;
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
 

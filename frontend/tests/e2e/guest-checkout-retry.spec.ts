@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { classFixture, fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  fulfillJson,
+  installCsrfCookie,
+  orderPolicyFixture,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -13,19 +20,14 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+    if (pathname === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (pathname === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { verificationId: 1 });
-    if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-      terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-      privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-    });
+    if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture());
     if (pathname === "/api/v1/products") return fulfillJson(route, [{
       id: 42, name: "재인증 확인 작품", price: 12000, type: "READY_STOCK", status: "ACTIVE",
       available: true, stockQuantity: 10, variants: [], optionGroups: [], fulfillmentOptions: ["SHIPPING", "PICKUP"],
     }]);
-    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
-      shippingFee: 0, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의",
-    });
+    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture({ shippingFee: 0, madeToOrderConsentText: "제작 동의" }));
     if (pathname === "/api/v1/classes") return fulfillJson(route, [classFixture({ id: 42, name: "재인증 확인 수업", bufferMin: 0 })]);
     if (pathname === "/api/v1/slots/upcoming") return fulfillJson(route, [{
       id: 77, classId: 42, startAt: "2099-01-02T10:00:00", endAt: "2099-01-02T11:30:00",

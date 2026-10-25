@@ -3,6 +3,8 @@ import type { BookingDetailResponse } from "../../src/generated/api/booking";
 import {
   bookingCancelPolicyFixture,
   classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   memberFixture,
@@ -28,11 +30,8 @@ async function mockBookingFlow(page: Page, member: boolean, currentClasses = [bo
     }
     if (await fulfillMemberCommon(route, { member: account })) return;
     switch (pathname) {
-      case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-      case "/api/v1/policies/current": return fulfillJson(route, {
-        terms: { version: "2026-09", documentPath: "/terms" },
-        privacy: { version: "2026-09", documentPath: "/privacy" },
-      });
+      case "/api/v1/me/passes/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
+      case "/api/v1/policies/current": return fulfillJson(route, currentPoliciesFixture("2026-09", { terms: "/terms", privacy: "/privacy" }));
       case "/api/v1/me/bookings/7": return fulfillJson(route, myBookingDetailFixture({
         ...previousBooking, status: "COMPLETED", balanceStatus: "PAID",
       }));

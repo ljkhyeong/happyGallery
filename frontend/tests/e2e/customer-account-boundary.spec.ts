@@ -5,14 +5,18 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
   installCsrfCookie,
   installTossRequestRecorder,
   memberFixture,
+  orderPolicyFixture,
   productDetailFixture,
   readTossRequests,
+  UNAUTHORIZED_ERROR,
 } from "./mock-support";
 
 test.afterEach(async () => {
@@ -62,10 +66,7 @@ test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력
 
     if (pathname === "/api/v1/me") {
       await meRelease;
-      await fulfillJson(route, {
-        code: "UNAUTHORIZED",
-        message: "로그인이 필요합니다.",
-      }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/products/42") {
@@ -106,11 +107,7 @@ test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
     // /me는 위에서 지연 뒤 401로 응답하므로 나머지 세션 조회만 공통 fixture로 처리한다.
@@ -196,15 +193,11 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
     }
     if (pathname === "/api/v1/products/42/qna/page"
       || pathname === "/api/v1/me/products/42/qna/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
 
@@ -295,18 +288,11 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-        privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-      });
+      await fulfillJson(route, currentPoliciesFixture());
       return;
     }
 
@@ -378,10 +364,7 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
       meRequestCount += 1;
       if (meRequestCount === 1) {
         await firstMeRelease;
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
+        await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       } else if (failNextMe) {
         failNextMe = false;
         await fulfillJson(route, {
@@ -522,15 +505,11 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       pathname === "/api/v1/products/42/qna/page"
       || pathname === "/api/v1/me/products/42/qna/page"
     ) {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
 
@@ -640,7 +619,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       return;
     }
     if (pathname === "/api/v1/guest-records/recovery/bookings") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/701") {
@@ -966,18 +945,11 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-07",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentVersion: "2026-07" }));
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-        privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-      });
+      await fulfillJson(route, currentPoliciesFixture());
       return;
     }
 
