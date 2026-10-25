@@ -15,7 +15,6 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderTextInput;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
@@ -23,6 +22,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.policy.PolicyConsentService;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -229,7 +229,7 @@ class PaymentPrepareUseCaseTest {
         OrderItemRef requested = new OrderItemRef(
                 registered.product().getId(),
                 brownVariantId,
-                List.of(new OrderTextInput("engraving", "HAPPY")),
+                List.of(new TextInput("engraving", "HAPPY")),
                 2);
         OrderPayload payload = PaymentPayloads.order(
                 user.getId(), null, null, null,
@@ -246,7 +246,7 @@ class PaymentPrepareUseCaseTest {
                         user.getId(), null, null, null,
                         List.of(requested, new OrderItemRef(
                                 registered.product().getId(), brownVariantId,
-                                List.of(new OrderTextInput("engraving", "OTHER")), 1)),
+                                List.of(new TextInput("engraving", "OTHER")), 1)),
                         false, FulfillmentType.PICKUP, null,
                         MadeToOrderConsent.CURRENT_VERSION, true),
                 AuthContext.member(user.getId()))))

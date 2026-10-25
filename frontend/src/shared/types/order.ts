@@ -3,4 +3,4 @@ export type {
   OrderDetailResponse,
   OrderPricePolicyResponse,
 } from "@/generated/api/order";
-export type { OrderItemRef as OrderItemInput } from "@/generated/api/payment";
+export type { ProductSelectionRequest as OrderItemInput } from "@/generated/api/payment";

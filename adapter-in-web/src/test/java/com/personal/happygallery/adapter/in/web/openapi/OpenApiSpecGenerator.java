@@ -125,7 +125,7 @@ class OpenApiSpecGenerator {
                 "expectedCustomerId",
                 "idempotencyKey",
                 "items");
-        assertRequiredProperties(document, "MergeCartItemRequest", "productId", "qty");
+        assertRequiredProperties(document, "ProductSelectionRequest", "productId", "qty");
         assertRequiredProperties(document, "CartResponse", "items", "totalAmount", "cartVersion");
 
         assertRequiredProperties(
@@ -143,7 +143,6 @@ class OpenApiSpecGenerator {
                 "slotId",
                 "participantCount");
         assertRequiredProperties(document, "PassPayload", "type", "userId");
-        assertRequiredProperties(document, "OrderItemRef", "productId", "qty");
         assertRequiredProperties(
                 document,
                 "ShippingAddress",

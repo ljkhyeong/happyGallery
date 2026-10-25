@@ -5,7 +5,7 @@ import type {
   ProductDetailResponse,
   ProductVariantResponse,
 } from "@/generated/api/product";
-import type { OrderTextInput } from "@/generated/api/payment";
+import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { formatKRW } from "@/shared/lib";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
 import { productQuantityLimit, remainingAddableQuantity, remainingLineQuantity } from "./purchaseStock";
@@ -15,7 +15,7 @@ import { productSelectionView } from "./productSelectionView";
 export interface PurchaseLine {
   key: string;
   productVariantId: number;
-  textInputs: OrderTextInput[];
+  textInputs: ProductTextInputRequest[];
   qty: number;
 }
 

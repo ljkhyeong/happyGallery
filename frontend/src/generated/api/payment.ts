@@ -54,7 +54,7 @@ export const OrderPayloadFulfillmentType = {
   PICKUP: 'PICKUP',
 } as const;
 
-export interface OrderTextInput {
+export interface ProductTextInputRequest {
   /**
      * @minLength 1
      * @pattern ^[A-Za-z0-9_-]{1,64}$
@@ -67,7 +67,7 @@ export interface OrderTextInput {
   value?: string;
 }
 
-export interface OrderItemRef {
+export interface ProductSelectionRequest {
   productId: number;
   /** @nullable */
   productVariantId?: number | null;
@@ -80,7 +80,7 @@ export interface OrderItemRef {
      * @minItems 0
      * @maxItems 5
      */
-  textInputs?: OrderTextInput[];
+  textInputs?: ProductTextInputRequest[];
 }
 
 export interface PolicyAcceptanceRequest {
@@ -124,7 +124,7 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      * @minItems 0
      * @maxItems 100
      */
-  items: OrderItemRef[];
+  items: ProductSelectionRequest[];
   madeToOrderConsent: boolean;
   /** @nullable */
   madeToOrderConsentVersion?: string | null;

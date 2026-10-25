@@ -10,4 +10,4 @@ import java.util.UUID;
 public record MergeCartRequest(
         @NotNull @Positive Long expectedCustomerId,
         @NotNull UUID idempotencyKey,
-        @NotNull @Size(min = 1, max = 100) List<@NotNull @Valid MergeCartItemRequest> items) {}
+        @NotNull @Size(min = 1, max = 100) List<@NotNull @Valid ProductSelectionRequest> items) {}

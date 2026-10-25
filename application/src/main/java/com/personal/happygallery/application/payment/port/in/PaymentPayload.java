@@ -2,6 +2,7 @@ package com.personal.happygallery.application.payment.port.in;
 
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
@@ -57,15 +58,13 @@ public sealed interface PaymentPayload {
     record OrderItemRef(
             Long productId,
             Long productVariantId,
-            List<OrderTextInput> textInputs,
+            List<TextInput> textInputs,
             int qty
     ) {
         public OrderItemRef {
             textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
         }
     }
-
-    record OrderTextInput(String groupKey, String value) {}
 
     /**
      * 예약 결제 payload. 회원 이용권 사용 시 {@code passId}만 세팅(amount=0).

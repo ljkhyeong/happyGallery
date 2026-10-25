@@ -4265,34 +4265,6 @@
         "required" : [ "content", "contentRevision", "createdAt", "edited", "editedAt", "helpfulCount", "hiddenReason", "id", "images", "officialReply", "rating", "sourceId", "sourceType", "status", "targetId", "targetName", "targetType", "updatedAt", "verifiedTransaction" ],
         "type" : "object"
       },
-      "MergeCartItemRequest" : {
-        "properties" : {
-          "productId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "productVariantId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
-          "qty" : {
-            "format" : "int32",
-            "maximum" : 99,
-            "minimum" : 1,
-            "type" : "integer"
-          },
-          "textInputs" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductTextInputRequest"
-            },
-            "maxItems" : 5,
-            "minItems" : 0,
-            "type" : "array"
-          }
-        },
-        "required" : [ "productId", "qty" ],
-        "type" : "object"
-      },
       "MergeCartRequest" : {
         "properties" : {
           "expectedCustomerId" : {
@@ -4305,7 +4277,7 @@
           },
           "items" : {
             "items" : {
-              "$ref" : "#/components/schemas/MergeCartItemRequest"
+              "$ref" : "#/components/schemas/ProductSelectionRequest"
             },
             "maxItems" : 100,
             "minItems" : 1,
@@ -5226,34 +5198,6 @@
         "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "couponStatus", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "receiptUrl", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
         "type" : "object"
       },
-      "OrderItemRef" : {
-        "properties" : {
-          "productId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "productVariantId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
-          "qty" : {
-            "format" : "int32",
-            "maximum" : 99,
-            "minimum" : 1,
-            "type" : "integer"
-          },
-          "textInputs" : {
-            "items" : {
-              "$ref" : "#/components/schemas/OrderTextInput"
-            },
-            "maxItems" : 5,
-            "minItems" : 0,
-            "type" : "array"
-          }
-        },
-        "required" : [ "productId", "qty" ],
-        "type" : "object"
-      },
       "OrderOptionSnapshotResponse" : {
         "properties" : {
           "groupName" : {
@@ -5297,7 +5241,7 @@
             },
             "items" : {
               "items" : {
-                "$ref" : "#/components/schemas/OrderItemRef"
+                "$ref" : "#/components/schemas/ProductSelectionRequest"
               },
               "maxItems" : 100,
               "minItems" : 0,
@@ -5433,22 +5377,6 @@
           }
         },
         "required" : [ "createdAt", "orderId", "status", "totalAmount" ],
-        "type" : "object"
-      },
-      "OrderTextInput" : {
-        "properties" : {
-          "groupKey" : {
-            "minLength" : 1,
-            "pattern" : "^[A-Za-z0-9_-]{1,64}$",
-            "type" : "string"
-          },
-          "value" : {
-            "maxLength" : 200,
-            "minLength" : 0,
-            "type" : "string"
-          }
-        },
-        "required" : [ "groupKey" ],
         "type" : "object"
       },
       "PassPayload" : {
@@ -6212,6 +6140,34 @@
           }
         },
         "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "optionGroups", "price", "productionLeadDays", "quantity", "specification", "status", "type", "variants" ],
+        "type" : "object"
+      },
+      "ProductSelectionRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "qty" : {
+            "format" : "int32",
+            "maximum" : 99,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "textInputs" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductTextInputRequest"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "productId", "qty" ],
         "type" : "object"
       },
       "ProductTextInputRequest" : {

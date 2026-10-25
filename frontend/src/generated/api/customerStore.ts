@@ -144,7 +144,7 @@ export interface ProductTextInputRequest {
   value?: string;
 }
 
-export interface MergeCartItemRequest {
+export interface ProductSelectionRequest {
   productId: number;
   /** @nullable */
   productVariantId?: number | null;
@@ -167,7 +167,7 @@ export interface MergeCartRequest {
      * @minItems 1
      * @maxItems 100
      */
-  items: MergeCartItemRequest[];
+  items: ProductSelectionRequest[];
 }
 
 export interface SavedShippingAddress {
