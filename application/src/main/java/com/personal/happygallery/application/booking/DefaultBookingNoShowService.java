@@ -1,12 +1,10 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.BookingNoShowUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingHistoryActor;
-import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -16,16 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class DefaultBookingNoShowService implements BookingNoShowUseCase {
 
-    private final BookingReaderPort bookingReader;
     private final BookingStorePort bookingStore;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
-    DefaultBookingNoShowService(BookingReaderPort bookingReader,
-                                BookingStorePort bookingStore,
+    DefaultBookingNoShowService(BookingStorePort bookingStore,
                                 BookingSupport bookingSupport,
                                 Clock clock) {
-        this.bookingReader = bookingReader;
         this.bookingStore = bookingStore;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
@@ -41,8 +36,7 @@ class DefaultBookingNoShowService implements BookingNoShowUseCase {
      */
     @Override
     public Booking markNoShow(Long bookingId, Long adminId) {
-        Booking booking = bookingReader.findById(bookingId)
-                .orElseThrow(NotFoundException.supplier("예약"));
+        Booking booking = bookingSupport.findById(bookingId);
 
         booking.markNoShow(LocalDateTime.now(clock));
         bookingSupport.recordHistory(booking, BookingHistoryAction.NO_SHOW,
