@@ -15,7 +15,7 @@ export function fetchClasses(): Promise<ClassResponse[]> {
   return listPublicClasses();
 }
 
-export function fetchUpcomingSlots(classId: number, days = 14): Promise<PublicSlotResponse[]> {
+export function fetchUpcomingSlots(classId: number, days: number): Promise<PublicSlotResponse[]> {
   return listUpcomingSlots({ classId, days, includeFull: true });
 }
 

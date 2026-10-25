@@ -1,6 +1,6 @@
-import { formatDate, formatDateTime, formatTime } from "@/shared/lib";
+import { formatDate, formatTime } from "@/shared/lib";
 import type { PublicSlotResponse } from "@/generated/api/booking";
-import { slotDayParts } from "./upcomingSlots";
+import { formatSlotEnd, slotDayParts } from "./upcomingSlots";
 
 interface Props {
   label: string;
@@ -44,14 +44,13 @@ export function BookingDateChips({ label, dates, activeDate, onSelect, isFull, d
   );
 }
 
-/** 위에서 고른 날짜의 회차만 보여 주므로 시간만 표시한다. 날짜는 보조기기용 숨김 텍스트로 붙이고, 다음 날 끝나는 수업만 종료 날짜를 보인다. */
+/** 위에서 고른 날짜의 회차만 보여 주므로 시간만 표시한다. 날짜는 보조기기용 숨김 텍스트로 붙인다. */
 export function BookingSlotTime({ slot }: { slot: Pick<PublicSlotResponse, "startAt" | "endAt"> }) {
-  const sameDay = slot.endAt.slice(0, 10) === slot.startAt.slice(0, 10);
   return (
     <span className="booking-slot-time">
       <span className="visually-hidden">{formatDate(slot.startAt)} </span>
       <b>{formatTime(slot.startAt)}</b>
-      <small> ~ {sameDay ? formatTime(slot.endAt) : formatDateTime(slot.endAt)}</small>
+      <small> ~ {formatSlotEnd(slot.startAt, slot.endAt)}</small>
     </span>
   );
 }

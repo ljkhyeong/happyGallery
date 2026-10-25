@@ -20,6 +20,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import type { SlotResponse } from "@/generated/api/adminCatalog";
+import { slotDates } from "@/features/booking-create/upcomingSlots";
 import {
   HalfHourDaySchedule,
   type HalfHourScheduleItem,
@@ -86,9 +87,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const managedSlots = useMemo(() => (slotsQuery.data ?? []).filter((slot) =>
     slot.bookedCount > 0 || !slot.adminActive,
   ), [slotsQuery.data]);
-  const scheduleDates = useMemo(() => Array.from(new Set(
-    managedSlots.map((slot) => slot.startAt.slice(0, 10)),
-  )).sort(), [managedSlots]);
+  const scheduleDates = useMemo(() => slotDates(managedSlots), [managedSlots]);
 
   const activeScheduleDate = scheduleDates.includes(scheduleDate)
     ? scheduleDate

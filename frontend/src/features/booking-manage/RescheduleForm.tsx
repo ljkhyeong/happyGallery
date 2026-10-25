@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
 import { BookingDateChips, BookingSlotTime } from "@/features/booking-create/BookingDateChips";
-import { isFewSeats, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import { isFewSeats, slotDates, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -78,11 +78,9 @@ export function RescheduleForm({
   const availableSlots = slots?.filter(
     (slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount,
   ) ?? [];
-  const availableDates = Array.from(new Set(
-    upcomingQuery.data
-      ?.filter((slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount)
-      .map((slot) => slot.startAt.slice(0, 10)) ?? [],
-  )).sort();
+  const availableDates = slotDates(
+    upcomingQuery.data?.filter((slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount),
+  );
   const selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId);
 
   return (

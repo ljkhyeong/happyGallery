@@ -5,6 +5,7 @@ import {
   classAcceptsPass,
   isFewSeats,
   publicClassesQuery,
+  slotDates,
   slotDayParts,
   UPCOMING_SLOT_DAYS,
   upcomingSlotsQuery,
@@ -103,12 +104,7 @@ export function SlotSelectionStep({
     refetchOnMount: initialSlotId != null ? "always" : true,
   });
 
-  const availableDates = useMemo(
-    () => Array.from(
-      new Set(upcomingSlots?.map((slot) => slot.startAt.slice(0, 10)) ?? []),
-    ).sort(),
-    [upcomingSlots],
-  );
+  const availableDates = useMemo(() => slotDates(upcomingSlots), [upcomingSlots]);
   const activeDate = availableDates.includes(date) ? date : (availableDates[0] ?? "");
   const openDates = useMemo(
     () => new Set(upcomingSlots?.filter((slot) => slot.remainingCapacity > 0)

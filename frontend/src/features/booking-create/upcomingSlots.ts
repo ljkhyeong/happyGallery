@@ -1,6 +1,6 @@
 import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { formatDateInput, formatTime, isPerfumeClassCategory, parseApiDateTime } from "@/shared/lib";
+import { formatDateInput, formatDateTime, formatTime, isPerfumeClassCategory, parseApiDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
 import { fetchClasses, fetchUpcomingSlots } from "./api";
 
@@ -46,6 +46,16 @@ export function slotDayParts(value: string): { month: string; day: string; weekd
 export function formatSlotStart(slot: Pick<PublicSlotResponse, "startAt">): string {
   const { month, day, weekday } = slotDayParts(slot.startAt);
   return `${month}/${day}(${weekday}) ${formatTime(slot.startAt)}`;
+}
+
+/** 종료 시각. 같은 날 끝나는 수업은 시각만, 다음 날 끝나는 수업은 종료 날짜까지 보여 준다. */
+export function formatSlotEnd(startAt: string, endAt: string): string {
+  return endAt.slice(0, 10) === startAt.slice(0, 10) ? formatTime(endAt) : formatDateTime(endAt);
+}
+
+/** 회차 목록의 시작 날짜(`YYYY-MM-DD`)를 중복 없이 오름차순으로 돌려준다. 날짜 칩과 일정 목록이 같은 계산을 쓴다. */
+export function slotDates(slots: readonly Pick<PublicSlotResponse, "startAt">[] | undefined): string[] {
+  return Array.from(new Set(slots?.map((slot) => slot.startAt.slice(0, 10)) ?? [])).sort();
 }
 
 /** 남은 자리가 있는 회차를 시작 시각 순서로 돌려준다. */
