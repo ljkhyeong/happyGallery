@@ -11,11 +11,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 배송조회 등록의 선점과 결과 저장.
+ *
+ * <p>외부 등록 호출은 두 트랜잭션 사이에서 트랜잭션 없이 실행된다. 선점이 호출 전에 커밋되고 호출 중 잠금을
+ * 유지하지 않도록 {@code REQUIRES_NEW}를 사용한다(ADR-0013).
+ */
 @Service
 class ShipmentTrackingRegistrationTransactionService {
 
     static final int MAX_ATTEMPTS = 10;
-    private static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(5);
+    /** 처리 중(PROCESSING) 상태로 이 시간 이상 머문 등록은 중단된 것으로 보고 다시 후보로 삼는다. */
+    static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(5);
 
     private final FulfillmentPort fulfillmentPort;
 

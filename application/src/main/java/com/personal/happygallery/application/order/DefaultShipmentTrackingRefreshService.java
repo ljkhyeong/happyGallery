@@ -7,6 +7,7 @@ import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebho
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.KoreaPostTrackingLookup;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DefaultShipmentTrackingRefreshService implements ShipmentTrackingRefreshUseCase {
     private static final int BATCH_SIZE = 100;
+    /** 마지막 조회 뒤 이 시간이 지난 배송만 후보로 뽑고 선점한다. */
+    private static final Duration REFRESH_INTERVAL = Duration.ofMinutes(30);
     private final FulfillmentPort fulfillmentPort;
     private final KoreaPostTrackingLookup lookup;
     private final ShipmentTrackingRefreshTransactionService transactionService;
@@ -36,7 +39,8 @@ public class DefaultShipmentTrackingRefreshService implements ShipmentTrackingRe
             return BatchResult.successOnly(0);
         }
         return BatchExecutor.execute(
-                fulfillmentPort.findTrackingRefreshCandidateIds(LocalDateTime.now(clock).minusMinutes(30), BATCH_SIZE),
+                fulfillmentPort.findTrackingRefreshCandidateIds(
+                        LocalDateTime.now(clock).minus(REFRESH_INTERVAL), BATCH_SIZE),
                 id -> id,
                 this::refresh,
                 "우체국 배송조회");
@@ -44,7 +48,7 @@ public class DefaultShipmentTrackingRefreshService implements ShipmentTrackingRe
 
     private boolean refresh(Long fulfillmentId) {
         LocalDateTime now = LocalDateTime.now(clock);
-        return transactionService.claim(fulfillmentId, now, now.minusMinutes(30))
+        return transactionService.claim(fulfillmentId, now, now.minus(REFRESH_INTERVAL))
                 .flatMap(target -> lookup.lookup(target.orderId(), target.trackingNumber()))
                 .map(update -> {
                     trackingUpdates.apply(List.of(update));

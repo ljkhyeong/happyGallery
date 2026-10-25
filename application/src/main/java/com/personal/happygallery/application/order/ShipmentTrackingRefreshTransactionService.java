@@ -7,14 +7,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ShipmentTrackingRefreshTransactionService {
+class ShipmentTrackingRefreshTransactionService {
     private final FulfillmentPort fulfillmentPort;
 
-    public ShipmentTrackingRefreshTransactionService(FulfillmentPort fulfillmentPort) {
+    ShipmentTrackingRefreshTransactionService(FulfillmentPort fulfillmentPort) {
         this.fulfillmentPort = fulfillmentPort;
     }
 
-    public record Target(Long orderId, String trackingNumber) {}
+    record Target(Long orderId, String trackingNumber) {}
 
     @Transactional
     public Optional<Target> claim(Long id, LocalDateTime now, LocalDateTime checkedBefore) {
