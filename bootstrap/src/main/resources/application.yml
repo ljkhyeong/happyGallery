@@ -108,6 +108,7 @@ spring:
         connectTimeout: ${DB_CONNECT_TIMEOUT_MS:2000}
         socketTimeout: ${DB_SOCKET_TIMEOUT_MS:5000}
   lifecycle:
+    # Boot 기본값과 같지만 ADR-0025의 종료 대기 결정이므로 명시한다.
     timeout-per-shutdown-phase: 30s
   profiles:
     default: local
@@ -149,6 +150,7 @@ spring:
         size: ${BATCH_SCHEDULER_POOL_SIZE:4}
       thread-name-prefix: batch-
       shutdown:
+        # Boot 기본값과 같지만 ADR-0025의 스케줄러 즉시 종료 결정이므로 명시한다.
         await-termination: false
 
 mybatis:
@@ -183,6 +185,12 @@ app:
       site-key: ${TURNSTILE_SITE_KEY:}
       secret-key: ${TURNSTILE_SECRET_KEY:}
       hostname: ${TURNSTILE_HOSTNAME:happy-gallery.com}
+      http:
+        timeout: 5s
+        connect-timeout: 1s
+        acquire-timeout: 500ms
+        max-connections: 5
+        keep-alive: 30s
     notification:
       # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
       timeout: ${NOTIFICATION_TIMEOUT_MILLIS:5000}ms
@@ -400,6 +408,7 @@ management:
       show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:never}
   info:
     git:
+      # git.properties를 만들지 않아 지금은 영향이 없지만, info 노출 시 git 정보가 붙지 않게 막는 방어 설정이다.
       enabled: false
   metrics:
     tags:
@@ -412,9 +421,11 @@ management:
 sentry:
   dsn: ${SENTRY_DSN:}
   environment: ${SENTRY_ENVIRONMENT:local}
-  release: ${SENTRY_RELEASE:happygallery@${project.version:unknown}}
+  # Gradle은 리소스 placeholder를 치환하지 않는다. 운영은 ConfigMap의 SENTRY_RELEASE(happygallery@<이미지 태그>)를 주입한다.
+  release: ${SENTRY_RELEASE:happygallery@local}
   traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.1}
   context-tags:
     - requestId
+  # SDK 기본값과 같지만 ADR-0028의 PII 전송 금지 결정이므로 명시한다.
   send-default-pii: false
   exception-resolver-order: 2147483647
