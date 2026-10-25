@@ -19,19 +19,18 @@ import {
   ToastProvider,
 } from "@/shared/ui";
 import { CspNonceContext } from "@/shared/seo/CspJsonLd";
-import { DEFAULT_SEO_DESCRIPTION } from "@/shared/seo/metadata";
+import { DEFAULT_SEO_DESCRIPTION, DEFAULT_SEO_TITLE, SITE_NAME } from "@/shared/seo/metadata";
 import "@/styles/global.scss";
 
-const DEFAULT_TITLE = "해피갤러리 | 충주 공예 클래스와 핸드메이드 공방";
 // Styles are host-allowlisted; browsers hide link nonces and would report a hydration mismatch.
 const LINK_NONCE_DISABLED = "";
 
 export function meta() {
   return [
-    { title: DEFAULT_TITLE },
+    { title: DEFAULT_SEO_TITLE },
     { name: "description", content: DEFAULT_SEO_DESCRIPTION },
     { property: "og:locale", content: "ko_KR" },
-    { property: "og:site_name", content: "해피갤러리" },
+    { property: "og:site_name", content: SITE_NAME },
     { name: "twitter:card", content: "summary_large_image" },
   ];
 }

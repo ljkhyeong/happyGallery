@@ -6,6 +6,7 @@ import {
   buildSeoMeta,
   buildWebPageJsonLd,
   seoDescription,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadEvent, loadProduct, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
@@ -27,12 +28,21 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 }
 
+/** meta와 화면이 같은 주소·제목·설명을 쓴다. */
+function seo({ event }: Route.ComponentProps["loaderData"]) {
+  return {
+    pathname: `/events/${event.id}`,
+    title: siteTitle(event.title),
+    description: seoDescription(event.summary, FALLBACK_DESCRIPTION),
+  };
+}
+
 export function meta({ loaderData, params }: Route.MetaArgs) {
-  const pathname = `/events/${params.id ?? ""}`;
-  const title = loaderData ? `${loaderData.event.title} | 해피갤러리` : "이벤트를 찾을 수 없습니다 | 해피갤러리";
-  const description = loaderData
-    ? seoDescription(loaderData.event.summary, FALLBACK_DESCRIPTION)
-    : FALLBACK_DESCRIPTION;
+  const { pathname, title, description } = loaderData ? seo(loaderData) : {
+    pathname: `/events/${params.id ?? ""}`,
+    title: siteTitle("이벤트를 찾을 수 없습니다"),
+    description: FALLBACK_DESCRIPTION,
+  };
 
   return buildSeoMeta({
     title,
@@ -44,15 +54,12 @@ export function meta({ loaderData, params }: Route.MetaArgs) {
 }
 
 export default function EventDetailRoute({ loaderData }: Route.ComponentProps) {
-  const pathname = `/events/${loaderData.event.id}`;
-  const title = `${loaderData.event.title} | 해피갤러리`;
-  const description = seoDescription(loaderData.event.summary, FALLBACK_DESCRIPTION);
+  const { pathname, title, description } = seo(loaderData);
   return (
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd(pathname, title, description),
         buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
           { name: "이벤트", pathname: "/events" },
           { name: loaderData.event.title, pathname },
         ]),

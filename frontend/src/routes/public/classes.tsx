@@ -6,11 +6,12 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadClasses } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "충주 공예 원데이클래스 | 해피갤러리";
+const TITLE = siteTitle("충주 공예 원데이클래스");
 const DESCRIPTION = "충주 해피갤러리의 가죽공예·레진아트·위빙 등 공예 수업과 가격, 예약할 수 있는 일정입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -21,7 +22,7 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
   // 일정·상황·4회권 조건으로 들어오면 제목만 조건에 맞춘다. 대표 주소는 /classes 하나다.
   const { documentName } = classListHeading(readClassListFilters(new URLSearchParams(location.search)));
   return buildSeoMeta({
-    title: documentName ? `${documentName} | 해피갤러리` : TITLE,
+    title: documentName ? siteTitle(documentName) : TITLE,
     description: DESCRIPTION,
     pathname: "/classes",
     image: leatherClass,
@@ -34,10 +35,7 @@ export default function ClassesRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd("/classes", TITLE, DESCRIPTION, "CollectionPage"),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "클래스", pathname: "/classes" },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "클래스", pathname: "/classes" }]),
       ]} />
       <ClassListPage initialClasses={loaderData.classes} />
     </>

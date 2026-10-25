@@ -6,6 +6,7 @@ import {
   buildSeoMeta,
   buildWebPageJsonLd,
   seoDescription,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { buildProductJsonLd } from "@/shared/seo/schemas";
 import { loadProduct, requirePublicId } from "@/shared/seo/serverApi.server";
@@ -18,12 +19,21 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return { product: await loadProduct(productId, request.signal) };
 }
 
+/** meta와 화면이 같은 주소·제목·설명을 쓴다. */
+function seo({ product }: Route.ComponentProps["loaderData"]) {
+  return {
+    pathname: `/products/${product.id}`,
+    title: siteTitle(product.name),
+    description: seoDescription(product.description, FALLBACK_DESCRIPTION),
+  };
+}
+
 export function meta({ loaderData, params }: Route.MetaArgs) {
-  const pathname = `/products/${params.id ?? ""}`;
-  const title = loaderData ? `${loaderData.product.name} | 해피갤러리` : "작품을 찾을 수 없습니다 | 해피갤러리";
-  const description = loaderData
-    ? seoDescription(loaderData.product.description, FALLBACK_DESCRIPTION)
-    : FALLBACK_DESCRIPTION;
+  const { pathname, title, description } = loaderData ? seo(loaderData) : {
+    pathname: `/products/${params.id ?? ""}`,
+    title: siteTitle("작품을 찾을 수 없습니다"),
+    description: FALLBACK_DESCRIPTION,
+  };
   return buildSeoMeta({
     title,
     description,
@@ -35,15 +45,12 @@ export function meta({ loaderData, params }: Route.MetaArgs) {
 }
 
 export default function ProductDetailRoute({ loaderData }: Route.ComponentProps) {
-  const pathname = `/products/${loaderData.product.id}`;
-  const title = `${loaderData.product.name} | 해피갤러리`;
-  const description = seoDescription(loaderData.product.description, FALLBACK_DESCRIPTION);
+  const { pathname, title, description } = seo(loaderData);
   return (
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd(pathname, title, description),
         buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
           { name: "공방 작품", pathname: "/products" },
           { name: loaderData.product.name, pathname },
         ]),

@@ -5,10 +5,11 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "개인정보처리방침 | 해피갤러리";
+const TITLE = siteTitle("개인정보처리방침");
 const DESCRIPTION = "해피갤러리 개인정보처리방침입니다.";
 
 export function loader({ params }: Route.LoaderArgs) {
@@ -32,10 +33,7 @@ export default function PrivacyRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd(loaderData.pathname, TITLE, DESCRIPTION),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "개인정보처리방침", pathname: loaderData.pathname },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "개인정보처리방침", pathname: loaderData.pathname }]),
       ]} />
       <PolicyDocument />
     </>

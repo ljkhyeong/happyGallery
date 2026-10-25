@@ -1,10 +1,11 @@
 import { Container } from "react-bootstrap";
 import { Outlet } from "react-router";
+import { SITE_NAME } from "@/shared/seo/metadata";
 import { LoadingSpinner } from "@/shared/ui";
 
 export function meta() {
   return [
-    { title: "해피갤러리" },
+    { title: SITE_NAME },
     { name: "robots", content: "noindex,nofollow" },
   ];
 }
