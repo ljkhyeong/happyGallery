@@ -54,8 +54,9 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Transactional
     public ProductQna createQuestion(Long productId, Long userId, String title, String content,
                                      boolean secret) {
-        productReader.findById(productId)
-                .orElseThrow(NotFoundException.supplier("상품"));
+        if (!productReader.existsById(productId)) {
+            throw new NotFoundException("상품");
+        }
         return qnaStore.save(new ProductQna(productId, userId, title, content, secret));
     }
 

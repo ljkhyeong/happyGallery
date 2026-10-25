@@ -41,12 +41,13 @@ class ReviewEvidenceService {
         return capture(review, LocalDateTime.now(clock), null);
     }
 
+    /** 신고 처리 시점부터 보존 기간을 시작하고 저장된 증거를 돌려준다. */
     @Transactional(propagation = Propagation.MANDATORY)
-    void startResolvedReportRetention(Long snapshotId, LocalDateTime decidedAt) {
+    ReviewEvidenceSnapshot startResolvedReportRetention(Long snapshotId, LocalDateTime decidedAt) {
         ReviewEvidenceSnapshot snapshot = evidencePort.findById(snapshotId)
                 .orElseThrow(NotFoundException.supplier("후기 증거"));
         snapshot.startRetention(decidedAt.plus(RETENTION));
-        evidencePort.save(snapshot);
+        return evidencePort.save(snapshot);
     }
 
     private ReviewEvidenceSnapshot capture(
