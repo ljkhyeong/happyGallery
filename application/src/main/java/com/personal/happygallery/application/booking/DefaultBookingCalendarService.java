@@ -17,7 +17,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,7 +74,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         requireCalendarRange(dateFrom, dateTo);
         BookingCalendarPolicy.CalendarRules rules = calendarPolicy.rules(dateFrom, dateTo);
         List<CalendarDay> days = dateFrom.datesUntil(dateTo.plusDays(1))
-                .map(date -> toCalendarDay(date, rules, rules.overrides(), rules.blocks()))
+                .map(date -> toCalendarDay(date, rules))
                 .toList();
         return new CalendarView(rules.settings(), days);
     }
@@ -119,12 +118,8 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         refreshDate(classes, block.getDate());
     }
 
-    private CalendarDay toCalendarDay(
-            LocalDate date,
-            BookingCalendarPolicy.CalendarRules rules,
-            Map<LocalDate, BookingDayOverride> overrides,
-            Map<LocalDate, List<BookingTimeBlock>> blocks) {
-        BookingDayOverride override = overrides.get(date);
+    private CalendarDay toCalendarDay(LocalDate date, BookingCalendarPolicy.CalendarRules rules) {
+        BookingDayOverride override = rules.overrides().get(date);
         DayOverrideMode overrideMode = override == null
                 ? DayOverrideMode.DEFAULT
                 : override.getAvailability() == BookingDayAvailability.OPEN
@@ -136,7 +131,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
                 calendarPolicy.effectiveAvailability(date, rules),
                 overrideMode,
                 override == null ? null : override.getReason(),
-                blocks.getOrDefault(date, List.of()));
+                rules.blocks().getOrDefault(date, List.of()));
     }
 
     private List<BookingClass> lockAllClasses() {

@@ -52,6 +52,7 @@ class BookingCalendarSlotMaterializer {
                                    LocalDateTime rangeStart,
                                    LocalDateTime rangeEnd,
                                    boolean includeFull) {
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalDate dateFrom = rangeStart.toLocalDate();
         LocalDate dateTo = rangeEnd.minusNanos(1).toLocalDate();
         BookingCalendarPolicy.CalendarRules rules = calendarPolicy.rules(dateFrom, dateTo);
@@ -67,7 +68,7 @@ class BookingCalendarSlotMaterializer {
         Map<LocalDateTime, Slot> slotsByStart = new HashMap<>();
         existing.forEach(slot -> slotsByStart.put(slot.getStartAt(), slot));
         Set<LocalDateTime> starts = new HashSet<>(calendarPolicy.availableStarts(
-                bookingClass, dateFrom, dateTo, LocalDateTime.now(clock), rules));
+                bookingClass, dateFrom, dateTo, now, rules));
 
         for (LocalDateTime startAt : starts) {
             if (slotsByStart.containsKey(startAt)) continue;
@@ -86,7 +87,6 @@ class BookingCalendarSlotMaterializer {
         if (!changed.isEmpty()) {
             slotStorePort.saveAll(changed);
         }
-        LocalDateTime now = LocalDateTime.now(clock);
         return slotsByStart.values().stream()
                 .filter(slot -> slot.isReservableAt(now))
                 .filter(slot -> includeFull || !slot.isFull())
