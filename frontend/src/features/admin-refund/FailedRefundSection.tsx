@@ -10,7 +10,8 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatKRW, formatDateTime } from "@/shared/lib";
-import type { AdminRefundStatus, FailedRefundResponse } from "@/shared/types";
+import type { FailedRefundResponse } from "@/generated/api/adminOperations";
+import type { AdminRefundStatus } from "@/shared/types";
 import { queryKeys } from "@/shared/api";
 
 interface Props {

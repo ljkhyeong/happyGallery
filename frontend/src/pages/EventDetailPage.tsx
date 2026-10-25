@@ -7,7 +7,7 @@ import { EventPeriodText } from "@/features/event/EventPeriodText";
 import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
-import type { ProductDetailResponse } from "@/shared/types";
+import type { ProductDetailResponse } from "@/generated/api/product";
 import { ErrorAlert } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 

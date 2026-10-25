@@ -2,13 +2,13 @@ import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
 import { SearchBookingsStatus } from "@/generated/api/adminBooking";
+import type { AdminPassResponse } from "@/generated/api/adminOperations";
 import { SearchOrdersStatus } from "@/generated/api/adminOrder";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
   AdminBookingSearchRow,
   AdminOrderSearchRow,
-  AdminPassResponse,
   OffsetPage,
 } from "@/shared/types";
 import { AdminSearchPagination } from "./AdminSearchPagination";

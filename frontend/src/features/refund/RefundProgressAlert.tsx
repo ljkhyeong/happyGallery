@@ -1,7 +1,8 @@
 import { Alert } from "react-bootstrap";
 import { formatKRW } from "@/shared/lib";
 import { refundContent, refundCouponMessage, refundProgressLabel } from "./refundPresentation";
-import type { OrderDetailResponse, RefundProgress } from "@/shared/types";
+import type { OrderDetailResponse } from "@/generated/api/order";
+import type { RefundProgress } from "@/shared/types";
 
 interface Props {
   refund: RefundProgress | null;

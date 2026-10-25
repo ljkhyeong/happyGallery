@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { OrderDetailResponse } from "../../src/generated/api/customerStore";
+import type { OrderDetailResponse } from "../../src/generated/api/order";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,

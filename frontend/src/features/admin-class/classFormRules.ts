@@ -5,7 +5,7 @@ import {
   isClassSituationTag,
   isPerfumeClassCategory,
 } from "@/shared/lib";
-import type { ClassResponse } from "@/shared/types";
+import type { ClassResponse } from "@/generated/api/booking";
 import type { ClassCategoryValue } from "./classCategories";
 
 /** 클래스 등록·수정 폼이 함께 쓰는 소개 입력값 */

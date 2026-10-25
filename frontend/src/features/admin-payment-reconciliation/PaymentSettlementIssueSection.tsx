@@ -1,7 +1,7 @@
 import { Table } from "react-bootstrap";
 import { fetchPaymentSettlementIssues } from "./api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import type { PaymentSettlementIssueResponse } from "@/shared/types";
+import type { PaymentSettlementIssueResponse } from "@/generated/api/adminOperations";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";

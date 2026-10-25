@@ -8,7 +8,8 @@ import {
 } from "@/shared/api";
 import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import type { BookingCancelPolicy, CancelResponse } from "@/shared/types";
+import type { CancelResponse } from "@/generated/api/booking";
+import type { BookingCancelPolicy } from "@/shared/types";
 
 const PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE =
   "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE";

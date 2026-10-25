@@ -9,7 +9,8 @@ import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import type { InventoryAdjustmentType, ProductResponse } from "@/shared/types";
+import type { ProductResponse } from "@/generated/api/adminCatalog";
+import type { InventoryAdjustmentType } from "@/shared/types";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {

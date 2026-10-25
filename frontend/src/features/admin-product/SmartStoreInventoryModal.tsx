@@ -17,7 +17,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import type { ProductResponse } from "@/shared/types";
+import type { ProductResponse } from "@/generated/api/adminCatalog";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { OffsetPager } from "@/shared/ui/OffsetPager";
 

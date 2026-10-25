@@ -16,7 +16,7 @@ import type {
   OrderClaimStatus,
   OrderClaimType,
 } from "./types";
-import type { OrderDetailResponse } from "@/shared/types";
+import type { OrderDetailResponse } from "@/generated/api/order";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";

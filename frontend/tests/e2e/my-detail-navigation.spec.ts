@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { MyBookingDetailResponse, OrderDetailResponse } from "../../src/shared/types";
+import type { OrderDetailResponse } from "../../src/generated/api/order";
+import type { MyBookingDetailResponse } from "../../src/shared/types";
 import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const order = {

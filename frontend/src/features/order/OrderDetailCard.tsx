@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
 import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
-import type { OrderDetailResponse } from "@/shared/types";
+import type { OrderDetailResponse } from "@/generated/api/order";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";

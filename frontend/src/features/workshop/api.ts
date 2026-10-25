@@ -2,9 +2,10 @@ import {
   getAdminWorkshopProfile,
   getWorkshopProfile,
   updateAdminWorkshopProfile,
+  type UpdateWorkshopProfileRequest,
 } from "@/generated/api/workshop";
 import { adminHeaders } from "@/shared/api";
-import type { UpdateWorkshopProfileRequest, WorkshopProfile } from "@/shared/types";
+import type { WorkshopProfile } from "@/shared/types";
 
 export function fetchWorkshopProfile(): Promise<WorkshopProfile> {
   return getWorkshopProfile();

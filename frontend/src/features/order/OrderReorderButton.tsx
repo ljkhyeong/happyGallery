@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
 import { getProduct } from "@/generated/api/product";
-import type { OrderDetailResponse } from "@/generated/api/customerStore";
+import type { OrderDetailResponse } from "@/generated/api/order";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
 import { productSelectionView } from "@/features/product/productSelectionView";

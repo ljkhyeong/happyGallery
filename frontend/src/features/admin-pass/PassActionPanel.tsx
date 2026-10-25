@@ -30,7 +30,7 @@ import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 import { AdminSearchPagination } from "@/features/admin-search/AdminSearchPagination";
-import type { AdminPassResponse } from "@/shared/types";
+import type { AdminPassResponse } from "@/generated/api/adminOperations";
 import { queryKeys } from "@/shared/api";
 
 interface Props {

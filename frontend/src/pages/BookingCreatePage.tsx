@@ -26,7 +26,8 @@ import {
   ErrorAlert,
   PageHeader,
 } from "@/shared/ui";
-import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
+import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
+import type { DepositPaymentMethod } from "@/shared/types";
 
 type PaymentPath = "deposit" | "pass";
 

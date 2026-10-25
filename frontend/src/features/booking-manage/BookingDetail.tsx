@@ -1,5 +1,5 @@
 import { formatKRW } from "@/shared/lib";
-import type { BookingDetailResponse } from "@/shared/types";
+import type { BookingDetailResponse } from "@/generated/api/booking";
 import { BookingInfoCard } from "./BookingInfoCard";
 
 interface Props {

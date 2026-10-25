@@ -16,7 +16,7 @@ import {
   getClassCategoryLabel,
   formatDateInput,
 } from "@/shared/lib";
-import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
+import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";

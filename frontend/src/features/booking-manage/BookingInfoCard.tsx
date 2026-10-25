@@ -3,7 +3,7 @@ import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
 import { formatDateTime, formatTime } from "@/shared/lib";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
-import type { BookingDetailResponse } from "@/shared/types";
+import type { BookingDetailResponse } from "@/generated/api/booking";
 import { AddBookingToCalendarButton } from "./AddBookingToCalendarButton";
 
 interface Props {

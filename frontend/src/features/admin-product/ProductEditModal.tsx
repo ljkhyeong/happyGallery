@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { updateProduct } from "./api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
-import type { ProductResponse } from "@/shared/types";
+import type { ProductResponse } from "@/generated/api/adminCatalog";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { optionDraftsFromProduct, ProductOptionEditor } from "./ProductOptionEditor";
 import { invalidateProductQueries, isProductFormValid } from "./productFormRules";

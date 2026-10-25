@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchPaymentReconciliations, reconcilePayment } from "./api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import type { PaymentReconciliationRequiredResponse } from "@/shared/types";
+import type { PaymentReconciliationRequiredResponse } from "@/generated/api/adminOperations";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";

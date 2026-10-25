@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchFailedNotifications, retryNotification } from "./api";
 import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
-import type { FailedNotificationResponse } from "@/shared/types";
+import type { FailedNotificationResponse } from "@/generated/api/adminOperations";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";

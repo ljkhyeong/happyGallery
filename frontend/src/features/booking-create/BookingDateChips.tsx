@@ -1,5 +1,5 @@
 import { formatDate, formatDateTime, formatTime } from "@/shared/lib";
-import type { PublicSlotResponse } from "@/shared/types";
+import type { PublicSlotResponse } from "@/generated/api/booking";
 import { slotDayParts } from "./upcomingSlots";
 
 interface Props {

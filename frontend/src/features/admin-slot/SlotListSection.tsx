@@ -19,7 +19,7 @@ import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import type { SlotResponse } from "@/shared/types";
+import type { SlotResponse } from "@/generated/api/adminCatalog";
 import {
   HalfHourDaySchedule,
   type HalfHourScheduleItem,

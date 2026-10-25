@@ -1,5 +1,6 @@
 import { formatKRW } from "../../shared/lib/format.ts";
-import type { OrderDetailResponse, RefundProgress } from "../../shared/types/index.ts";
+import type { OrderDetailResponse } from "../../generated/api/order.ts";
+import type { RefundProgress } from "../../shared/types/index.ts";
 
 export function refundProgressLabel(status: RefundProgress["status"]): string {
   switch (status) {

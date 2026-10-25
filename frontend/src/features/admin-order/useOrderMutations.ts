@@ -9,7 +9,7 @@ import {
   setExpectedShipDate, expirePickups,
   prepareShipping, markShipped, markDelivered,
 } from "./api";
-import type { MarkPickupReadyRequest, MarkShippedRequest, SetExpectedShipDateRequest } from "@/shared/types";
+import type { MarkPickupReadyRequest, MarkShippedRequest, SetExpectedShipDateRequest } from "@/generated/api/adminOrder";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
 import { queryKeys } from "@/shared/api";
 

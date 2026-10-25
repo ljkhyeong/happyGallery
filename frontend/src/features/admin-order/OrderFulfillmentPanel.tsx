@@ -3,7 +3,7 @@ import { fetchOrderFulfillment } from "./api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDate, formatDateTime } from "@/shared/lib";
-import type { AdminOrderFulfillmentResponse } from "@/shared/types";
+import type { AdminOrderFulfillmentResponse } from "@/generated/api/adminOrder";
 import { ShipmentTrackingActions } from "@/features/order/ShipmentTrackingActions";
 import { queryKeys } from "@/shared/api";
 

@@ -6,7 +6,7 @@ import { fetchMyProductQnaDetail, fetchProductQnaDetail } from "./api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
-import type { ProductQnaListItem } from "@/shared/types";
+import type { ProductQnaListItem } from "@/generated/api/productQna";
 
 interface Props {
   item: ProductQnaListItem;

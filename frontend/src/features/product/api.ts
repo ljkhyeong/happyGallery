@@ -3,8 +3,8 @@ import {
   listProductCategories,
   listProducts,
   type ListProductsParams,
+  type ProductDetailResponse,
 } from "@/generated/api/product";
-import type { ProductDetailResponse } from "@/shared/types/product";
 
 export function fetchProducts(filters?: ListProductsParams): Promise<ProductDetailResponse[]> {
   return listProducts(filters);
