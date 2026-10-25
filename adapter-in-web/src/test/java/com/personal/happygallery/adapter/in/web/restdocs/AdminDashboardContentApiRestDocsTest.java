@@ -258,6 +258,12 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 GroupInquiry.Source.WEBSITE, 51L,
                 LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 6)), null, 20);
     }
+    @Test
+    @DisplayName("관리자 단체 문의 검색의 접수 번호가 양수가 아니면 잘못된 입력으로 거절한다")
+    void admin_group_inquiry_search_rejects_non_positive_id() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/group-inquiries").with(adminUser()).param("inquiryId", "0"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
 
     @Test
     @DisplayName("관리자에게 단체 문의의 연락처와 상담 이력을 제공한다")

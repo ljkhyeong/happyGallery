@@ -656,6 +656,9 @@ export interface SmartStoreSettlementSyncResponse {
 export type ListAdminGroupInquiriesParams = {
 status?: ListAdminGroupInquiriesStatus;
 source?: ListAdminGroupInquiriesSource;
+/**
+ * @exclusiveMinimum 0
+ */
 inquiryId?: number;
 from?: string;
 to?: string;

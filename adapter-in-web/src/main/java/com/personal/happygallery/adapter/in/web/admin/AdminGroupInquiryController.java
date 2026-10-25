@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.inquiry.GroupInquiry;
 import java.time.LocalDate;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +36,7 @@ public class AdminGroupInquiryController {
     @Operation(operationId = "listAdminGroupInquiries")
     public GroupInquiryPageResponse list(@RequestParam(required = false) GroupInquiryStatus status,
             @RequestParam(required = false) GroupInquiry.Source source,
-            @RequestParam(required = false) Long inquiryId,
+            @RequestParam(required = false) @Positive Long inquiryId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
             @RequestParam(required = false) String cursor, @RequestParam(defaultValue = "20") int size) {
