@@ -38,6 +38,12 @@ class OrderPaymentBenefitReservationService {
         this.attemptResolver = attemptResolver;
     }
 
+    /**
+     * prepare가 저장한 ORDER 결제 시도의 쿠폰·적립금을 예약한다.
+     *
+     * <p>호출자(prepare)가 같은 트랜잭션에서 회원 행을 이미 잠갔으므로 여기서 다시 잠그지 않는다.
+     * {@link #reservation}이 payload의 회원과 결제 시도 소유자가 같은 회원인지 확인한다.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     void reserve(PaymentAttempt attempt,
                  PreparedPaymentPayload payload,
@@ -46,7 +52,6 @@ class OrderPaymentBenefitReservationService {
         if (reservation == null) {
             return;
         }
-        memberAccountGuard.requireActiveForUpdate(reservation.userId());
         couponRedemptionUseCase.reserve(
                 reservation.pricing().issuedCouponId(), attempt.getId());
         rewardBenefitService.reserve(
