@@ -18,6 +18,7 @@ const MOVED_SECTIONS: Record<string, string> = {
 
 /**
  * 내 정보 화면 공통 틀. 로그인 확인·안내와 메뉴를 한곳에서 처리한다.
+ * 로그인 전에는 자식을 렌더링하지 않으므로 셸 아래 화면의 조회는 `enabled: isAuthenticated`로 다시 막지 않는다.
  * 데스크톱은 왼쪽 메뉴, 모바일은 홈에서 묶음 목록·하위 화면에서 가로 메뉴로 보여 준다.
  */
 export function MyShell({ children }: { children: ReactNode }) {

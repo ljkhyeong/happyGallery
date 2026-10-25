@@ -77,10 +77,9 @@ export function MyFavoritesSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedType = searchParams.get("type");
   const type = requestedType === "PRODUCT" || requestedType === "CLASS" ? requestedType : "";
-  const { isAuthenticated } = useCustomerAuth();
   const client = useQueryClient();
   const query = useInfiniteQuery({
-    queryKey: queryKeys.member.favorites.list(type), enabled: isAuthenticated,
+    queryKey: queryKeys.member.favorites.list(type),
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(() => listMyFavorites({ type: type || undefined, cursor: pageParam, size: 20 }, { signal })),
     ...cursorPageParams,
   });

@@ -2,21 +2,17 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { Badge } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, EmptyState, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
 import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 
 export function MyInquiriesPage() {
-  const { isAuthenticated } = useCustomerAuth();
-
   const inquiriesQuery = useInfiniteQuery({
     queryKey: queryKeys.member.inquiryHistory,
     queryFn: ({ pageParam, signal }) =>
       runForCurrentCustomer(() => fetchMyInquiriesPage(pageParam, signal)),
     ...cursorPageParams,
-    enabled: isAuthenticated,
   });
   const inquiries = flattenCursorPages(inquiriesQuery.data);
   const hasLoadedInquiries = inquiriesQuery.data !== undefined;

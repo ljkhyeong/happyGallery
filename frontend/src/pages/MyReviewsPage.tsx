@@ -1,5 +1,4 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { fetchMyReviews } from "@/features/review/api";
 import { MemberReviewCard } from "@/features/review/MemberReviewCard";
@@ -8,14 +7,12 @@ import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages 
 import { EmptyState, LoadingSpinner, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 
 export function MyReviewsPage() {
-  const { isAuthenticated } = useCustomerAuth();
   const reviewsQuery = useInfiniteQuery({
     queryKey: queryKeys.member.reviews.history,
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(
       () => fetchMyReviews(pageParam, signal),
     ),
     ...cursorPageParams,
-    enabled: isAuthenticated,
   });
   const reviews = flattenCursorPages(reviewsQuery.data);
 

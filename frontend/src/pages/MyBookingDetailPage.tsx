@@ -5,7 +5,6 @@ import { Card } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { myNavLabel } from "@/features/my/myNavigation";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
@@ -27,7 +26,6 @@ export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
   const validBookingId = isPositiveSafeIntegerString(id);
-  const { isAuthenticated } = useCustomerAuth();
   const queryClient = useQueryClient();
 
   const {
@@ -39,7 +37,7 @@ export function MyBookingDetailPage() {
   } = useQuery({
     queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => runForCurrentCustomer(() => fetchMyBooking(bookingId)),
-    enabled: isAuthenticated && validBookingId,
+    enabled: validBookingId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
 

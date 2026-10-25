@@ -4,7 +4,6 @@ import {
   type QueryKey,
   type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMyListFilters } from "./useMyListFilters";
@@ -52,7 +51,6 @@ export function useMyHistoryList<TPage extends HistoryPage, TStatus extends stri
   defaultSort,
   refetchInterval,
 }: Options<TPage, TStatus, TSort>) {
-  const { isAuthenticated } = useCustomerAuth();
   const filters = useMyListFilters({
     defaultSort,
     statusValues,
@@ -69,7 +67,6 @@ export function useMyHistoryList<TPage extends HistoryPage, TStatus extends stri
     queryFn: ({ pageParam, signal }): Promise<TPage> =>
       runForCurrentCustomer(() => fetchPage(pageParam, signal, requestFilters)),
     ...cursorPageParams,
-    enabled: isAuthenticated,
     refetchInterval,
   });
   return { filters, query, items: flattenCursorPages(query.data) };

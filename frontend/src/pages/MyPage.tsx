@@ -52,7 +52,6 @@ export function MyPage() {
   } = useQuery({
     queryKey: queryKeys.member.orders.all,
     queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyOrders(signal)),
-    enabled: isAuthenticated,
   });
 
   const {
@@ -64,7 +63,6 @@ export function MyPage() {
   } = useQuery({
     queryKey: queryKeys.member.bookings.all,
     queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyBookings(signal)),
-    enabled: isAuthenticated,
   });
 
   const {
@@ -76,7 +74,6 @@ export function MyPage() {
   } = useQuery({
     queryKey: queryKeys.member.passes,
     queryFn: ({ signal }) => runForCurrentCustomer(() => fetchRecentMyPasses(signal)),
-    enabled: isAuthenticated,
   });
 
   const orderCount = orders?.length;

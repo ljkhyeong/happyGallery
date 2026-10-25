@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import type { MyCouponResponse } from "@/features/coupon/api";
 import { couponConditionLabel, couponDiscountLabel } from "@/features/coupon/presentation";
 import { claimableCouponsQuery, myCouponsQuery, useClaimCoupon } from "@/features/coupon/queries";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import {
   fetchMyRewardWallet,
@@ -34,13 +33,11 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
 };
 
 export function MyBenefitsPage() {
-  const { isAuthenticated } = useCustomerAuth();
-  const couponsQuery = useQuery({ ...myCouponsQuery(), enabled: isAuthenticated });
-  const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
+  const couponsQuery = useQuery(myCouponsQuery());
+  const claimableQuery = useQuery(claimableCouponsQuery());
   const rewardsQuery = useQuery({
     queryKey: queryKeys.member.rewards,
     queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyRewardWallet(signal)),
-    enabled: isAuthenticated,
   });
   const claimMutation = useClaimCoupon();
   // 이벤트의 "받은 쿠폰 확인"은 #owned-coupons로 보유 쿠폰 칸을 연다.

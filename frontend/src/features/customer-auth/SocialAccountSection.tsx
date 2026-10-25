@@ -3,7 +3,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
 import {
   CustomerSessionChangedError,
-  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -15,7 +14,7 @@ import {
   type SocialProvider,
 } from "@/features/customer-auth/socialAuth";
 import {
-  fetchLinkedSocialProviders,
+  linkedSocialProvidersQuery,
   reauthenticateCustomerPassword,
   startSocialAccountLink,
   unlinkSocialAccount,
@@ -54,10 +53,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     isLoading,
     isFetching: linkedProvidersFetching,
     refetch: refetchLinkedProviders,
-  } = useQuery({
-    queryKey: queryKeys.member.socialAccounts,
-    queryFn: () => runForCurrentCustomer(fetchLinkedSocialProviders),
-  });
+  } = useQuery(linkedSocialProvidersQuery());
   const unlinkMutation = useMutation({
     mutationFn: (provider: SocialProvider) =>
       runForCurrentCustomer(

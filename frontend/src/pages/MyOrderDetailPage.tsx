@@ -1,7 +1,6 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link, useLocation } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { myNavLabel } from "@/features/my/myNavigation";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { getMyOrder } from "@/generated/api/customerStore";
@@ -21,13 +20,12 @@ export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
   const validOrderId = isPositiveSafeIntegerString(id);
-  const { isAuthenticated } = useCustomerAuth();
   const queryClient = useQueryClient();
 
   const { data: order, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: queryKeys.member.orders.detail(orderId),
     queryFn: () => runForCurrentCustomer(() => getMyOrder(orderId)),
-    enabled: isAuthenticated && validOrderId,
+    enabled: validOrderId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
   const cancelMutation = useMutation({
