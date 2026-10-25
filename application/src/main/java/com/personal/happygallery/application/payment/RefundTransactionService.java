@@ -9,8 +9,6 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -113,13 +111,7 @@ class RefundTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void requestManualRetry(Long refundId) {
-        Refund refund = findRefundForUpdate(refundId);
-        try {
-            refund.requestRetry(LocalDateTime.now(clock));
-        } catch (IllegalStateException e) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-                    "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
-        }
+        findRefundForUpdate(refundId).requestRetry(LocalDateTime.now(clock));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

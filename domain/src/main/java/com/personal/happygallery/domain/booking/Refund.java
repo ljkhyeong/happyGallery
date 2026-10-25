@@ -327,7 +327,8 @@ public class Refund {
         if (status != RefundStatus.FAILED
                 && status != RefundStatus.RETRYABLE
                 && status != RefundStatus.RECONCILIATION_REQUIRED) {
-            throw new IllegalStateException("재시도할 수 없는 환불 상태입니다. (현재: " + status + ")");
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + status + ")");
         }
         if (status != RefundStatus.RECONCILIATION_REQUIRED) {
             this.status = RefundStatus.RETRYABLE;
