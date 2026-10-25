@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
-import com.personal.happygallery.adapter.out.external.notification.dto.SmsRequest;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import java.nio.charset.StandardCharsets;
@@ -52,8 +52,8 @@ final class NhnSmsClient {
                     .retrieve()
                     .body(SmsResponse.class);
 
-            ResponseOutcome outcome = response == null
-                    ? ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
+            NhnSendOutcome outcome = response == null
+                    ? NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
                     : response.outcome(trackResult);
             if (outcome.result() != NotificationSendResult.ACCEPTED) {
                 if (outcome.result() != NotificationSendResult.SUCCESS) {
@@ -86,37 +86,43 @@ final class NhnSmsClient {
         return "hg-" + UUID.nameUUIDFromBytes(idempotencyKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    private record SmsResponse(SmsResponseHeader header, SmsResponseBody body) {
-        private ResponseOutcome outcome(boolean trackResult) {
+    /** 인증 SMS는 상관 ID(userId)가 없으므로 null 필드를 보내지 않는다. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record SmsRequest(
+            String body,
+            String sendNo,
+            String userId,
+            List<Recipient> recipientList
+    ) {
+        private record Recipient(String recipientNo) {}
+    }
+
+    private record SmsResponse(NhnResponseHeader header, SmsResponseBody body) {
+        private NhnSendOutcome outcome(boolean trackResult) {
             if (header == null) {
-                return ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
+                return NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
             }
-            int resultCode = header.resultCode();
-            if (header.isSuccessful() && resultCode == 0) {
-                if (body == null || body.data() == null
-                        || body.data().requestId() == null
-                        || body.data().sendResultList() == null
-                        || body.data().sendResultList().size() != 1
-                        || body.data().sendResultList().getFirst().recipientSeq() == null) {
-                    return ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
-                }
-                SmsSendResult sendResult = body.data().sendResultList().getFirst();
-                if (sendResult.resultCode() != 0) {
-                    return ResponseOutcome.immediate(
-                            classifyResultCode(sendResult.resultCode()),
-                            String.valueOf(sendResult.resultCode()));
-                }
-                if (!trackResult) {
-                    return ResponseOutcome.immediate(NotificationSendResult.SUCCESS, "0");
-                }
-                return new ResponseOutcome(
-                        NotificationSendResult.ACCEPTED,
-                        "0",
-                        body.data().requestId(),
-                        sendResult.recipientSeq());
+            if (!header.ok()) {
+                return NhnSendOutcome.immediate(
+                        classifyResultCode(header.resultCode()), String.valueOf(header.resultCode()));
             }
-            return ResponseOutcome.immediate(
-                    classifyResultCode(resultCode), String.valueOf(resultCode));
+            if (body == null || body.data() == null
+                    || body.data().requestId() == null
+                    || body.data().sendResultList() == null
+                    || body.data().sendResultList().size() != 1
+                    || body.data().sendResultList().getFirst().recipientSeq() == null) {
+                return NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
+            }
+            SmsSendResult sendResult = body.data().sendResultList().getFirst();
+            if (sendResult.resultCode() != 0) {
+                return NhnSendOutcome.immediate(
+                        classifyResultCode(sendResult.resultCode()),
+                        String.valueOf(sendResult.resultCode()));
+            }
+            if (!trackResult) {
+                return NhnSendOutcome.immediate(NotificationSendResult.SUCCESS, "0");
+            }
+            return NhnSendOutcome.accepted(body.data().requestId(), sendResult.recipientSeq());
         }
     }
 
@@ -126,20 +132,6 @@ final class NhnSmsClient {
             default -> NotificationSendResult.PERMANENT_FAILURE;
         };
     }
-
-    private record ResponseOutcome(
-            NotificationSendResult result,
-            String diagnosticCode,
-            String requestId,
-            Long recipientSeq
-    ) {
-        private static ResponseOutcome immediate(
-                NotificationSendResult result, String diagnosticCode) {
-            return new ResponseOutcome(result, diagnosticCode, null, null);
-        }
-    }
-
-    private record SmsResponseHeader(boolean isSuccessful, int resultCode) {}
 
     private record SmsResponseBody(SmsResponseData data) {}
 

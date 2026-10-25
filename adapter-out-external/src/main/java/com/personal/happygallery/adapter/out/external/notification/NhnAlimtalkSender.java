@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
-import com.personal.happygallery.adapter.out.external.notification.dto.AlimtalkRequest;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
@@ -54,8 +53,8 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
                     .retrieve()
                     .body(AlimtalkResponse.class);
 
-            ResponseOutcome outcome = response == null
-                    ? ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
+            NhnSendOutcome outcome = response == null
+                    ? NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
                     : response.outcome();
             if (outcome.result() != NotificationSendResult.ACCEPTED) {
                 log.warn("[ALIMTALK] 발송 거절 [event={} resultCode={}]",
@@ -78,22 +77,30 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
         }
     }
 
-    private record AlimtalkResponse(ResponseHeader header, Message message) {
-        private ResponseOutcome outcome() {
+    private record AlimtalkRequest(
+            String senderKey,
+            String templateCode,
+            List<Recipient> recipientList
+    ) {
+        private record Recipient(String recipientNo, Map<String, String> templateParameter) {}
+    }
+
+    private record AlimtalkResponse(NhnResponseHeader header, Message message) {
+        private NhnSendOutcome outcome() {
             if (header == null) {
-                return ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
+                return NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
             }
-            if (!header.isSuccessful() || header.resultCode() != 0) {
-                return ResponseOutcome.immediate(
+            if (!header.ok()) {
+                return NhnSendOutcome.immediate(
                         NotificationSendResult.PERMANENT_FAILURE,
                         String.valueOf(header.resultCode()));
             }
             List<SendResult> sendResults = message == null ? null : message.sendResults();
             if (CollectionUtils.isEmpty(sendResults)) {
-                return ResponseOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
+                return NhnSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
             }
             if (sendResults.size() != 1) {
-                return ResponseOutcome.immediate(
+                return NhnSendOutcome.immediate(
                         NotificationSendResult.DELIVERY_UNKNOWN,
                         "UNEXPECTED_SEND_RESULT_COUNT:" + sendResults.size());
             }
@@ -101,33 +108,15 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
             if (sendResult.resultCode() != 0
                     || message.requestId() == null
                     || sendResult.recipientSeq() == null) {
-                return ResponseOutcome.immediate(
+                return NhnSendOutcome.immediate(
                         sendResult.resultCode() == 0
                                 ? NotificationSendResult.DELIVERY_UNKNOWN
                                 : NotificationSendResult.PERMANENT_FAILURE,
                         String.valueOf(sendResult.resultCode()));
             }
-            return new ResponseOutcome(
-                    NotificationSendResult.ACCEPTED,
-                    "0",
-                    message.requestId(),
-                    sendResult.recipientSeq());
+            return NhnSendOutcome.accepted(message.requestId(), sendResult.recipientSeq());
         }
     }
-
-    private record ResponseOutcome(
-            NotificationSendResult result,
-            String diagnosticCode,
-            String requestId,
-            Long recipientSeq
-    ) {
-        private static ResponseOutcome immediate(
-                NotificationSendResult result, String diagnosticCode) {
-            return new ResponseOutcome(result, diagnosticCode, null, null);
-        }
-    }
-
-    private record ResponseHeader(boolean isSuccessful, int resultCode) {}
 
     private record Message(String requestId, List<SendResult> sendResults) {}
 

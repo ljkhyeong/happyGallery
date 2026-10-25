@@ -45,9 +45,9 @@ final class NhnSmsDeliveryResultProvider implements NotificationDeliveryResultPr
         }
     }
 
-    private record SmsResultResponse(ResponseHeader header, ResponseBody body) {
+    private record SmsResultResponse(NhnResponseHeader header, ResponseBody body) {
         private NotificationDeliveryResult result() {
-            if (header == null || !header.isSuccessful() || header.resultCode() != 0) {
+            if (header == null || !header.ok()) {
                 return NotificationDeliveryResult.unavailable("INVALID_RESPONSE_HEADER");
             }
             if (body == null || body.data() == null || body.data().msgStatus() == null) {
@@ -63,8 +63,6 @@ final class NhnSmsDeliveryResultProvider implements NotificationDeliveryResultPr
             };
         }
     }
-
-    private record ResponseHeader(boolean isSuccessful, int resultCode) {}
 
     private record ResponseBody(MessageResult data) {}
 
