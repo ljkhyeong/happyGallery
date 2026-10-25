@@ -85,7 +85,7 @@ while IFS=$'\t' read -r runtime_key runtime_image unexpected; do
     containerd_has_image "$runtime_image" \
         || die "외부 복구 archive에 넣을 runtime 이미지를 찾을 수 없습니다: $runtime_image"
     runtime_digest=$(containerd_image_digest "$runtime_image")
-    printf '%s' "$runtime_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+    is_sha256_digest "$runtime_digest" \
         || die "runtime 이미지 digest가 올바르지 않습니다: $runtime_digest"
     runtime_keys+=("$runtime_key")
     runtime_images+=("$runtime_image")

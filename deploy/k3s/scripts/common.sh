@@ -99,6 +99,30 @@ require_private_file() {
     [ -z "$exposed" ] || die "파일 권한을 600으로 제한한 뒤 다시 실행하세요: $file"
 }
 
+newline='
+'
+
+# printf | grep는 줄 단위로 비교하므로 줄바꿈이 섞인 값은 패턴과 무관하게 거절한다.
+matches_pattern() {
+    case "$2" in
+        *"$newline"*) return 1 ;;
+    esac
+    printf '%s' "$2" | grep -Eq "$1"
+}
+
+is_sha256_digest() {
+    matches_pattern '^sha256:[a-f0-9]{64}$' "$1"
+}
+
+# IMAGE_TAG는 12~40자리 Git SHA다.
+is_image_tag() {
+    matches_pattern '^[A-Fa-f0-9]{12,40}$' "$1"
+}
+
+is_recovery_metadata_name() {
+    matches_pattern '^happygallery-[0-9]{8}T[0-9]{6}Z\.recovery\.env$' "$1"
+}
+
 normalize_image_reference() {
     image=$1
     case "$image" in
@@ -305,7 +329,7 @@ verify_recovery_bundle_files() {
     case "$bundle_media_name" in
         */*|.|..) die "MEDIA_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
     esac
-    printf '%s' "$bundle_image_tag" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
+    is_image_tag "$bundle_image_tag" \
         || die "복구 메타데이터의 IMAGE_TAG 형식이 올바르지 않습니다."
     [ "$bundle_release_relative" = "releases/$bundle_image_tag" ] \
         || die "RELEASE_DIR은 IMAGE_TAG와 일치하는 releases/<IMAGE_TAG> 형식이어야 합니다."

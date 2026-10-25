@@ -35,10 +35,8 @@ case "$FRONTEND_IMAGE" in
     *:"$IMAGE_TAG") ;;
     *) die "FRONTEND_IMAGE 태그가 IMAGE_TAG와 다릅니다." ;;
 esac
-printf '%s' "$APP_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
-printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_sha256_digest "$APP_IMAGE_DIGEST" || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_sha256_digest "$FRONTEND_IMAGE_DIGEST" || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
 
 kube get crd certificates.cert-manager.io >/dev/null \
     || die "cert-manager가 설치되지 않았습니다. bootstrap-cluster.sh를 먼저 실행하세요."

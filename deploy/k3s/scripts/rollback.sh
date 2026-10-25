@@ -25,7 +25,7 @@ for image_and_digest in \
     "$FRONTEND_IMAGE|$FRONTEND_IMAGE_DIGEST"; do
     image=${image_and_digest%%|*}
     expected_digest=${image_and_digest#*|}
-    printf '%s' "$expected_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+    is_sha256_digest "$expected_digest" \
         || die "보존된 이미지 digest가 올바르지 않습니다: $expected_digest"
     containerd_has_image "$image@$expected_digest" \
         || die "rollback digest 이미지가 containerd에 남아 있지 않습니다: $image@$expected_digest"

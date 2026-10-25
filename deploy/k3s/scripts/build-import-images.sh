@@ -86,7 +86,7 @@ app_image_digest=$(containerd_image_digest "$app_image") \
 frontend_image_digest=$(containerd_image_digest "$frontend_image") \
     || die "프런트 이미지 digest를 확인할 수 없습니다: $frontend_image"
 for digest in "$app_image_digest" "$frontend_image_digest"; do
-    printf '%s' "$digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+    is_sha256_digest "$digest" \
         || die "containerd가 올바르지 않은 이미지 digest를 반환했습니다: $digest"
 done
 

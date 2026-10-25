@@ -6,7 +6,7 @@ set -Eeuo pipefail
 cache_root=$1
 name=$2
 remote=$3
-[[ $name =~ ^happygallery-[0-9]{8}T[0-9]{6}Z\.recovery\.env$ ]] || die "잘못된 복구 파일명입니다."
+is_recovery_metadata_name "$name" || die "잘못된 복구 파일명입니다."
 umask 077
 mkdir -p "$cache_root"
 stamp=${name#happygallery-}

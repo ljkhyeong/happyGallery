@@ -27,14 +27,13 @@ rclone_run() {
 bundle_files() {
     local metadata=$1 name tag prefix
     name=$(basename -- "$metadata")
-    printf '%s' "$name" | grep -Eq '^happygallery-[0-9]{8}T[0-9]{6}Z\.recovery\.env$' \
-        || die "복구 metadata 파일명이 올바르지 않습니다."
+    is_recovery_metadata_name "$name" || die "복구 metadata 파일명이 올바르지 않습니다."
     require_private_file "$metadata"
     verify_checksum "$metadata"
     validate_env_file "$metadata"
     prefix=${name%.recovery.env}
     tag=$(require_env_value IMAGE_TAG "$metadata")
-    printf '%s' "$tag" | grep -Eq '^[a-fA-F0-9]{12,40}$' || die "IMAGE_TAG 형식이 올바르지 않습니다."
+    is_image_tag "$tag" || die "IMAGE_TAG 형식이 올바르지 않습니다."
     [ "$(require_env_value BACKUP_CREATED_AT "$metadata")" = "${prefix#happygallery-}" ] \
         || die "백업 시각과 파일명이 다릅니다."
     [ "$(require_env_value DATABASE_BACKUP "$metadata")" = "$prefix.sql.gz.age" ] \
@@ -94,8 +93,7 @@ case "$action" in
         [ "$#" -eq 3 ] || die "사용법: $0 download <recovery.env 파일명> <새 로컬 디렉터리>"
         name=$2
         destination=$3
-        printf '%s' "$name" | grep -Eq '^happygallery-[0-9]{8}T[0-9]{6}Z\.recovery\.env$' \
-            || die "복구 metadata 파일명이 올바르지 않습니다."
+        is_recovery_metadata_name "$name" || die "복구 metadata 파일명이 올바르지 않습니다."
         [ ! -e "$destination" ] && [ ! -L "$destination" ] \
             || die "다운로드 대상은 아직 존재하지 않는 디렉터리여야 합니다."
         # 큰 이미지 archive를 /tmp에 중복 저장하지 않고 최종 대상과 같은 파일시스템에 받는다.

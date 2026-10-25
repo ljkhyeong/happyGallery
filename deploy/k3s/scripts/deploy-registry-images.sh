@@ -9,7 +9,7 @@ registry_app_digest=$3
 registry_frontend_digest=$4
 [[ $registry_revision =~ ^[a-f0-9]{40}$ ]] || die "commit SHA가 올바르지 않습니다."
 for registry_digest in "$registry_app_digest" "$registry_frontend_digest"; do
-    [[ $registry_digest =~ ^sha256:[a-f0-9]{64}$ ]] || die "registry digest가 올바르지 않습니다."
+    is_sha256_digest "$registry_digest" || die "registry digest가 올바르지 않습니다."
 done
 cd "$REPO_ROOT"
 [[ $(git rev-parse HEAD) == "$registry_revision" ]] || die "배포 소스와 이미지 commit이 다릅니다."
