@@ -265,21 +265,13 @@ class RefundTransactionService {
     }
 
     private void publishOrderRefunded(Refund refund) {
-        orderReader.findById(refund.getOrderId()).ifPresent(order -> {
-            if (order.getUserId() != null) {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+        orderReader.findById(refund.getOrderId()).ifPresent(order ->
+                eventPublisher.publishEvent(NotificationRequestedEvent.forRecipient(
                         order.getUserId(),
-                        NotificationEventType.ORDER_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            } else {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                         order.getGuestId(),
                         NotificationEventType.ORDER_REFUNDED,
                         NotificationAggregateType.REFUND,
-                        refund.getId()));
-            }
-        });
+                        refund.getId())));
     }
 
     private void publishPassRefunded(Refund refund) {

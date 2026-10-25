@@ -75,6 +75,34 @@ public sealed interface NotificationRequestedEvent {
                 oncePerAggregateKeyPrefix(eventType, aggregateType) + aggregateId);
     }
 
+    /** 회원이면 회원 수신자, 아니면 비회원 수신자로 만든다. 멱등키는 단일 수신자 팩토리와 같다. */
+    static NotificationRequestedEvent forRecipient(Long userId, Long guestId, NotificationEventType eventType,
+                                                   NotificationAggregateType aggregateType, Long aggregateId) {
+        return userId != null
+                ? forUser(userId, eventType, aggregateType, aggregateId)
+                : forGuest(guestId, eventType, aggregateType, aggregateId);
+    }
+
+    /** {@link #forRecipient}의 반복 발송 알림 대응. 대상은 남기고 중복 방지 키만 요청마다 새로 만든다. */
+    static NotificationRequestedEvent forRecipientRepeatable(Long userId, Long guestId, NotificationEventType eventType,
+                                                             NotificationAggregateType aggregateType, Long aggregateId) {
+        return userId != null
+                ? forUserRepeatable(userId, eventType, aggregateType, aggregateId)
+                : forGuestRepeatable(guestId, eventType, aggregateType, aggregateId);
+    }
+
+    /** {@link #forRecipient}의 집계 단위 1회 발송 대응. */
+    static NotificationRequestedEvent forRecipientOncePerAggregate(
+            Long userId,
+            Long guestId,
+            NotificationEventType eventType,
+            NotificationAggregateType aggregateType,
+            Long aggregateId) {
+        return userId != null
+                ? forUserOncePerAggregate(userId, eventType, aggregateType, aggregateId)
+                : forGuestOncePerAggregate(guestId, eventType, aggregateType, aggregateId);
+    }
+
     private static String oncePerAggregateKeyPrefix(
             NotificationEventType eventType, NotificationAggregateType aggregateType) {
         return "AGGREGATE:" + eventType + ":" + aggregateType + ":";

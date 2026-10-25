@@ -92,11 +92,8 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
 
     private boolean requestReminder(
             BookingReminderTarget target, NotificationEventType eventType) {
-        NotificationRequestedEvent event = target.userId() != null
-                ? NotificationRequestedEvent.forUserOncePerAggregate(
-                        target.userId(), eventType, NotificationAggregateType.BOOKING, target.bookingId())
-                : NotificationRequestedEvent.forGuestOncePerAggregate(
-                        target.guestId(), eventType, NotificationAggregateType.BOOKING, target.bookingId());
+        NotificationRequestedEvent event = NotificationRequestedEvent.forRecipientOncePerAggregate(
+                target.userId(), target.guestId(), eventType, NotificationAggregateType.BOOKING, target.bookingId());
         boolean enqueued = notificationOutboxService.enqueue(event);
         if (enqueued) {
             log.info("리마인드 요청 [bookingId={}, type={}]", target.bookingId(), eventType);

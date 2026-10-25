@@ -15,6 +15,8 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderClaim;
 import java.time.Clock;
@@ -25,12 +27,12 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
-import org.springframework.context.ApplicationEventPublisher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -69,7 +71,6 @@ class DefaultOrderClaimServiceTest {
         when(dependencies.orderClaimPort.findByIdForUpdate(7L)).thenReturn(Optional.of(claim));
         when(claim.getId()).thenReturn(7L);
         when(claim.getOrderId()).thenReturn(11L);
-        when(order.getUserId()).thenReturn(23L);
         when(dependencies.orderClaimItemPort.findByClaimIdIn(List.of(7L)))
                 .thenReturn(List.of());
         when(dependencies.viewAssembler.assemble(claim)).thenReturn(expected);
@@ -82,6 +83,8 @@ class DefaultOrderClaimServiceTest {
         lockOrder.verify(dependencies.orderClaimPort).findOrderIdById(7L);
         lockOrder.verify(dependencies.orderReader).findByIdForUpdate(11L);
         lockOrder.verify(dependencies.orderClaimPort).findByIdForUpdate(7L);
+        verify(dependencies.notificationSupport).notifyCustomer(
+                order, NotificationEventType.ORDER_CLAIM_RESOLVED, NotificationAggregateType.ORDER_CLAIM, 7L);
     }
 
     @DisplayName("잠금 사이에 클레임의 주문 연결이 달라지면 처리를 중단한다")
@@ -115,8 +118,8 @@ class DefaultOrderClaimServiceTest {
         private final RewardBenefitService rewardBenefitService = mock(RewardBenefitService.class);
         private final OrderStockService orderStockService = mock(OrderStockService.class);
         private final GuestTokenService guestTokenService = mock(GuestTokenService.class);
-        private final ApplicationEventPublisher eventPublisher =
-                mock(ApplicationEventPublisher.class);
+        private final OrderNotificationSupport notificationSupport =
+                mock(OrderNotificationSupport.class);
 
         private DefaultOrderClaimService service() {
             return new DefaultOrderClaimService(
@@ -131,7 +134,7 @@ class DefaultOrderClaimServiceTest {
                     rewardBenefitService,
                     orderStockService,
                     guestTokenService,
-                    eventPublisher,
+                    notificationSupport,
                     CLOCK);
         }
     }

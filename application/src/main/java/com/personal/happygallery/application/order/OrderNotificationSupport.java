@@ -18,23 +18,22 @@ class OrderNotificationSupport {
         this.eventPublisher = eventPublisher;
     }
 
+    /** 주문 자체를 집계 단위로 고객 알림을 발행한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     void notifyCustomer(Order order, NotificationEventType eventType) {
-        boolean repeatable = eventType == NotificationEventType.ORDER_DELAY_REQUESTED;
-        NotificationRequestedEvent event;
-        if (order.getUserId() != null) {
-            event = repeatable
-                    ? NotificationRequestedEvent.forUserRepeatable(
-                            order.getUserId(), eventType, NotificationAggregateType.ORDER, order.getId())
-                    : NotificationRequestedEvent.forUser(
-                            order.getUserId(), eventType, NotificationAggregateType.ORDER, order.getId());
-        } else {
-            event = repeatable
-                    ? NotificationRequestedEvent.forGuestRepeatable(
-                            order.getGuestId(), eventType, NotificationAggregateType.ORDER, order.getId())
-                    : NotificationRequestedEvent.forGuest(
-                            order.getGuestId(), eventType, NotificationAggregateType.ORDER, order.getId());
-        }
+        notifyCustomer(order, eventType, NotificationAggregateType.ORDER, order.getId());
+    }
+
+    /** 주문의 회원·비회원 수신자에게 지정한 집계(주문·클레임) 단위로 알림을 발행한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    void notifyCustomer(Order order, NotificationEventType eventType,
+                        NotificationAggregateType aggregateType, Long aggregateId) {
+        // 지연 안내는 같은 주문에 여러 번 보낼 수 있다.
+        NotificationRequestedEvent event = eventType == NotificationEventType.ORDER_DELAY_REQUESTED
+                ? NotificationRequestedEvent.forRecipientRepeatable(
+                        order.getUserId(), order.getGuestId(), eventType, aggregateType, aggregateId)
+                : NotificationRequestedEvent.forRecipient(
+                        order.getUserId(), order.getGuestId(), eventType, aggregateType, aggregateId);
         eventPublisher.publishEvent(event);
     }
 }

@@ -53,17 +53,11 @@ class BookingVacancyAlertPublisher {
     }
 
     private void publishNotification(BookingVacancyAlert alert) {
-        NotificationRequestedEvent event = alert.getUserId() != null
-                ? NotificationRequestedEvent.forUser(
-                        alert.getUserId(),
-                        NotificationEventType.BOOKING_VACANCY_AVAILABLE,
-                        NotificationAggregateType.VACANCY_ALERT,
-                        alert.getId())
-                : NotificationRequestedEvent.forGuest(
-                        alert.getGuestId(),
-                        NotificationEventType.BOOKING_VACANCY_AVAILABLE,
-                        NotificationAggregateType.VACANCY_ALERT,
-                        alert.getId());
-        eventPublisher.publishEvent(event);
+        eventPublisher.publishEvent(NotificationRequestedEvent.forRecipient(
+                alert.getUserId(),
+                alert.getGuestId(),
+                NotificationEventType.BOOKING_VACANCY_AVAILABLE,
+                NotificationAggregateType.VACANCY_ALERT,
+                alert.getId()));
     }
 }
