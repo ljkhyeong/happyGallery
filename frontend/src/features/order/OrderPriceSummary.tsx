@@ -1,5 +1,5 @@
 import type { FulfillmentType } from "@/features/payment";
-import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
+import { useOrderPricePolicy } from "./useOrderPricePolicy";
 import { formatKRW } from "@/shared/lib";
 
 interface Props {

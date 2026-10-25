@@ -24,12 +24,8 @@ import {
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
-import {
-  FulfillmentForm,
-  fulfillmentPayload,
-  isFulfillmentComplete,
-  useFulfillmentSelection,
-} from "@/features/order/FulfillmentForm";
+import { FulfillmentForm } from "@/features/order/FulfillmentForm";
+import { fulfillmentPayload, isFulfillmentComplete, useFulfillmentSelection } from "@/features/order/fulfillmentSelection";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";

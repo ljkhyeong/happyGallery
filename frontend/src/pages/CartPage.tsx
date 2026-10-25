@@ -13,12 +13,8 @@ import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
 import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ConfirmModal, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
-import {
-  FulfillmentForm,
-  fulfillmentPayload,
-  isFulfillmentComplete,
-  useFulfillmentSelection,
-} from "@/features/order/FulfillmentForm";
+import { FulfillmentForm } from "@/features/order/FulfillmentForm";
+import { fulfillmentPayload, isFulfillmentComplete, useFulfillmentSelection } from "@/features/order/fulfillmentSelection";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";

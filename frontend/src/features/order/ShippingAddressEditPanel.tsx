@@ -6,7 +6,7 @@ import { updateGuestOrderShippingAddress, type OrderDetailResponse } from "@/gen
 import { runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { ShippingAddressFields } from "./ShippingAddressFields";
-import { isFulfillmentComplete } from "./FulfillmentForm";
+import { isFulfillmentComplete } from "./fulfillmentSelection";
 
 interface Props {
   order: OrderDetailResponse;

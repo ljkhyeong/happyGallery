@@ -1,9 +1,7 @@
 import type { FulfillmentSelection } from "./fulfillmentSelection";
-export { useFulfillmentSelection, isFulfillmentComplete, fulfillmentPayload } from "./fulfillmentSelection";
-export type { FulfillmentSelection } from "./fulfillmentSelection";
 import { SavedShippingAddressActions } from "@/features/my/DefaultShippingAddress";
 import { Button, ButtonGroup, Form } from "react-bootstrap";
-import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
+import { useOrderPricePolicy } from "./useOrderPricePolicy";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { formatKRW } from "@/shared/lib";
 import { ShippingAddressFields } from "./ShippingAddressFields";
