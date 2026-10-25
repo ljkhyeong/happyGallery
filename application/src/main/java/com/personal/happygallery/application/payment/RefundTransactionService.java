@@ -238,49 +238,25 @@ class RefundTransactionService {
 
     private void publishRefundSucceededNotification(Refund refund) {
         if (refund.getBookingId() != null) {
-            publishBookingRefunded(refund);
+            bookingReader.findById(refund.getBookingId()).ifPresent(booking -> publishRefunded(
+                    booking.getUserId(),
+                    booking.getGuest() == null ? null : booking.getGuest().getId(),
+                    NotificationEventType.DEPOSIT_REFUNDED,
+                    refund.getId()));
         } else if (refund.getOrderId() != null) {
-            publishOrderRefunded(refund);
+            orderReader.findById(refund.getOrderId()).ifPresent(order -> publishRefunded(
+                    order.getUserId(), order.getGuestId(), NotificationEventType.ORDER_REFUNDED, refund.getId()));
         } else if (refund.getPassPurchaseId() != null) {
-            publishPassRefunded(refund);
+            // 이용권은 회원 전용이라 비회원 수신자가 없다.
+            passPurchaseReader.findById(refund.getPassPurchaseId()).ifPresent(pass -> publishRefunded(
+                    pass.getUserId(), null, NotificationEventType.PASS_REFUNDED, refund.getId()));
         }
     }
 
-    private void publishBookingRefunded(Refund refund) {
-        bookingReader.findById(refund.getBookingId()).ifPresent(booking -> {
-            if (booking.getUserId() != null) {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        booking.getUserId(),
-                        NotificationEventType.DEPOSIT_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            } else {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                        booking.getGuest().getId(),
-                        NotificationEventType.DEPOSIT_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            }
-        });
-    }
-
-    private void publishOrderRefunded(Refund refund) {
-        orderReader.findById(refund.getOrderId()).ifPresent(order ->
-                eventPublisher.publishEvent(NotificationRequestedEvent.forRecipient(
-                        order.getUserId(),
-                        order.getGuestId(),
-                        NotificationEventType.ORDER_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId())));
-    }
-
-    private void publishPassRefunded(Refund refund) {
-        passPurchaseReader.findById(refund.getPassPurchaseId()).ifPresent(pass ->
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        pass.getUserId(),
-                        NotificationEventType.PASS_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId())));
+    /** 회원이면 회원, 아니면 비회원 수신자로 환불 완료 알림을 요청한다. */
+    private void publishRefunded(Long userId, Long guestId, NotificationEventType eventType, Long refundId) {
+        eventPublisher.publishEvent(NotificationRequestedEvent.forRecipient(
+                userId, guestId, eventType, NotificationAggregateType.REFUND, refundId));
     }
 
     sealed interface RefundCall permits RefundCall.CancelRequired, RefundCall.LookupRequired,
