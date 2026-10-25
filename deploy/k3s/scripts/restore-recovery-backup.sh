@@ -6,18 +6,12 @@ set -eu
 [ "$#" -eq 2 ] || die "사용법: $0 <backup.recovery.env> <age identity 파일>"
 recovery_metadata=$(CDPATH= cd -- "$(dirname -- "$1")" 2>/dev/null && pwd)/$(basename -- "$1")
 identity=$2
-require_private_file "$recovery_metadata"
-verify_checksum "$recovery_metadata"
-validate_env_file "$recovery_metadata"
+# DB·미디어·release 묶음 파일의 존재·체크섬·digest 일치는 rollout·deploy와 같은 공용 검증을 쓴다.
+# 검증 뒤 $bundle_database·$bundle_media·$bundle_release·$bundle_release_metadata를 사용한다.
+verify_recovery_bundle_files "$recovery_metadata"
 require_command base64
 
 backup_created_at=$(require_env_value BACKUP_CREATED_AT "$recovery_metadata")
-database_file=$(require_env_value DATABASE_BACKUP "$recovery_metadata")
-media_file=$(require_env_value MEDIA_BACKUP "$recovery_metadata")
-image_tag=$(require_env_value IMAGE_TAG "$recovery_metadata")
-release_relative=$(require_env_value RELEASE_DIR "$recovery_metadata")
-expected_app_digest=$(require_env_value APP_IMAGE_DIGEST "$recovery_metadata")
-expected_frontend_digest=$(require_env_value FRONTEND_IMAGE_DIGEST "$recovery_metadata")
 expected_flyway_version=$(require_env_value FLYWAY_SCHEMA_VERSION "$recovery_metadata")
 expected_key_id=$(require_env_value FIELD_ENCRYPTION_KEY_ID "$recovery_metadata")
 expected_rotation_phase=$(require_env_value KEY_ROTATION_PHASE "$recovery_metadata")
@@ -64,38 +58,6 @@ trap cleanup_restore EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-case "$database_file" in
-    */*|.|..) die "DATABASE_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
-esac
-case "$media_file" in
-    */*|.|..) die "MEDIA_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
-esac
-[ "$release_relative" = "releases/$image_tag" ] \
-    || die "RELEASE_DIR은 IMAGE_TAG와 일치하는 releases/<IMAGE_TAG> 형식이어야 합니다."
-
-backup_root=$(dirname -- "$recovery_metadata")
-database_backup="$backup_root/$database_file"
-media_backup="$backup_root/$media_file"
-release_dir="$backup_root/$release_relative"
-release_metadata="$release_dir/metadata.env"
-release_manifest="$release_dir/manifests.yaml"
-runtime_images_metadata="$release_dir/runtime-images.env"
-images_archive="$release_dir/images.tar"
-[ -f "$database_backup" ] || die "DB 백업을 찾을 수 없습니다: $database_backup"
-[ -f "$media_backup" ] || die "미디어 백업을 찾을 수 없습니다: $media_backup"
-verify_checksum "$database_backup"
-verify_checksum "$media_backup"
-verify_checksum "$release_metadata"
-verify_checksum "$release_manifest"
-verify_checksum "$runtime_images_metadata"
-verify_checksum "$images_archive"
-validate_env_file "$release_metadata"
-validate_env_file "$runtime_images_metadata"
-[ "$(require_env_value APP_IMAGE_DIGEST "$release_metadata")" = "$expected_app_digest" ] \
-    || die "복구 메타데이터와 release app digest가 다릅니다."
-[ "$(require_env_value FRONTEND_IMAGE_DIGEST "$release_metadata")" = "$expected_frontend_digest" ] \
-    || die "복구 메타데이터와 release frontend digest가 다릅니다."
 
 runtime_key_id_encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
     -o 'jsonpath={.data.FIELD_ENCRYPTION_KEY_ID}')
@@ -146,21 +108,21 @@ existing_unfinished_marker=$(find "$restore_state_root" -maxdepth 1 -type f \
 [ ! -e "$pending_marker" ] && [ ! -e "$activating_marker" ] \
     || die "이 복구 묶음의 대사 상태가 이미 존재합니다: $reconciliation_token"
 
-"$SCRIPT_DIR/restore-mysql.sh" "$database_backup" "$identity" "$release_dir"
+"$SCRIPT_DIR/restore-mysql.sh" "$bundle_database" "$identity" "$bundle_release"
 
 require_command age
 require_command gzip
 require_command tar
 info "미디어 백업의 age 인증과 tar 스트림 무결성을 검사합니다."
-age --decrypt -i "$identity" "$media_backup" | gzip -dc | tar -tf - >/dev/null
+age --decrypt -i "$identity" "$bundle_media" | gzip -dc | tar -tf - >/dev/null
 
-app_image=$(require_env_value APP_IMAGE "$release_metadata")
+app_image=$(require_env_value APP_IMAGE "$bundle_release_metadata")
 media_helper_started=true
-start_media_helper "$app_image@$expected_app_digest"
+start_media_helper "$app_image@$bundle_app_digest"
 info "상품 이미지 볼륨을 백업 시점으로 복원합니다."
 kube -n "$NAMESPACE" exec "$(media_helper_pod_name)" -- \
     sh -ec 'find /media -mindepth 1 -depth -delete'
-age --decrypt -i "$identity" "$media_backup" \
+age --decrypt -i "$identity" "$bundle_media" \
     | gzip -dc \
     | kube -n "$NAMESPACE" exec -i "$(media_helper_pod_name)" -- tar -C /media -xf -
 stop_media_helper
@@ -178,8 +140,8 @@ printf '%s\n' \
     "RESTORE_RECONCILIATION_TOKEN=$reconciliation_token" \
     "BACKUP_CREATED_AT=$backup_created_at" \
     "RECOVERY_METADATA_SHA256=$recovery_metadata_sha256" \
-    "IMAGE_TAG=$image_tag" \
-    "RELEASE_DIR=$release_dir" \
+    "IMAGE_TAG=$bundle_image_tag" \
+    "RELEASE_DIR=$bundle_release" \
     > "$pending_marker_tmp"
 chmod 600 "$pending_marker_tmp"
 mv "$pending_marker_tmp" "$pending_marker"

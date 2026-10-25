@@ -417,8 +417,6 @@ grep -q 'runtime_key_id.*expected_key_id' "$SCRIPT_DIR/restore-recovery-backup.s
     || die "복구 진입점이 runtime 암호화 키 ID를 확인하지 않습니다."
 grep -q 'runtime_rotation_phase.*expected_rotation_phase' "$SCRIPT_DIR/restore-recovery-backup.sh" \
     || die "복구 진입점이 키 회전 단계를 확인하지 않습니다."
-grep -q 'verify_checksum.*images_archive' "$SCRIPT_DIR/restore-recovery-backup.sh" \
-    || die "복구 진입점이 이미지 archive 무결성을 선검증하지 않습니다."
 grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
     || die "백업 실패 systemd 알림 연결이 없습니다."
@@ -491,6 +489,8 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   restore_entry = File.read(File.join(script_dir, "restore-recovery-backup.sh"))
   token_issue = /BACKUP_CREATED_AT.*?sha256_file "\$recovery_metadata".*?reconciliation_token=.*?pending_marker=.*?RECOVERY_METADATA_SHA256=.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
   abort "복원 성공 후 timestamp/checksum 대사 토큰 marker 발급 순서가 없습니다." unless restore_entry.match?(token_issue)
+  abort "복구 진입점이 DB 복원 전에 DB·미디어·release 묶음 파일과 이미지 archive 무결성을 선검증하지 않습니다." unless
+    restore_entry.match?(/verify_recovery_bundle_files "\$recovery_metadata".*?restore-mysql\.sh/m)
   abort "미완료 복원 대사 marker가 있을 때 새 복원을 막지 않습니다." unless restore_entry.match?(/existing_unfinished_marker=.*?name '\*\.pending'.*?name '\*\.activating'.*?die/m)
   restore_lock_flow = /restore_lock_dir=.*?cleanup_restore\(\).*?restore_lock_held.*?rmdir "\$restore_lock_dir".*?trap cleanup_restore EXIT.*?mkdir "\$restore_lock_dir".*?restore_lock_held=true.*?existing_unfinished_marker=.*?restore-mysql\.sh.*?find \/media -mindepth 1 -depth -delete.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
   abort "DB·미디어 교체 전 원자적 복원 실행 락 선점과 종료 시 해제가 없습니다." unless restore_entry.match?(restore_lock_flow)
