@@ -23,6 +23,7 @@ import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
@@ -65,6 +66,15 @@ public final class TestFixtures {
         return new Guest(
                 TEST_FIELD_ENCRYPTOR.encrypt(name), TEST_BLIND_INDEXER.index(name),
                 TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
+    }
+
+    /** 비밀번호 해시·이름을 단언하지 않는 테스트 회원. 저장은 호출한 테스트가 한다. */
+    public static User member(String email, String phone) {
+        return member(email, phone, "회원");
+    }
+
+    public static User member(String email, String phone, String name) {
+        return new User(email, "password-hash", name, phone);
     }
 
     /** 1인 비회원 예약금 예약. */

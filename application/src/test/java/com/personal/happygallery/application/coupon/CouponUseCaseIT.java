@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +41,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.ConcurrentExecution.runSimultaneously;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
+import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -261,34 +265,19 @@ class CouponUseCaseIT {
         LocalDateTime now = now();
         User user = createUser("coupon-same-member@example.com", "01010002160");
         CouponDefinition definition = couponAdminUseCase.create(fixedCommand(now, 5_000L));
-        CountDownLatch ready = new CountDownLatch(2);
-        CountDownLatch start = new CountDownLatch(1);
 
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var attempts = IntStream.range(0, 2)
-                    .mapToObj(ignored -> executor.submit(() -> {
-                        ready.countDown();
-                        await(start);
-                        try {
-                            couponMemberUseCase.claim(user.getId(), definition.getId());
-                            return "ISSUED";
-                        } catch (HappyGalleryException exception) {
-                            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
-                            return "CONFLICT";
-                        }
-                    }))
-                    .toList();
+        List<Throwable> outcomes = runSimultaneously(nCopies(2,
+                () -> couponMemberUseCase.claim(user.getId(), definition.getId())));
 
-            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
-            start.countDown();
-
-            assertThat(List.of(
-                    attempts.get(0).get(10, TimeUnit.SECONDS),
-                    attempts.get(1).get(10, TimeUnit.SECONDS)))
-                    .containsExactlyInAnyOrder("ISSUED", "CONFLICT");
-        }
-
-        assertThat(issuedCouponRepository.count()).isEqualTo(1L);
+        assertSoftly(softly -> {
+            softly.assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+            softly.assertThat(outcomes)
+                    .filteredOn(Objects::nonNull)
+                    .singleElement()
+                    .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                            softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+            softly.assertThat(issuedCouponRepository.count()).isEqualTo(1L);
+        });
     }
 
     @DisplayName("비활성화된 정의의 미사용 쿠폰은 내 목록 조회 시 취소 상태로 정리한다")
@@ -552,7 +541,7 @@ class CouponUseCaseIT {
     }
 
     private User createUser(String email, String phone) {
-        return userStorePort.save(new User(email, "password-hash", "쿠폰 회원", phone));
+        return userStorePort.save(member(email, phone));
     }
 
     private LocalDateTime now() {

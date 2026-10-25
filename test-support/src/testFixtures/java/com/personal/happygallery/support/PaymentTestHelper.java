@@ -4,7 +4,6 @@ import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
-import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import jakarta.servlet.http.Cookie;
@@ -13,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.ObjectMapper;
 
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -112,9 +112,5 @@ public final class PaymentTestHelper {
                         participantCount,
                         acceptedPolicies()));
         return confirmPayment(prepared, "test-payment-key");
-    }
-
-    private PolicyAcceptance acceptedPolicies() {
-        return new PolicyAcceptance("2026-09-11-v1", true, "2026-09-12-v1", true);
     }
 }

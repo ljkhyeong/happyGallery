@@ -99,7 +99,6 @@ class CustomerHistoryPaginationUseCaseIT {
     }
 
     private User createUser() {
-        return userStore.save(new User(
-                "history-page@example.com", "password-hash", "이력 회원", "01012345678"));
+        return userStore.save(TestFixtures.member("history-page@example.com", "01012345678"));
     }
 }

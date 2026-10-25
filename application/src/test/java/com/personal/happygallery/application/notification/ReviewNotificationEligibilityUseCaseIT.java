@@ -44,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -212,7 +213,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     }
 
     private User createUser(String email, String phone) {
-        return userStorePort.save(new User(email, "password-hash", "후기 알림 회원", phone));
+        return userStorePort.save(member(email, phone));
     }
 
     private Order completedOrder(User user, long totalAmount) {

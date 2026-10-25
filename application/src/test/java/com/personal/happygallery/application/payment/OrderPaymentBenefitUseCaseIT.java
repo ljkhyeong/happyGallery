@@ -65,6 +65,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -512,7 +513,7 @@ class OrderPaymentBenefitUseCaseIT {
     }
 
     private User createUser(String email, String phone) {
-        return userStorePort.save(new User(email, "password-hash", "혜택 회원", phone));
+        return userStorePort.save(member(email, phone));
     }
 
     private Product createProduct(String name, long price, int quantity) {

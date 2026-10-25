@@ -121,11 +121,10 @@ public class OrderTestHelper {
 
     public User createMemberOwner() {
         long sequence = USER_SEQUENCE.incrementAndGet();
-        return userStorePort.save(new User(
+        return userStorePort.save(TestFixtures.member(
                 "order-fixture-%d@test.local".formatted(sequence),
-                "password-hash",
-                "주문 테스트 회원",
-                "010%08d".formatted(sequence % 100_000_000)));
+                "010%08d".formatted(sequence % 100_000_000),
+                "주문 테스트 회원"));
     }
 
     private Product createProduct(String name, ProductType type, long price, int quantity) {

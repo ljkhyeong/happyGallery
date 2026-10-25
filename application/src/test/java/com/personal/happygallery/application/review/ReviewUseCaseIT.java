@@ -63,6 +63,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1194,7 +1195,7 @@ class ReviewUseCaseIT {
     }
 
     private User createUser(String email, String phone, String name) {
-        return userStore.save(new User(email, "password-hash", name, phone));
+        return userStore.save(member(email, phone, name));
     }
 
     private ProductOrderSource createProductOrderSource(
