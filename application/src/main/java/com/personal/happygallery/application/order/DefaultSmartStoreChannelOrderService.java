@@ -149,7 +149,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 .stream()
                 .filter(candidate -> productOrderId.equals(candidate.productOrderId()))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("네이버 스마트스토어 상품 주문"));
+                .orElseThrow(NotFoundException.supplier("네이버 스마트스토어 상품 주문"));
         return new CurrentOrderStatusResult(
                 detail.productOrderId(), detail.productOrderStatus(), detail.placeOrderStatus(),
                 detail.claimType(), detail.claimStatus(), detail.remainQuantity(),
@@ -472,7 +472,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     private SmartStoreProductOrder order(String productOrderId) {
         return orderPort.findByProductOrderId(productOrderId)
-                .orElseThrow(() -> new NotFoundException("스마트스토어 상품 주문"));
+                .orElseThrow(NotFoundException.supplier("스마트스토어 상품 주문"));
     }
 
     private void requireEnabled() {

@@ -111,6 +111,6 @@ class PaymentConfirmFulfillmentTransactionService {
 
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
+                .orElseThrow(NotFoundException.supplier("결제 시도"));
     }
 }

@@ -116,7 +116,7 @@ class SmartStoreOrderActionHistoryService {
 
     private SmartStoreOrderActionHistory history(long historyId) {
         return historyPort.findByIdWithLock(historyId)
-                .orElseThrow(() -> new NotFoundException("스마트스토어 주문 처리 이력"));
+                .orElseThrow(NotFoundException.supplier("스마트스토어 주문 처리 이력"));
     }
 
     private LocalDateTime staleRequestedBefore() {

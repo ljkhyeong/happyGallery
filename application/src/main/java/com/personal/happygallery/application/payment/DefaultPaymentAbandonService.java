@@ -32,7 +32,7 @@ public class DefaultPaymentAbandonService implements PaymentAbandonUseCase {
     @Override
     public void abandon(String orderId, AuthContext auth, String statusToken) {
         PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(orderId)
-                .orElseThrow(() -> new NotFoundException("결제"));
+                .orElseThrow(NotFoundException.supplier("결제"));
         accessVerifier.requireCustomerAccess(attempt, auth, statusToken);
         benefits.releaseAfter(attempt, attempt::abandonPending, LocalDateTime.now(clock));
     }

@@ -207,7 +207,7 @@ class PaymentConfirmClaimTransactionService {
 
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
+                .orElseThrow(NotFoundException.supplier("결제 시도"));
     }
 
     private PaymentAttempt findValidatedAttemptForUpdate(ConfirmCommand command) {
@@ -222,7 +222,7 @@ class PaymentConfirmClaimTransactionService {
 
     private PaymentAttempt findForUpdate(String orderId) {
         return attemptReader.findByOrderIdExternalForUpdate(orderId)
-                .orElseThrow(() -> new NotFoundException("결제"));
+                .orElseThrow(NotFoundException.supplier("결제"));
     }
 
     private void validateAttempt(PaymentAttempt attempt, ConfirmCommand command) {
