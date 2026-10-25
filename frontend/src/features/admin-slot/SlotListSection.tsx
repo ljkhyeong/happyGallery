@@ -35,7 +35,6 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [classId, setClassId] = useState("");
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SlotResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
@@ -52,7 +51,6 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: ({ slotId, activate }: { slotId: number; activate: boolean }) =>
       activate ? activateSlot(adminKey, slotId) : deactivateSlot(adminKey, slotId),
-    onMutate: ({ slotId }) => setPendingId(slotId),
     onSuccess: (slot) => {
       toast.show(`수업 일정 #${slot.id}의 예약을 ${slot.adminActive ? "재개" : "중지"}했습니다.`);
       queryClient.invalidateQueries({
@@ -60,8 +58,8 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       });
       void invalidateSlotAvailability(queryClient);
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = mutation.isPending ? mutation.variables.slotId : null;
 
   const cancelMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ slotId, reason }: { slotId: number; reason: string }) =>
@@ -241,7 +239,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                         <Button
                           size="sm"
                           variant="danger"
-                          disabled={pendingId !== null || cancelMutation.isPending}
+                          disabled={mutation.isPending || cancelMutation.isPending}
                           onClick={() => {
                             cancelMutation.reset();
                             setCancelReason("");

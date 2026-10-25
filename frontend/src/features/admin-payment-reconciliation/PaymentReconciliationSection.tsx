@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchPaymentReconciliations, reconcilePayment } from "./api";
@@ -20,7 +19,6 @@ const queryKey = queryKeys.admin.payments.reconciliationRequired;
 export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchPaymentReconciliations(adminKey),
@@ -29,7 +27,6 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
 
   const reconcile = useAdminMutation(onAuthError, {
     mutationFn: (attemptId: number) => reconcilePayment(adminKey, attemptId),
-    onMutate: (attemptId) => setPendingId(attemptId),
     onSuccess: (result) => {
       const pending = result.status === "RECONCILIATION_REQUIRED";
       const message = pending
@@ -40,8 +37,8 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
       toast.show(message, pending ? "warning" : "success");
       queryClient.invalidateQueries({ queryKey });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = reconcile.isPending ? reconcile.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {

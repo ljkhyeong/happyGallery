@@ -60,7 +60,6 @@ export function AdminOrderClaimSection({
     showPreviousPage,
     resetCursor,
   } = useCursorHistory();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const queryKey = queryKeys.admin.orderClaims.page(status, cursor);
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
@@ -86,7 +85,6 @@ export function AdminOrderClaimSection({
   const resolve = useAdminMutation(onAuthError, {
     mutationFn: ({ claimId, body }: { claimId: number; body: ResolveOrderClaimRequest }) =>
       resolveOrderClaim(adminKey, claimId, body),
-    onMutate: ({ claimId }) => setPendingId(claimId),
     onSuccess: (claim) => {
       toast.show(
         claim.status === "REJECTED"
@@ -95,19 +93,21 @@ export function AdminOrderClaimSection({
       );
       invalidate();
     },
-    onSettled: () => setPendingId(null),
   });
 
   const completeExchange = useAdminMutation(onAuthError, {
     mutationFn: ({ claimId, body }: { claimId: number; body: CompleteOrderExchangeRequest }) =>
       completeOrderClaimExchange(adminKey, claimId, body),
-    onMutate: ({ claimId }) => setPendingId(claimId),
     onSuccess: (claim) => {
       toast.show(`주문 #${claim.orderId} 교환 처리를 완료했습니다.`);
       invalidate();
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = resolve.isPending
+    ? resolve.variables.claimId
+    : completeExchange.isPending
+      ? completeExchange.variables.claimId
+      : null;
 
   return (
     <div>

@@ -50,7 +50,6 @@ export function SmartStoreChannelOrderSection({
     ListSmartStoreChannelOrdersAttentionReason | ""
   >("");
   const { cursor, hasPreviousPage, showNextPage, showPreviousPage, resetCursor } = useCursorHistory();
-  const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusProductOrderId ?? null);
   const [inventoryResolutionOrder, setInventoryResolutionOrder] =
     useState<SmartStoreChannelOrderResponse | null>(null);
@@ -85,14 +84,12 @@ export function SmartStoreChannelOrderSection({
   const retryInventory = useAdminMutation(onAuthError, {
     mutationFn: (productOrderId: string) =>
       retrySmartStoreOrderInventory(adminKey, productOrderId),
-    onMutate: setPendingId,
     onSuccess: (order) => {
       toast.show(order.attentionReason
         ? "재고를 반영하지 못했습니다. 목록의 확인 필요 사유를 확인해 주세요."
         : "스마트스토어 주문 재고를 반영했습니다.");
       invalidate();
     },
-    onSettled: () => setPendingId(null),
   });
 
   const resolveReturn = useAdminMutation(onAuthError, {
@@ -103,7 +100,6 @@ export function SmartStoreChannelOrderSection({
       restoreStock,
       reviewVersion: order.returnReviewVersion,
     }),
-    onMutate: ({ order }) => setPendingId(order.productOrderId),
     onSuccess: (_, variables) => {
       toast.show(variables.restoreStock
         ? "반품 검수 수량을 해피갤러리 재고에 복원했습니다."
@@ -117,8 +113,12 @@ export function SmartStoreChannelOrderSection({
         invalidate();
       }
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = retryInventory.isPending
+    ? retryInventory.variables
+    : resolveReturn.isPending
+      ? resolveReturn.variables.order.productOrderId
+      : null;
   const bulkConfirm = useAdminMutation(onAuthError, {
     mutationFn: (productOrderIds: string[]) => confirmSmartStoreOrders(adminKey, productOrderIds),
     onSuccess: (result) => {

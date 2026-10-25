@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { Check } from "lucide-react";
@@ -29,7 +28,6 @@ const TYPE_LABELS: Record<BookingCancellationTaskType, string> = {
 export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const { data: tasks, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.bookingCancellationTasks,
     queryFn: () => fetchBookingCancellationTasks(adminKey),
@@ -38,7 +36,6 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
 
   const completion = useAdminMutation(onAuthError, {
     mutationFn: (taskId: number) => completeBookingCancellationTask(adminKey, taskId),
-    onMutate: setPendingId,
     onSuccess: (result) => {
       toast.show(
         result.changed ? "직접 처리할 항목을 완료로 표시했습니다." : "이미 완료로 표시된 항목입니다.",
@@ -48,8 +45,8 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
         queryKey: queryKeys.admin.bookingCancellationTasks,
       });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = completion.isPending ? completion.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (isAdminSessionUnauthorized(error)) return null;

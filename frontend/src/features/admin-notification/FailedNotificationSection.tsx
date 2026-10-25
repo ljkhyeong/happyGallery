@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchFailedNotifications, retryNotification } from "./api";
@@ -18,7 +17,6 @@ interface Props {
 export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const queryKey = queryKeys.admin.notifications.failed;
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
@@ -28,13 +26,12 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (outboxId: number) => retryNotification(adminKey, outboxId),
-    onMutate: (outboxId) => setPendingId(outboxId),
     onSuccess: () => {
       toast.show("알림을 다시 보내도록 요청했습니다. 기존 발송 건을 이어서 처리해 중복 발송을 막습니다.");
       queryClient.invalidateQueries({ queryKey });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = retry.isPending ? retry.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {

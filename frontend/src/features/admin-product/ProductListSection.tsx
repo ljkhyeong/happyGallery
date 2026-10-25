@@ -23,17 +23,15 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
   const queryClient = useQueryClient();
   const [selectedProductId, setSelectedProductId] = useState<number | null>(focusProductId ?? null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
-  const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [smartStoreProductId, setSmartStoreProductId] = useState<number | null>(null);
   const { data: products, isLoading, error } = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
 
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateProductStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
-    onMutate: ({ id }) => setPendingStatusId(id),
     onSuccess: () => invalidateProductQueries(queryClient),
-    onSettled: () => setPendingStatusId(null),
   });
+  const pendingStatusId = statusMutation.isPending ? statusMutation.variables.id : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {

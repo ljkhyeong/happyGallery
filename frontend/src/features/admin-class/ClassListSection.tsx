@@ -20,7 +20,6 @@ interface Props {
 export function ClassListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const { data: classes, isLoading, error, refetch, isFetching } = useAdminQuery(
     onAuthError,
     adminClassesQuery(adminKey),
@@ -29,13 +28,12 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateClassStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
-    onMutate: ({ id }) => setPendingStatusId(id),
     onSuccess: () => {
       invalidateClassQueries(queryClient);
       void invalidateSlotAvailability(queryClient);
     },
-    onSettled: () => setPendingStatusId(null),
   });
+  const pendingStatusId = statusMutation.isPending ? statusMutation.variables.id : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {

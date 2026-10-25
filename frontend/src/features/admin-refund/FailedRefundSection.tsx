@@ -21,7 +21,6 @@ interface Props {
 export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const [retryTarget, setRetryTarget] = useState<FailedRefundResponse | null>(null);
   const {
     cursor,
@@ -39,14 +38,13 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
-    onMutate: (id) => setPendingId(id),
     onSuccess: (result) => {
       showRetryResult(toast.show, result.status);
       setRetryTarget(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.refunds.failed });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = retry.isPending ? retry.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (isAdminSessionUnauthorized(error)) return null;
@@ -134,9 +132,9 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       <ConfirmModal
         show={retryTarget !== null}
         title="환불 처리 다시 확인"
-        pending={pendingId !== null}
+        pending={retry.isPending}
         onClose={() => setRetryTarget(null)}
-        confirmLabel={pendingId !== null
+        confirmLabel={retry.isPending
           ? "확인 중..."
           : retryTarget?.status === "RECONCILIATION_REQUIRED"
             ? "결제사에서 상태 확인"
