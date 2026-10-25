@@ -386,7 +386,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             SmartStoreOperationFailure failure = failures.get(item.productOrderId());
             if (failure == null) {
                 completeAudit(() -> actionHistoryService.succeed(item.historyId()), item.historyId());
-            } else if ("UNKNOWN_RESULT".equals(failure.code())) {
+            } else if (failure.isResultUnknown()) {
                 completeAudit(
                         () -> actionHistoryService.markResultUnknown(item.historyId(), failure.message()),
                         item.historyId());

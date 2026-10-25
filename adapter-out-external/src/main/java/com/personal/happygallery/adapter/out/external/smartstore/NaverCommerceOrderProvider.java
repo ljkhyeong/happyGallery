@@ -378,8 +378,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         OperationData data = response == null ? null : response.data();
         if (data == null) {
             return new SmartStoreOperationResult(List.of(), requestedIds.stream()
-                    .map(id -> new SmartStoreOperationFailure(
-                            id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
+                    .map(NaverCommerceOrderProvider::unknownResult)
                     .toList());
         }
         List<String> successIds = data.successProductOrderIds() == null
@@ -400,13 +399,20 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .toList();
         List<SmartStoreOperationFailure> missing = requestedIds.stream()
                 .filter(id -> !completedIds.contains(id) && !failedIds.contains(id))
-                .map(id -> new SmartStoreOperationFailure(
-                        id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
+                .map(NaverCommerceOrderProvider::unknownResult)
                 .toList();
         if (!missing.isEmpty()) {
             failures = Stream.concat(failures.stream(), missing.stream()).toList();
         }
         return new SmartStoreOperationResult(successIds, failures);
+    }
+
+    /** 응답의 성공·실패 목록 어디에도 없는 상품 주문은 결과 미확인 실패로 돌려준다. */
+    private static SmartStoreOperationFailure unknownResult(String productOrderId) {
+        return new SmartStoreOperationFailure(
+                productOrderId,
+                SmartStoreOperationFailure.UNKNOWN_RESULT_CODE,
+                "네이버 응답에서 처리 결과를 확인할 수 없습니다.");
     }
 
     private static String format(LocalDateTime value) {

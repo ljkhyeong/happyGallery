@@ -119,7 +119,7 @@ public interface SmartStoreOrderProvider {
                 .filter(failure -> productOrderId.equals(failure.productOrderId()))
                 .findFirst()
                 .ifPresent(failure -> {
-                    if ("UNKNOWN_RESULT".equals(failure.code())) {
+                    if (failure.isResultUnknown()) {
                         throw new OperationResultUnknownException(failure.message());
                     }
                     throw new OperationRejectedException(failure.code(), failure.message());
