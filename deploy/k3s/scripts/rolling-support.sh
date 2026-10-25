@@ -15,7 +15,7 @@ rolling_preflight() {
             rolling_expected=$(ruby -r "$SCRIPT_DIR/rolling-release.rb" -e \
                 'puts RollingRelease.workload(RollingRelease.documents(ARGV[0]), ARGV[1]).dig("spec", "template", "spec", "containers", 0, "image")' \
                 "$state_root/current/manifests.yaml" "$rolling_name")
-            rolling_live=$(kube -n "$NAMESPACE" get deployment "$rolling_name" -o 'jsonpath={.spec.template.spec.containers[0].image}')
+            rolling_live=$(deployment_container_image "$rolling_name")
             [ "$rolling_expected" = "$rolling_live" ] || die "$rolling_name 실제 이미지가 현재 release 기록과 다릅니다."
             kube -n "$NAMESPACE" rollout status "deployment/$rolling_name" --timeout=30s
         done

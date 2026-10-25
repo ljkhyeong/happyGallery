@@ -65,12 +65,9 @@ FRONTEND_IMAGE=$(require_env_value FRONTEND_IMAGE "$release_metadata")
 APP_IMAGE_DIGEST=$(require_env_value APP_IMAGE_DIGEST "$release_metadata")
 FRONTEND_IMAGE_DIGEST=$(require_env_value FRONTEND_IMAGE_DIGEST "$release_metadata")
 IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_metadata")
-live_app_image=$(kube -n "$NAMESPACE" get deployment app \
-    -o 'jsonpath={.spec.template.spec.containers[?(@.name=="app")].image}')
-case "$live_app_image" in
-    "$APP_IMAGE@$APP_IMAGE_DIGEST"|"${APP_IMAGE%:*}@$APP_IMAGE_DIGEST") ;;
-    *) die "실행 이미지와 현재 release 기록이 다릅니다. 배포를 마친 뒤 백업하세요." ;;
-esac
+live_app_image=$(deployment_container_image app)
+image_matches_release "$live_app_image" "$APP_IMAGE" "$APP_IMAGE_DIGEST" \
+    || die "실행 이미지와 현재 release 기록이 다릅니다. 배포를 마친 뒤 백업하세요."
 release_backup_root="$BACKUP_DIR/releases"
 release_backup="$release_backup_root/$IMAGE_TAG"
 release_tmp="$release_backup.partial.$timestamp"
@@ -182,32 +179,19 @@ else
     verify_checksum "$release_backup/images.tar"
 fi
 
-flyway_schema_version=$(kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
-    exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -Nse \
-      "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1"
-')
+flyway_schema_version=$(mysql_flyway_schema_version)
 [ -n "$flyway_schema_version" ] || die "Flyway schema version을 확인할 수 없습니다."
 
-field_key_id_encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
-    -o 'jsonpath={.data.FIELD_ENCRYPTION_KEY_ID}')
-field_key_id=$(printf '%s' "$field_key_id_encoded" | decode_base64)
+field_key_id=$(app_secret_value FIELD_ENCRYPTION_KEY_ID)
 [ -n "$field_key_id" ] || die "FIELD_ENCRYPTION_KEY_ID를 확인할 수 없습니다."
-key_rotation_phase=$(kube -n "$NAMESPACE" get secret happygallery-app \
-    -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}' 2>/dev/null || true)
-[ -n "$key_rotation_phase" ] || key_rotation_phase=none
+key_rotation_phase=$(app_key_rotation_phase)
 
-secret_fingerprint() {
-    secret_key=$1
-    encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
-        -o "jsonpath={.data.$secret_key}")
-    printf '%s' "$encoded" | decode_base64 | sha256_stream
-}
-encrypt_key_sha256=$(secret_fingerprint ENCRYPT_KEY)
-hmac_key_sha256=$(secret_fingerprint HMAC_KEY)
-previous_encrypt_keys_sha256=$(secret_fingerprint PREVIOUS_ENCRYPT_KEYS)
-previous_hmac_keys_sha256=$(secret_fingerprint PREVIOUS_HMAC_KEYS)
-guest_token_key_sha256=$(secret_fingerprint GUEST_TOKEN_HMAC_SECRET)
-guest_token_previous_key_sha256=$(secret_fingerprint GUEST_TOKEN_PREVIOUS_HMAC_SECRET)
+encrypt_key_sha256=$(app_secret_fingerprint ENCRYPT_KEY)
+hmac_key_sha256=$(app_secret_fingerprint HMAC_KEY)
+previous_encrypt_keys_sha256=$(app_secret_fingerprint PREVIOUS_ENCRYPT_KEYS)
+previous_hmac_keys_sha256=$(app_secret_fingerprint PREVIOUS_HMAC_KEYS)
+guest_token_key_sha256=$(app_secret_fingerprint GUEST_TOKEN_HMAC_SECRET)
+guest_token_previous_key_sha256=$(app_secret_fingerprint GUEST_TOKEN_PREVIOUS_HMAC_SECRET)
 
 bash "$SCRIPT_DIR/backup-data-online.sh" \
     "$tmp" "$media_tmp" "$APP_IMAGE@$APP_IMAGE_DIGEST" "$original_app_replicas"
@@ -219,7 +203,7 @@ bash "$SCRIPT_DIR/backup-data-online.sh" \
     || die "백업 중 앱 Secret이 변경됐습니다. 키 변경이 끝난 뒤 다시 백업하세요."
 [ "$(CDPATH= cd -- "$release_state_root/current" && pwd -P)" = "$current_release" ] \
     || die "백업 중 현재 release 기록이 변경됐습니다."
-current_schema=$(mysql_database_query --execute="SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1")
+current_schema=$(mysql_flyway_schema_version)
 [ "$current_schema" = "$flyway_schema_version" ] || die "백업 중 DB 스키마 버전이 변경됐습니다."
 
 checksum=$(sha256_file "$tmp")

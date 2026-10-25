@@ -196,11 +196,31 @@ ensure_containerd_image_alias() (
     fi
 )
 
+# app/frontend Deployment는 Deployment와 같은 이름의 컨테이너 하나만 둔다.
+deployment_container_image() {
+    kube -n "$NAMESPACE" get deployment "$1" \
+        -o "jsonpath={.spec.template.spec.containers[?(@.name==\"$1\")].image}"
+}
+
+# 실행 중인 이미지 참조는 release의 tag@digest 또는 CRI가 쓰는 tag 없는 이름@digest다.
+image_matches_release() {
+    case "$1" in
+        "$2@$3"|"${2%:*}@$3") ;;
+        *) return 1 ;;
+    esac
+}
+
 mysql_database_query() {
     kube -n "$NAMESPACE" exec -i mysql-0 -- sh -ec '
         exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" \
           --batch --raw --skip-column-names --binary-mode "$MYSQL_DATABASE" "$@"
     ' sh "$@"
+}
+
+# 마지막으로 성공한 Flyway migration version 한 값을 출력한다. 비어 있을 때의 처리는 호출부가 정한다.
+mysql_flyway_schema_version() {
+    mysql_database_query \
+        --execute='SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1'
 }
 
 mysql_preflight() {
@@ -374,6 +394,28 @@ decode_base64() {
 
 base64_value() {
     printf '%s' "$1" | base64 | tr -d '\n'
+}
+
+app_secret_encoded() {
+    kube -n "$NAMESPACE" get secret happygallery-app -o "jsonpath={.data.$1}"
+}
+
+# happygallery-app Secret 값을 디코드해 출력한다. 없는 key는 빈 값이고 조회 실패는 그대로 전파한다.
+app_secret_value() {
+    secret_encoded=$(app_secret_encoded "$1") || return
+    printf '%s' "$secret_encoded" | decode_base64
+}
+
+# 디코드한 값을 변수에 담지 않고 그대로 해시해 끝의 줄바꿈·NUL도 fingerprint에 반영한다.
+app_secret_fingerprint() {
+    secret_encoded=$(app_secret_encoded "$1") || return
+    printf '%s' "$secret_encoded" | decode_base64 | sha256_stream
+}
+
+app_key_rotation_phase() {
+    secret_rotation_phase=$(kube -n "$NAMESPACE" get secret happygallery-app \
+        -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}' 2>/dev/null || true)
+    printf '%s' "${secret_rotation_phase:-none}"
 }
 
 media_helper_pod_name() {

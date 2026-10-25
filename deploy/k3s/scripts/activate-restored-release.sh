@@ -132,8 +132,7 @@ kube -n "$NAMESPACE" patch configmap app-config --type merge \
 kube -n "$NAMESPACE" set image deployment/app "app=$app_ref" >/dev/null
 kube -n "$NAMESPACE" set image deployment/frontend "frontend=$frontend_ref" >/dev/null
 
-configured_app_ref=$(kube -n "$NAMESPACE" get deployment app \
-    -o jsonpath='{.spec.template.spec.containers[0].image}')
+configured_app_ref=$(deployment_container_image app)
 [ "$configured_app_ref" = "$app_ref" ] || die "호환 app digest가 Deployment에 반영되지 않았습니다."
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 

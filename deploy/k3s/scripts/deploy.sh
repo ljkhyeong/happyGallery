@@ -50,26 +50,21 @@ systemctl_write() {
     fi
 }
 
-live_container_image() {
-    kube -n "$NAMESPACE" get deployment "$1" \
-        -o "jsonpath={.spec.template.spec.containers[?(@.name==\"$1\")].image}"
-}
-
 release_runs_images() {
     local metadata=$1/metadata.env image digest
     [ -f "$metadata" ] || return 1
     image=$(env_value APP_IMAGE "$metadata") && digest=$(env_value APP_IMAGE_DIGEST "$metadata") || return 1
-    case "$2" in "$image@$digest"|"${image%:*}@$digest") ;; *) return 1 ;; esac
+    image_matches_release "$2" "$image" "$digest" || return 1
     image=$(env_value FRONTEND_IMAGE "$metadata") && digest=$(env_value FRONTEND_IMAGE_DIGEST "$metadata") || return 1
-    case "$3" in "$image@$digest"|"${image%:*}@$digest") ;; *) return 1 ;; esac
+    image_matches_release "$3" "$image" "$digest"
 }
 
 # 롤아웃 뒤 공개 점검이 실패한 이전 배포는 새 release를 실행하면서 current를 갱신하지 못했다.
 # 백업은 current와 실행 이미지가 같아야 하므로, 실행 중인 이미지와 같은 release로 current를 맞춘다.
 align_current_release() {
     local live_app live_frontend release
-    live_app=$(live_container_image app 2>/dev/null) || return 0
-    live_frontend=$(live_container_image frontend 2>/dev/null) || return 0
+    live_app=$(deployment_container_image app 2>/dev/null) || return 0
+    live_frontend=$(deployment_container_image frontend 2>/dev/null) || return 0
     [ -n "$live_app" ] && [ -n "$live_frontend" ] || return 0
     release_runs_images "$state_root/current" "$live_app" "$live_frontend" && return 0
     while IFS= read -r release; do

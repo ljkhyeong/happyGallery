@@ -59,14 +59,10 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-runtime_key_id_encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
-    -o 'jsonpath={.data.FIELD_ENCRYPTION_KEY_ID}')
-runtime_key_id=$(printf '%s' "$runtime_key_id_encoded" | decode_base64)
+runtime_key_id=$(app_secret_value FIELD_ENCRYPTION_KEY_ID)
 [ "$runtime_key_id" = "$expected_key_id" ] \
     || die "runtime FIELD_ENCRYPTION_KEY_ID가 백업과 다릅니다. 올바른 복구 키링을 먼저 구성하세요."
-runtime_rotation_phase=$(kube -n "$NAMESPACE" get secret happygallery-app \
-    -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}' 2>/dev/null || true)
-[ -n "$runtime_rotation_phase" ] || runtime_rotation_phase=none
+runtime_rotation_phase=$(app_key_rotation_phase)
 [ "$runtime_rotation_phase" = "$expected_rotation_phase" ] \
     || die "runtime 키 회전 단계가 백업과 다릅니다. 백업 시점 Secret annotation을 먼저 복구하세요."
 
@@ -74,9 +70,7 @@ verify_secret_fingerprint() {
     secret_key=$1
     metadata_key=$2
     expected_fingerprint=$(require_env_value "$metadata_key" "$recovery_metadata")
-    encoded=$(kube -n "$NAMESPACE" get secret happygallery-app \
-        -o "jsonpath={.data.$secret_key}")
-    actual_fingerprint=$(printf '%s' "$encoded" | decode_base64 | sha256_stream)
+    actual_fingerprint=$(app_secret_fingerprint "$secret_key")
     [ "$actual_fingerprint" = "$expected_fingerprint" ] \
         || die "runtime $secret_key 값이 백업 keyring과 다릅니다. 올바른 복구 키를 먼저 구성하세요."
 }
@@ -128,10 +122,7 @@ age --decrypt -i "$identity" "$bundle_media" \
 stop_media_helper
 media_helper_started=false
 
-restored_flyway_version=$(kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
-    exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -Nse \
-      "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1"
-')
+restored_flyway_version=$(mysql_flyway_schema_version)
 [ "$restored_flyway_version" = "$expected_flyway_version" ] \
     || die "복원 DB의 Flyway version이 백업 메타데이터와 다릅니다. app은 중지 상태로 유지합니다."
 
