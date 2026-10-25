@@ -94,12 +94,9 @@ class PaymentConfirmFulfillmentTransactionService {
         if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
             return false;
         }
-        PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
+        // markFailed는 payload를 지우지 않으므로 전이 뒤에 읽어도 같은 payload로 해제한다.
         attempt.markFailed(reason);
-        if (payload != null) {
-            benefitReservationService.release(
-                    attempt, payload, LocalDateTime.now(clock));
-        }
+        benefitReservationService.release(attempt, LocalDateTime.now(clock));
         return true;
     }
 

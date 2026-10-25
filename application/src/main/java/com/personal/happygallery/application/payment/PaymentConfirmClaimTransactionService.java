@@ -32,17 +32,20 @@ class PaymentConfirmClaimTransactionService {
     private final PaymentAttemptAccessVerifier accessVerifier;
     private final PaymentConfirmAttemptResolver attemptResolver;
     private final OrderPaymentBenefitReservationService benefitReservationService;
+    private final PaymentAttemptExpiryProcessor expiryProcessor;
     private final Clock clock;
 
     PaymentConfirmClaimTransactionService(PaymentAttemptReaderPort attemptReader,
                                           PaymentAttemptAccessVerifier accessVerifier,
                                           PaymentConfirmAttemptResolver attemptResolver,
                                           OrderPaymentBenefitReservationService benefitReservationService,
+                                          PaymentAttemptExpiryProcessor expiryProcessor,
                                           Clock clock) {
         this.attemptReader = attemptReader;
         this.accessVerifier = accessVerifier;
         this.attemptResolver = attemptResolver;
         this.benefitReservationService = benefitReservationService;
+        this.expiryProcessor = expiryProcessor;
         this.clock = clock;
     }
 
@@ -55,15 +58,8 @@ class PaymentConfirmClaimTransactionService {
         }
         Instant nowInstant = clock.instant();
         LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
-        LocalDateTime prepareExpiredBeforeUtc = LocalDateTime.ofInstant(
-                nowInstant.minus(DefaultPaymentAttemptExpiryBatchService.PREPARE_TTL), ZoneOffset.UTC);
-        PreparedPaymentPayload expiryPayload = attempt.getStatus() == PaymentAttemptStatus.PENDING
-                ? benefitReservationService.readPayloadForRelease(attempt)
-                : null;
-        if (attempt.expirePendingBefore(prepareExpiredBeforeUtc)) {
-            if (expiryPayload != null) {
-                benefitReservationService.release(attempt, expiryPayload, now);
-            }
+        if (expiryProcessor.expireIfDue(
+                attempt, DefaultPaymentAttemptExpiryBatchService.prepareExpiredBefore(nowInstant), now)) {
             return new Expired();
         }
         validateAttempt(attempt, command);

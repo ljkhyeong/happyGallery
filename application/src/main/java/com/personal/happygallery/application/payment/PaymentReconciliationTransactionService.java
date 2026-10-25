@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -55,12 +54,10 @@ class PaymentReconciliationTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     PaymentAttempt recordNotApproved(Long attemptId, String reason) {
         PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
-        PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
-        attempt.markReconciledNotApproved(reason);
-        if (payload != null) {
-            benefitReservationService.release(
-                    attempt, payload, LocalDateTime.now(clock));
-        }
+        benefitReservationService.releaseAfter(attempt, () -> {
+            attempt.markReconciledNotApproved(reason);
+            return true;
+        }, LocalDateTime.now(clock));
         return attempt;
     }
 

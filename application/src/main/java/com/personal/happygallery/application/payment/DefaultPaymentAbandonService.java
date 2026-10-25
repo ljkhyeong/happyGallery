@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentAbandonUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
@@ -35,12 +34,6 @@ public class DefaultPaymentAbandonService implements PaymentAbandonUseCase {
         PaymentAttempt attempt = attemptReader.findByOrderIdExternalForUpdate(orderId)
                 .orElseThrow(() -> new NotFoundException("결제"));
         accessVerifier.requireCustomerAccess(attempt, auth, statusToken);
-        PreparedPaymentPayload payload = benefits.readPayloadForRelease(attempt);
-        if (!attempt.abandonPending()) {
-            return;
-        }
-        if (payload != null) {
-            benefits.release(attempt, payload, LocalDateTime.now(clock));
-        }
+        benefits.releaseAfter(attempt, attempt::abandonPending, LocalDateTime.now(clock));
     }
 }

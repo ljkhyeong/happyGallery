@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,7 +79,27 @@ class OrderPaymentBenefitReservationService {
         }
     }
 
-    PreparedPaymentPayload readPayloadForRelease(PaymentAttempt attempt) {
+    /**
+     * 종결 전이를 실행한 뒤 혜택 예약을 해제한다.
+     *
+     * <p>PENDING 취소와 대사 실패 전이는 암호화 payload를 지우므로 전이 전에 payload를 읽어 둔다.
+     * 전이가 false를 돌려주면 상태가 바뀌지 않은 것으로 보고 해제하지 않는다.
+     *
+     * @return 전이가 실행됐으면 true
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    boolean releaseAfter(PaymentAttempt attempt, BooleanSupplier terminalTransition, LocalDateTime now) {
+        PreparedPaymentPayload payload = readPayloadForRelease(attempt);
+        if (!terminalTransition.getAsBoolean()) {
+            return false;
+        }
+        if (payload != null) {
+            release(attempt, payload, now);
+        }
+        return true;
+    }
+
+    private PreparedPaymentPayload readPayloadForRelease(PaymentAttempt attempt) {
         if (attempt.getContext() != PaymentContext.ORDER || attempt.getPayloadEnc() == null) {
             return null;
         }
