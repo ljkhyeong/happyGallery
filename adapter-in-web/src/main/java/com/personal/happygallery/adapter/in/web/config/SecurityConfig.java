@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.in.web.config.properties.AdminPropertie
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminAuthenticationProvider;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.DiscardingOAuth2AuthorizedClientRepository;
@@ -43,11 +44,12 @@ import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.header.HeaderWriterFilter;
 import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import tools.jackson.databind.ObjectMapper;
+
+import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -71,7 +73,7 @@ public class SecurityConfig {
             "/api/v1/guest-records/recovery/orders",
             "/api/v1/guest-records/recovery/bookings",
             "/api/v1/orders/policy",
-            "/api/v1/orders/{id}",
+            CustomerSecurityRoutes.ORDER_PATH,
             "/api/v1/orders/{orderId}/claims",
             "/api/v1/products",
             "/api/v1/products/categories",
@@ -107,40 +109,40 @@ public class SecurityConfig {
     @Bean
     RequestMatcher publicAdminEndpoints() {
         return new OrRequestMatcher(
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/login"),
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/verify"),
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/logout"),
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/setup"),
-                adminEndpoint(HttpMethod.GET, "/api/v1/admin/setup/status"),
-                adminEndpoint(HttpMethod.HEAD, "/api/v1/admin/setup/status"));
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.LOGIN_PATH),
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.MFA_VERIFY_PATH),
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.LOGOUT_PATH),
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.SETUP_PATH),
+                pathPattern(HttpMethod.GET, AdminSecurityRoutes.SETUP_STATUS_PATH),
+                pathPattern(HttpMethod.HEAD, AdminSecurityRoutes.SETUP_STATUS_PATH));
     }
 
     @Bean
     RequestMatcher adminMfaEnrollmentEndpoints() {
         return new OrRequestMatcher(
-                adminEndpoint(HttpMethod.GET, "/api/v1/admin/auth/mfa"),
-                adminEndpoint(HttpMethod.HEAD, "/api/v1/admin/auth/mfa"),
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/enrollment"),
-                adminEndpoint(HttpMethod.POST, "/api/v1/admin/auth/mfa/enrollment/confirm"));
+                pathPattern(HttpMethod.GET, AdminSecurityRoutes.MFA_PATH),
+                pathPattern(HttpMethod.HEAD, AdminSecurityRoutes.MFA_PATH),
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.MFA_ENROLLMENT_PATH),
+                pathPattern(HttpMethod.POST, AdminSecurityRoutes.MFA_ENROLLMENT_CONFIRM_PATH));
     }
 
     @Bean
     RequestMatcher customerAuthenticationEndpoints() {
         return new OrRequestMatcher(
-                endpoint(CustomerSecurityRoutes.MEMBER_API),
-                endpoint(CustomerSecurityRoutes.MEMBER_API_PATTERN),
-                endpoint(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
-                endpoint(CustomerSecurityRoutes.CLIENT_MONITORING_API));
+                pathPattern(CustomerSecurityRoutes.MEMBER_API),
+                pathPattern(CustomerSecurityRoutes.MEMBER_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.CLIENT_MONITORING_API));
     }
 
     @Bean
     RequestMatcher sensitiveCustomerResponses() {
         return new OrRequestMatcher(
-                endpoint(CustomerSecurityRoutes.AUTH_API_PATTERN),
-                endpoint(CustomerSecurityRoutes.MEMBER_API),
-                endpoint(CustomerSecurityRoutes.MEMBER_API_PATTERN),
-                endpoint(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
-                endpoint(CustomerSecurityRoutes.GUEST_RECORD_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.AUTH_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.MEMBER_API),
+                pathPattern(CustomerSecurityRoutes.MEMBER_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.PAYMENT_API_PATTERN),
+                pathPattern(CustomerSecurityRoutes.GUEST_RECORD_API_PATTERN),
                 new RequestHeaderRequestMatcher(GUEST_ACCESS_TOKEN_HEADER));
     }
 
@@ -172,7 +174,7 @@ public class SecurityConfig {
         AuthenticationFailureHandler failureHandler = (request, response, exception) ->
                 entryPoint.commence(request, response, exception);
 
-        http.securityMatcher("/api/v1/admin", "/api/v1/admin/**")
+        http.securityMatcher(AdminSecurityRoutes.ADMIN_API, AdminSecurityRoutes.ADMIN_API_PATTERN)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(publicAdminEndpoints)
                         .permitAll()
@@ -239,27 +241,27 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, PUBLIC_READ_PATHS)
                         .permitAll()
                         .requestMatchers(HttpMethod.POST,
-                                "/api/v1/group-inquiries",
-                                "/api/v1/auth/signup",
-                                "/api/v1/auth/login",
+                                CustomerSecurityRoutes.GROUP_INQUIRY_PATH,
+                                CustomerSecurityRoutes.SIGNUP_PATH,
+                                CustomerSecurityRoutes.LOGIN_PATH,
                                 "/api/v1/auth/logout",
-                                "/api/v1/auth/password/reset",
+                                CustomerSecurityRoutes.PASSWORD_RESET_PATH,
                                 CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH,
                                 CustomerSecurityRoutes.SOCIAL_SIGNUP_COMPLETION_PATH,
-                                "/api/v1/payments/prepare",
-                                "/api/v1/payments/confirm",
+                                CustomerSecurityRoutes.PAYMENT_PREPARE_PATH,
+                                CustomerSecurityRoutes.PAYMENT_CONFIRM_PATH,
                                 "/api/v1/payments/{orderId}/abandon",
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
-                                "/api/v1/webhooks/delivery-tracking",
-                                "/api/v1/webhooks/toss-payments",
-                                "/api/v1/guest-records/recovery",
-                                "/api/v1/guest-records/payment-status-recovery",
-                                "/api/v1/bookings/phone-verifications",
+                                CustomerSecurityRoutes.DELIVERY_TRACKING_WEBHOOK_PATH,
+                                CustomerSecurityRoutes.TOSS_PAYMENTS_WEBHOOK_PATH,
+                                CustomerSecurityRoutes.GUEST_RECORD_RECOVERY_PATH,
+                                CustomerSecurityRoutes.GUEST_RECORD_PAYMENT_STATUS_RECOVERY_PATH,
+                                CustomerSecurityRoutes.PHONE_VERIFICATION_PATH,
                                 "/api/v1/slots/{slotId}/vacancy-alerts",
                                 "/api/v1/orders/{orderId}/claims",
-                                "/api/v1/orders/{id}/delay-response")
+                                CustomerSecurityRoutes.ORDER_DELAY_RESPONSE_PATH)
                         .permitAll()
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/orders/{id}/shipping-address")
+                        .requestMatchers(HttpMethod.PUT, CustomerSecurityRoutes.ORDER_SHIPPING_ADDRESS_PATH)
                         .permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 "/api/v1/bookings/{bookingId}/reschedule",
@@ -268,7 +270,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/v1/bookings/{bookingId}",
                                 "/api/v1/slots/{slotId}/vacancy-alerts",
-                                "/api/v1/orders/{id}")
+                                CustomerSecurityRoutes.ORDER_PATH)
                         .permitAll()
                         .anyRequest().denyAll())
                 .addFilterAfter(rateLimitFilter, HeaderWriterFilter.class)
@@ -288,8 +290,8 @@ public class SecurityConfig {
                         .spa()
                         .csrfTokenRepository(csrfTokenRepository)
                         .ignoringRequestMatchers(
-                                endpoint("/api/v1/webhooks/delivery-tracking"),
-                                endpoint("/api/v1/webhooks/toss-payments")))
+                                pathPattern(CustomerSecurityRoutes.DELIVERY_TRACKING_WEBHOOK_PATH),
+                                pathPattern(CustomerSecurityRoutes.TOSS_PAYMENTS_WEBHOOK_PATH)))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
                                 .baseUri(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)
@@ -325,13 +327,5 @@ public class SecurityConfig {
     private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, exception) ->
                 FilterErrorResponseWriter.write(response, objectMapper, ErrorCode.FORBIDDEN);
-    }
-
-    private static RequestMatcher adminEndpoint(HttpMethod method, String path) {
-        return PathPatternRequestMatcher.withDefaults().matcher(method, path);
-    }
-
-    private static RequestMatcher endpoint(String path) {
-        return PathPatternRequestMatcher.withDefaults().matcher(path);
     }
 }
