@@ -65,10 +65,6 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     @Override
     public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
-        validateOrderPayload(attempt, payload);
-    }
-
-    private void validateOrderPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (!(payload instanceof PreparedOrderPayload op)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
@@ -132,7 +128,6 @@ public class OrderFulfiller implements PaymentFulfiller {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
-        validateOrderPayload(attempt, payload);
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         OrderPricingSnapshot pricing = op.pricing();
         List<OrderItemRequest> orderItems = op.items().stream()
