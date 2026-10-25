@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie, openMockedAdmin } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture, openMockedAdmin } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -104,14 +104,7 @@ test("이벤트 쿠폰은 비회원에게 로그인 후 돌아올 경로를 제�
       await fulfillJson(route, event);
       return;
     }
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     await fulfillJson(route, []);
   });
 
@@ -165,17 +158,6 @@ test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", a
       await fulfillJson(route, event);
       return;
     }
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 401,
-        email: "event-coupon@example.com",
-        name: "이벤트 회원",
-        phone: "01055555555",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/me/coupons/claimable") {
       await fulfillJson(route, claimed ? [] : [{
         definitionId: coupon.definitionId,
@@ -199,10 +181,10 @@ test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", a
       await fulfillJson(route, claimed ? [coupon] : []);
       return;
     }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    // 쿠폰 목록은 위에서 시나리오 값으로 응답했으므로 나머지 세션 조회만 공통 fixture로 처리한다.
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 401, email: "event-coupon@example.com", name: "이벤트 회원", phone: "01055555555" }),
+    })) return;
     await fulfillJson(route, []);
   });
 

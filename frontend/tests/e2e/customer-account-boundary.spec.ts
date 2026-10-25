@@ -1,19 +1,19 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, installTossRequestRecorder, productDetailFixture, readTossRequests } from "./mock-support";
-
-interface Customer {
-  id: number;
-  email: string;
-  name: string;
-  phone: string;
-  phoneVerified: boolean;
-  localPasswordEnabled: boolean;
-}
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  installTossRequestRecorder,
+  memberFixture,
+  productDetailFixture,
+  readTossRequests,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -23,36 +23,9 @@ function productFixture(name: string) {
   return productDetailFixture({ name, price: 30000 });
 }
 
-const customerA: Customer = {
-  id: 101,
-  email: "customer-a@example.com",
-  name: "회원 A",
-  phone: "01011111111",
-  phoneVerified: true,
-  localPasswordEnabled: true,
-};
-
-const customerB: Customer = {
-  id: 202,
-  email: "customer-b@example.com",
-  name: "회원 B",
-  phone: "01022222222",
-  phoneVerified: true,
-  localPasswordEnabled: true,
-};
-
-/** 작품 상세·주문서가 함께 부르는 회원 주문 혜택 조회. 기본 응답 `{}` 대신 실제 형태를 준다. */
-async function fulfillMemberBenefits(route: Route, pathname: string): Promise<boolean> {
-  if (pathname === "/api/v1/me/coupons") {
-    await fulfillJson(route, []);
-    return true;
-  }
-  if (pathname === "/api/v1/me/rewards") {
-    await fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-    return true;
-  }
-  return false;
-}
+const customerA = memberFixture({ id: 101, email: "customer-a@example.com", name: "회원 A", phone: "01011111111" });
+const customerB = memberFixture({ id: 202, email: "customer-b@example.com", name: "회원 B", phone: "01022222222" });
+type Customer = typeof customerA;
 
 async function flushBrowserTasks(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => {
@@ -140,14 +113,8 @@ test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력
       });
       return;
     }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
+    // /me는 위에서 지연 뒤 401로 응답하므로 나머지 세션 조회만 공통 fixture로 처리한다.
+    if (await fulfillMemberCommon(route)) return;
 
     await fulfillJson(route, {});
   });
@@ -197,17 +164,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentCustomer) {
-        await fulfillJson(route, currentCustomer);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/logout") {
       currentCustomer = null;
       await route.fulfill({ status: 204 });
@@ -242,14 +199,6 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
       await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
     if (pathname === "/api/v1/orders/policy") {
       await fulfillJson(route, {
         shippingFee: 3000,
@@ -258,16 +207,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
       });
       return;
     }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
 
-    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 
@@ -322,17 +262,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentCustomer) {
-        await fulfillJson(route, currentCustomer);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/login") {
       currentCustomer = customerB;
       await fulfillJson(route, customerB);
@@ -379,24 +309,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       });
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
 
-    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 
@@ -496,22 +409,8 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
       await fulfillJson(route, { linkedProviders: [] });
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
+    // /me는 위에서 요청 순서에 따라 401·503·회원으로 응답하므로 나머지 세션 조회만 공통 fixture로 처리한다.
+    if (await fulfillMemberCommon(route)) return;
 
     await fulfillJson(route, {});
   });
@@ -585,17 +484,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentCustomer) {
-        await fulfillJson(route, currentCustomer);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/login") {
       currentCustomer = customerB;
       await fulfillJson(route, customerB);
@@ -636,14 +525,6 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
     if (pathname === "/api/v1/orders/policy") {
       await fulfillJson(route, {
         shippingFee: 3000,
@@ -652,16 +533,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       });
       return;
     }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
 
-    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 
@@ -734,10 +606,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      await fulfillJson(route, currentCustomer);
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/login") {
       currentCustomer = customerB;
       await fulfillJson(route, customerB);
@@ -779,22 +648,6 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
         code: "NOT_FOUND",
         message: "테스트용 상세 응답 없음",
       }, 404);
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-29T12:00:00",
-        version: 1,
-      });
       return;
     }
 
@@ -854,17 +707,7 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentCustomer) {
-        await fulfillJson(route, currentCustomer);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/login") {
       currentCustomer = customerB;
       await fulfillJson(route, customerB);
@@ -878,22 +721,6 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
         domainId: 901,
         accessToken: null,
         accessRecoveryRequired: false,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
       });
       return;
     }
@@ -1027,32 +854,13 @@ test("@identity 소셜 재인증 뒤 실제 연결 callback에도 같은 회원 
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, customerA);
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: customerA })) return;
     if (
       pathname === "/api/v1/me/social-accounts/naver/authorization"
       && request.method() === "POST"
     ) {
       await fulfillJson(route, {
         authorizationUrl: `${baseURL}/oauth-next`,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
       });
       return;
     }
@@ -1088,17 +896,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentCustomer) {
-        await fulfillJson(route, currentCustomer);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/logout") {
       currentCustomer = null;
       await route.fulfill({ status: 204 });
@@ -1108,52 +906,6 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       const email = (request.postDataJSON() as { email: string }).email;
       currentCustomer = email === customerA.email ? customerA : customerB;
       await fulfillJson(route, currentCustomer);
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/coupons") {
-      await fulfillJson(route, []);
-      return;
-    }
-    if (pathname === "/api/v1/me/rewards") {
-      await fulfillJson(route, {
-        availableBalance: 0,
-        debtBalance: 0,
-        history: [],
-        reservedBalance: 0,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        addressLine1: null,
-        addressLine2: null,
-        businessHours: null,
-        businessRegistrationNumber: null,
-        email: null,
-        instagramUrl: null,
-        introduction: null,
-        kakaoTalkId: null,
-        mailOrderRegistrationNumber: null,
-        mapUrl: null,
-        naverBlogUrl: null,
-        naverTalkUrl: null,
-        parkingInfo: null,
-        phone: null,
-        postalCode: null,
-        representativeName: null,
-        smartStoreUrl: null,
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
       return;
     }
     if (pathname === "/api/v1/products/42") {

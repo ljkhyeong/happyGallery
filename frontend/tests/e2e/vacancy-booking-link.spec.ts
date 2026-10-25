@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { ClassResponse, PublicSlotResponse, VacancyAlertResponse } from "../../src/generated/api/booking";
 import type { NotificationResponse } from "../../src/generated/api/notification";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const bookingClass: ClassResponse = {
   id: 42, name: "가죽 카드지갑", category: "LEATHER", durationMin: 90,
@@ -66,14 +66,9 @@ async function mockVacancyFlow(page: Page) {
       state.unexpectedWrites.push(`${request.method()} ${pathname}`);
       return fulfillJson(route, { code: "UNEXPECTED_WRITE" }, 500);
     }
+    if (pathname === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: notification.read ? 0 : 1 });
+    if (await fulfillMemberCommon(route, { member: memberFixture({ email: "vacancy@example.com" }) })) return;
     switch (pathname) {
-      case "/api/v1/me": return fulfillJson(route, {
-        id: 501, name: "회원", email: "vacancy@example.com", phone: "01012345678",
-        phoneVerified: true, localPasswordEnabled: true,
-      });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: notification.read ? 0 : 1 });
       case "/api/v1/me/notifications": return fulfillJson(route, [notification]);
       case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       case "/api/v1/me/vacancy-alerts": return fulfillJson(route, state.alerts);

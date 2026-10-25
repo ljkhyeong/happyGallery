@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 for (const member of [true, false]) {
   test(`${member ? "회원" : "비회원"}은 배송지를 수정하고 배송 준비 후에는 수정할 수 없다`, async ({ page, context, baseURL }) => {
@@ -11,10 +11,7 @@ for (const member of [true, false]) {
     await page.route("**/api/v1/**", async (route) => {
       const url = new URL(route.request().url());
       const path = url.pathname;
-      if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "address@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
-      if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+      if (await fulfillMemberCommon(route, { member: memberFixture({ email: "address@example.com" }) })) return;
       if (path.endsWith("/orders/200/shipping-address")) {
         const body = route.request().postDataJSON();
         requests.push(body);

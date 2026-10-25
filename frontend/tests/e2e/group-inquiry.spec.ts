@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture, seedAdminSession } from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
   headcount: 20, preferredSchedule: "10월 평일 오전", location: "기관 강당", classInterest: "레진아트", message: null };
@@ -24,15 +24,12 @@ for (const member of [false, true]) {
     await installCsrfCookie(context, baseURL);
     await replaceSsrUpstreamFixtures(ssrApiFixture("/workshop", { name: "해피갤러리" }));
     let submitted = false;
+    const account = member ? memberFixture({ email: "group@example.com" }) : null;
     await page.route("**/api/v1/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (path === "/api/v1/workshop") return route.fallback();
-      if (path === "/api/v1/me") return member
-        ? fulfillJson(route, { id: 501, name: "회원", email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-        : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+      if (await fulfillMemberCommon(route, { member: account })) return;
       if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
       if (path === "/api/v1/me/group-inquiries/51") return fulfillJson(route, { summary, version: 1, changes: [] });
       if (path.endsWith("/group-inquiries")) {
         if (route.request().method() === "POST") {

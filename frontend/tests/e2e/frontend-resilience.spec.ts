@@ -9,7 +9,14 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  productDetailFixture,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -55,14 +62,7 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, guestCustomerError, 401);
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (pathname === "/api/v1/monitoring/client-events") {
       await route.fulfill({ status: 204 });
       return;
@@ -148,19 +148,10 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
       }
     };
   });
+  const member = memberFixture({ id: 101, email: "payment-recovery-a@example.com", name: "결제 복구 회원 A", phone: "01011111111" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 101,
-        email: "payment-recovery-a@example.com",
-        name: "결제 복구 회원 A",
-        phone: "01011111111",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/bookings/phone-verifications") {
       await fulfillJson(route, { phone: "01011111111", verificationId: 11 });
       return;
@@ -176,22 +167,6 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
           status: "COMPLETED",
         }],
       });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        cartVersion: EMPTY_CART_VERSION,
-        items: [],
-        totalAmount: 0,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
       return;
     }
     await fulfillJson(route, []);
@@ -244,35 +219,9 @@ test("@identity sessionStorage가 차단된 소셜 callback은 기본 경로로 
       originalRemoveItem.call(this, key);
     };
   });
+  const member = memberFixture({ id: 101, email: "social-callback@example.com", name: "소셜 콜백 회원", phone: "01011111111" });
   await page.route("**/api/v1/**", async (route) => {
-    const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 101,
-        email: "social-callback@example.com",
-        name: "소셜 콜백 회원",
-        phone: "01011111111",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        cartVersion: EMPTY_CART_VERSION,
-        items: [],
-        totalAmount: 0,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     await fulfillJson(route, []);
   });
 
@@ -304,9 +253,7 @@ for (const scenario of [
           ? fulfillJson(route, temporaryError, 503)
           : fulfillJson(route, guestCustomerError, 401);
       }
-      if (pathname === "/api/v1/workshop") {
-        return fulfillJson(route, { name: "해피갤러리" });
-      }
+      if (await fulfillMemberCommon(route)) return;
       return fulfillJson(route, []);
     });
 
@@ -333,14 +280,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, guestCustomerError, 401);
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (pathname === "/api/v1/products/42") {
       await route.fallback();
       return;
@@ -404,32 +344,11 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
     "/api/v1/me/social-accounts",
   ]);
 
+  const member = memberFixture({ id: 101, email: "resilience@example.com", name: "조회 복구 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 101,
-        email: "resilience@example.com",
-        name: "조회 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (failingPaths.has(pathname)) {
       await fulfillJson(route, temporaryError, 503);
       return;
@@ -489,32 +408,11 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
 }) => {
   let claimAttempts = 0;
 
+  const member = memberFixture({ id: 102, email: "claim-resilience@example.com", name: "클레임 복구 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 102,
-        email: "claim-resilience@example.com",
-        name: "클레임 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/73") {
       await fulfillJson(route, {
         approvalDeadlineAt: null,
@@ -631,32 +529,11 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
     totalAmount: 10000,
   } satisfies OrderDetailResponse;
 
+  const member = memberFixture({ id: 106, email: "benefit-display@example.com", name: "혜택 표시 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 106,
-        email: "benefit-display@example.com",
-        name: "혜택 표시 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/75") {
       await fulfillJson(route, order);
       return;
@@ -729,32 +606,11 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
   await installCsrfCookie(context, baseURL);
 
+  const member = memberFixture({ id: 105, email: "order-action-resilience@example.com", name: "주문 취소 복구 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 105,
-        email: "order-action-resilience@example.com",
-        name: "주문 취소 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "GET") {
       await fulfillJson(route, {
         approvalDeadlineAt: "2099-01-02T10:00:00",
@@ -847,18 +703,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
         await fulfillJson(route, temporaryError, 503);
         return;
       }
-      await fulfillJson(route, {
-        id: 103,
-        email: "cart-resilience@example.com",
-        name: "장바구니 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
+      await fulfillJson(route, memberFixture({ id: 103, email: "cart-resilience@example.com", name: "장바구니 복구 회원" }));
       return;
     }
     if (pathname === "/api/v1/me/cart" && request.method() === "GET") {
@@ -904,10 +749,8 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
       await fulfillJson(route, temporaryError, 503);
       return;
     }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    // /me와 장바구니는 위에서 실패 뒤 복구 순서로 응답했으므로 나머지 세션 조회만 공통 fixture로 처리한다.
+    if (await fulfillMemberCommon(route)) return;
     if (pathname === "/api/v1/orders/policy") {
       await fulfillJson(route, {
         shippingFee: 3000,

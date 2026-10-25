@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  productDetailFixture,
+} from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -9,16 +16,15 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
   const product = productDetailFixture({ name: "재입고 확인 작품", category: "공예", available: false, stockQuantity: 0 });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   let status: string | null = null;
+  const member = memberFixture({ email: "restock@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/products/42") return route.fallback();
-    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "restock@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
     if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 1 });
+    if (await fulfillMemberCommon(route, { member })) return;
+    if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/me/notifications") return fulfillJson(route, [{ id: 70, eventType: "PRODUCT_RESTOCK_AVAILABLE", aggregateType: "RESTOCK_ALERT", aggregateId: 901, read: true, readAt: "2026-09-05T10:00:00", deliveredAt: "2026-09-05T10:00:00" }]);
     if (path === "/api/v1/me/group-inquiries") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path === "/api/v1/me/restock-alerts") {
       if (route.request().method() === "POST") {
         expect(route.request().postDataJSON()).toEqual({ productId: 42, productVariantId: null });
@@ -55,23 +61,19 @@ test("휴대폰 인증이 없는 회원은 내 정보에서 번호를 등록한 
   await installCsrfCookie(context, baseURL);
   const product = productDetailFixture({ name: "번호 인증 후 알림 작품", category: "공예", available: false, stockQuantity: 0 });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
-  const member = { id: 502, name: "회원", email: "restock-phone@example.com", phone: null as string | null,
-    phoneVerified: false, localPasswordEnabled: true };
+  const member = memberFixture({ id: 502, email: "restock-phone@example.com", phone: null, phoneVerified: false });
   let phoneUpdate: unknown = null;
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/products/42") return route.fallback();
-    if (path === "/api/v1/me") return fulfillJson(route, member);
+    if (await fulfillMemberCommon(route, { member })) return;
     if (path === "/api/v1/me/phone") {
       phoneUpdate = route.request().postDataJSON();
       Object.assign(member, { phone: "01055556666", phoneVerified: true });
       return fulfillJson(route, member);
     }
     if (path === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { phone: "01055556666", verificationId: 801 });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
     if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
     if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });

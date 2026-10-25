@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { CreateInquiryRequest, InquiryResponse } from "../../src/generated/api/customerStore";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 async function mockInquiries(page: Page) {
   const state = {
@@ -11,15 +11,13 @@ async function mockInquiries(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     const rows = state.rows.get(state.accountId)!;
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "inquiry@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=inquiry-test; Path=/" }, json: {},
       });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
-        email: "inquiry@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/inquiries/page": return fulfillJson(route, { content: rows, nextCursor: null, hasMore: false });
       case "/api/v1/me/inquiries": {
         const request = route.request().postDataJSON() as CreateInquiryRequest;

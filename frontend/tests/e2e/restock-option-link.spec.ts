@@ -3,7 +3,7 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -36,22 +36,16 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
     productName: product.name, optionLabel: "색상: 블루 / 크기: 대형", status: "NOTIFIED",
     createdAt: "2026-09-11T10:00:00", notifiedAt: "2026-09-12T10:00:00" }];
   const state = { loggedIn, product, writes: [] as unknown[], productReads: 0 };
-  const member = { id: 501, name: "회원", email: "restock@example.com", phone: "01012345678",
-    phoneVerified: true, localPasswordEnabled: true };
+  const member = memberFixture({ email: "restock@example.com" });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
+    if (await fulfillMemberCommon(route, { member: state.loggedIn ? member : null })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=restock-option; Path=/" }, json: {} });
       case "/api/v1/auth/login": state.loggedIn = true; return fulfillJson(route, member);
-      case "/api/v1/me": return state.loggedIn ? fulfillJson(route, member) : fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/coupons": return fulfillJson(route, []);
-      case "/api/v1/me/rewards": return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/me/restock-alerts": {
         if (request.method() === "POST") {

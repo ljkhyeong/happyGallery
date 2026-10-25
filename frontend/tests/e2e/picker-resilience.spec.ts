@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { EMPTY_CART_VERSION, fulfillJson, openMockedAdmin } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture, openMockedAdmin } from "./mock-support";
 
 const EMPTY_CURSOR_PAGE = {
   content: [],
@@ -188,14 +188,7 @@ test("예약 슬롯과 소셜 본인 확인 선택기는 조회 실패 후 수�
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (pathname === "/api/v1/classes") {
       await fulfillJson(
         route,
@@ -231,38 +224,18 @@ test("@identity 소셜 provider 조회 실패 중에는 동작하지 않는 step
 }) => {
   let providersAvailable = false;
 
+  // 소셜 전용 회원은 비밀번호가 없어 본인 확인에 소셜 계정을 쓴다.
+  const member = memberFixture({ id: 301, email: "social-only@example.com", name: "소셜 회원", localPasswordEnabled: false });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 301,
-        email: "social-only@example.com",
-        name: "소셜 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: false,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/social-accounts") {
       await fulfillJson(
         route,
         providersAvailable ? { linkedProviders: ["GOOGLE"] } : temporaryError,
         providersAvailable ? 200 : 503,
       );
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
       return;
     }
 

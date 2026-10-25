@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { BookingDetailResponse, ClassResponse, MyBookingDetail } from "../../src/generated/api/booking";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const bookingClass: ClassResponse = {
   id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 90,
@@ -19,20 +19,15 @@ const previousBooking = {
 
 async function mockBookingFlow(page: Page, member: boolean, currentClasses = [bookingClass]) {
   const writes: string[] = [];
+  const account = member ? memberFixture({ email: "booking@example.com" }) : null;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
     if (route.request().method() !== "GET") {
       writes.push(`${route.request().method()} ${pathname}`);
       return fulfillJson(route, { code: "UNEXPECTED_WRITE" }, 500);
     }
+    if (await fulfillMemberCommon(route, { member: account })) return;
     switch (pathname) {
-      case "/api/v1/me":
-        return member
-          ? fulfillJson(route, { id: 501, name: "회원", email: "booking@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-          : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       case "/api/v1/policies/current": return fulfillJson(route, {
         terms: { version: "2026-09", documentPath: "/terms" },

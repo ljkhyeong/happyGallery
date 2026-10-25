@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyGroupInquiryResponse } from "../../src/generated/api/customerStore";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 function inquiry(id: number, organization: string): MyGroupInquiryResponse {
   return {
@@ -52,14 +52,12 @@ async function mockInquiries(page: Page) {
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
       return fulfillJson(route, response);
     }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "group@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=inquiry-draft; Path=/" }, json: {} });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
-        email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/group-inquiries": return fulfillJson(route, { content: Array.from(details.values()).map((detail) => detail.summary),
         hasMore: false, nextCursor: null });
       default: throw new Error(`정의하지 않은 단체 문의 테스트 요청: ${pathname}`);

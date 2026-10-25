@@ -5,7 +5,7 @@ import {
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const leather: ClassResponse = {
   id: 41, name: "가죽 카드지갑 정규", category: "LEATHER", durationMin: 120,
@@ -48,14 +48,8 @@ test("홈 클래스 카드는 마감 일정을 건너뛴 다음 수업과 남은
     if (request.method() !== "GET") {
       throw new Error(`홈 클래스 카드 테스트에서 예상하지 않은 변경 요청: ${request.method()} ${url.pathname}`);
     }
+    if (await fulfillMemberCommon(route, { member: memberFixture({ id: 601, email: "quick@example.com" }) })) return;
     switch (url.pathname) {
-      case "/api/v1/me": return fulfillJson(route, {
-        id: 601, name: "회원", email: "quick@example.com", phone: "01012345678",
-        phoneVerified: true, localPasswordEnabled: true,
-      });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/passes/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       case "/api/v1/me/vacancy-alerts": return fulfillJson(route, []);
       case "/api/v1/policies/current": return fulfillJson(route, {

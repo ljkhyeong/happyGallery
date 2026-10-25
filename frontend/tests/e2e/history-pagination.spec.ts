@@ -1,54 +1,30 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  productDetailFixture,
+  seedAdminSession,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
 
-const member = {
-  id: 501,
-  email: "history@example.com",
-  name: "이력 회원",
-  phone: "01012345678",
-  phoneVerified: true,
-  localPasswordEnabled: true,
-};
-
-async function fulfillCommon(route: Route) {
-  const { pathname } = new URL(route.request().url());
-  if (pathname === "/api/v1/me") {
-    await fulfillJson(route, member);
-    return true;
-  }
-  if (pathname === "/api/v1/me/cart") {
-    await fulfillJson(route, {
-      cartVersion: EMPTY_CART_VERSION,
-      items: [],
-      totalAmount: 0,
-    });
-    return true;
-  }
-  if (pathname === "/api/v1/me/notifications/unread-count") {
-    await fulfillJson(route, { count: 0 });
-    return true;
-  }
-  if (pathname === "/api/v1/workshop") {
-    await fulfillJson(route, { name: "해피갤러리" });
-    return true;
-  }
-  return false;
-}
+const member = memberFixture({ email: "history@example.com", name: "이력 회원" });
 
 test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 이력을 이어 본다", async ({ page }) => {
   const requestedCursors: Array<string | null> = [];
 
   await page.route("**/api/v1/**", async (route) => {
-    if (await fulfillCommon(route)) return;
+    if (await fulfillMemberCommon(route, { member })) return;
 
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/me/orders/page") {
@@ -105,7 +81,7 @@ test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함�
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
   await page.route("**/api/v1/**", async (route) => {
-    if (await fulfillCommon(route)) return;
+    if (await fulfillMemberCommon(route, { member })) return;
 
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/products/42") {
@@ -204,26 +180,7 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      return;
-    }
-    if (url.pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        cartVersion: EMPTY_CART_VERSION,
-        items: [],
-        totalAmount: 0,
-      });
-      return;
-    }
-    if (url.pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (url.pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (url.pathname === "/api/v1/bookings/phone-verifications") {
       await fulfillJson(route, { phone: "01012345678", verificationId: 77 });
       return;
@@ -391,7 +348,7 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
   });
 
   await page.route("**/api/v1/**", async (route) => {
-    if (await fulfillCommon(route)) return;
+    if (await fulfillMemberCommon(route, { member })) return;
 
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/classes") {
@@ -477,7 +434,7 @@ for (const scenario of [
   test(`회원 ${scenario.path} 검색은 조건을 서버로 보내고 빈 결과에서도 조건을 바꿀 수 있다`, async ({ page }) => {
     const requests: URL[] = [];
     await page.route("**/api/v1/**", async (route) => {
-      if (await fulfillCommon(route)) return;
+      if (await fulfillMemberCommon(route, { member })) return;
       const url = new URL(route.request().url());
       if (url.pathname === `/api/v1/me/${scenario.path}/page`) {
         requests.push(url);

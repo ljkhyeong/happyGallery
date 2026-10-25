@@ -1,7 +1,12 @@
 // API를 모의하는 E2E spec의 공용 응답·세션·fixture. 실제 백엔드를 쓰는 준비 helper는 support.ts에 둔다.
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
+import type { CustomerUserResponse } from "../../src/generated/api/customerAuth";
+import type { CartResponse } from "../../src/generated/api/customerStore";
+import type { MyCouponResponse, RewardWalletResponse } from "../../src/generated/api/memberBenefit";
+import type { UnreadCountResponse } from "../../src/generated/api/notification";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { PublicReviewPageResponse } from "../../src/generated/api/review";
+import type { WorkshopProfileResponse } from "../../src/generated/api/workshop";
 
 /** 관리자 화면이 토큰을 읽는 sessionStorage 키. src/features/admin-product/useAdminKey.ts의 TOKEN_KEY와 같다. */
 export const ADMIN_TOKEN_KEY = "hg_admin_token";
@@ -11,6 +16,78 @@ export const MOCK_ADMIN_TOKEN = "e2e-admin-token";
 
 /** 빈 회원 장바구니의 cartVersion */
 export const EMPTY_CART_VERSION = "0".repeat(64);
+
+/** 빈 회원 장바구니. 공유 객체이므로 spec에서 수정하지 않는다. */
+export const EMPTY_CART = { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 } satisfies CartResponse;
+
+/** 적립금 이력이 없는 회원 지갑. 공유 객체이므로 spec에서 수정하지 않는다. */
+export const EMPTY_REWARDS = {
+  availableBalance: 0,
+  reservedBalance: 0,
+  debtBalance: 0,
+  history: [],
+} satisfies RewardWalletResponse;
+
+/** 고객 화면 머리글·바닥글이 이름만 읽는 공방 정보의 최소 형태. 연락처·주소를 단정하는 spec은 직접 응답한다. */
+export const WORKSHOP = { name: "해피갤러리" } satisfies Pick<WorkshopProfileResponse, "name">;
+
+/**
+ * 휴대폰 인증을 마친 비밀번호 회원. 시나리오에 필요한 값만 overrides로 바꾼다.
+ * 반환 타입이 overrides를 유지하므로 email·phone을 넘긴 spec은 null 검사 없이 그 값을 입력에 쓸 수 있다.
+ */
+export function memberFixture<Overrides extends Partial<CustomerUserResponse> = Partial<CustomerUserResponse>>(
+  overrides: Overrides = {} as Overrides,
+): CustomerUserResponse & Overrides {
+  const base: CustomerUserResponse = {
+    id: 501,
+    name: "회원",
+    email: "member@example.com",
+    phone: "01012345678",
+    phoneVerified: true,
+    localPasswordEnabled: true,
+  };
+  return { ...base, ...overrides };
+}
+
+/**
+ * 회원 세션 화면이 공통으로 보내는 GET 조회(/me·/me/cart·/me/notifications/unread-count·/me/coupons·/me/rewards·/workshop)에
+ * 정적 fixture로 응답하고, 처리했으면 true를 반환한다. member가 null이면 /me는 401, 생략하면 /me는 처리하지 않는다.
+ * 요청마다 다른 응답이 필요한 경로는 spec이 이 helper보다 먼저 직접 처리한다.
+ */
+export async function fulfillMemberCommon(
+  route: Route,
+  { member }: { member?: CustomerUserResponse | null } = {},
+): Promise<boolean> {
+  const request = route.request();
+  if (request.method() !== "GET") return false;
+  switch (new URL(request.url()).pathname) {
+    case "/api/v1/me":
+      if (member === undefined) return false;
+      if (member === null) {
+        await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      } else {
+        await fulfillJson(route, member);
+      }
+      return true;
+    case "/api/v1/me/cart":
+      await fulfillJson(route, EMPTY_CART);
+      return true;
+    case "/api/v1/me/notifications/unread-count":
+      await fulfillJson(route, { count: 0 } satisfies UnreadCountResponse);
+      return true;
+    case "/api/v1/me/coupons":
+      await fulfillJson(route, [] satisfies MyCouponResponse[]);
+      return true;
+    case "/api/v1/me/rewards":
+      await fulfillJson(route, EMPTY_REWARDS);
+      return true;
+    case "/api/v1/workshop":
+      await fulfillJson(route, WORKSHOP);
+      return true;
+    default:
+      return false;
+  }
+}
 
 /** 후기가 없는 공개 후기 목록. 공유 객체이므로 spec에서 수정하지 않는다. */
 export const EMPTY_REVIEW_PAGE = {

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { EMPTY_CART_VERSION, installCsrfCookie } from "./mock-support";
+import { EMPTY_CART, fulfillMemberCommon, installCsrfCookie, memberFixture, WORKSHOP } from "./mock-support";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -37,21 +37,11 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     }
     await route.fulfill({
       status: 200,
-      json: {
-        id: 101,
-        email: "cart-merge@example.com",
-        name: "장바구니 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      },
+      json: memberFixture({ id: 101, email: "cart-merge@example.com", name: "장바구니 회원" }),
     });
   });
   await context.route(/\/api\/v1\/me\/cart$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      json: { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 },
-    });
+    await route.fulfill({ status: 200, json: EMPTY_CART });
   });
   await context.route(/\/api\/v1\/me\/cart\/merge$/, async (route) => {
     mergeRequests.push(route.request().postDataJSON() as MergeRequest);
@@ -67,10 +57,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     });
   });
   await context.route(/\/api\/v1\/workshop$/, async (route) => {
-    await route.fulfill({
-      status: 200,
-      json: { name: "해피갤러리" },
-    });
+    await route.fulfill({ status: 200, json: WORKSHOP });
   });
 
   const secondPage = await context.newPage();
@@ -154,22 +141,8 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     throw new Error("Playwright baseURL이 필요합니다.");
   }
 
-  const customerA = {
-    id: 101,
-    email: "cart-account-a@example.com",
-    name: "장바구니 회원 A",
-    phone: "01011111111",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
-  const customerB = {
-    id: 202,
-    email: "cart-account-b@example.com",
-    name: "장바구니 회원 B",
-    phone: "01022222222",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
+  const customerA = memberFixture({ id: 101, email: "cart-account-a@example.com", name: "장바구니 회원 A", phone: "01011111111" });
+  const customerB = memberFixture({ id: 202, email: "cart-account-b@example.com", name: "장바구니 회원 B", phone: "01022222222" });
   let currentCustomer = customerA;
   let releaseMerge: (() => void) | undefined;
   const mergeRelease = new Promise<void>((resolve) => {
@@ -188,13 +161,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      await route.fulfill({
-        status: 200,
-        json: currentCustomer,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentCustomer })) return;
     if (pathname === "/api/v1/auth/login" && request.method() === "POST") {
       currentCustomer = customerB;
       await route.fulfill({
@@ -207,31 +174,6 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
       mergeRequests.push(request.postDataJSON() as MergeRequest);
       await mergeRelease;
       await route.fulfill({ status: 204 });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await route.fulfill({
-        status: 200,
-        json: {
-          cartVersion: EMPTY_CART_VERSION,
-          items: [],
-          totalAmount: 0,
-        },
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await route.fulfill({
-        status: 200,
-        json: { count: 0 },
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await route.fulfill({
-        status: 200,
-        json: { name: "해피갤러리" },
-      });
       return;
     }
     await route.fulfill({

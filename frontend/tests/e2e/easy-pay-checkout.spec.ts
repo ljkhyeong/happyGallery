@@ -1,31 +1,37 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests, TOSS_REQUESTS_GLOBAL } from "./mock-support";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  installTossRequestRecorder,
+  memberFixture,
+  readTossRequests,
+  TOSS_REQUESTS_GLOBAL,
+} from "./mock-support";
 
 async function openCheckout(page: Page, amount = 12000) {
   const prepares: unknown[] = [];
   const confirms: unknown[] = [];
   const abandoned: string[] = [];
+  const member = memberFixture({ id: 701, name: "결제 테스트", email: "pay@example.com" });
   await installTossRequestRecorder(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    // 결제할 작품이 담긴 장바구니는 시나리오 데이터라 공통 빈 장바구니보다 먼저 응답한다.
+    if (pathname === "/api/v1/me/cart") {
+      return fulfillJson(route, {
+        cartVersion: "a".repeat(64), totalAmount: 12000,
+        items: [{ cartItemId: 42, productId: 42, productVariantId: null, options: [], basePrice: 12000,
+          variantPriceAdjustment: 0, textOptionPriceAdjustment: 0, careInstructions: null,
+          productionLeadDays: null, specification: null,
+          productName: "결제 확인 작품", productType: "READY_STOCK",
+          price: 12000, qty: 1, subtotal: 12000, available: true }],
+      });
+    }
+    if (await fulfillMemberCommon(route, { member })) return;
     switch (pathname) {
-      case "/api/v1/me":
-        return fulfillJson(route, { id: 701, name: "결제 테스트", phone: "01012345678", email: "pay@example.com", phoneVerified: true });
-      case "/api/v1/me/cart":
-        return fulfillJson(route, {
-          cartVersion: "a".repeat(64), totalAmount: 12000,
-          items: [{ cartItemId: 42, productId: 42, productVariantId: null, options: [], basePrice: 12000,
-            variantPriceAdjustment: 0, textOptionPriceAdjustment: 0, careInstructions: null,
-            productionLeadDays: null, specification: null,
-            productName: "결제 확인 작품", productType: "READY_STOCK",
-            price: 12000, qty: 1, subtotal: 12000, available: true }],
-        });
       case "/api/v1/orders/policy":
         return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의" });
-      case "/api/v1/me/notifications/unread-count":
-        return fulfillJson(route, { count: 0 });
-      case "/api/v1/workshop":
-        return fulfillJson(route, { name: "해피갤러리", updatedAt: "2026-08-30T10:00:00", version: 1 });
       case "/api/v1/payments/prepare":
         prepares.push(route.request().postDataJSON());
         return fulfillJson(route, { orderId: "easy-pay-test", amount, context: "ORDER", statusToken: "payment-status" });
@@ -261,7 +267,7 @@ for (const checkout of [
       if (pathname === "/api/v1/me") {
         return checkout.customerId === null
           ? route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } })
-          : fulfillJson(route, { id: checkout.customerId, name: "결제 테스트", phone: "01012345678", phoneVerified: true });
+          : fulfillJson(route, memberFixture({ id: checkout.customerId, name: "결제 테스트" }));
       }
       if (pathname.endsWith("/unread-count")) return fulfillJson(route, { count: 0 });
       if (pathname === "/api/v1/me/cart") return fulfillJson(route, { items: [], totalAmount: 0, cartVersion: "a".repeat(64) });
@@ -298,9 +304,7 @@ test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨�
   await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
   const back = page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true });
   await expect(back).toBeVisible();
-  await page.route("**/api/v1/me", (route) => fulfillJson(route, {
-    id: 702, name: "변경된 고객", phone: "01098765432", phoneVerified: true,
-  }));
+  await page.route("**/api/v1/me", (route) => fulfillJson(route, memberFixture({ id: 702, name: "변경된 고객", phone: "01098765432" })));
   await page.evaluate(() => {
     const key = "hg_customer_session_boundary";
     const oldValue = localStorage.getItem(key);

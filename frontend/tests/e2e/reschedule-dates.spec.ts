@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyBookingDetail, PublicSlotResponse } from "../../src/generated/api/booking";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 function slot(id: number, date: string, remainingCapacity: number, hour = "10"): PublicSlotResponse {
   return { id, classId: 27, capacity: 6, bookedCount: 6 - remainingCapacity, remainingCapacity,
@@ -25,6 +25,7 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
       passCreditRestorable: false, manualCompensationRequired: false, warningCode: null },
   };
   const changes: number[] = [];
+  const account = member ? memberFixture({ email: "reschedule@example.com" }) : null;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/csrf") return route.fulfill({
@@ -39,15 +40,12 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
       Object.assign(booking, { slotId: target.id, startAt: target.startAt, endAt: target.endAt });
       return fulfillJson(route, { ...booking, bookingNumber: "HG-7" });
     }
+    // 예약 상세의 공방 안내가 주소·연락처를 보여 주므로 공통 최소 응답 대신 직접 응답한다.
+    if (pathname === "/api/v1/workshop") return fulfillJson(route, {
+      name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
+    });
+    if (await fulfillMemberCommon(route, { member: account })) return;
     switch (pathname) {
-      case "/api/v1/me": return member
-        ? fulfillJson(route, { id: 501, name: "회원", email: "reschedule@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-        : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return fulfillJson(route, {
-        name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
-      });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/bookings/7": return fulfillJson(route, booking);
       case "/api/v1/bookings/7": return fulfillJson(route, {
         ...booking, bookingNumber: "HG-7", guestName: "비회원", guestPhone: "01087654321",

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { CreateQnaRequest, ProductQnaDetail } from "../../src/generated/api/productQna";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, productDetailFixture } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture, productDetailFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -18,11 +18,12 @@ async function mockQna(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "qna@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=qna-writing; Path=/" }, json: {} });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`, email: "qna@example.com",
-        phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
       case "/api/v1/me/products/42/qna": {
         const body = request.postDataJSON() as CreateQnaRequest;
         const accountId = state.accountId;
@@ -44,15 +45,10 @@ async function mockQna(page: Page) {
         const row = state.rows.find((item) => item.id === 91 && item.userId === state.accountId);
         return row ? fulfillJson(route, row) : fulfillJson(route, { code: "NOT_FOUND" }, 404);
       }
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/coupons": return fulfillJson(route, []);
-      case "/api/v1/me/rewards": return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/products/42": return route.fallback();
       case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
       case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
       default: throw new Error(`정의하지 않은 상품 문의 작성 테스트 요청: ${request.method()} ${pathname}`);
     }
   });

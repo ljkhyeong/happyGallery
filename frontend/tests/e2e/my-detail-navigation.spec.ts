@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyBookingDetailResponse, OrderDetailResponse } from "../../src/shared/types";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const order = {
   orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED",
@@ -35,14 +35,10 @@ const scenarios = [
 
 async function installMemberApi(page: Page, scenario: typeof scenarios[number]) {
   const state = { detailAvailable: true, detailRequests: 0, listRequests: [] as URL[] };
+  const member = memberFixture({ email: "navigation@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/api/v1/me") {
-      return fulfillJson(route, { id: 501, name: "회원", email: "navigation@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    }
-    if (url.pathname === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (url.pathname === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
-    if (url.pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    if (await fulfillMemberCommon(route, { member })) return;
     if (url.pathname === `/api/v1/me/${scenario.path}/page`) {
       state.listRequests.push(url);
       return fulfillJson(route, { content: [scenario.summary], hasMore: false, nextCursor: null });

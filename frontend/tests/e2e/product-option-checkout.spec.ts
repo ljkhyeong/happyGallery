@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -36,13 +36,10 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
     product.variants = [{ id: 801, active: true, quantity, priceAdjustment: 2000, selections: [] }];
   }
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/80", product));
+  const account = member ? memberFixture({ id: 7, name: "장바구니 고객", email: "cart@example.com" }) : null;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") return member
-      ? fulfillJson(route, { id: 7, name: "장바구니 고객", email: "cart@example.com", phone: "01012345678", phoneVerified: true })
-      : fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
-    if (pathname === "/api/v1/me/cart") return fulfillJson(route, { items: [], totalAmount: 0, cartVersion: "empty" });
-    if (pathname === "/api/v1/me/rewards") return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
+    if (await fulfillMemberCommon(route, { member: account })) return;
     if (pathname === "/api/v1/products/80") return fulfillJson(route, product);
     if (pathname === "/api/v1/products") return fulfillJson(route, [product]);
     if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
@@ -50,7 +47,6 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
     });
     if (pathname.endsWith("/qna/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     if (pathname.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
-    if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", version: 1 });
     return fulfillJson(route, []);
   });
   await page.goto("/products/80");

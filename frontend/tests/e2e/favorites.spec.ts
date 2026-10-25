@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  productDetailFixture,
+} from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -11,13 +18,12 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
     bufferMin: 30, capacity: 8, passEligible: true, description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [] };
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product), ssrApiFixture("/classes/42", bookingClass));
   const saved = new Set<string>();
+  const member = memberFixture({ email: "favorite@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     if (path === "/api/v1/products/42" || path === "/api/v1/classes/42") return route.fallback();
-    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "favorite@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (await fulfillMemberCommon(route, { member })) return;
     if (path === "/api/v1/me/default-shipping-address") return fulfillJson(route, { version: 0, shippingAddress: null });
     if (path.startsWith("/api/v1/me/favorites/")) {
       const type = path.split("/").at(-2)!;
@@ -34,10 +40,8 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
       return fulfillJson(route, { content: rows, nextCursor: null, hasMore: false });
     }
     if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
     if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
-    if (path === "/api/v1/me/rewards") return fulfillJson(route, { balance: 0 });
     return fulfillJson(route, []);
   });
   await page.goto("/products/42");

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 const sdk = `
 (() => {
@@ -32,6 +32,7 @@ const sdk = `
 
 async function setup(page: Page, member = false) {
   const configuration = { siteKey: "test-site-key", unavailable: false };
+  const account = member ? memberFixture({ id: 101 }) : null;
   await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: sdk }));
   await page.route("**/api/v1/**", async (route) => {
@@ -40,11 +41,7 @@ async function setup(page: Page, member = false) {
     if (path === "/api/v1/bot-protection") return configuration.unavailable
       ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
       : fulfillJson(route, { siteKey: configuration.siteKey });
-    if (path === "/api/v1/me") return member
-      ? fulfillJson(route, { id: 101, name: "회원", phone: "01012345678", email: "member@example.com", phoneVerified: true })
-      : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (await fulfillMemberCommon(route, { member: account })) return;
     if (path === "/api/v1/policies/current") return fulfillJson(route, {
       terms: { version: "2026-09-11-v1", documentPath: "/terms/2026-09-11-v1" },
       privacy: { version: "2026-09-12-v1", documentPath: "/privacy/2026-09-12-v1" },

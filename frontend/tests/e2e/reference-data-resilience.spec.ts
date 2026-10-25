@@ -5,7 +5,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -124,23 +124,8 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 103,
-        email: "notification-resilience@example.com",
-        name: "알림 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -152,6 +137,9 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
       );
       return;
     }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 103, email: "notification-resilience@example.com", name: "알림 복구 회원" }),
+    })) return;
     if (pathname === "/api/v1/me/notifications") {
       await fulfillJson(route, []);
       return;
@@ -180,29 +168,13 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 104,
-        email: "pass-intent@example.com",
-        name: "이용권 의도 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 104, email: "pass-intent@example.com", name: "이용권 의도 회원" }),
+    })) return;
     if (pathname === "/api/v1/policies/current") {
       await fulfillJson(route, {
         terms: { version: "2026-07", documentPath: "/terms" },
@@ -288,29 +260,13 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
     const url = new URL(route.request().url());
     const { pathname } = url;
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 106,
-        email: "pass-class-switch@example.com",
-        name: "이용권 클래스 전환 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 106, email: "pass-class-switch@example.com", name: "이용권 클래스 전환 회원" }),
+    })) return;
     if (pathname === "/api/v1/policies/current") {
       await fulfillJson(route, {
         terms: { version: "2026-07", documentPath: "/terms" },
