@@ -6,13 +6,11 @@ import com.personal.happygallery.application.search.port.in.AdminPassQueryUseCas
 import com.personal.happygallery.application.search.port.out.AdminPassQueryPort;
 import com.personal.happygallery.application.search.port.out.AdminPassQueryResult;
 import com.personal.happygallery.application.shared.page.OffsetPage;
-import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,21 +32,11 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
 
     @Override
     public OffsetPage<AdminPassView> search(String keyword, int page, int size) {
-        String safeKeyword = SearchParams.clampKeyword(keyword);
-        int safePage = PageParams.clampPage(page);
-        int safeSize = PageParams.clampSize(size);
-        int offset = PageParams.offset(safePage, safeSize);
-        long totalCount = queryPort.count(safeKeyword);
-        if (totalCount == 0 || offset >= totalCount) {
-            return OffsetPage.of(List.of(), safePage, safeSize, totalCount);
-        }
-
         LocalDateTime now = LocalDateTime.now(clock);
-        List<AdminPassView> passes = queryPort.search(safeKeyword, now, offset, safeSize)
-                .stream()
-                .map(result -> toView(result, now))
-                .toList();
-        return OffsetPage.of(passes, safePage, safeSize, totalCount);
+        return AdminSearchHelper.search(keyword, page, size,
+                queryPort::count,
+                (safeKeyword, offset, limit) -> queryPort.search(safeKeyword, now, offset, limit),
+                result -> toView(result, now));
     }
 
     @Override

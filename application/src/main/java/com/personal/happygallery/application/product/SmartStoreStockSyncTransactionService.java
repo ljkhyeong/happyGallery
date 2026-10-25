@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -126,31 +127,21 @@ class SmartStoreStockSyncTransactionService {
 
     @Transactional(readOnly = true)
     ProductSyncSnapshot productSnapshot(Long productId) {
-        Product product = productReaderPort.findById(productId)
-                .orElseThrow(() -> new IllegalStateException("연동할 상품이 없습니다."));
-        List<SmartStoreStockMapping> mappings = mappingPort
-                .findByProductIdOrderByProductVariantIdAsc(productId).stream()
-                .filter(SmartStoreStockMapping::isEnabled)
-                .toList();
-        if (mappings.isEmpty()) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, "스마트스토어 연결이 해제되었거나 비활성 상태입니다.");
-        }
-        List<Long> mappingIds = mappings.stream().map(SmartStoreStockMapping::getId).sorted().toList();
-        Long originProductNo = mappings.getFirst().getOriginProductNo();
+        MappedProduct mapped = loadMappedProduct(productId, () -> new HappyGalleryException(
+                ErrorCode.CONFLICT, "스마트스토어 연결이 해제되었거나 비활성 상태입니다."));
+        Product product = mapped.product();
+        List<Long> mappingIds = mapped.mappings().stream().map(SmartStoreStockMapping::getId).sorted().toList();
         if (product.getType() == ProductType.READY_STOCK) {
-            Inventory inventory = inventoryReaderPort.findByProductId(productId)
-                    .orElseThrow(() -> new IllegalStateException("연동할 상품 재고가 없습니다."));
+            int stockQuantity = mapped.inventory().getQuantity();
             return new ProductSyncSnapshot(
-                    productId, product.getVersion(), originProductNo, product.getPrice(),
-                    targetStatus(product.getStatus(), inventory.getQuantity()),
-                    inventory.getQuantity(), List.of(), mappingIds);
+                    productId, product.getVersion(), mapped.originProductNo(), product.getPrice(),
+                    targetStatus(product.getStatus(), stockQuantity), stockQuantity, List.of(), mappingIds);
         }
 
-        List<ProductOptionSnapshot> options = mappedOptions(productId, mappings);
-        int totalStock = options.stream().mapToInt(ProductOptionSnapshot::stockQuantity).sum();
+        int totalStock = mapped.options().stream().mapToInt(ProductOptionSnapshot::stockQuantity).sum();
         return new ProductSyncSnapshot(
-                productId, product.getVersion(), originProductNo, product.getPrice(),
-                targetStatus(product.getStatus(), totalStock), null, options, mappingIds);
+                productId, product.getVersion(), mapped.originProductNo(), product.getPrice(),
+                targetStatus(product.getStatus(), totalStock), null, mapped.options(), mappingIds);
     }
 
     private static String targetStatus(ProductStatus status, int stockQuantity) {
@@ -161,6 +152,27 @@ class SmartStoreStockSyncTransactionService {
     }
 
     private StockCommand buildCommand(Long productId) {
+        MappedProduct mapped = loadMappedProduct(productId,
+                () -> new IllegalStateException("스마트스토어 재고 연동 설정이 비활성 상태입니다."));
+        if (mapped.product().getType() == ProductType.READY_STOCK) {
+            List<SmartStoreStockMapping> mappings = mapped.mappings();
+            if (mappings.size() != 1 || mappings.getFirst().getProductVariantId() != null) {
+                throw new IllegalStateException("기성품 스마트스토어 재고 연동 설정이 올바르지 않습니다.");
+            }
+            return new StockCommand(mapped.originProductNo(), mapped.inventory().getQuantity(), List.of());
+        }
+
+        List<OptionStock> options = mapped.options().stream()
+                .map(option -> new OptionStock(option.optionId(), option.stockQuantity()))
+                .toList();
+        return new StockCommand(mapped.originProductNo(), null, options);
+    }
+
+    /**
+     * 상품 → 활성 매핑 → 기성품이면 재고, 주문제작이면 옵션별 재고 순으로 읽는다.
+     * 활성 매핑이 없을 때 던질 예외만 호출자가 정한다(미리보기는 CONFLICT, 전송 준비는 설정 오류).
+     */
+    private MappedProduct loadMappedProduct(Long productId, Supplier<? extends RuntimeException> noMappingError) {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(() -> new IllegalStateException("연동할 상품이 없습니다."));
         List<SmartStoreStockMapping> mappings = mappingPort
@@ -168,22 +180,14 @@ class SmartStoreStockSyncTransactionService {
                 .filter(SmartStoreStockMapping::isEnabled)
                 .toList();
         if (mappings.isEmpty()) {
-            throw new IllegalStateException("스마트스토어 재고 연동 설정이 비활성 상태입니다.");
+            throw noMappingError.get();
         }
-        Long originProductNo = mappings.getFirst().getOriginProductNo();
         if (product.getType() == ProductType.READY_STOCK) {
             Inventory inventory = inventoryReaderPort.findByProductId(productId)
                     .orElseThrow(() -> new IllegalStateException("연동할 상품 재고가 없습니다."));
-            if (mappings.size() != 1 || mappings.getFirst().getProductVariantId() != null) {
-                throw new IllegalStateException("기성품 스마트스토어 재고 연동 설정이 올바르지 않습니다.");
-            }
-            return new StockCommand(originProductNo, inventory.getQuantity(), List.of());
+            return new MappedProduct(product, mappings, inventory, List.of());
         }
-
-        List<OptionStock> options = mappedOptions(productId, mappings).stream()
-                .map(option -> new OptionStock(option.optionId(), option.stockQuantity()))
-                .toList();
-        return new StockCommand(originProductNo, null, options);
+        return new MappedProduct(product, mappings, null, mappedOptions(productId, mappings));
     }
 
     private List<ProductOptionSnapshot> mappedOptions(Long productId, List<SmartStoreStockMapping> mappings) {
@@ -206,6 +210,18 @@ class SmartStoreStockSyncTransactionService {
     }
 
     record ClaimedStock(String generation, long version, StockCommand command, String configurationError) {}
+
+    /** 기성품은 inventory, 주문제작은 options를 채운다. */
+    private record MappedProduct(
+            Product product,
+            List<SmartStoreStockMapping> mappings,
+            Inventory inventory,
+            List<ProductOptionSnapshot> options
+    ) {
+        Long originProductNo() {
+            return mappings.getFirst().getOriginProductNo();
+        }
+    }
 
     record ProductSyncSnapshot(
             Long productId,

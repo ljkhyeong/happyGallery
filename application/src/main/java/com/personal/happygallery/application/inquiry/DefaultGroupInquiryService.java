@@ -141,7 +141,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     private MemberDetail memberDetail(GroupInquiry inquiry) {
         var changes = activities.findByInquiryIdAndMemberActionTrueOrderByIdDesc(inquiry.getId()).stream()
-                .map(activity -> new ActivityView(activity, encryptor.decrypt(activity.getNoteEnc()))).toList();
+                .map(this::activityView).toList();
         return new MemberDetail(view(inquiry), changes);
     }
 
@@ -181,10 +181,10 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     @Transactional(readOnly = true)
     public CursorPage<View> followUps(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        var after = cursor == null ? null : CursorUtils.decode(cursor);
+        var after = CursorUtils.decodeOrFirst(cursor);
         var today = LocalDate.now(clock);
-        var rows = inquiries.findFollowUps(today, after == null ? null : after.timestamp().toLocalDate(),
-                after == null ? null : after.id(), pageSize + 1);
+        var rows = inquiries.findFollowUps(today,
+                after.timestamp() == null ? null : after.timestamp().toLocalDate(), after.id(), pageSize + 1);
         return CursorPage.of(rows.stream().map(this::view).toList(), pageSize,
                 value -> CursorUtils.encode(value.inquiry().getNextContactOn().atStartOfDay(), value.inquiry().getId()));
     }
@@ -195,6 +195,10 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     private Detail detail(GroupInquiry inquiry) {
         return new Detail(view(inquiry), activities.findByInquiryIdOrderByIdDesc(inquiry.getId()).stream()
-                .map(activity -> new ActivityView(activity, encryptor.decrypt(activity.getNoteEnc()))).toList());
+                .map(this::activityView).toList());
+    }
+
+    private ActivityView activityView(GroupInquiryActivity activity) {
+        return new ActivityView(activity, encryptor.decrypt(activity.getNoteEnc()));
     }
 }
