@@ -87,6 +87,7 @@
 | 화면 문구·상태 안내 | diff와 사용처 확인, JSX를 수정하면 `npm run typecheck` | 문구를 선택자로 쓰는 해당 테스트, 실제 동작·배치 변경 |
 | component·query 로직 | `npm run typecheck`와 해당 단위 테스트 | 라우트·SSR·스타일·번들 설정 변경 시 build, 사용자 흐름 변경 시 해당 E2E |
 | Java 정책·단위 로직 | 해당 모듈·tag의 테스트 클래스 | 트랜잭션·DB·외부 연동도 바뀐 경우 |
+| 외부 연동·영속성 어댑터 단위 로직 | 소유 모듈 `:adapter-out-external:test`·`:adapter-out-persistence:test`의 해당 테스트 클래스 | Spring context·DB가 필요한 흐름은 application의 해당 `*UseCaseIT` |
 | 모듈 의존 방향·저장소 접근 | `:application:architectureTest` | 업무 동작도 바뀐 경우 해당 정책·use case |
 | DB·트랜잭션 | 해당 use case | 공용 fixture·여러 도메인에 영향이 확인된 경우 |
 | HTTP 계약 | 해당 REST Docs, OpenAPI·클라이언트 생성, 타입 사용처 확인 | 인증·업무 흐름도 바뀐 경우 |
@@ -95,6 +96,7 @@
 - `api:check`는 생성 후 Git 차이를 확인하는 CI용 검사다. 로컬 계약 수정은 `openapi3` → `api:generate` → 생성 diff·사용처 검토로 진행하고 바로 `api:check`를 반복하지 않는다. 명세가 그대로인 화면 수정에는 생성을 실행하지 않는다.
 - `:application:test`는 policy·architecture tag를 제외한다. 각각 `:application:policyTest`, `:application:architectureTest`를 사용하며 usecase는 `:application:useCaseTest`를 선택한다. `check`·`build`에는 세 범위가 모두 포함된다.
 - `:adapter-in-web:test`는 restdocs·openapi tag를 제외한다. REST Docs는 `restDocsTest`, OpenAPI 갱신은 `openapi3`를 사용한다. 좁은 테스트가 없다는 이유만으로 전체 build를 실행하지 않는다.
+- adapter-out-external·adapter-out-persistence 클래스의 Spring context 없는 단위 테스트(`MockRestServiceServer`·Mockito·`@TempDir` 등만 사용)는 소유 모듈 `src/test`에 두고 `:<module>:test`로 실행한다. Testcontainers가 필요한 `*UseCaseIT`는 [ADR-0026](../0026_통합_테스트_프로파일과_TestContainer_기준선/adr.md)대로, `@Tag("policy")`인 `MyBatisSalesStatsAdapterPolicyTest`는 `:application:policyTest` 범위 유지를 위해 application에 남긴다. CI에서는 `Backend Package & Module Checks`의 `build`가 두 모듈 테스트를 실행하며 application `ciTestGroup` 매트릭스에는 포함되지 않는다.
 
 ### 7. 결과 재사용과 실패 처리
 

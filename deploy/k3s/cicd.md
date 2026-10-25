@@ -27,7 +27,7 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 
 사전 검사는 서버와 같은 `rolling-release.rb check-source <repo> <기존 SHA> <후보 SHA>`를 사용한다. 비호환 OpenAPI·migration과 보호 Spring 설정 변경을 이미지 생성과 서버 백업 전에 발견한다. 인증·세션 저장 계약은 웹 CI 테스트에서 검증하며, 서버의 최종 workload·설정 검사와 백업은 생략하지 않는다.
 
-application 검사는 `ciTestGroup=core|commerce` 두 실행기로 분리한다. commerce는 주문·결제·예약 패키지, core는 나머지 전부를 실행한다. migration 186개를 기준선 하나로 합치면서 migration 전용 그룹은 없앴다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
+application 검사는 `ciTestGroup=core|commerce` 두 실행기로 분리한다. commerce는 주문·결제·예약 패키지, core는 나머지 전부를 실행한다. migration 186개를 기준선 하나로 합치면서 migration 전용 그룹은 없앴다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. adapter-out-external·adapter-out-persistence 모듈의 단위 테스트는 두 그룹에 들어가지 않고 `Backend Package & Module Checks`의 `build`가 실행한다(ADR-0027). 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
 
 마지막 운영 성공은 [Production 37459985412](https://github.com/ljkhyeong/happyGallery/actions/runs/37459985412)(2026-10-06, SHA `982a88a2`, 약 23분)다. CI 11분(migration 기준선 통합 전 application-core 10분 45초), 이미지 게시 2분 36초, 서버 배포 9분 15초였다. 통합 뒤 [Production 38404325294](https://github.com/ljkhyeong/happyGallery/actions/runs/38404325294)(2026-10-13)는 CI 약 5분(가장 긴 작업은 Browser Smoke 3분 47초), 이미지 게시 2분 44초였고, 서버 배포는 의도대로 초기화 preflight에서 멈췄다(약 7분). 가장 긴 구간은 서버 백업·배포다. 백업을 생략해 시간을 줄이지 않는다.
 
