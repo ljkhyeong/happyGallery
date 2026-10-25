@@ -611,6 +611,29 @@ ruby - "$REPO_ROOT" <<'RUBY'
   end
 RUBY
 
+# 배치 정체 경보는 min(last_success)로 판정하므로 AppMetrics가 기동 시 같은 job의 게이지를 0으로 미리 등록해야
+# 한 번도 돌지 않은 배치도 잡힌다. 경보·AppMetrics·@BatchJob 세 목록이 어긋나면 여기서 멈춘다.
+ruby - "$REPO_ROOT" <<'RUBY'
+  require "yaml"
+  root = ARGV.fetch(0)
+  read = lambda { |path| File.read(File.join(root, path), encoding: "UTF-8") }
+  alert_jobs = YAML.load(read.("monitoring/alerts.yml")).fetch("groups").flat_map { |group| group.fetch("rules") }
+    .select { |rule| rule["alert"].to_s.end_with?("Stalled") && rule.fetch("expr").include?("happygallery_batch_last_success_seconds") }
+    .flat_map { |rule| rule.fetch("expr").scan(/exported_job=~?"([^"]+)"/).flatten.flat_map { |value| value.split("|") } }
+    .uniq.sort
+  abort "monitoring/alerts.yml에서 배치 정체 경보의 exported_job을 찾지 못했습니다." if alert_jobs.empty?
+  metrics = read.("application/src/main/java/com/personal/happygallery/application/monitoring/AppMetrics.java")
+  monitored_block = metrics[/MONITORED_BATCH_JOBS = List\.of\((.*?)\);/m, 1] or
+    abort "AppMetrics.java에서 MONITORED_BATCH_JOBS를 찾을 수 없습니다."
+  monitored_jobs = monitored_block.scan(/"([^"]+)"/).flatten.sort
+  abort "배치 정체 경보의 exported_job #{alert_jobs}과 AppMetrics.MONITORED_BATCH_JOBS #{monitored_jobs}가 다릅니다. 같은 변경에서 함께 고치세요." unless
+    alert_jobs == monitored_jobs
+  scheduler_jobs = read.("application/src/main/java/com/personal/happygallery/application/batch/BatchScheduler.java")
+    .scan(/@BatchJob\(id = "([^"]+)"/).flatten
+  unknown_jobs = monitored_jobs - scheduler_jobs
+  abort "BatchScheduler에 없는 @BatchJob id를 감시합니다: #{unknown_jobs}" unless unknown_jobs.empty?
+RUBY
+
 ruby "$SCRIPT_DIR/tests/verify-test.rb"
 ruby "$SCRIPT_DIR/tests/containerd-image-test.rb"
 ruby "$SCRIPT_DIR/tests/restore-images-test.rb"
