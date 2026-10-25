@@ -21,7 +21,7 @@ public record PublicSlotResponse(
                 slot.getEndAt(),
                 slot.getCapacity(),
                 slot.getBookedCount(),
-                slot.getCapacity() - slot.getBookedCount()
+                slot.remainingCapacity()
         );
     }
 }

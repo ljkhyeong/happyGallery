@@ -89,7 +89,7 @@ class BookingCalendarSlotMaterializer {
         LocalDateTime now = LocalDateTime.now(clock);
         return slotsByStart.values().stream()
                 .filter(slot -> slot.isReservableAt(now))
-                .filter(slot -> includeFull || slot.getBookedCount() < slot.getCapacity())
+                .filter(slot -> includeFull || !slot.isFull())
                 .sorted(Comparator.comparing(Slot::getStartAt))
                 .toList();
     }

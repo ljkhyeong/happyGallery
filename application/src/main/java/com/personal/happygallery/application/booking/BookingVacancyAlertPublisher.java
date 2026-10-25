@@ -40,7 +40,7 @@ class BookingVacancyAlertPublisher {
     @Transactional(propagation = Propagation.MANDATORY)
     void notifyWaitingIfAvailable(Slot slot) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if (!slot.isReservableAt(now) || slot.getBookedCount() >= slot.getCapacity()) {
+        if (!slot.isReservableAt(now) || slot.isFull()) {
             return;
         }
 
