@@ -8,15 +8,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class PassExpireProcessor {
+class PassExpireProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(PassExpireProcessor.class);
 
     private final PassCreditService passCreditService;
     private final PassExpirationSupport expirationSupport;
 
-    public PassExpireProcessor(PassCreditService passCreditService,
-                               PassExpirationSupport expirationSupport) {
+    PassExpireProcessor(PassCreditService passCreditService,
+                        PassExpirationSupport expirationSupport) {
         this.passCreditService = passCreditService;
         this.expirationSupport = expirationSupport;
     }
