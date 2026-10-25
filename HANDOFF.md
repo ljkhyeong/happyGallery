@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 리팩토링 전수 검토·구현 (2026-10-17 시작, 2026-10-25 진행 중)
+
+- 시작 SHA `f93208d3`, 브랜치 `codex/work-20261017-refactor-audit`(아래 CI/CD 점검 브랜치 위에서 생성). 사용자가 "리팩토링 전수검토해서 진행해"라고 했다. 원격 푸시는 하지 않았다. `origin/main`에는 이 브랜치에 없는 병합 커밋 `4aaba8ee`가 있다(PR 전 병합 확인).
+- 감사 결과: 25개 영역(도메인 2·application 5·웹 adapter 2·persistence·external/bootstrap·백엔드 테스트 4·프론트 7·운영 2·이전 보류 항목 재평가)에서 후보 447건을 찾아 존재·안전성·가치 관점으로 반박 검증했다. 생존 279건, 탈락 63건, 미검증 105건(fe-admin-a/b·fe-commerce·fe-tests·fe-shared-routes·fe-styles 일부, fe-customer-account 3, ops-deploy, ops-ci, deferred). 탈락 사유는 대부분 "한 줄 조건의 helper화", "하위 2개뿐인 추상화", "문구가 달라 합치면 동작 변경" 같은 churn·동작 변경 판정이다.
+- 감사 데이터(git 제외, 로컬 전용): `output/refactor-audit-20261017/` — `all-findings.json`(447건), `findings-<영역>.json`, `verified.json`(survivors/dropped/unverified), `waves.json`·`packages/<key>.json`(구현 묶음 73개, `build-packages.py`로 재생성), `merge-wave.sh`(worktree 커밋 cherry-pick), `progress.md`(묶음별 진행 표).
+- 구현 방식: 묶음마다 worktree 에이전트가 구현·검증·커밋하고, 완료된 worktree 커밋을 이 브랜치에 cherry-pick한다. 한 배치는 백엔드 4·프론트/운영 2~3개로 제한한다(Gradle 동시 실행 부담). 묶음 안에서 전제가 틀린 후보는 건너뛰고 이유를 progress.md에 남긴다.
+- 세션 한도로 세 번 끊겼다. 재시작 시 `progress.md`와 `waves.json`을 읽고 다음 묶음부터 이어간다. 결함 후보 2건(`app-order-cart-01` 클레임 환불 상한, `app-product-review-1` 관리자 검증 실패가 500으로 노출)은 special 묶음(`backend-application-commerce-08`, `backend-application-platform-07`)에 있으며 동작 변경이라 테스트·문서를 함께 처리한다.
+- 남은 행동: wave 순서대로 묶음 구현 → 전체 `./gradlew --no-daemon check`·frontend `build`/`lint`/`test:unit`·E2E smoke → `agent-feedback final f93208d3` → 미검증 105건 검증 또는 다음 라운드로 인계 → HANDOFF 갱신.
+
 ## CI/CD 점검 (2026-10-16)
 
 - 시작 SHA `8046eaa5`, 브랜치 `codex/work-20261016-cicd-review`. 아래 디자인 브랜치 위에서 만들었다(main에 없는 디자인 커밋 9개 포함). 사용자가 "CI/CD가 잘 구성됐는지 확인해서 고칠 곳을 고치라"고 했다. workflow 3개·배포 스크립트·최근 실행 100건·GitHub 설정을 확인했다. 최근 CI는 6~7분, 매일 보안 검사는 계속 성공 중이다. 원격 푸시는 하지 않았다.
