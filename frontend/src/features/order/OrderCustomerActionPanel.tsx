@@ -1,7 +1,7 @@
-import { useId, useState } from "react";
-import { Alert, Button, Modal } from "react-bootstrap";
+import { useState } from "react";
+import { Alert, Button } from "react-bootstrap";
 import type { OrderDelayDecision, OrderStatus } from "@/shared/types";
-import { ErrorAlert } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert } from "@/shared/ui";
 
 interface Props {
   status: OrderStatus;
@@ -18,7 +18,6 @@ export function OrderCustomerActionPanel({
   onCancel,
   onDelayDecision,
 }: Props) {
-  const titleId = `order-customer-action-title-${useId()}`;
   const [confirmAction, setConfirmAction] = useState<"CANCEL" | "REJECT" | null>(null);
   const canCancel = status === "PAID_APPROVAL_PENDING";
   const canRespondToDelay = status === "DELAY_CONSENT_PENDING";
@@ -76,45 +75,25 @@ export function OrderCustomerActionPanel({
         </div>
       )}
 
-      <Modal
+      <ConfirmModal
         show={confirmAction !== null}
-        aria-labelledby={titleId}
-        onHide={() => {
-          if (!pending) setConfirmAction(null);
-        }}
+        title={confirmTitle}
+        pending={pending}
+        onClose={() => setConfirmAction(null)}
+        confirmLabel={pending ? "처리 중..." : confirmLabel}
+        confirmVariant="dark"
+        onConfirm={submitConfirmedAction}
+        cancelLabel="돌아가기"
+        cancelVariant="outline-dark"
         backdrop={pending ? "static" : true}
         keyboard={!pending}
-        centered
       >
-        <Modal.Header closeButton={!pending}>
-          <Modal.Title id={titleId} className="fs-6">{confirmTitle}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={error} />
-          <p>{confirmMessage}</p>
-          <Alert variant="info" className="mb-0 py-2 small">
-            주문 취소는 바로 반영되며, 실제 환불 완료 시점은 결제사에 따라 달라질 수 있습니다.
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            type="button"
-            variant="outline-dark"
-            disabled={pending}
-            onClick={() => setConfirmAction(null)}
-          >
-            돌아가기
-          </Button>
-          <Button
-            type="button"
-            variant="dark"
-            disabled={pending}
-            onClick={submitConfirmedAction}
-          >
-            {pending ? "처리 중..." : confirmLabel}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={error} />
+        <p>{confirmMessage}</p>
+        <Alert variant="info" className="mb-0 py-2 small">
+          주문 취소는 바로 반영되며, 실제 환불 완료 시점은 결제사에 따라 달라질 수 있습니다.
+        </Alert>
+      </ConfirmModal>
     </>
   );
 }

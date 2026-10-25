@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Card, Form, Modal } from "react-bootstrap";
+import { Alert, Badge, Button, Card, Form } from "react-bootstrap";
 import {
   cancelMyGroupInquiry, getMyGroupInquiry, updateMyGroupInquiry,
   type CancelMyGroupInquiryRequest, type MyGroupInquiryResponse, type UpdateMyGroupInquiryRequest,
@@ -12,7 +12,7 @@ import {
   runForCustomerSession, type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 
 interface InquiryDraft {
@@ -31,8 +31,6 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   useEffect(() => { cardRef.current?.scrollIntoView({ block: "start" }); }, []);
   const [draft, setDraft] = useState<InquiryDraft | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const leaveTitleId = useId();
-  const cancelTitleId = useId();
   const client = useQueryClient();
   const toast = useToast();
   const detailKey = queryKeys.member.groupInquiries.detail(id);
@@ -151,34 +149,26 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
               <div>{change.note}</div><time className="text-muted">{formatDateTime(change.createdAt)}</time>
             </li>)}</ul>
           )}
-          <Modal show={confirmCancel && blocker.state !== "blocked"} onHide={() => { if (!mutation.isPending) setConfirmCancel(false); }}
-            centered aria-labelledby={cancelTitleId}>
-            <Modal.Header closeButton={!mutation.isPending}><Modal.Title id={cancelTitleId}>단체 수업 문의 취소</Modal.Title></Modal.Header>
-            <Modal.Body>
-              문의 #{id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.
-              {dirty && <p className="mt-2 mb-0">저장하지 않은 일정과 인원 변경은 반영되지 않습니다.</p>}
-              {mutationError}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="outline-secondary" disabled={mutation.isPending} onClick={() => setConfirmCancel(false)}>돌아가기</Button>
-              <Button variant="dark" disabled={writeDisabled} onClick={() => mutation.mutate({
-                action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
-              })}>문의 취소 확인</Button>
-            </Modal.Footer>
-          </Modal>
+          <ConfirmModal show={confirmCancel && blocker.state !== "blocked"} title="단체 수업 문의 취소"
+            pending={mutation.isPending} onClose={() => setConfirmCancel(false)}
+            confirmLabel="문의 취소 확인" confirmVariant="dark" confirmDisabled={writeDisabled}
+            onConfirm={() => mutation.mutate({
+              action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
+            })}
+            cancelLabel="돌아가기">
+            문의 #{id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.
+            {dirty && <p className="mt-2 mb-0">저장하지 않은 일정과 인원 변경은 반영되지 않습니다.</p>}
+            {mutationError}
+          </ConfirmModal>
         </>
       )}
-      <Modal show={blocker.state === "blocked"} onHide={() => blocker.reset?.()} centered aria-labelledby={leaveTitleId}>
-        <Modal.Header closeButton><Modal.Title id={leaveTitleId} className="fs-6">{dirty ? "문의 수정을 그만하시겠어요?" : "다른 화면으로 이동하시겠어요?"}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          {mutation.isPending ? "요청을 처리하고 있습니다. 완료 후 이동해 주세요."
-            : dirty ? "저장하지 않은 일정과 인원 변경이 사라집니다." : "변경 내용을 처리했습니다. 이동할 수 있습니다."}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => blocker.reset?.()}>계속 수정</Button>
-          <Button variant="dark" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>{dirty ? "변경 버리고 이동" : "이동"}</Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmModal show={blocker.state === "blocked"} title={dirty ? "문의 수정을 그만하시겠어요?" : "다른 화면으로 이동하시겠어요?"}
+        pending={false} onClose={() => blocker.reset?.()}
+        confirmLabel={dirty ? "변경 버리고 이동" : "이동"} confirmVariant="dark" confirmDisabled={mutation.isPending}
+        onConfirm={() => blocker.proceed?.()} cancelLabel="계속 수정">
+        {mutation.isPending ? "요청을 처리하고 있습니다. 완료 후 이동해 주세요."
+          : dirty ? "저장하지 않은 일정과 인원 변경이 사라집니다." : "변경 내용을 처리했습니다. 이동할 수 있습니다."}
+      </ConfirmModal>
     </Card.Body></Card>
   );
 }

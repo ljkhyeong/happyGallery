@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
-import { Alert, Container, Button, Modal, Table, Form } from "react-bootstrap";
+import { Alert, Container, Button, Table, Form } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { productQuantities, productSkuKey } from "@/features/product/purchaseStock";
@@ -11,7 +11,7 @@ import type { CartItemIdentifier, CartItemView } from "@/features/cart/guestCart
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
-import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
+import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ConfirmModal, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import {
   FulfillmentForm,
@@ -167,35 +167,21 @@ function CartContent() {
     </Alert>
   );
   const discardConfirmModal = (
-    <Modal
+    <ConfirmModal
       show={showDiscardConfirm}
-      aria-labelledby="held-cart-discard-title"
-      onHide={() => setShowDiscardConfirm(false)}
-      centered
+      title="로그인 전에 담은 작품 제거"
+      pending={false}
+      onClose={() => setShowDiscardConfirm(false)}
+      confirmLabel="작품 제거"
+      confirmVariant="dark"
+      onConfirm={() => {
+        discardGuestCartMerge();
+        setShowDiscardConfirm(false);
+      }}
+      cancelLabel="취소"
     >
-      <Modal.Header closeButton>
-        <Modal.Title id="held-cart-discard-title" className="fs-6">
-          로그인 전에 담은 작품 제거
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
-          취소
-        </Button>
-        <Button
-          variant="dark"
-          onClick={() => {
-            discardGuestCartMerge();
-            setShowDiscardConfirm(false);
-          }}
-        >
-          작품 제거
-        </Button>
-      </Modal.Footer>
-    </Modal>
+      다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+    </ConfirmModal>
   );
 
   if (isLoading) {

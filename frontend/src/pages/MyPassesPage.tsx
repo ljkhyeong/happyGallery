@@ -2,7 +2,7 @@ import { ListMyPassesPageStatus } from "@/generated/api/customerStore";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, Button, Card, Col, Modal, Row } from "react-bootstrap";
+import { Alert, Button, Card, Col, Row } from "react-bootstrap";
 import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast, CursorLoadMore } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast, ConfirmModal, CursorLoadMore } from "@/shared/ui";
 import {
   customerRefundRefetchInterval,
   formatDateTime,
@@ -169,45 +169,27 @@ export function MyPassesPage() {
       ))}
       <CursorLoadMore query={query} label="이용권 더 보기" loadingLabel="이용권 불러오는 중..." />
 
-      <Modal
+      <ConfirmModal
         show={refundTarget !== null}
-        aria-labelledby="my-pass-refund-title"
-        onHide={() => {
-          if (!refundMutation.isPending) setRefundTarget(null);
-        }}
-        centered
+        title="이용권 환불 요청"
+        pending={refundMutation.isPending}
+        onClose={() => setRefundTarget(null)}
+        confirmLabel={refundMutation.isPending ? "요청 중..." : "환불 요청"}
+        confirmVariant="dark"
+        confirmDisabled={!refundTarget}
+        onConfirm={() => refundTarget && refundMutation.mutate(refundTarget.passId)}
+        cancelLabel="취소"
       >
-        <Modal.Header closeButton={!refundMutation.isPending}>
-          <Modal.Title id="my-pass-refund-title">이용권 환불 요청</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={refundMutation.error} />
-          <p className="mb-2">
-            미래 예약은 자동으로 취소되며, 현재 잔여 횟수와 취소되는 예약 횟수를 합산해 회당 구매 단가로 환불합니다.
+        <ErrorAlert error={refundMutation.error} />
+        <p className="mb-2">
+          미래 예약은 자동으로 취소되며, 현재 잔여 횟수와 취소되는 예약 횟수를 합산해 회당 구매 단가로 환불합니다.
+        </p>
+        {refundTarget && (
+          <p className="text-muted-soft small mb-0">
+            {refundTarget.planName} #{refundTarget.passId} · 현재 잔여 {refundTarget.remainingCredits}회
           </p>
-          {refundTarget && (
-            <p className="text-muted-soft small mb-0">
-              {refundTarget.planName} #{refundTarget.passId} · 현재 잔여 {refundTarget.remainingCredits}회
-            </p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={refundMutation.isPending}
-            onClick={() => setRefundTarget(null)}
-          >
-            취소
-          </Button>
-          <Button
-            variant="dark"
-            disabled={!refundTarget || refundMutation.isPending}
-            onClick={() => refundTarget && refundMutation.mutate(refundTarget.passId)}
-          >
-            {refundMutation.isPending ? "요청 중..." : "환불 요청"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        )}
+      </ConfirmModal>
     </MySectionPage>
   );
 }

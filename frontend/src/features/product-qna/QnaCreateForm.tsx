@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
-import { Form, Button, Card, Modal } from "react-bootstrap";
+import { Form, Button, Card } from "react-bootstrap";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createQna } from "./api";
 import {
@@ -8,7 +8,7 @@ import {
   type CustomerSessionSnapshot,
 } from "@/shared/api";
 import type { CreateQnaRequest } from "@/generated/api/productQna";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 import {
   CONTENT_BODY_MAX_LENGTH,
   CONTENT_TITLE_MAX_LENGTH,
@@ -28,7 +28,6 @@ export function QnaCreateForm({ productId }: Props) {
   const [open, setOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const submitting = useRef(false);
-  const leaveTitleId = useId();
   const hasDraft = title.length > 0 || content.length > 0 || secret;
   const shouldConfirmLeave = () => hasDraft || submitting.current;
   const blocker = useBlocker(shouldConfirmLeave);
@@ -154,19 +153,18 @@ export function QnaCreateForm({ productId }: Props) {
         </Card.Body>
       </Card>
     )}
-    <Modal show={confirmDiscard || blocker.state === "blocked"} onHide={keepWriting} centered aria-labelledby={leaveTitleId}>
-      <Modal.Header closeButton><Modal.Title id={leaveTitleId} className="fs-6">
-        {mutation.isPending ? "상품 문의 등록 중" : "문의 작성을 그만둘까요?"}
-      </Modal.Title></Modal.Header>
-      <Modal.Body>{mutation.isPending ? "문의 등록 중입니다. 잠시만 기다려 주세요." : "작성한 제목과 내용이 삭제됩니다."}</Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={keepWriting}>{mutation.isPending ? "돌아가기" : "계속 작성"}</Button>
-        <Button variant="dark" disabled={mutation.isPending} onClick={() => {
-          clearDraft();
-          mutation.reset();
-          blocker.proceed?.();
-        }}>{blocker.state === "blocked" ? "내용 버리고 이동" : "내용 버리기"}</Button>
-      </Modal.Footer>
-    </Modal>
+    <ConfirmModal show={confirmDiscard || blocker.state === "blocked"}
+      title={mutation.isPending ? "상품 문의 등록 중" : "문의 작성을 그만둘까요?"}
+      pending={false} onClose={keepWriting}
+      confirmLabel={blocker.state === "blocked" ? "내용 버리고 이동" : "내용 버리기"} confirmVariant="dark"
+      confirmDisabled={mutation.isPending}
+      onConfirm={() => {
+        clearDraft();
+        mutation.reset();
+        blocker.proceed?.();
+      }}
+      cancelLabel={mutation.isPending ? "돌아가기" : "계속 작성"}>
+      {mutation.isPending ? "문의 등록 중입니다. 잠시만 기다려 주세요." : "작성한 제목과 내용이 삭제됩니다."}
+    </ConfirmModal>
   </>;
 }

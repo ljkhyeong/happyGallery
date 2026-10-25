@@ -1,12 +1,12 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Modal } from "react-bootstrap";
+import { Alert, Button } from "react-bootstrap";
 import {
   invalidateSlotAvailability,
   queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { BookingCancelPolicy, CancelResponse } from "@/shared/types";
 
@@ -90,7 +90,6 @@ export function CancelButton({
   cancelPolicy,
   depositAmount,
 }: Props) {
-  const titleId = `booking-cancel-title-${useId()}`;
   const toast = useToast();
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -167,41 +166,33 @@ export function CancelButton({
         예약 취소
       </Button>
 
-      <Modal
+      <ConfirmModal
         show={showConfirm}
-        aria-labelledby={titleId}
-        onHide={() => setShowConfirm(false)}
-        centered
+        title="예약 취소 및 환불 안내"
+        pending={false}
+        onClose={() => setShowConfirm(false)}
+        confirmLabel={mutation.isPending ? "취소 중..." : confirmLabel}
+        confirmVariant="dark"
+        confirmDisabled={mutation.isPending}
+        onConfirm={() => mutation.mutate()}
+        cancelVariant="outline-dark"
       >
-        <Modal.Header closeButton>
-          <Modal.Title id={titleId}>예약 취소 및 환불 안내</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={mutation.error} />
-          <p className="mb-3">예약을 취소하면 되돌릴 수 없습니다. 아래 내용을 확인해 주세요.</p>
-          <dl className="row small mb-3">
-            <dt className="col-6">환불·이용 횟수 복원 마감</dt>
-            <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
-            {!passBooking && (
-              <>
-                <dt className="col-6 mt-2">예약금</dt>
-                <dd className="col-6 text-end mt-2 mb-0">{formatKRW(depositAmount)}</dd>
-              </>
-            )}
-          </dl>
-          <Alert variant={policyNotice.variant} className="mb-0 py-2 small">
-            {policyNotice.message}
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-dark" onClick={() => setShowConfirm(false)}>
-            닫기
-          </Button>
-          <Button variant="dark" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? "취소 중..." : confirmLabel}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={mutation.error} />
+        <p className="mb-3">예약을 취소하면 되돌릴 수 없습니다. 아래 내용을 확인해 주세요.</p>
+        <dl className="row small mb-3">
+          <dt className="col-6">환불·이용 횟수 복원 마감</dt>
+          <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
+          {!passBooking && (
+            <>
+              <dt className="col-6 mt-2">예약금</dt>
+              <dd className="col-6 text-end mt-2 mb-0">{formatKRW(depositAmount)}</dd>
+            </>
+          )}
+        </dl>
+        <Alert variant={policyNotice.variant} className="mb-0 py-2 small">
+          {policyNotice.message}
+        </Alert>
+      </ConfirmModal>
     </>
   );
 }

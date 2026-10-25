@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Form } from "react-bootstrap";
 import type { MemberReviewResponse } from "@/generated/api/review";
 import {
   captureCustomerSession,
@@ -10,13 +10,12 @@ import {
   runForCurrentCustomer,
   runForCustomerSession,
 } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 import { removeReviewImage, uploadReviewImage } from "./api";
 import { MemberReviewProtectedImage } from "./MemberReviewProtectedImage";
 import { MAX_REVIEW_IMAGES, reviewImageSelectionError } from "./reviewUiPolicy";
 
 export function ReviewImageUploader({ review }: { review: MemberReviewResponse }) {
-  const deleteConfirmationTitleId = useId();
   const [files, setFiles] = useState<File[]>([]);
   const [pendingDeleteImage, setPendingDeleteImage] = useState<{
     imageId: number;
@@ -225,52 +224,29 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
       <div className="mt-2">
         <ErrorAlert error={uploadMutation.error} />
       </div>
-      <Modal
+      <ConfirmModal
         show={pendingDeleteImage !== null}
-        onHide={() => {
-          if (deleteMutation.isPending) return;
+        title="후기 사진 삭제"
+        pending={deleteMutation.isPending}
+        onClose={() => {
           deleteMutation.reset();
           setPendingDeleteImage(null);
         }}
-        centered
-        aria-labelledby={deleteConfirmationTitleId}
+        confirmLabel={deleteMutation.isPending ? "삭제 중..." : "사진 삭제"}
+        confirmVariant="dark"
+        confirmDisabled={pendingDeleteImage === null}
+        onConfirm={() => {
+          if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
+        }}
+        closeLabel="닫기"
+        cancelLabel="취소"
       >
-        <Modal.Header closeButton={!deleteMutation.isPending} closeLabel="닫기">
-          <Modal.Title id={deleteConfirmationTitleId} className="fs-6">
-            후기 사진 삭제
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="mb-0">
-            등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?
-            삭제한 사진은 복구할 수 없습니다.
-          </p>
-          <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            type="button"
-            variant="outline-secondary"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.reset();
-              setPendingDeleteImage(null);
-            }}
-          >
-            취소
-          </Button>
-          <Button
-            type="button"
-            variant="dark"
-            disabled={deleteMutation.isPending || pendingDeleteImage === null}
-            onClick={() => {
-              if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
-            }}
-          >
-            {deleteMutation.isPending ? "삭제 중..." : "사진 삭제"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <p className="mb-0">
+          등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?
+          삭제한 사진은 복구할 수 없습니다.
+        </p>
+        <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
+      </ConfirmModal>
     </section>
   );
 }
