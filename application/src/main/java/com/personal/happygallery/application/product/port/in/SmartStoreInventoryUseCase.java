@@ -14,17 +14,9 @@ public interface SmartStoreInventoryUseCase {
 
     MappingResult saveMapping(Long productId, SaveMappingCommand command, AdminActor actor);
 
-    default MappingResult saveMapping(Long productId, SaveMappingCommand command) {
-        return saveMapping(productId, command, AdminActor.system());
-    }
-
     Optional<MappingResult> getMapping(Long productId);
 
     void deleteMapping(Long productId, DeleteMappingCommand command, AdminActor actor);
-
-    default void deleteMapping(Long productId, DeleteMappingCommand command) {
-        deleteMapping(productId, command, AdminActor.system());
-    }
 
     List<MappingHistoryResult> listMappingHistory(Long productId);
 
@@ -51,13 +43,6 @@ public interface SmartStoreInventoryUseCase {
     ) {
         public SaveMappingCommand {
             variants = variants == null ? List.of() : List.copyOf(variants);
-        }
-
-        public SaveMappingCommand(
-                Long originProductNo,
-                boolean enabled,
-                List<VariantMapping> variants) {
-            this(originProductNo, enabled, variants, null, false);
         }
     }
 

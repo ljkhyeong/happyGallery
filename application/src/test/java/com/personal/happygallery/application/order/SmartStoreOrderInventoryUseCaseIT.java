@@ -1,5 +1,7 @@
 package com.personal.happygallery.application.order;
 
+import static com.personal.happygallery.support.SmartStoreMappingFixtures.SYSTEM_ACTOR;
+import static com.personal.happygallery.support.SmartStoreMappingFixtures.newMapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -19,7 +21,6 @@ import com.personal.happygallery.application.product.ProductVariantStockService.
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -80,8 +81,8 @@ class SmartStoreOrderInventoryUseCaseIT {
         Long productId = registered.product().getId();
         Long variantId = madeToOrder ? registered.options().variants().getFirst().id() : null;
         Long optionId = madeToOrder ? 11L : null;
-        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
-                madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()));
+        inventoryUseCase.saveMapping(productId, newMapping(123L, true,
+                madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()), SYSTEM_ACTOR);
 
         orderService.synchronize(detail("shortage", optionId, 2), change("shortage"));
 
@@ -258,8 +259,8 @@ class SmartStoreOrderInventoryUseCaseIT {
                 "가죽 제품", null, 7, List.of(), List.of()));
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
-        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(
-                123L, true, List.of(new VariantMapping(variantId, 11L))));
+        inventoryUseCase.saveMapping(productId, newMapping(
+                123L, true, List.of(new VariantMapping(variantId, 11L))), SYSTEM_ACTOR);
         var variant = variantRepository.findById(variantId).orElseThrow();
         variant.deactivate();
         variantRepository.saveAndFlush(variant);
@@ -291,8 +292,8 @@ class SmartStoreOrderInventoryUseCaseIT {
         Long productId = registered.product().getId();
         Long variantId = madeToOrder ? registered.options().variants().getFirst().id() : null;
         Long optionId = madeToOrder ? 11L : null;
-        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
-                madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()));
+        inventoryUseCase.saveMapping(productId, newMapping(123L, true,
+                madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()), SYSTEM_ACTOR);
         orderService.synchronize(detail("returned", optionId, 5), change("returned"));
         var firstReturns = List.of(new CompletedReturn("return-1", 2));
         ProductOrderDetail returned = claimDetail(optionId, "DELIVERING", "RETURN", 3, firstReturns);
@@ -353,7 +354,7 @@ class SmartStoreOrderInventoryUseCaseIT {
                 "검수 대상 변경", ProductType.READY_STOCK, null, 35000L, 5, null, null,
                 null, null, null, List.of(), List.of()));
         Long productId = registered.product().getId();
-        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
+        inventoryUseCase.saveMapping(productId, newMapping(123L, true, List.of()), SYSTEM_ACTOR);
         orderService.synchronize(detail("returned", null, 5), change("returned"));
         var first = new CompletedReturn("return-1", 2);
         orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 3, List.of(first)),
