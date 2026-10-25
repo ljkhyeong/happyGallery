@@ -68,7 +68,7 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
         long invalidatedCredentialVersion = user.getCredentialVersion();
         user.withdraw(
                 "withdrawn+" + command.userId() + WITHDRAWN_EMAIL_DOMAIN,
-                "탈퇴회원",
+                MemberNames.WITHDRAWN,
                 now);
         userStore.save(user);
         socialAccountStore.deleteByUserId(command.userId());

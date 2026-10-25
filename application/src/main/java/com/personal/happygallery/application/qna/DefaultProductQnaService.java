@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.qna;
 
+import com.personal.happygallery.application.customer.MemberNames;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
@@ -17,17 +18,13 @@ import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.qna.ProductQna;
-import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import static java.util.stream.Collectors.toMap;
 
 @Service
 public class DefaultProductQnaService implements ProductQnaUseCase {
@@ -84,10 +81,11 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         CursorParam after = CursorUtils.decodeOrFirst(cursor);
         List<ProductQnaListView> qnaList = qnaReader.findByProductId(
                 productId, after.timestamp(), after.id(), pageSize + 1);
-        Map<Long, User> userMap = batchFetchListUsers(qnaList);
+        Map<Long, String> authorNames = MemberNames.of(
+                userReader, qnaList.stream().map(ProductQnaListView::userId).distinct().toList());
         List<PublicQnaListView> items = qnaList.stream()
                 .map(qna -> new PublicQnaListView(
-                        qna.id(), qna.title(), userName(userMap, qna.userId()),
+                        qna.id(), qna.title(), authorNames.getOrDefault(qna.userId(), MemberNames.WITHDRAWN),
                         qna.secret(), qna.hasReply(), qna.createdAt()))
                 .toList();
         return CursorPage.of(
@@ -155,30 +153,11 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 NotificationEventType.PRODUCT_QNA_ANSWERED,
                 NotificationAggregateType.PRODUCT_QNA,
                 qna.getId()));
-        String authorName = userReader.findById(qna.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new QnaWithAuthor(qna, authorName);
+        return withAuthor(qna);
     }
 
     private QnaWithAuthor withAuthor(ProductQna qna) {
-        String authorName = userReader.findById(qna.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new QnaWithAuthor(qna, authorName);
-    }
-
-    private Map<Long, User> batchFetchUsers(List<ProductQna> qnaList) {
-        List<Long> userIds = qnaList.stream().map(ProductQna::getUserId).distinct().toList();
-        return userReader.findAllById(userIds).stream()
-                .collect(toMap(User::getId, Function.identity()));
-    }
-
-    private Map<Long, User> batchFetchListUsers(List<ProductQnaListView> qnaList) {
-        List<Long> userIds = qnaList.stream()
-                .map(ProductQnaListView::userId)
-                .distinct()
-                .toList();
-        return userReader.findAllById(userIds).stream()
-                .collect(toMap(User::getId, Function.identity()));
+        return new QnaWithAuthor(qna, MemberNames.of(userReader, qna.getUserId()));
     }
 
     private static OwnedQnaListView toOwnedView(ProductQnaListView qna) {
@@ -187,15 +166,12 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     }
 
     private List<QnaWithAuthor> withAuthors(List<ProductQna> qnaList) {
-        Map<Long, User> userMap = batchFetchUsers(qnaList);
+        Map<Long, String> authorNames = MemberNames.of(
+                userReader, qnaList.stream().map(ProductQna::getUserId).distinct().toList());
         return qnaList.stream()
-                .map(qna -> new QnaWithAuthor(qna, userName(userMap, qna.getUserId())))
+                .map(qna -> new QnaWithAuthor(
+                        qna, authorNames.getOrDefault(qna.getUserId(), MemberNames.WITHDRAWN)))
                 .toList();
-    }
-
-    private static String userName(Map<Long, User> userMap, Long userId) {
-        User user = userMap.get(userId);
-        return user != null ? user.getName() : "탈퇴회원";
     }
 
 }
