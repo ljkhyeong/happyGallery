@@ -53,7 +53,8 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
               AND (:unreadOnly = false OR n.readAt IS NULL)
             ORDER BY n.processedAt DESC, n.id DESC
             """)
-    List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, boolean unreadOnly, Pageable pageable);
+    List<NotificationOutbox> findSentByUserId(
+            @Param("userId") Long userId, @Param("unreadOnly") boolean unreadOnly, Pageable pageable);
 
     @Override
     default List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int page, int size) {

@@ -39,7 +39,7 @@ class JpaGuestTargetAdapter
 
     @Override
     public List<Order> findOrdersByIds(Collection<Long> ids) {
-        return orderRepository.findAllById(ids);
+        return orderRepository.findByIdIn(ids);
     }
 
     @Override

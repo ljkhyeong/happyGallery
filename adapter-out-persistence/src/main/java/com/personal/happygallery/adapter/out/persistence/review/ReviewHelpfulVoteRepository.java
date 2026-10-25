@@ -29,7 +29,6 @@ public interface ReviewHelpfulVoteRepository
             @Param("userId") Long userId,
             @Param("createdAt") LocalDateTime createdAt);
 
-    @Modifying
     void deleteByReviewIdAndUserId(Long reviewId, Long userId);
 
     @Override

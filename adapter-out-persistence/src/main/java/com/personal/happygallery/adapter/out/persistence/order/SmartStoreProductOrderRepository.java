@@ -57,7 +57,7 @@ public interface SmartStoreProductOrderRepository
             int limit) {
         return queryRecentPage(
                 attentionOnly, attentionReason, cursorAt, cursorProductOrderId,
-                PageRequest.of(0, limit));
+                PageRequest.ofSize(limit));
     }
 
     @Override
