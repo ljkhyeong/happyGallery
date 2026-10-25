@@ -24,14 +24,22 @@
   }
 }
 
-// 목록 줄 안의 작은 배지(비밀글·답변 완료·공지 고정·알림 상태).
-// 크기는 그대로 두고 화면·구역 제목을 명조 500으로 쓴다(README 디자인 기준).
-.display-heading {
+// 명조 제목 규칙(README 디자인 기준): 명조 글꼴·500 굵기에 제목마다 다른 크기·자간·줄 높이를 더한다.
+// 같은 크기 결정을 두 partial이 반복하지 않도록 선언만 끼워 넣는다. null 인자는 Sass가 출력하지 않는다.
+@mixin hg-display-heading($font-size: null, $letter-spacing: null, $line-height: null) {
   font-family: var(--hg-font-display);
+  font-size: $font-size;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  line-height: $line-height;
+  letter-spacing: $letter-spacing;
 }
 
+// 크기는 그대로 두고 화면·구역 제목을 명조 500으로 쓴다.
+.display-heading {
+  @include hg-display-heading($letter-spacing: -0.02em);
+}
+
+// 목록 줄 안의 작은 배지(비밀글·답변 완료·공지 고정·알림 상태).
 .badge-sm {
   padding: 0.25em 0.45em;
   font-size: 0.7rem;

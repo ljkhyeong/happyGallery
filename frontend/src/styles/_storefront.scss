@@ -117,11 +117,7 @@
 
 .store-detail-title {
   margin: 0;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.035em;
+  @include hg-display-heading(clamp(1.9rem, 3.4vw, 2.75rem), -0.035em, $line-height: 1.2);
 }
 
 .store-detail-lead {
@@ -225,10 +221,7 @@
 
 .store-detail-section-title {
   margin: 0 0 1rem;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  @include hg-display-heading(clamp(1.35rem, 2.2vw, 1.75rem), -0.02em);
 }
 
 .store-detail-terms > div {
@@ -728,10 +721,7 @@ a.my-list-card:focus-visible {
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    @include hg-display-heading(clamp(1.35rem, 2.2vw, 1.75rem), -0.02em);
   }
 }
 
@@ -769,10 +759,7 @@ a.my-list-card:focus-visible {
 
 .product-qna-heading {
   margin: 0;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  @include hg-display-heading(clamp(1.35rem, 2.2vw, 1.75rem), -0.02em);
 }
 
 .review-summary > span,

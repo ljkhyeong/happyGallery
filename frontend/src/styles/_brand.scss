@@ -116,11 +116,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
-    line-height: 1.2;
-    letter-spacing: -0.03em;
+    @include hg-display-heading(clamp(1.75rem, 3vw, 2.5rem), -0.03em, $line-height: 1.2);
   }
 }
 
@@ -370,10 +366,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
-    letter-spacing: -0.03em;
+    @include hg-display-heading(clamp(1.75rem, 3vw, 2.5rem), -0.03em);
   }
 
   p {
@@ -939,11 +932,7 @@
 
 .class-detail-title {
   margin: 0;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.035em;
+  @include hg-display-heading(clamp(1.9rem, 3.4vw, 2.75rem), -0.035em, $line-height: 1.2);
 }
 
 .class-detail-price-row {
@@ -1110,10 +1099,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    @include hg-display-heading(clamp(1.35rem, 2.2vw, 1.75rem), -0.02em);
   }
 
   > span {
