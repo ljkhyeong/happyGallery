@@ -2,7 +2,6 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
-import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -35,10 +34,11 @@ class PaymentAttemptExpiryProcessor {
 
     /**
      * 잠근 PENDING 결제가 만료 경계를 지났으면 취소하고 ORDER 혜택 예약을 해제한다.
-     * 호출자의 트랜잭션 안에서 실행하며, PENDING이 아니면 payload를 읽지 않고 false를 돌려준다.
+     * 호출자의 트랜잭션 안에서 실행하며, 만료 경계를 지난 PENDING이 아니면 payload를 읽지 않고 false를 돌려준다.
+     * 그래서 정상 confirm 선점은 저장 payload를 검증 단계에서 한 번만 복호화한다.
      */
     boolean expireIfDue(PaymentAttempt attempt, LocalDateTime cutoff, LocalDateTime now) {
-        if (attempt.getStatus() != PaymentAttemptStatus.PENDING) {
+        if (!attempt.isPendingExpiredBefore(cutoff)) {
             return false;
         }
         return benefitReservationService.releaseAfter(
