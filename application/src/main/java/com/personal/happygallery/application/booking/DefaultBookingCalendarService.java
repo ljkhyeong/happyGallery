@@ -173,7 +173,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
                 || dateFrom.plusDays(MAX_CALENDAR_DAYS - 1L).isBefore(dateTo)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
-                    "예약 캘린더는 한 번에 93일까지 조회할 수 있습니다.");
+                    "예약 캘린더는 한 번에 " + MAX_CALENDAR_DAYS + "일까지 조회할 수 있습니다.");
         }
     }
 }
