@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
 import { ApiError } from "@/shared/api";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
+import { useReauthenticationGate } from "@/features/customer-auth/useReauthenticationGate";
 import { ErrorAlert } from "@/shared/ui";
 
 interface Props {
@@ -19,35 +20,32 @@ export function AccountWithdrawalModal({
   onWithdraw,
 }: Props) {
   const [agreed, setAgreed] = useState(false);
-  const [reauthenticated, setReauthenticated] = useState(true);
-  const [stepUpBusy, setStepUpBusy] = useState(false);
+  // 탈퇴는 먼저 요청하고, 서버가 본인 확인을 요구할 때만 프롬프트로 전환한다.
+  const {
+    reauthenticated, stepUpBusy, setStepUpBusy, requireStepUpOnError, markVerified, reset: resetStepUp,
+  } = useReauthenticationGate({ show, initiallyReauthenticated: true });
   const withdrawal = useMutation({
     mutationFn: onWithdraw,
-    onError: (error) => {
-      if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
-        setReauthenticated(false);
-      }
-    },
+    onError: requireStepUpOnError,
   });
 
   useEffect(() => {
-    if (show) {
-      setAgreed(false);
-      setReauthenticated(true);
-    }
+    if (show) setAgreed(false);
   }, [show]);
 
+  const busy = withdrawal.isPending || stepUpBusy;
+
   function close() {
-    if (withdrawal.isPending || stepUpBusy) return;
+    if (busy) return;
     setAgreed(false);
-    setReauthenticated(true);
+    resetStepUp();
     withdrawal.reset();
     onClose();
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (agreed && !withdrawal.isPending && !stepUpBusy) withdrawal.mutate();
+    if (agreed && !busy) withdrawal.mutate();
   }
 
   return (
@@ -55,12 +53,12 @@ export function AccountWithdrawalModal({
       show={show}
       aria-labelledby="account-withdrawal-title"
       onHide={close}
-      backdrop={withdrawal.isPending || stepUpBusy ? "static" : true}
-      keyboard={!withdrawal.isPending && !stepUpBusy}
+      backdrop={busy ? "static" : true}
+      keyboard={!busy}
       centered
       scrollable
     >
-      <Modal.Header closeButton={!withdrawal.isPending && !stepUpBusy}>
+      <Modal.Header closeButton={!busy}>
         <Modal.Title id="account-withdrawal-title" className="fs-6">회원 탈퇴</Modal.Title>
       </Modal.Header>
       {!reauthenticated ? (
@@ -74,7 +72,7 @@ export function AccountWithdrawalModal({
               returnAction="account-withdrawal"
               onVerified={() => {
                 withdrawal.reset();
-                setReauthenticated(true);
+                markVerified();
               }}
               onBusyChange={setStepUpBusy}
             />

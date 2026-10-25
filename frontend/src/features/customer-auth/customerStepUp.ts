@@ -6,6 +6,7 @@ import {
 } from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import {
+  ApiError,
   CustomerSessionChangedError,
   currentCustomerSessionUserId,
   runForCurrentCustomer,
@@ -23,6 +24,11 @@ export type CustomerStepUpContinuation =
 
 export const CONTINUATION_STORAGE_ERROR_MESSAGE =
   "인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.";
+
+/** 민감한 변경 요청에 서버가 본인 확인을 다시 요구한 오류인지 판별한다. */
+export function isReauthenticationRequired(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.is("REAUTHENTICATION_REQUIRED");
+}
 
 export function clearCustomerStepUpContinuation() {
   removeSessionValues(

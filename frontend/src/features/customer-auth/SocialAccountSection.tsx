@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
 import {
-  ApiError,
   CustomerSessionChangedError,
   queryKeys,
   runForCurrentCustomer,
@@ -24,6 +23,7 @@ import {
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import {
   CONTINUATION_STORAGE_ERROR_MESSAGE,
+  isReauthenticationRequired,
   redirectToSocialStepUp,
   storeContinuationAndRedirect,
 } from "@/features/customer-auth/customerStepUp";
@@ -117,7 +117,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     try {
       await beginSensitiveAction(action);
     } catch (error) {
-      if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
+      if (isReauthenticationRequired(error)) {
         if (localPasswordEnabled) {
           setPendingAction(action);
           return;
