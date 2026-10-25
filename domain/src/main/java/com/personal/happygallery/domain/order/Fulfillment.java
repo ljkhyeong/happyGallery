@@ -140,7 +140,7 @@ public class Fulfillment {
         if (this.type != FulfillmentType.SHIPPING) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
-                    "배송 이행에서만 출고일을 설정할 수 있습니다.");
+                    "배송 이행 주문에서만 배송 처리를 할 수 있습니다.");
         }
     }
 

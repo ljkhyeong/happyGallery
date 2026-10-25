@@ -88,14 +88,14 @@ public class Booking {
     @Column(name = "payment_method", length = 15)
     private DepositPaymentMethod paymentMethod;
 
-    /** 비회원 예약 조회용 토큰 (V3에서 추가) */
+    /** 비회원 예약 조회용 토큰 해시. */
     @Column(name = "access_token", length = 64)
     private String accessToken;
 
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
-    /** 이용권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
+    /** 이용권 결제 연결. null이면 예약금 결제. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pass_purchase_id")
     private PassPurchase passPurchase;
