@@ -63,8 +63,7 @@ class BookingSettlementUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("미수와 잔금 상태가 실제 변경될 때만 관리자 정산 이력이 순서대로 기록된다")

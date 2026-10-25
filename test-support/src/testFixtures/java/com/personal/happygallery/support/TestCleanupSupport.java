@@ -151,6 +151,13 @@ public class TestCleanupSupport {
         paymentAttemptRepository.deleteAllInBatch();
     }
 
+    /** 예약·이용권 IT가 남기는 예약·이용권·환불·알림 이력·회원 데이터를 한 번에 정리한다. */
+    public void clearBookingDomainData() {
+        clearBookingWithPassAndRefundData();
+        clearNotificationLogs();
+        clearUsers();
+    }
+
     public void clearBookingReminderData() {
         clearBookingCalendarData();
         clearBookingVacancyAlerts();

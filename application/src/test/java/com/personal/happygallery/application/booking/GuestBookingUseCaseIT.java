@@ -105,7 +105,7 @@ class GuestBookingUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearBookingDomainData();
     }
 
     // -----------------------------------------------------------------------

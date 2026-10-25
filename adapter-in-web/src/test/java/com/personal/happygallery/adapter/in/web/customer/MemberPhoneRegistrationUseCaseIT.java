@@ -78,8 +78,7 @@ class MemberPhoneRegistrationUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("회원은 인증한 휴대폰 번호를 등록하고 다시 변경할 수 있다")

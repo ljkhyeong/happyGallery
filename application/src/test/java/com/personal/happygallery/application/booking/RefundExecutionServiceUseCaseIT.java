@@ -66,13 +66,8 @@ class RefundExecutionServiceUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     private Order saveMemberOrder(LocalDateTime paidAt) {

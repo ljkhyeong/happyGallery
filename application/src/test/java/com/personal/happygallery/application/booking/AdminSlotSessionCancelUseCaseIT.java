@@ -110,7 +110,7 @@ class AdminSlotSessionCancelUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("비활성 슬롯의 예약들을 일괄 취소하면 결제 수단별 보상과 운영 이력을 함께 남긴다")
@@ -292,12 +292,6 @@ class AdminSlotSessionCancelUseCaseIT {
                         refunds -> refunds.size() == expectedCount
                                 && refunds.stream().allMatch(
                                         refund -> refund.getStatus() == RefundStatus.SUCCEEDED));
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
-        cleanupSupport.clearUsers();
     }
 
     private record PassBooking(Booking booking, PassPurchase pass) {}

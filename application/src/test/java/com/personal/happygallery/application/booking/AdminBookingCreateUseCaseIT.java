@@ -50,8 +50,7 @@ class AdminBookingCreateUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("운영자가 받은 다인 예약금 예약은 정원을 점유하고 취소 시 수동 환불 작업을 남긴다")

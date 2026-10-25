@@ -51,7 +51,7 @@ class AdminPassQueryUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("관리자는 회원명, 정규화 전화번호, 표시용 이용권 번호로 같은 이용권을 검색한다")
@@ -139,10 +139,5 @@ class AdminPassQueryUseCaseIT {
         pass.useCredit(LocalDateTime.now(clock));
         passPurchaseStorePort.save(pass);
         bookingStorePort.save(Booking.forMemberPass(user, savedSlot, pass, 1));
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
     }
 }

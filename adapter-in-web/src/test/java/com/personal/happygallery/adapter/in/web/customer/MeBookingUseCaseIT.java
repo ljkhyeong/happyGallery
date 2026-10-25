@@ -96,12 +96,7 @@ class MeBookingUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @Test
