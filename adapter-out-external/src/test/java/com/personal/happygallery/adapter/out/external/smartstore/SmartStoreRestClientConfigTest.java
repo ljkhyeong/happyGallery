@@ -1,14 +1,9 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.http.PooledHttpClientFactory;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +20,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.CLOCK;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.PROPERTIES;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.expectToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -35,12 +33,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class SmartStoreRestClientConfigTest {
 
-    private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
-            true, "client-id", "$2a$10$abcdefghijklmnopqrstuv", "SELF", "",
-            "https://api.commerce.naver.com", new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1),
-            Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
-    private static final Clock CLOCK = Clock.fixed(
-            Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
     private MockRestServiceServer server;
     private NaverCommerceInventoryProvider provider;
 
@@ -53,10 +45,7 @@ class SmartStoreRestClientConfigTest {
         var client = builder.build();
         provider = new NaverCommerceInventoryProvider(client, PROPERTIES,
                 new NaverCommerceAccessTokenProvider(client, PROPERTIES, CLOCK));
-        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/oauth2/token"))
-                .andRespond(withSuccess("""
-                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
-                        """, MediaType.APPLICATION_JSON));
+        expectToken(server);
     }
 
     @ParameterizedTest
@@ -116,10 +105,7 @@ class SmartStoreRestClientConfigTest {
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
                         .contentType(MediaType.APPLICATION_JSON).body(expiredToken));
-        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/oauth2/token"))
-                .andRespond(withSuccess("""
-                        {"access_token":"new-token","expires_in":10800,"token_type":"Bearer"}
-                        """, MediaType.APPLICATION_JSON));
+        expectToken(server, "new-token");
         server.expect(requestTo(stockUrl))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer new-token"))
                 .andRespond(withStatus(HttpStatusCode.valueOf(retryStatus))

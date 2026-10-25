@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
@@ -15,12 +14,9 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,6 +29,9 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.RestClient;
 
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.PROPERTIES;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.expectToken;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.mockApi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
@@ -48,22 +47,20 @@ import static org.mockito.Mockito.when;
 
 class NaverCommerceOrderProviderTest {
 
-    private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
-            true, "client-id", "$2a$10$abcdefghijklmnopqrstuv", "SELF", "",
-            "https://api.commerce.naver.com", new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1),
-            Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
-    private static final Clock CLOCK = Clock.fixed(
-            Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
+    private MockRestServiceServer server;
+    private NaverCommerceOrderProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        var api = mockApi();
+        server = api.server();
+        provider = new NaverCommerceOrderProvider(api.client(), PROPERTIES, api.tokenProvider());
+    }
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     @DisplayName("완료 반품은 현재 클레임과 이력을 합쳐 한 번만 집계하고 취소와 반품 철회는 제외한다")
     void fetchDetails_collectsCompletedReturnsWithoutDuplicates(boolean hasHistory) {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         String history = hasHistory ? """
                 [
                   {"claimId":"r-1","claimType":"RETURN","claimStatus":"RETURN_DONE",
@@ -103,11 +100,6 @@ class NaverCommerceOrderProviderTest {
     @ValueSource(booleans = {false, true})
     @DisplayName("반품 완료 이력이나 수량이 없으면 잔여 수량 감소를 취소로 처리하지 않고 수집을 실패시킨다")
     void fetchDetails_rejectsIncompleteCompletedReturns(boolean hasReturnClaim) {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         String returned = hasReturnClaim ? """
                 {"claimId":"r-1","claimStatus":"RETURN_DONE",
                  "returnCompletedDate":"2026-08-29T11:00:00+09:00"}
@@ -134,11 +126,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("반품 택배사 계약번호와 우선순위를 v2 공식 응답에서 조회한다")
     void findReturnDeliveryCompanies_usesContractIds() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         expectToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v2/product-delivery-info/return-delivery-companies"))
@@ -170,12 +157,6 @@ class NaverCommerceOrderProviderTest {
     })
     @DisplayName("변경 주문이 없으면 data 생략 응답과 빈 목록을 마지막 페이지로 처리한다")
     void fetchChanges_withoutOrdersReturnsEmptyPage(String response) {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
-
         expectToken(server);
         server.expect(requestTo(containsString(
                         "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
@@ -194,12 +175,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("변경 주문 응답 본문이 없으면 주문이 없는 정상 응답으로 처리하지 않는다")
     void fetchChanges_missingBodyFails() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
-
         expectToken(server);
         server.expect(requestTo(containsString(
                         "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
@@ -216,13 +191,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("변경 주문 식별자를 조회한 뒤 상품 주문 상세와 옵션 아이템 번호를 읽는다")
     void fetchChangedOrders_readsDetailAndItemNumber() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider tokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES, tokenProvider);
-
         expectToken(server);
         server.expect(requestTo(containsString(
                         "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
@@ -331,13 +299,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("발송·지연·교환·반품 요청을 네이버 주문 API 계약에 맞춰 전송한다")
     void executeOrderOperations_sendsDocumentedPayloads() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider tokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES, tokenProvider);
-
         expectToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/dispatch"))
@@ -465,13 +426,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("발주와 발송 일괄 요청은 주문별 성공과 실패를 그대로 반환한다")
     void bulkOperations_preservePartialResults() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider tokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES, tokenProvider);
-
         expectToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/confirm"))
@@ -526,11 +480,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("단건 처리의 네이버 거절과 결과 없는 응답을 서로 다른 실패로 구분한다")
     void singleOperation_distinguishesRejectionFromUnknownResult() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         expectToken(server);
         server.expect(requestTo(containsString("/product-orders/confirm")))
                 .andRespond(withSuccess("""
@@ -568,11 +517,6 @@ class NaverCommerceOrderProviderTest {
     @Test
     @DisplayName("토큰 만료가 아닌 401은 발주 요청을 반복하지 않고 거절로 분류한다")
     void writeOperation_otherUnauthorized_isRejectedWithoutRetry() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         expectToken(server);
         server.expect(requestTo(containsString("/product-orders/confirm")))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
@@ -588,11 +532,6 @@ class NaverCommerceOrderProviderTest {
     @ValueSource(booleans = {true, false})
     @DisplayName("발주 인증 토큰 갱신에 성공하면 재전송하고 갱신 실패는 미전송으로 구분한다")
     void writeOperation_expiredToken_preservesRetryResult(boolean refreshSuccess) {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
         expectToken(server);
         server.expect(requestTo(containsString("/product-orders/confirm")))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
@@ -619,16 +558,5 @@ class NaverCommerceOrderProviderTest {
         return withSuccess("""
                 {"data":{"successProductOrderIds":["po-1"],"failProductOrderInfos":[]}}
                 """, MediaType.APPLICATION_JSON);
-    }
-
-    private static void expectToken(MockRestServiceServer server) {
-        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
-                .andRespond(withSuccess("""
-                        {
-                          "access_token": "access-token",
-                          "expires_in": 10800,
-                          "token_type": "Bearer"
-                        }
-                        """, MediaType.APPLICATION_JSON));
     }
 }

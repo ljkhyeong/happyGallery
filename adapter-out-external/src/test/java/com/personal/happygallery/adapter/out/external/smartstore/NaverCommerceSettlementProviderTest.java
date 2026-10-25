@@ -1,17 +1,15 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPool;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestClient;
 
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.PROPERTIES;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.expectToken;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.mockApi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
@@ -20,26 +18,20 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class NaverCommerceSettlementProviderTest {
 
-    private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
-            true, "client-id", "$2a$10$abcdefghijklmnopqrstuv", "SELF", "",
-            "https://api.commerce.naver.com", new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1),
-            Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
-    private static final Clock CLOCK = Clock.fixed(
-            Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
+    private MockRestServiceServer server;
+    private NaverCommerceSettlementProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        var api = mockApi();
+        server = api.server();
+        provider = new NaverCommerceSettlementProvider(api.client(), PROPERTIES, api.tokenProvider());
+    }
 
     @Test
     @DisplayName("정산의 모든 페이지를 순서대로 읽고 data 안의 응답도 처리한다")
     void findByPayDate_readsSettlementPage() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceSettlementProvider provider = new NaverCommerceSettlementProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
-
-        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
-                .andRespond(withSuccess("""
-                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
-                        """, MediaType.APPLICATION_JSON));
+        expectToken(server);
         server.expect(requestTo(containsString(
                         "/external/v1/pay-settle/settle/case")))
                 .andExpect(queryParam("searchDate", "2026-08-29"))
@@ -96,16 +88,7 @@ class NaverCommerceSettlementProviderTest {
     @Test
     @DisplayName("일별 정산과 수수료와 부가세 회계 자료를 각각 조회한다")
     void findAccountingData_readsOfficialReportContracts() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceSettlementProvider provider = new NaverCommerceSettlementProvider(
-                builder.build(), PROPERTIES,
-                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
-
-        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
-                .andRespond(withSuccess("""
-                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
-                        """, MediaType.APPLICATION_JSON));
+        expectToken(server);
         server.expect(requestTo(containsString("/external/v1/pay-settle/settle/daily")))
                 .andExpect(queryParam("startDate", "2026-07-01"))
                 .andExpect(queryParam("endDate", "2026-07-01"))

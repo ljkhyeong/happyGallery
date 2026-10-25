@@ -1,15 +1,11 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -17,8 +13,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestClient;
 
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.PROPERTIES;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.expectToken;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.mockApi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -30,32 +28,20 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class NaverCommerceInventoryProviderTest {
 
-    private static final SmartStoreProperties PROPERTIES = new SmartStoreProperties(
-            true,
-            "client-id",
-            "$2a$10$abcdefghijklmnopqrstuv",
-            "SELF",
-            "",
-            "https://api.commerce.naver.com",
-            new HttpPool(Duration.ofSeconds(5),
-            Duration.ofSeconds(1),
-            Duration.ofMillis(500),
-            5,
-            Duration.ofSeconds(30)));
-    private static final Clock CLOCK = Clock.fixed(
-            Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
+    private MockRestServiceServer server;
+    private NaverCommerceInventoryProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        var api = mockApi();
+        server = api.server();
+        provider = new NaverCommerceInventoryProvider(api.client(), PROPERTIES, api.tokenProvider());
+    }
 
     @Test
     @DisplayName("기성품 재고는 인증 토큰을 발급받아 원상품 재고 절대값으로 전송한다")
     void sync_readyStock_sendsAbsoluteStockQuantity() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
-        expectToken(server);
+        expectClientCredentialsToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v1/products/origin-products/multi-update"))
                 .andExpect(method(HttpMethod.PATCH))
@@ -80,13 +66,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("자동 옵션 재고 전송은 네이버의 현재 옵션가와 사용 여부를 보존한다")
     void sync_optionProduct_preservesRemotePriceAndUsability() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         expectOptionProduct(server, """
                 [{"id":11,"stockQuantity":100,"price":1500,"usable":true},
@@ -121,13 +100,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("현재 옵션 조회에 실패하면 가격을 추측하지 않고 재고 전송을 중단한다")
     void sync_optionLookupFailure_doesNotSendStock() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
@@ -144,13 +116,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("연결한 옵션이 네이버에 없으면 일부 옵션만 전송하지 않고 실패로 남긴다")
     void sync_missingRemoteOption_doesNotSendStock() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         expectOptionProduct(server,
                 "[{\"id\":11,\"stockQuantity\":100,\"price\":1500,\"usable\":true}]");
@@ -166,13 +131,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("스마트스토어 상품 목록을 공식 페이지 계약으로 조회한다")
     void listProducts_readsSmartStoreCatalogPage() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         server.expect(requestTo("https://api.commerce.naver.com/external/v1/products/search"))
                 .andExpect(method(HttpMethod.POST))
@@ -212,13 +170,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("검수 반려 상품을 조회하고 채널상품 복원을 요청한다")
     void inspectAndRestoreProduct_usesInspectionContracts() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         server.expect(requestTo(containsString(
                         "/external/v1/product-inspections/channel-products?page=1&size=100")))
@@ -252,13 +203,6 @@ class NaverCommerceInventoryProviderTest {
     @Test
     @DisplayName("원상품 차이를 조회하고 판매가·옵션가·판매 상태를 명시적으로 반영한다")
     void getAndApplyProduct_usesProductContracts() {
-        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
-                builder.build(), PROPERTIES, CLOCK);
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
-                builder.build(), PROPERTIES, accessTokenProvider);
-
         expectToken(server);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
@@ -322,7 +266,8 @@ class NaverCommerceInventoryProviderTest {
                         """.formatted(options), MediaType.APPLICATION_JSON));
     }
 
-    private static void expectToken(MockRestServiceServer server) {
+    /** 토큰 발급 요청 계약(client_credentials form POST·SELF)은 여기서만 검증하고 다른 테스트는 공용 stub을 쓴다. */
+    private static void expectClientCredentialsToken(MockRestServiceServer server) {
         server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED))
