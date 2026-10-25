@@ -14,6 +14,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.external.payment")
 public record ExternalPaymentProperties(
         @NotNull @DurationMin(millis = 1) @DefaultValue("5s") Duration timeout,
-        @Valid ExecutorPoolProperties threadPool,
-        @Valid ExternalCircuitBreakerProperties circuitBreaker
+        @Valid @NotNull ExecutorPoolProperties threadPool,
+        @Valid @DefaultValue ExternalCircuitBreakerProperties circuitBreaker
 ) {}

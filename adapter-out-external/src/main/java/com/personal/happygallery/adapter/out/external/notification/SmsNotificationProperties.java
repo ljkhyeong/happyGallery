@@ -11,9 +11,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.sms")
 public record SmsNotificationProperties(
-        String apiKey,
-        String apiSecret,
-        String senderNumber,
+        @DefaultValue("") String apiKey,
+        @DefaultValue("") String apiSecret,
+        @DefaultValue("") String senderNumber,
         @NotBlank @DefaultValue("https://sms.api.nhncloudservice.com") String baseUrl,
         @Valid @DefaultValue HttpPool http
 ) {

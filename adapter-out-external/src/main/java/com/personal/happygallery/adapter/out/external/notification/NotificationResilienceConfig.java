@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
@@ -87,9 +86,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.alimtalkThreadPool(),
-                executorFactory,
                 "alimtalk-notification-timeout-",
                 "happygallery.notification.alimtalk.executor.rejected",
                 "Alimtalk notification timeout executor rejected task count");
@@ -100,9 +98,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.smsThreadPool(),
-                executorFactory,
                 "sms-notification-timeout-",
                 "happygallery.notification.sms.executor.rejected",
                 "SMS notification timeout executor rejected task count");
@@ -113,9 +110,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.phoneVerificationThreadPool(),
-                executorFactory,
                 "phone-verification-timeout-",
                 "happygallery.notification.phone_verification.executor.rejected",
                 "Phone verification timeout executor rejected task count");
@@ -126,9 +122,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.emailVerificationThreadPool(),
-                executorFactory,
                 "email-verification-timeout-",
                 "happygallery.notification.email_verification.executor.rejected",
                 "Email verification timeout executor rejected task count");
@@ -235,21 +230,6 @@ class NotificationResilienceConfig {
         }
         return result == NotificationSendResult.TRANSIENT_FAILURE
                 || result == NotificationSendResult.DELIVERY_UNKNOWN;
-    }
-
-    private static ThreadPoolTaskExecutor createExecutor(
-            ExecutorPoolProperties threadPool,
-            BoundedExecutorFactory executorFactory,
-            String threadNamePrefix,
-            String rejectionMetricName,
-            String rejectionMetricDescription
-    ) {
-        return executorFactory.create(
-                threadPool.poolSize(),
-                threadPool.queueCapacity(),
-                threadNamePrefix,
-                rejectionMetricName,
-                rejectionMetricDescription);
     }
 
     private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,
