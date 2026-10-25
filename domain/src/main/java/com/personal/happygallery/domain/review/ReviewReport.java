@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.review;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -85,7 +86,7 @@ public class ReviewReport {
         this.reviewId = requirePositive(reviewId, "후기 ID");
         this.reporterUserId = requirePositive(reporterUserId, "신고 회원 ID");
         this.reason = Objects.requireNonNull(reason, "신고 사유는 필수입니다.");
-        this.detail = normalize(detail, MAX_DETAIL_LENGTH, "신고 상세");
+        this.detail = DomainText.optional(detail, "신고 상세는", MAX_DETAIL_LENGTH);
         this.snapshotStatus = Objects.requireNonNull(snapshotStatus, "신고 시점 후기 상태는 필수입니다.");
         this.evidenceSnapshotId = requirePositive(evidenceSnapshotId, "후기 증거 ID");
         this.status = ReviewReportStatus.PENDING;
@@ -102,8 +103,8 @@ public class ReviewReport {
             throw new HappyGalleryException(ErrorCode.REVIEW_REPORT_DECISION_NOT_ALLOWED);
         }
         this.status = decision;
-        this.decisionNote = normalize(
-                decisionNote, MAX_DECISION_NOTE_LENGTH, "신고 처리 메모");
+        this.decisionNote = DomainText.optional(
+                decisionNote, "신고 처리 메모는", MAX_DECISION_NOTE_LENGTH);
         this.decidedByAdminId = requirePositive(adminUserId, "관리자 ID");
         this.decidedAt = Objects.requireNonNull(decidedAt, "신고 처리 시각은 필수입니다.");
     }
@@ -113,18 +114,6 @@ public class ReviewReport {
             throw new IllegalArgumentException(name + "가 올바르지 않습니다.");
         }
         return value;
-    }
-
-    private static String normalize(String value, int maxLength, String name) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.strip();
-        if (normalized.length() > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, name + "는 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     public Long getId() { return id; }
