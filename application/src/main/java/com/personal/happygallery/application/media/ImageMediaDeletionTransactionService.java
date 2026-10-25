@@ -4,9 +4,7 @@ import com.personal.happygallery.application.media.port.out.ImageMediaReferenceR
 import com.personal.happygallery.application.media.port.out.ImageMediaStoragePort;
 import java.util.Collection;
 import java.util.LinkedHashSet;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +41,8 @@ public class ImageMediaDeletionTransactionService {
         if (storagePort.isBackupInProgress()) {
             return 0;
         }
-        Set<String> referenced = referenceReader.findReferencedImageUrls().stream()
-                .map(ImageMediaReferenceGuard::localFileName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        Set<String> referenced = ImageMediaReferenceGuard.localFileNames(
+                referenceReader.findReferencedImageUrls());
 
         int deleted = 0;
         for (String fileName : candidates) {

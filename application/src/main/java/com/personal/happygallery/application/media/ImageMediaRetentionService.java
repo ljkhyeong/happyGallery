@@ -7,9 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,7 +30,8 @@ public class ImageMediaRetentionService {
     }
 
     public int deleteUnreferencedImages() {
-        Set<String> referencedAtStart = referencedFileNames();
+        Set<String> referencedAtStart = ImageMediaReferenceGuard.localFileNames(
+                referenceReader.findReferencedImageUrls());
         Instant observedAt = clock.instant();
         List<String> deletionCandidates = new ArrayList<>();
         for (String fileName : storagePort.findStoredImageNames()) {
@@ -50,12 +49,5 @@ public class ImageMediaRetentionService {
             }
         }
         return deleted;
-    }
-
-    private Set<String> referencedFileNames() {
-        return referenceReader.findReferencedImageUrls().stream()
-                .map(ImageMediaReferenceGuard::localFileName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
     }
 }
