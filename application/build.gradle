@@ -95,10 +95,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	testImplementation 'org.springframework.boot:spring-boot-starter-mail'
 	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
-	testImplementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
-	testImplementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
 	testImplementation testFixtures(project(":test-support"))
 	// bootstrap 의 @SpringBootApplication / Flyway / config 클래스가 @SpringBootTest 컨텍스트 부팅에 필요
 	testImplementation project(":bootstrap")

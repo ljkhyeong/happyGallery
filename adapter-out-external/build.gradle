@@ -22,5 +22,8 @@ dependencies {
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// BoundedExecutorMetricsTest의 TaskExecutorMetricsAutoConfiguration, Resilient* 테스트의 Awaitility 대기용
+	testImplementation 'org.springframework.boot:spring-boot-micrometer-metrics'
+	testImplementation 'org.awaitility:awaitility'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
