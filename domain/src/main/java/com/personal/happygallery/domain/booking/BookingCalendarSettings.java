@@ -66,6 +66,15 @@ public class BookingCalendarSettings {
         this.blockPublicHolidays = blockPublicHolidays;
     }
 
+    /** 불러온 뒤 설정이 먼저 변경됐으면 충돌로 거절한다. */
+    public void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "예약 캘린더 설정이 변경되었습니다. 최신 내용을 다시 불러와 주세요.");
+        }
+    }
+
     public Long getId() { return id; }
     public LocalTime getOpenTime() { return openTime; }
     public LocalTime getCloseTime() { return closeTime; }

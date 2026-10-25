@@ -58,11 +58,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         BookingCalendarSettings settings = settingsPort
                 .findByIdForUpdate(BookingCalendarSettings.SINGLETON_ID)
                 .orElseThrow(NotFoundException.supplier("예약 캘린더 설정"));
-        if (settings.getVersion() != command.expectedVersion()) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT,
-                    "예약 캘린더 설정이 변경되었습니다. 최신 내용을 다시 불러와 주세요.");
-        }
+        settings.requireVersion(command.expectedVersion());
         settings.update(
                 command.openTime(),
                 command.closeTime(),

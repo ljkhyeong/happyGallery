@@ -127,6 +127,15 @@ public class Event {
                 relatedProductIds);
     }
 
+    /** 불러온 뒤 다른 관리자가 먼저 수정했으면 충돌로 거절한다. */
+    public void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "다른 관리자가 이벤트를 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");
+        }
+    }
+
     private void apply(
             String title,
             String summary,

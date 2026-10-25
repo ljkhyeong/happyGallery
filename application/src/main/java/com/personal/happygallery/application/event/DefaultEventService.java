@@ -7,8 +7,6 @@ import com.personal.happygallery.application.event.port.out.EventReaderPort;
 import com.personal.happygallery.application.event.port.out.EventStorePort;
 import com.personal.happygallery.application.media.ImageMediaReferenceGuard;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.event.Event;
 import java.time.Clock;
@@ -95,7 +93,7 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
     public Event update(Long id, UpdateCommand command) {
         Event event = eventReader.findByIdWithRelatedProducts(id)
                 .orElseThrow(NotFoundException.supplier("이벤트"));
-        requireExpectedVersion(event, command.expectedVersion());
+        event.requireVersion(command.expectedVersion());
         event.update(
                 command.title(),
                 command.summary(),
@@ -117,7 +115,7 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
     public void delete(Long id, long expectedVersion) {
         Event event = eventReader.findByIdWithRelatedProducts(id)
                 .orElseThrow(NotFoundException.supplier("이벤트"));
-        requireExpectedVersion(event, expectedVersion);
+        event.requireVersion(expectedVersion);
         eventStore.deleteById(id);
     }
 
@@ -137,14 +135,6 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
         if (couponDefinitionId != null
                 && !couponDefinitionReader.existsById(couponDefinitionId)) {
             throw new NotFoundException("연결 쿠폰");
-        }
-    }
-
-    private void requireExpectedVersion(Event event, long expectedVersion) {
-        if (event.getVersion() != expectedVersion) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT,
-                    "다른 관리자가 이벤트를 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");
         }
     }
 }
