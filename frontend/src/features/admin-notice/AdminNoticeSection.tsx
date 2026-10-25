@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card, Badge, Button, Form } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,10 +10,9 @@ import {
   type NoticeListResponse,
 } from "./api";
 import { queryKeys } from "@/shared/api";
-import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
-import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
+import { useVersionedCrudForm } from "@/shared/hooks/useVersionedCrudForm";
+import { ErrorAlert, LoadingSpinner, EmptyState } from "@/shared/ui";
 import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 import { formatDateTime } from "@/shared/lib";
 import {
@@ -28,9 +26,18 @@ interface Props {
   onAuthError: () => void;
 }
 
+interface NoticeFormState {
+  title: string;
+  content: string;
+  pinned: boolean;
+}
+
+function emptyForm(): NoticeFormState {
+  return { title: "", content: "", pinned: false };
+}
+
 export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
-  const toast = useToast();
 
   const { data: notices, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.notices,
@@ -44,95 +51,48 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     ]);
   };
 
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [pinned, setPinned] = useState(false);
-  const [actionError, setActionError] = useState<Error | null>(null);
-  const edit = useVersionedEdit<NoticeDetailResponse>({
+  const {
+    edit,
+    form,
+    setForm,
+    showForm,
+    editId,
+    actionError,
+    saving,
+    deleteMutation,
+    startEdit,
+    toggleForm,
+    submit,
+  } = useVersionedCrudForm<NoticeListResponse, NoticeDetailResponse, NoticeFormState>({
     onAuthError,
-    isConflict: isVersionConflict,
-    applyToForm: (notice) => {
-      setTitle(notice.title);
-      setContent(notice.content);
-      setPinned(notice.pinned);
-    },
-    setError: setActionError,
+    emptyForm,
+    // 목록 응답에는 본문이 없어 제목·고정만 먼저 채우고, 본문은 최신 상세를 읽어 채운다.
+    draftFrom: (notice) => ({ title: notice.title, content: "", pinned: notice.pinned }),
+    formFrom: (notice) => ({ title: notice.title, content: notice.content, pinned: notice.pinned }),
+    fetchLatest: (id) => fetchAdminNotice(id, adminKey),
+    create: (draft) => createNotice(draft, adminKey),
+    update: (id, draft, expectedVersion) => updateNotice(id, { expectedVersion, ...draft }, adminKey),
+    remove: (id, version) => deleteNotice(id, version, adminKey),
+    onSaved: invalidateSavedNotices,
     onConflict: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
     },
-  });
-
-  const resetForm = () => {
-    edit.reset();
-    setShowForm(false);
-    setEditId(null);
-    setTitle("");
-    setContent("");
-    setPinned(false);
-    setActionError(null);
-  };
-
-  const createMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => createNotice({ title, content, pinned }, adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("공지사항이 등록되었습니다.");
-      resetForm();
-      invalidateSavedNotices();
+    messages: {
+      created: "공지사항이 등록되었습니다.",
+      updated: "공지사항이 수정되었습니다.",
+      deleted: "공지사항이 삭제되었습니다.",
     },
-    onError: setActionError,
   });
-
-  const updateMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateNotice(
-      editId!,
-      { expectedVersion: edit.version!, title, content, pinned },
-      adminKey,
-    ),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("공지사항이 수정되었습니다.");
-      resetForm();
-      invalidateSavedNotices();
-    },
-    onError: (error) => edit.handleSaveError(error, () => fetchAdminNotice(editId!, adminKey)),
-  });
-
-  const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: ({ id, version }: Pick<NoticeListResponse, "id" | "version">) =>
-      deleteNotice(id, version, adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("공지사항이 삭제되었습니다.");
-      invalidateSavedNotices();
-    },
-    onError: edit.handleDeleteError,
-  });
-
-  const startEdit = (notice: NoticeListResponse) => {
-    setEditId(notice.id);
-    setTitle(notice.title);
-    setContent("");
-    setPinned(notice.pinned);
-    setShowForm(true);
-    void edit.startEdit(() => fetchAdminNotice(notice.id, adminKey));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId !== null && edit.version !== null) {
-      updateMutation.mutate();
-    } else if (editId === null) {
-      createMutation.mutate();
-    }
+    submit();
   };
 
   return (
     <div>
       <div className="d-flex justify-content-end mb-3">
-        <Button size="sm" variant="outline-primary" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+        <Button size="sm" variant="outline-primary" onClick={toggleForm}>
           {showForm ? "취소" : "새 공지 작성"}
         </Button>
       </div>
@@ -157,14 +117,14 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                   size="sm"
                   placeholder="제목"
                   maxLength={CONTENT_TITLE_MAX_LENGTH}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  value={form.title}
+                  onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
                   disabled={edit.loading}
                   required
                   aria-describedby="admin-notice-title-count"
                 />
                 <Form.Text id="admin-notice-title-count" className="text-muted d-block text-end">
-                  {contentLengthLabel(title, CONTENT_TITLE_MAX_LENGTH)}
+                  {contentLengthLabel(form.title, CONTENT_TITLE_MAX_LENGTH)}
                 </Form.Text>
               </Form.Group>
               <Form.Group className="mb-2" controlId="admin-notice-content">
@@ -175,21 +135,21 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                   size="sm"
                   placeholder="내용"
                   maxLength={CONTENT_BODY_MAX_LENGTH}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={form.content}
+                  onChange={(e) => setForm((current) => ({ ...current, content: e.target.value }))}
                   disabled={edit.loading}
                   required
                   aria-describedby="admin-notice-content-count"
                 />
                 <Form.Text id="admin-notice-content-count" className="text-muted d-block text-end">
-                  {contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}
+                  {contentLengthLabel(form.content, CONTENT_BODY_MAX_LENGTH)}
                 </Form.Text>
               </Form.Group>
               <Form.Check
                 type="checkbox"
                 label="상단 고정"
-                checked={pinned}
-                onChange={(e) => setPinned(e.target.checked)}
+                checked={form.pinned}
+                onChange={(e) => setForm((current) => ({ ...current, pinned: e.target.checked }))}
                 disabled={edit.loading}
                 className="mb-2"
               />
@@ -200,8 +160,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                   edit.loading
                   || edit.conflict !== null
                   || (editId !== null && edit.version === null)
-                  || createMutation.isPending
-                  || updateMutation.isPending
+                  || saving
                 }
               >
                 {editId !== null ? "수정" : "등록"}
