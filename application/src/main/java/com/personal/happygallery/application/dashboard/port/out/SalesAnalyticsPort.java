@@ -14,7 +14,8 @@ import java.util.List;
 
 public interface SalesAnalyticsPort {
 
-    DashboardOverview findOverview(LocalDate from, LocalDate to);
+    /** {@code today}는 호출부가 주입한 Clock으로 구한 서울 날짜다. 어댑터는 열 저장 기준에 맞춰 변환만 한다. */
+    DashboardOverview findOverview(LocalDate today, LocalDate from, LocalDate to);
 
     List<PeriodSalesSummary> findSalesSummary(LocalDate from, LocalDate to, Granularity granularity);
 

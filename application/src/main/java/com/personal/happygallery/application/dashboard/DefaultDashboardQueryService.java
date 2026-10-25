@@ -15,6 +15,7 @@ import com.personal.happygallery.application.dashboard.port.out.BookingAnalytics
 import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -30,17 +31,20 @@ public class DefaultDashboardQueryService implements DashboardQueryUseCase {
 
     private final SalesAnalyticsPort salesAnalytics;
     private final BookingAnalyticsPort bookingAnalytics;
+    private final Clock clock;
 
     public DefaultDashboardQueryService(SalesAnalyticsPort salesAnalytics,
-                                        BookingAnalyticsPort bookingAnalytics) {
+                                        BookingAnalyticsPort bookingAnalytics,
+                                        Clock clock) {
         this.salesAnalytics = salesAnalytics;
         this.bookingAnalytics = bookingAnalytics;
+        this.clock = clock;
     }
 
     @Override
     public DashboardOverview getOverview(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return salesAnalytics.findOverview(from, to);
+        return salesAnalytics.findOverview(LocalDate.now(clock), from, to);
     }
 
     @Override
