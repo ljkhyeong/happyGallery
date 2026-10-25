@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentFailureReason;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -293,7 +294,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.FAILED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         clearProcessing();
         return true;
     }
@@ -304,7 +305,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.RETRYABLE;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.nextAttemptAt = nextAttemptAt;
         clearProcessingToken();
         return true;
@@ -316,7 +317,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.RECONCILIATION_REQUIRED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.nextAttemptAt = nextAttemptAt;
         clearProcessingToken();
         return true;

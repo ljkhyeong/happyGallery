@@ -13,8 +13,8 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import com.personal.happygallery.domain.payment.PaymentFailureReason;
 import com.personal.happygallery.domain.payment.RefundStatus;
-import com.personal.happygallery.domain.text.DomainText;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,9 +29,10 @@ class RefundTransactionService {
 
     static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
-    private static final int MAX_FAILURE_REASON_LENGTH = 500;
     private static final String MISSING_PAYMENT_KEY_REASON =
             "paymentKey가 없어 PG 환불을 실행할 수 없습니다.";
+    private static final String UNKNOWN_REFUND_RESULT_REASON =
+            "PG 환불 처리 결과를 확인할 수 없습니다.";
 
     private final RefundPort refundPort;
     private final PaymentAttemptReaderPort paymentAttemptReader;
@@ -136,7 +137,7 @@ class RefundTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markFailed(Long refundId, String processingToken, String reason) {
         Refund refund = findRefundForUpdate(refundId);
-        String resolvedReason = failureReason(reason);
+        String resolvedReason = PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON);
         if (refund.markFailed(processingToken, resolvedReason)) {
             markPaymentAttemptCompensationFailed(refund, resolvedReason);
         }
@@ -148,7 +149,7 @@ class RefundTransactionService {
         Refund refund = findRefundForUpdate(refundId);
         refund.markRetryable(
                 processingToken,
-                failureReason(reason),
+                PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON),
                 LocalDateTime.now(clock).plus(RETRY_DELAY));
         return refund;
     }
@@ -158,7 +159,7 @@ class RefundTransactionService {
         Refund refund = findRefundForUpdate(refundId);
         refund.markReconciliationRequired(
                 processingToken,
-                failureReason(reason),
+                PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON),
                 LocalDateTime.now(clock).plus(RETRY_DELAY));
         return refund;
     }
@@ -166,13 +167,6 @@ class RefundTransactionService {
     private Refund findRefundForUpdate(Long refundId) {
         return refundPort.findByIdForUpdate(refundId)
                 .orElseThrow(NotFoundException.supplier("환불"));
-    }
-
-    private String failureReason(String reason) {
-        String resolved = StringUtils.hasText(reason)
-                ? reason
-                : "PG 환불 처리 결과를 확인할 수 없습니다.";
-        return DomainText.truncate(resolved, MAX_FAILURE_REASON_LENGTH);
     }
 
     private void markPaymentAttemptCompensated(Refund refund) {

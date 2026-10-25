@@ -13,13 +13,12 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.text.DomainText;
+import com.personal.happygallery.domain.payment.PaymentFailureReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import static java.util.Objects.requireNonNull;
 
@@ -27,8 +26,6 @@ import static java.util.Objects.requireNonNull;
 public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultPaymentConfirmService.class);
-
-    private static final int MAX_FAILURE_REASON_LENGTH = 500;
 
     private final PaymentPort paymentPort;
     private final PaymentConfirmClaimTransactionService claimTransactionService;
@@ -81,7 +78,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                 case PgConfirmationRequired required -> {
                     PaymentConfirmResult pg = callPayment(required);
                     if (!pg.success()) {
-                        String reason = failureReason(pg.failReason(), "결제 확정에 실패했습니다.");
+                        String reason = PaymentFailureReason.normalize(pg.failReason(), "결제 확정에 실패했습니다.");
                         if (pg.reconciliationRequired()
                                 || (!pg.retryable() && required.priorPgCallPossible())) {
                             if (claimTransactionService.tryRecordPgReconciliationRequired(
@@ -161,10 +158,5 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                             + "[attemptId={}, orderId={}, type={}]",
                     required.attemptId(), required.orderId(), compensationFailure.getClass().getSimpleName());
         }
-    }
-
-    private String failureReason(String reason, String fallback) {
-        String resolved = StringUtils.hasText(reason) ? reason : fallback;
-        return DomainText.truncate(resolved, MAX_FAILURE_REASON_LENGTH);
     }
 }
