@@ -79,7 +79,7 @@ public class Inventory {
 
     /** 현재 수량으로 요청을 처리할 수 있는지 변경 없이 검증한다. */
     public void requireSufficient(int qty) {
-        requirePositive(qty);
+        StockThresholdPolicy.requirePositiveQuantity(qty);
         if (this.quantity < qty) {
             throw new InventoryNotEnoughException();
         }
@@ -91,14 +91,8 @@ public class Inventory {
      * @param qty 복구 수량
      */
     public void restore(int qty) {
-        requirePositive(qty);
+        StockThresholdPolicy.requirePositiveQuantity(qty);
         this.quantity = Math.addExact(this.quantity, qty);
-    }
-
-    private static void requirePositive(int qty) {
-        if (qty <= 0) {
-            throw new IllegalArgumentException("재고 변경 수량은 1 이상이어야 합니다.");
-        }
     }
 
     /** 재고가 1개 이상 남아 있으면 true. */

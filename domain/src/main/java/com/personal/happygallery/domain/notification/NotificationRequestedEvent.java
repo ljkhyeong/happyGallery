@@ -75,7 +75,7 @@ public sealed interface NotificationRequestedEvent {
                 oncePerAggregateKeyPrefix(eventType, aggregateType) + aggregateId);
     }
 
-    static String oncePerAggregateKeyPrefix(
+    private static String oncePerAggregateKeyPrefix(
             NotificationEventType eventType, NotificationAggregateType aggregateType) {
         return "AGGREGATE:" + eventType + ":" + aggregateType + ":";
     }

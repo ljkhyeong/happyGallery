@@ -71,12 +71,9 @@ public class CartItem {
         this.updatedAt = this.createdAt;
     }
 
+    /** 현재 수량에 더한 결과도 {@link OrderAmountCalculator#requireQuantity} 범위 안이어야 한다. */
     public void addQty(int delta, LocalDateTime updatedAt) {
-        try {
-            updateQty(Math.addExact(this.qty, delta), updatedAt);
-        } catch (ArithmeticException e) {
-            throw new IllegalArgumentException("장바구니 수량이 너무 큽니다.", e);
-        }
+        updateQty(this.qty + delta, updatedAt);
     }
 
     public void updateQty(int newQty, LocalDateTime updatedAt) {
