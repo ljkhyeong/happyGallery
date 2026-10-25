@@ -112,27 +112,19 @@ public class SmartStoreStockSync {
     }
 
     public void complete(String claimedGeneration, long claimedVersion, LocalDateTime now) {
-        if (!generation.equals(claimedGeneration)) {
+        if (!isCurrentClaim(claimedGeneration, claimedVersion)) {
             requestAfterSupersededWrite(now);
             return;
         }
-        if (requestVersion == claimedVersion) {
-            status = SmartStoreStockSyncStatus.SYNCED;
-            attemptCount = 0;
-            lastError = null;
-            syncedAt = now;
-            processingStartedAt = null;
-            return;
-        }
-        requestAfterSupersededWrite(now);
+        status = SmartStoreStockSyncStatus.SYNCED;
+        attemptCount = 0;
+        lastError = null;
+        syncedAt = now;
+        processingStartedAt = null;
     }
 
     public void fail(String claimedGeneration, long claimedVersion, String reason, LocalDateTime now) {
-        if (!generation.equals(claimedGeneration)) {
-            requestAfterSupersededWrite(now);
-            return;
-        }
-        if (requestVersion != claimedVersion) {
+        if (!isCurrentClaim(claimedGeneration, claimedVersion)) {
             requestAfterSupersededWrite(now);
             return;
         }
@@ -146,6 +138,11 @@ public class SmartStoreStockSync {
         status = SmartStoreStockSyncStatus.PENDING;
         nextAttemptAt = now.plusMinutes(Math.min(30, 1L << Math.min(attemptCount - 1, 5)));
         processingStartedAt = null;
+    }
+
+    /** 선점한 세대와 요청 버전이 그대로일 때만 전송 결과를 현재 요청에 반영한다. */
+    private boolean isCurrentClaim(String claimedGeneration, long claimedVersion) {
+        return generation.equals(claimedGeneration) && requestVersion == claimedVersion;
     }
 
     /** 뒤늦은 외부 쓰기 이후 전송을 보장하고, 대기·최종 실패의 재시도 정책은 유지한다. */
