@@ -13,13 +13,16 @@ import {
 } from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import { describeError, LoadingSpinner } from "@/shared/ui";
-import { storeContinuationAndRedirect } from "@/features/customer-auth/customerStepUp";
+import {
+  clearCustomerStepUpContinuation,
+  readCustomerStepUpContinuation,
+  storeContinuationAndRedirect,
+} from "@/features/customer-auth/customerStepUp";
 import {
   startSocialAccountLink,
   unlinkSocialAccount,
 } from "@/features/customer-auth/socialAccountApi";
 import { SocialSignupConsent } from "@/features/customer-auth/SocialSignupConsent";
-import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 import {
   CustomerSessionChangedError,
   runForCurrentCustomer,
@@ -45,27 +48,12 @@ export function SocialCallbackPage() {
       readSessionValue(SESSION_KEYS.socialLoginReturnTo),
     );
     setReturnTo(savedReturnTo);
-    const pendingSocialAccountLink = readSessionValue(SESSION_KEYS.socialAccountLink);
-    removeSessionValues(SESSION_KEYS.socialAccountLink);
-    const pendingSocialReauthentication =
-      readSessionValue(SESSION_KEYS.socialReauthentication);
-    removeSessionValues(SESSION_KEYS.socialReauthentication);
-    const continuationOwner = Number(
-      readSessionValue(SESSION_KEYS.customerContinuationOwner),
-    );
-    removeSessionValues(SESSION_KEYS.customerContinuationOwner);
+    const continuation = readCustomerStepUpContinuation();
     const hasCustomerContinuation =
-      pendingSocialAccountLink !== null || pendingSocialReauthentication !== null;
-    const clearPendingStepUpActions = () => {
-      removeSessionValues(
-        SESSION_KEYS.socialAccountLinkTarget,
-        SESSION_KEYS.socialAccountUnlinkTarget,
-        SESSION_KEYS.stepUpReturnAction,
-      );
-    };
+      continuation.socialAccountLink !== null || continuation.reauthenticationProvider !== null;
 
     if (searchParams.get("signupAttempt") && !hasCustomerContinuation) {
-      clearPendingStepUpActions();
+      clearCustomerStepUpContinuation();
       return;
     }
 
@@ -76,7 +64,7 @@ export function SocialCallbackPage() {
         setPolicyConsentRequired(true);
       }
       removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
-      clearPendingStepUpActions();
+      clearCustomerStepUpContinuation();
       setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
@@ -84,15 +72,8 @@ export function SocialCallbackPage() {
     void (async () => {
       try {
         const user = await refresh();
-        if (
-          hasCustomerContinuation
-          && (
-            !Number.isSafeInteger(continuationOwner)
-            || continuationOwner <= 0
-            || user?.id !== continuationOwner
-          )
-        ) {
-          clearPendingStepUpActions();
+        if (hasCustomerContinuation && user?.id !== continuation.owner) {
+          clearCustomerStepUpContinuation();
           navigate(
             user ? "/my" : buildAuthPageHref("/login", { redirectTo: "/my" }),
             { replace: true },
@@ -101,14 +82,8 @@ export function SocialCallbackPage() {
         }
 
         if (searchParams.get("reauthenticated")) {
-          const linkTarget = readSessionValue(
-            SESSION_KEYS.socialAccountLinkTarget,
-          ) as SocialProvider | null;
-          const unlinkTarget = readSessionValue(
-            SESSION_KEYS.socialAccountUnlinkTarget,
-          ) as SocialProvider | null;
-          const returnAction = readSessionValue(SESSION_KEYS.stepUpReturnAction);
-          clearPendingStepUpActions();
+          const { linkTarget, unlinkTarget, returnAction } = continuation;
+          clearCustomerStepUpContinuation();
           if (linkTarget) {
             await runForCurrentCustomer(
               () => startSocialAccountLink(linkTarget),
@@ -162,11 +137,8 @@ export function SocialCallbackPage() {
           navigate("/my", { replace: true });
           return;
         }
-        clearPendingStepUpActions();
-        removeSessionValues(
-          SESSION_KEYS.socialAccountLink,
-          SESSION_KEYS.socialLoginReturnTo,
-        );
+        clearCustomerStepUpContinuation();
+        removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
         setLinkCallback(hasCustomerContinuation);
         setError(describeError(error, "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요."));
       }

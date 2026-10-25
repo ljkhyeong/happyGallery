@@ -1,6 +1,7 @@
 import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 import { startSocialReauthentication } from "@/features/customer-auth/socialAccountApi";
 import {
+  readSessionValue,
   removeSessionValues,
   writeSessionValues,
 } from "@/shared/storage/browserSessionStorage";
@@ -22,6 +23,19 @@ export type CustomerStepUpContinuation =
   | { kind: "social-link"; provider: SocialProvider }
   | { kind: "social-unlink"; provider: SocialProvider };
 
+/** 콜백 화면이 읽는 저장된 이어가기 값. 저장되지 않은 값은 null이다. */
+interface StoredCustomerStepUpContinuation {
+  /** 이어가기를 저장한 회원 ID. 저장값이 양의 정수가 아니면 null */
+  owner: number | null;
+  /** 소셜 계정 연결 인증에서 돌아왔으면 그 provider */
+  socialAccountLink: SocialProvider | null;
+  /** 소셜 재인증에서 돌아왔으면 그 provider */
+  reauthenticationProvider: SocialProvider | null;
+  linkTarget: SocialProvider | null;
+  unlinkTarget: SocialProvider | null;
+  returnAction: CustomerStepUpReturnAction | null;
+}
+
 export const CONTINUATION_STORAGE_ERROR_MESSAGE =
   "인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.";
 
@@ -39,6 +53,31 @@ export function clearCustomerStepUpContinuation() {
     SESSION_KEYS.stepUpReturnAction,
     SESSION_KEYS.customerContinuationOwner,
   );
+}
+
+/**
+ * 외부 인증에서 돌아온 콜백이 저장된 이어가기 값을 한 번에 읽는다.
+ * 돌아온 경로(연결·재인증)와 소유자는 콜백 한 번에만 쓰여 읽는 즉시 지우고,
+ * 이어 할 작업(연결·해제 대상, 복귀 동작)은 분기가 처리할 때 clearCustomerStepUpContinuation으로 지운다.
+ */
+export function readCustomerStepUpContinuation(): StoredCustomerStepUpContinuation {
+  const owner = Number(readSessionValue(SESSION_KEYS.customerContinuationOwner));
+  const continuation: StoredCustomerStepUpContinuation = {
+    owner: Number.isSafeInteger(owner) && owner > 0 ? owner : null,
+    socialAccountLink: readSessionValue(SESSION_KEYS.socialAccountLink) as SocialProvider | null,
+    reauthenticationProvider:
+      readSessionValue(SESSION_KEYS.socialReauthentication) as SocialProvider | null,
+    linkTarget: readSessionValue(SESSION_KEYS.socialAccountLinkTarget) as SocialProvider | null,
+    unlinkTarget: readSessionValue(SESSION_KEYS.socialAccountUnlinkTarget) as SocialProvider | null,
+    returnAction:
+      readSessionValue(SESSION_KEYS.stepUpReturnAction) as CustomerStepUpReturnAction | null,
+  };
+  removeSessionValues(
+    SESSION_KEYS.socialAccountLink,
+    SESSION_KEYS.socialReauthentication,
+    SESSION_KEYS.customerContinuationOwner,
+  );
+  return continuation;
 }
 
 /**
