@@ -1233,7 +1233,7 @@ class ReviewUseCaseIT {
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, endAt.minusHours(2), endAt));
         Booking booking = Booking.forMemberDeposit(
-                user, slot, 0L, 0L, DepositPaymentMethod.CARD);
+                user, slot, 1, 0L, 0L, DepositPaymentMethod.CARD);
         booking.complete(now);
         booking = bookingRepository.saveAndFlush(booking);
         return new ClassBookingSource(bookingClass, booking);

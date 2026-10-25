@@ -160,12 +160,10 @@ public class Refund {
                 bookingId, null, null, null, null, amount, booking.getPaymentKey());
     }
 
-    /** 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null. */
-    public static Refund forOrder(Long orderId, long amount, String paymentKey) {
-        return forOrder(orderId, amount, amount, 0L, 0L, false, paymentKey);
-    }
-
-    /** 주문의 PG 취소액과 고객 반환 혜택을 환불 요청 시점 값으로 고정한다. */
+    /**
+     * 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null이며
+     * PG 취소액과 고객 반환 혜택을 환불 요청 시점 값으로 고정한다.
+     */
     public static Refund forOrder(
             Long orderId,
             long pgRefundAmount,

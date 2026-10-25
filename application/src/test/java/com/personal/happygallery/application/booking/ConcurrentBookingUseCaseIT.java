@@ -184,7 +184,7 @@ class ConcurrentBookingUseCaseIT {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             Slot reserved = slotCapacitySupport.reserveCapacity(slotId, 1);
             bookingRepository.saveAndFlush(Booking.forMemberDeposit(
-                    user, reserved, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+                    user, reserved, 1, 5_000L, 45_000L, DepositPaymentMethod.CARD));
         });
     }
 
@@ -192,7 +192,7 @@ class ConcurrentBookingUseCaseIT {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             Slot reserved = slotCapacitySupport.reserveCapacity(slotId, 1);
             bookingRepository.saveAndFlush(Booking.forGuestDeposit(
-                    guest, reserved, 5_000L, 45_000L,
+                    guest, reserved, 1, 5_000L, 45_000L,
                     DepositPaymentMethod.CARD, "concurrent-guest-access-token"));
         });
     }

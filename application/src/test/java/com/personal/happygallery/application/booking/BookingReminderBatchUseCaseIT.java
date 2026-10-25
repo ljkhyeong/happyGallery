@@ -276,7 +276,7 @@ class BookingReminderBatchUseCaseIT {
         User user = userStorePort.save(new User("mixed@test.com", "hash", "혼합회원", "01088887777"));
         Booking memberBooking = bookingStorePort.save(
                 Booking.forMemberDeposit(
-                        user, slot2, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+                        user, slot2, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD));
 
         BatchResult result = bookingReminderBatchService.sendSameDayReminders();
         List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 2);
@@ -404,7 +404,7 @@ class BookingReminderBatchUseCaseIT {
         User user = userStorePort.save(new User("reminder@test.com", "hash", "회원테스트", "01077776666"));
         Booking booking = bookingStorePort.save(
                 Booking.forMemberDeposit(
-                        user, slot, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+                        user, slot, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD));
         return booking;
     }
 

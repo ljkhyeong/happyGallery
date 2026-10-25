@@ -130,7 +130,7 @@ class ReviewNotificationEligibilityUseCaseIT {
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, now().minusHours(3), now().minusHours(1)));
         Booking booking = Booking.forMemberDeposit(
-                user, slot, 0L, 0L, DepositPaymentMethod.CARD);
+                user, slot, 1, 0L, 0L, DepositPaymentMethod.CARD);
         booking.complete(now());
         booking = bookingRepository.saveAndFlush(booking);
         NotificationReminderRecipient recipient = NotificationReminderRecipient.forUser(user.getId());

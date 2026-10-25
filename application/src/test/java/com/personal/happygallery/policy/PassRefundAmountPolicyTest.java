@@ -2,9 +2,9 @@ package com.personal.happygallery.policy;
 
 import static com.personal.happygallery.policy.PolicyAssertions.assertErrorCode;
 import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
+import static com.personal.happygallery.support.TestFixtures.orderRefund;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -71,7 +71,7 @@ class PassRefundAmountPolicyTest {
     @DisplayName("환불 요청은 0원 이하 금액으로 생성할 수 없다")
     @Test
     void refund_nonPositiveAmount_rejected() {
-        assertInvalidInput(() -> Refund.forOrder(1L, 0L, "payment-key"));
-        assertInvalidInput(() -> Refund.forOrder(1L, -1L, "payment-key"));
+        assertInvalidInput(() -> orderRefund(1L, 0L, "payment-key"));
+        assertInvalidInput(() -> orderRefund(1L, -1L, "payment-key"));
     }
 }

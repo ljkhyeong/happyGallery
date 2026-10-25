@@ -135,7 +135,7 @@ class BookingSettlementUseCaseIT {
         slot.incrementBookedCount(1);
         slotStorePort.save(slot);
         Booking booking = bookingStorePort.save(Booking.forMemberDeposit(
-                user, slot, 5_000L, 0L, DepositPaymentMethod.CARD));
+                user, slot, 1, 5_000L, 0L, DepositPaymentMethod.CARD));
 
         settlementUseCase.complete(booking.getId(), ADMIN_ID);
 

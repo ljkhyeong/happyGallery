@@ -64,7 +64,7 @@ class OwnerConstraintUseCaseIT {
                 bookingClass("소유자 제약 클래스", "OWNER", 60, 50_000L, 30));
         Slot slot = slotStorePort.save(slot(bookingClass, startAt, startAt.plusHours(1)));
         Booking booking = bookingStorePort.save(Booking.forMemberDeposit(
-                member, slot, 10_000L, 40_000L, DepositPaymentMethod.CARD));
+                member, slot, 1, 10_000L, 40_000L, DepositPaymentMethod.CARD));
 
         LocalDateTime paidAt = startAt.minusDays(1);
         Order order = orderStorePort.save(

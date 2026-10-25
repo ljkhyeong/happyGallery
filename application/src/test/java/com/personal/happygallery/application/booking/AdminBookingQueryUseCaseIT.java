@@ -153,7 +153,7 @@ class AdminBookingQueryUseCaseIT {
         User member = userStorePort.save(
                 new User("withdrawn-history@test.com", "hash", "탈퇴 전 회원", "01089898989"));
         Booking completed = Booking.forMemberDeposit(
-                member, memberSlot, 10_000L, 20_000L, DepositPaymentMethod.CARD);
+                member, memberSlot, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD);
         completed.markBalancePaid(targetDate.atTime(12, 0));
         completed.complete(LocalDateTime.now(clock));
         completed = bookingStorePort.save(completed);
@@ -285,7 +285,7 @@ class AdminBookingQueryUseCaseIT {
         Slot s = saveSlot(slotStart, className, category);
         User member = userStorePort.save(new User(email, "hash", name, phone));
         bookingStorePort.save(Booking.forMemberDeposit(
-                member, s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+                member, s, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD));
         return member;
     }
 

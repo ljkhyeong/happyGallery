@@ -107,7 +107,7 @@ class KeyRotationUseCaseIT {
                 LocalDateTime.of(2030, 1, 2, 10, 0),
                 LocalDateTime.of(2030, 1, 2, 11, 0)));
         Booking booking = bookingRepository.save(Booking.forMemberDeposit(
-                user, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+                user, slot, 1, 5_000L, 45_000L, DepositPaymentMethod.CARD));
         jdbcTemplate.update(
                 "UPDATE bookings SET owner_phone_hmac = ? WHERE id = ?",
                 oldIndexer.index("01012345678"), booking.getId());

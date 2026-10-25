@@ -148,12 +148,6 @@ public class Booking {
     }
 
     /** 게스트 예약금 예약 생성. */
-    public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
-                                          DepositPaymentMethod paymentMethod, String accessToken) {
-        return forGuestDeposit(
-                guest, slot, 1, depositAmount, balanceAmount, paymentMethod, accessToken);
-    }
-
     public static Booking forGuestDeposit(Guest guest, Slot slot, int participantCount,
                                           long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
@@ -163,13 +157,6 @@ public class Booking {
     }
 
     /** 회원 예약금 예약 생성. */
-    public static Booking forMemberDeposit(User member,
-                                           Slot slot, long depositAmount, long balanceAmount,
-                                           DepositPaymentMethod paymentMethod) {
-        return forMemberDeposit(
-                member, slot, 1, depositAmount, balanceAmount, paymentMethod);
-    }
-
     public static Booking forMemberDeposit(User member, Slot slot, int participantCount,
                                            long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
+import static com.personal.happygallery.support.TestFixtures.orderRefund;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -27,7 +28,7 @@ class RefundInvariantPolicyTest {
     @DisplayName("환불 성공 상태 전이는 빈 환불 거래 키를 저장하지 않는다")
     @Test
     void refundSuccessTransition_rejectsBlankTransactionKey() {
-        Refund refund = Refund.forOrder(1L, 10_000L, "payment-key");
+        Refund refund = orderRefund(1L, 10_000L, "payment-key");
         LocalDateTime now = LocalDateTime.of(2026, 8, 8, 10, 0);
         String processingToken = refund.startProcessing(now, now.minusMinutes(1));
 
