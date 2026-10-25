@@ -19,6 +19,7 @@ import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { CONTENT_BODY_MAX_LENGTH, contentLengthLabel } from "@/shared/validation/contentText";
 import { queryKeys } from "@/shared/api";
 
@@ -127,14 +128,16 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
           token={token} onAuthError={onAuthError} />
       )))}
     {activeQuery.data && (
-      <div className="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <Button size="sm" variant="outline-secondary" disabled={search.page === 0 || activeQuery.isFetching}
-          onClick={() => updateSearch({ page: search.page - 1 })}>이전 페이지</Button>
-        <span className="small">{search.page + 1} / {Math.max(1, activeQuery.data.totalPages)}페이지 · 총 {activeQuery.data.totalCount}건</span>
-        <Button size="sm" variant="outline-secondary"
-          disabled={search.page + 1 >= activeQuery.data.totalPages || activeQuery.isFetching}
-          onClick={() => updateSearch({ page: search.page + 1 })}>다음 페이지</Button>
-      </div>
+      <OffsetPager
+        previousLabel="이전 페이지"
+        nextLabel="다음 페이지"
+        summaryClassName="small"
+        summary={<>{search.page + 1} / {Math.max(1, activeQuery.data.totalPages)}페이지 · 총 {activeQuery.data.totalCount}건</>}
+        previousDisabled={search.page === 0 || activeQuery.isFetching}
+        nextDisabled={search.page + 1 >= activeQuery.data.totalPages || activeQuery.isFetching}
+        onPrevious={() => updateSearch({ page: search.page - 1 })}
+        onNext={() => updateSearch({ page: search.page + 1 })}
+      />
     )}
   </>;
 }

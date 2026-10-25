@@ -11,6 +11,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { SmartStoreNoticeApplyModal } from "./SmartStoreNoticeApplyModal";
 import {
   fetchSmartStoreNotice,
@@ -129,18 +130,18 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
         </tr>)}</tbody>
       </Table>)}
     {(noticePage > 1 || (notices.data?.totalPages ?? 0) > 1) && (
-      <nav aria-label="스마트스토어 공지 페이지" className="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <Button size="sm" variant="outline-secondary"
-          disabled={noticePage === 1 || notices.isFetching || remove.isPending}
-          onClick={() => setNoticePage(noticePage - 1)}>이전 페이지</Button>
-        <span className="small text-muted-soft">
-          {noticePage}페이지{notices.data && ` · 총 ${notices.data.totalElements}건`}
-        </span>
-        <Button size="sm" variant="outline-secondary"
-          disabled={!notices.data || notices.isError || notices.isFetching || remove.isPending
-            || noticePage >= notices.data.totalPages}
-          onClick={() => setNoticePage(noticePage + 1)}>다음 페이지</Button>
-      </nav>
+      <OffsetPager
+        as="nav"
+        ariaLabel="스마트스토어 공지 페이지"
+        previousLabel="이전 페이지"
+        nextLabel="다음 페이지"
+        summary={<>{noticePage}페이지{notices.data && ` · 총 ${notices.data.totalElements}건`}</>}
+        previousDisabled={noticePage === 1 || notices.isFetching || remove.isPending}
+        nextDisabled={!notices.data || notices.isError || notices.isFetching || remove.isPending
+          || noticePage >= notices.data.totalPages}
+        onPrevious={() => setNoticePage(noticePage - 1)}
+        onNext={() => setNoticePage(noticePage + 1)}
+      />
     )}
 
     <Modal show={editingId !== undefined} onHide={closeEditor} size="lg" centered>

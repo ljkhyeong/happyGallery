@@ -19,6 +19,7 @@ import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import type { ProductResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 
 interface Props {
   adminKey: string;
@@ -370,17 +371,14 @@ export function SmartStoreInventoryModal({
               </div>}
             </div>
             {catalogQuery.data && catalogQuery.data.totalPages > 1 && (
-              <div className="d-flex justify-content-between align-items-center mt-2">
-                <Button type="button" size="sm" variant="outline-secondary"
-                  disabled={catalogPage <= 1}
-                  onClick={() => setCatalogPage((page) => page - 1)}>이전</Button>
-                <span className="small text-muted-soft">
-                  {catalogPage} / {catalogQuery.data.totalPages}페이지
-                </span>
-                <Button type="button" size="sm" variant="outline-secondary"
-                  disabled={catalogPage >= catalogQuery.data.totalPages}
-                  onClick={() => setCatalogPage((page) => page + 1)}>다음</Button>
-              </div>
+              <OffsetPager
+                className="d-flex justify-content-between align-items-center mt-2"
+                summary={<>{catalogPage} / {catalogQuery.data.totalPages}페이지</>}
+                previousDisabled={catalogPage <= 1}
+                nextDisabled={catalogPage >= catalogQuery.data.totalPages}
+                onPrevious={() => setCatalogPage((page) => page - 1)}
+                onNext={() => setCatalogPage((page) => page + 1)}
+              />
             )}
           </Form.Group>
 
