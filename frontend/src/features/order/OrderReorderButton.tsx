@@ -7,7 +7,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
 import { productSelectionView } from "@/features/product/productSelectionView";
 import { productDetailHref } from "@/features/product/navigation";
-import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { productQuantityLimit, remainingAddableQuantity } from "@/features/product/purchaseStock";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
@@ -60,7 +60,9 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
     && selection.configurationValid && selectOptionsKey(item.options) === selectOptionsKey(selection.options));
   const existingQty = cart.items.filter((row) => row.productId === item.productId
     && row.productVariantId === selection?.productVariantId).reduce((sum, row) => sum + row.qty, 0);
-  const limit = product && selection ? Math.max(0, productQuantityLimit(product, selection.productVariantId) - existingQty) : 0;
+  const limit = product && selection
+    ? remainingAddableQuantity(productQuantityLimit(product, selection.productVariantId), existingQty)
+    : 0;
   const quantity = Number(qty);
   const validQty = Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= limit;
   const mutation = useMutation({

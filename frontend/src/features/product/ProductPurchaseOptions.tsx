@@ -8,7 +8,7 @@ import type {
 import type { OrderTextInput } from "@/generated/api/payment";
 import { formatKRW } from "@/shared/lib";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
-import { productQuantityLimit } from "./purchaseStock";
+import { productQuantityLimit, remainingAddableQuantity, remainingLineQuantity } from "./purchaseStock";
 import { productOptionLineKey } from "./optionLineKey";
 import { productSelectionView } from "./productSelectionView";
 
@@ -60,8 +60,10 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
     (variant) => variant.active && matchesVariant(variant, currentSelectedValues),
   );
   const remainingQuantity = selectedVariant
-    ? Math.max(0, productQuantityLimit(product, selectedVariant.id)
-      - (selectedQuantities.get(selectedVariant.id) ?? 0))
+    ? remainingAddableQuantity(
+      productQuantityLimit(product, selectedVariant.id),
+      selectedQuantities.get(selectedVariant.id) ?? 0,
+    )
     : 0;
   const requiredComplete = selectGroups.every(
     (group) => !group.required || Boolean(currentSelectedValues[group.key]),
@@ -161,8 +163,11 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
           <tbody>
             {lines.map((line) => {
               const view = productSelectionView(product, line);
-              const maximumLineQuantity = Math.max(0, productQuantityLimit(product, line.productVariantId)
-                - (selectedQuantities.get(line.productVariantId) ?? 0) + line.qty);
+              const maximumLineQuantity = remainingLineQuantity(
+                productQuantityLimit(product, line.productVariantId),
+                selectedQuantities.get(line.productVariantId) ?? 0,
+                line.qty,
+              );
               return (
                 <tr key={line.key}>
                   <td>

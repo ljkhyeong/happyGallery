@@ -1,7 +1,9 @@
 import type { CartItemResponse } from "@/generated/api/customerStore";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { GuestCartItem } from "./useGuestCart";
-import { productQuantities, productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
+import {
+  productQuantities, productQuantityLimit, productSkuKey, quantityLimitExceededMessage, remainingLineQuantity,
+} from "@/features/product/purchaseStock";
 import { productSelectionView } from "@/features/product/productSelectionView";
 
 export type CartItemIdentifier = number | string;
@@ -45,9 +47,9 @@ export function projectGuestCartItems(
       subtotal: price * item.qty,
       available,
       availableQuantity: product.available && configurationValid ? limit : 0,
-      maxQuantity: configurationValid ? Math.max(0, limit - skuQuantity + item.qty) : 0,
+      maxQuantity: configurationValid ? remainingLineQuantity(limit, skuQuantity, item.qty) : 0,
       quantityWarning: product.available && configurationValid && skuQuantity > limit
-        ? `같은 작품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
+        ? quantityLimitExceededMessage(limit)
         : undefined,
       specification: product.specification,
       careInstructions: product.careInstructions,

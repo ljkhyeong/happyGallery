@@ -9,7 +9,7 @@ import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { OrderOptionList } from "./OrderOptionList";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { productSelectionView } from "@/features/product/productSelectionView";
-import { productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
+import { productQuantityLimit, productSkuKey, remainingAddableQuantity } from "@/features/product/purchaseStock";
 import type { useOrderItems } from "./useOrderItems";
 
 interface Props {
@@ -28,8 +28,10 @@ export function OrderItemsForm({ state, onChange }: Props) {
     textInputs: [], qty: Number(qty),
   };
   const remaining = selectedProduct
-    ? Math.max(0, productQuantityLimit(selectedProduct, nextItem.productVariantId)
-      - (quantities.get(productSkuKey(nextItem)) ?? 0))
+    ? remainingAddableQuantity(
+      productQuantityLimit(selectedProduct, nextItem.productVariantId),
+      quantities.get(productSkuKey(nextItem)) ?? 0,
+    )
     : 0;
   const canAdd = Boolean(selectedProduct?.available && selected?.configurationValid)
     && selectedProduct?.optionGroups.length === 0
