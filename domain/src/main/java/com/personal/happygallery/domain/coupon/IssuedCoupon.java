@@ -116,7 +116,7 @@ public class IssuedCoupon {
         requireReservedBy(attemptId);
         paymentAttemptId = null;
         reservedAt = null;
-        status = !now.isBefore(validUntil)
+        status = hasExpired(validUntil, now)
                 ? IssuedCouponStatus.EXPIRED
                 : IssuedCouponStatus.AVAILABLE;
     }
@@ -139,7 +139,7 @@ public class IssuedCoupon {
                 || !Objects.equals(usedOrderId, orderId)) {
             throw conflict("해당 주문에 사용된 쿠폰이 아닙니다.");
         }
-        if (!now.isBefore(validUntil)) {
+        if (hasExpired(validUntil, now)) {
             status = IssuedCouponStatus.EXPIRED;
             return;
         }
@@ -169,11 +169,27 @@ public class IssuedCoupon {
     public boolean expireIfReached(LocalDateTime validUntil, LocalDateTime now) {
         requireTime(validUntil);
         requireTime(now);
-        if (status != IssuedCouponStatus.AVAILABLE || now.isBefore(validUntil)) {
+        if (status != IssuedCouponStatus.AVAILABLE || !hasExpired(validUntil, now)) {
             return false;
         }
         status = IssuedCouponStatus.EXPIRED;
         return true;
+    }
+
+    /**
+     * 저장 상태를 바꾸지 않고 조회 시점의 상태를 계산한다.
+     * 사용 가능한 쿠폰은 정의가 비활성이면 취소, validUntil부터는 만료로 본다. 그 외 상태는 그대로 돌려준다.
+     */
+    public IssuedCouponStatus statusAt(boolean definitionActive, LocalDateTime validUntil, LocalDateTime now) {
+        if (status != IssuedCouponStatus.AVAILABLE) {
+            return status;
+        }
+        if (!definitionActive) {
+            return IssuedCouponStatus.CANCELED;
+        }
+        requireTime(validUntil);
+        requireTime(now);
+        return hasExpired(validUntil, now) ? IssuedCouponStatus.EXPIRED : IssuedCouponStatus.AVAILABLE;
     }
 
     public boolean isOwnedBy(Long expectedUserId) {
@@ -197,6 +213,11 @@ public class IssuedCoupon {
         if (time == null) {
             throw invalid("쿠폰 기준 시각이 누락되었습니다.");
         }
+    }
+
+    /** 유효기간 종료 시각은 포함하지 않는다. validUntil과 같은 시각부터 만료다. */
+    private static boolean hasExpired(LocalDateTime validUntil, LocalDateTime now) {
+        return !now.isBefore(validUntil);
     }
 
     private static HappyGalleryException invalid(String message) {

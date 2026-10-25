@@ -22,7 +22,6 @@ import com.personal.happygallery.application.product.ProductOptions.ResolvedLine
 import com.personal.happygallery.application.product.ProductOptions.ResolvedPurchase;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -57,7 +56,6 @@ import static java.util.stream.Collectors.toMap;
 @Component
 public class OrderPreparer implements PaymentPreparer {
 
-    private final ProductReaderPort productReader;
     private final InventoryReaderPort inventoryReader;
     private final ProductOptionConfigurationService optionConfigurationService;
     private final CartUseCase cartUseCase;
@@ -67,8 +65,7 @@ public class OrderPreparer implements PaymentPreparer {
     private final RewardBenefitService rewardBenefitService;
     private final Clock clock;
 
-    public OrderPreparer(ProductReaderPort productReader,
-                         InventoryReaderPort inventoryReader,
+    public OrderPreparer(InventoryReaderPort inventoryReader,
                          ProductOptionConfigurationService optionConfigurationService,
                          CartUseCase cartUseCase,
                          OrderPriceProperties orderPriceProperties,
@@ -76,7 +73,6 @@ public class OrderPreparer implements PaymentPreparer {
                          CouponRedemptionUseCase couponRedemptionUseCase,
                          RewardBenefitService rewardBenefitService,
                          Clock clock) {
-        this.productReader = productReader;
         this.inventoryReader = inventoryReader;
         this.optionConfigurationService = optionConfigurationService;
         this.cartUseCase = cartUseCase;
@@ -138,13 +134,14 @@ public class OrderPreparer implements PaymentPreparer {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 항목이 비었습니다.");
         }
 
-        List<Long> productIds = items.stream()
-                .map(CartPurchaseItem::productId)
-                .distinct()
-                .toList();
-        Map<Long, Product> productsById = productReader.findAllById(productIds)
+        // 상품은 옵션 구성 조회가 ID 목록으로 함께 읽어 오므로 다시 조회하지 않는다. 없는 상품은 여기서 NotFound가 난다.
+        Map<Integer, ResolvedLine> resolvedByIndex = optionConfigurationService
+                .resolvePurchases(purchaseRequests(items))
                 .stream()
-                .collect(toMap(Product::getId, Function.identity()));
+                .collect(toMap(ResolvedLine::index, Function.identity()));
+        Map<Long, Product> productsById = resolvedByIndex.values().stream()
+                .map(ResolvedLine::product)
+                .collect(toMap(Product::getId, Function.identity(), (product, sameProduct) -> product));
         List<Long> readyStockProductIds = productsById.values().stream()
                 .filter(product -> product.getType() == ProductType.READY_STOCK)
                 .map(Product::getId)
@@ -152,15 +149,10 @@ public class OrderPreparer implements PaymentPreparer {
         Map<Long, Inventory> inventoriesByProductId = inventoryReader.findByProductIdIn(readyStockProductIds)
                 .stream()
                 .collect(toMap(Inventory::getProductId, Function.identity()));
-        Map<Integer, ResolvedLine> resolvedByIndex = optionConfigurationService
-                .resolvePurchases(purchaseRequests(items))
-                .stream()
-                .collect(toMap(ResolvedLine::index, Function.identity()));
         requireAvailableQuantity(items, resolvedByIndex, inventoriesByProductId);
         List<PreparedOrderItem> grossPreparedItems = new ArrayList<>(items.size());
         for (int index = 0; index < items.size(); index++) {
-            grossPreparedItems.add(prepareItem(
-                    items.get(index), resolvedByIndex.get(index), productsById));
+            grossPreparedItems.add(prepareItem(items.get(index), resolvedByIndex.get(index)));
         }
         MadeToOrderConsent madeToOrderConsent = madeToOrderConsent(op, productsById);
         long productAmount = 0L;
@@ -295,12 +287,8 @@ public class OrderPreparer implements PaymentPreparer {
         return List.copyOf(items);
     }
 
-    private PreparedOrderItem prepareItem(
-            CartPurchaseItem item, ResolvedLine resolvedLine, Map<Long, Product> productsById) {
-        Product product = productsById.get(item.productId());
-        if (product == null || resolvedLine == null) {
-            throw new NotFoundException("상품");
-        }
+    private PreparedOrderItem prepareItem(CartPurchaseItem item, ResolvedLine resolvedLine) {
+        Product product = resolvedLine.product();
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "판매 중인 상품만 주문할 수 있습니다.");
         }
@@ -341,9 +329,6 @@ public class OrderPreparer implements PaymentPreparer {
         for (int index = 0; index < items.size(); index++) {
             CartPurchaseItem item = items.get(index);
             ResolvedLine resolved = resolvedByIndex.get(index);
-            if (resolved == null) {
-                throw new NotFoundException("상품");
-            }
             StockKey stockKey;
             int availableQuantity;
             if (resolved.product().getType() == ProductType.MADE_TO_ORDER) {
