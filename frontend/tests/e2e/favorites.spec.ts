@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import {
+  classFixture,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
@@ -14,8 +15,9 @@ test.afterEach(clearSsrUpstreamFixtures);
 test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제한다", async ({ page, context, baseURL }) => {
   await installCsrfCookie(context, baseURL);
   const product = productDetailFixture({ name: "찜할 작품", category: "공예" });
-  const bookingClass = { id: 42, name: "찜할 클래스", category: "WOOD", durationMin: 60, price: 30000,
-    bufferMin: 30, capacity: 8, passEligible: true, description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [] };
+  const bookingClass = classFixture({
+    id: 42, name: "찜할 클래스", category: "WOOD", durationMin: 60, price: 30000, passEligible: true,
+  });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product), ssrApiFixture("/classes/42", bookingClass));
   const saved = new Set<string>();
   const member = memberFixture({ email: "favorite@example.com" });

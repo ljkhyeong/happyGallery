@@ -5,23 +5,16 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { classFixture } from "./mock-support";
 
-const craftClass: ClassResponse = {
+const craftClass = classFixture({
   id: 41,
   name: "가죽 공예",
-  category: "LEATHER",
-  durationMin: 90,
   price: 30000,
-  bufferMin: 30,
   capacity: 6,
   passEligible: true,
   description: "가죽 소품을 만드는 수업입니다.",
-  imageUrl: null,
-  preparationInfo: null,
-  targetAudience: null,
-  situationTags: [],
-  status: "ACTIVE",
-};
+});
 const classes: ClassResponse[] = [
   craftClass,
   { ...craftClass, id: 42, name: "위빙 공예", category: "WEAVING" },

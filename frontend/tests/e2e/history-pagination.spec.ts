@@ -5,6 +5,7 @@ import {
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
 import {
+  classFixture,
   EMPTY_REVIEW_PAGE,
   fulfillJson,
   fulfillMemberCommon,
@@ -352,21 +353,7 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
 
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        bufferMin: 30,
-        category: "LEATHER",
-        description: null,
-        durationMin: 120,
-        id: 42,
-        imageUrl: null,
-        name: "페이지 이용권 클래스",
-        passEligible: true,
-        preparationInfo: null,
-        price: 50000,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "페이지 이용권 클래스", durationMin: 120, passEligible: true })]);
       return;
     }
     if (url.pathname === "/api/v1/slots/upcoming") {

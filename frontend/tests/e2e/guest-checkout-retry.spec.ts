@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { classFixture, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -26,10 +26,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
     if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
       shippingFee: 0, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의",
     });
-    if (pathname === "/api/v1/classes") return fulfillJson(route, [{
-      id: 42, name: "재인증 확인 수업", price: 50000, category: "LEATHER", status: "ACTIVE",
-      durationMin: 90, bufferMin: 0, passEligible: false, situationTags: [],
-    }]);
+    if (pathname === "/api/v1/classes") return fulfillJson(route, [classFixture({ id: 42, name: "재인증 확인 수업", bufferMin: 0 })]);
     if (pathname === "/api/v1/slots/upcoming") return fulfillJson(route, [{
       id: 77, classId: 42, startAt: "2099-01-02T10:00:00", endAt: "2099-01-02T11:30:00",
       capacity: 4, bookedCount: 0, remainingCapacity: 4,

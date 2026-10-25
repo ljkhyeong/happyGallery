@@ -1,13 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { ClassResponse, PublicSlotResponse, VacancyAlertResponse } from "../../src/generated/api/booking";
+import type { PublicSlotResponse, VacancyAlertResponse } from "../../src/generated/api/booking";
 import type { NotificationResponse } from "../../src/generated/api/notification";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
-const bookingClass: ClassResponse = {
-  id: 42, name: "가죽 카드지갑", category: "LEATHER", durationMin: 90,
-  price: 50000, bufferMin: 10, capacity: 8, passEligible: false,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
-};
+const bookingClass = classFixture({ id: 42, name: "가죽 카드지갑", bufferMin: 10 });
 const notified: VacancyAlertResponse = {
   alertId: 701, classId: 42, slotId: 78, className: bookingClass.name,
   startAt: "2099-01-03T14:00:00", endAt: "2099-01-03T15:30:00",

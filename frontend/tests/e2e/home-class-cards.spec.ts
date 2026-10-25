@@ -1,20 +1,14 @@
 import { expect, test } from "@playwright/test";
-import type { ClassResponse, PublicSlotResponse } from "../../src/generated/api/booking";
+import type { PublicSlotResponse } from "../../src/generated/api/booking";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
-const leather: ClassResponse = {
-  id: 41, name: "가죽 카드지갑 정규", category: "LEATHER", durationMin: 120,
-  price: 50000, bufferMin: 30, capacity: 8, passEligible: true,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
-};
-const resin: ClassResponse = {
-  ...leather, id: 42, name: "레진아트 원데이", category: "RESIN", durationMin: 90, price: 42000, passEligible: false,
-};
+const leather = classFixture({ id: 41, name: "가죽 카드지갑 정규", durationMin: 120, passEligible: true });
+const resin = classFixture({ id: 42, name: "레진아트 원데이", category: "RESIN", price: 42000, passEligible: false });
 
 function slot(id: number, classId: number, startAt: string, remainingCapacity: number): PublicSlotResponse {
   const hour = Number(startAt.slice(11, 13));

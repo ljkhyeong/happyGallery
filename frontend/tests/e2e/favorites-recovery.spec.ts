@@ -1,16 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { ClassResponse } from "../../src/generated/api/booking";
 import type { FavoriteResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { classFixture, EMPTY_REVIEW_PAGE, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
-const bookingClass: ClassResponse = {
-  id: 42, name: "가죽 카드지갑 수업", category: "LEATHER", durationMin: 90, price: 50000,
-  bufferMin: 10, capacity: 8, passEligible: false, description: null, imageUrl: null,
-  preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
-};
+const bookingClass = classFixture({ id: 42, name: "가죽 카드지갑 수업", bufferMin: 10 });
 const favorites: FavoriteResponse[] = [
   { id: 2, targetType: "CLASS", targetId: 42, name: bookingClass.name, active: true, createdAt: "2026-09-12T10:00:00" },
   { id: 1, targetType: "PRODUCT", targetId: 11, name: "도자기 화병", active: false, createdAt: "2026-09-11T10:00:00" },

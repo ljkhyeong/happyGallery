@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
+import { classFixture, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 않고 새 세션에서 선택을 확인한다", async ({
   baseURL,
@@ -38,21 +38,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "로그인 재개 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        price: 50000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "로그인 재개 클래스", bufferMin: 10 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -144,21 +130,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 51,
-        name: "계정 경계 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        price: 60000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 51, name: "계정 경계 클래스", bufferMin: 10, price: 60000 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {

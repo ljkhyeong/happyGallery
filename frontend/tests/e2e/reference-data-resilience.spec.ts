@@ -5,7 +5,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
+import { classFixture, fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -183,21 +183,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        bufferMin: 30,
-        category: "LEATHER",
-        description: null,
-        durationMin: 120,
-        id: 42,
-        imageUrl: null,
-        name: "이용권 가능 클래스",
-        passEligible: true,
-        preparationInfo: null,
-        price: 50000,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "이용권 가능 클래스", durationMin: 120, passEligible: true })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -276,36 +262,8 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
     }
     if (pathname === "/api/v1/classes") {
       await fulfillJson(route, [
-        {
-          bufferMin: 30,
-          category: "LEATHER",
-          description: null,
-          durationMin: 120,
-          id: 42,
-          imageUrl: null,
-          name: "이용권 클래스 A",
-          passEligible: true,
-          preparationInfo: null,
-          price: 50000,
-          status: "ACTIVE",
-          targetAudience: null,
-          situationTags: [],
-        },
-        {
-          bufferMin: 30,
-          category: "UPCYCLING",
-          description: null,
-          durationMin: 90,
-          id: 43,
-          imageUrl: null,
-          name: "이용권 클래스 B",
-          passEligible: true,
-          preparationInfo: null,
-          price: 45000,
-          status: "ACTIVE",
-          targetAudience: null,
-          situationTags: [],
-        },
+        classFixture({ id: 42, name: "이용권 클래스 A", durationMin: 120, passEligible: true }),
+        classFixture({ id: 43, name: "이용권 클래스 B", category: "UPCYCLING", price: 45000, passEligible: true }),
       ]);
       return;
     }

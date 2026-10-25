@@ -1,20 +1,19 @@
 import { expect, test } from "@playwright/test";
-import type { ClassResponse, PublicSlotResponse } from "../../src/generated/api/booking";
+import type { PublicSlotResponse } from "../../src/generated/api/booking";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { classFixture } from "./mock-support";
 
-const resin: ClassResponse = {
-  id: 61, name: "레진 키링 원데이", category: "RESIN", durationMin: 90, price: 42000,
-  bufferMin: 30, capacity: 8, passEligible: false, description: null, imageUrl: null,
-  preparationInfo: null, targetAudience: null, situationTags: ["DATE", "FRIENDS"], status: "ACTIVE",
-};
-const upcycling: ClassResponse = {
+const resin = classFixture({
+  id: 61, name: "레진 키링 원데이", category: "RESIN", price: 42000, situationTags: ["DATE", "FRIENDS"],
+});
+const upcycling = classFixture({
   ...resin, id: 62, name: "양말목 바구니 원데이", category: "UPCYCLING", situationTags: ["WITH_KIDS"],
-};
+});
 
 function slot(id: number, classId: number, startAt: string): PublicSlotResponse {
   return { id, classId, startAt, endAt: startAt.replace("T10:", "T12:"), capacity: 8, bookedCount: 2, remainingCapacity: 6 };

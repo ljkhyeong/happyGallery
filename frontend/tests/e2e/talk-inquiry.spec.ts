@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
+import { classFixture, EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
 
 declare global {
   interface Window {
@@ -41,10 +41,9 @@ async function prepare(page: Page, clipboardAvailable = true) {
       terms: { version: "2026-09", documentPath: "/terms" },
       privacy: { version: "2026-09", documentPath: "/privacy" },
     });
-    if (path === "/api/v1/classes") return fulfillJson(route, [{
-      id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 60, price: 30000,
-      bufferMin: 30, capacity: 6, passEligible: true, status: "ACTIVE", situationTags: [],
-    }]);
+    if (path === "/api/v1/classes") return fulfillJson(route, [classFixture({
+      id: 27, name: "가죽 공예", durationMin: 60, price: 30000, capacity: 6, passEligible: true,
+    })]);
     if (path === "/api/v1/products/80") return route.fallback();
     if (path === "/api/v1/orders/policy") return fulfillJson(route, {
       shippingFee: 3000, madeToOrderConsentVersion: "2026-09", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
