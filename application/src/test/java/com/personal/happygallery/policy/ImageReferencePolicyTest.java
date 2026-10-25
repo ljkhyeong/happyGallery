@@ -2,8 +2,6 @@ package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.SlotCapacity;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -11,8 +9,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
@@ -58,11 +56,5 @@ class ImageReferencePolicyTest {
 
         assertThat(product.getImageUrl()).isEqualTo("/api/v1/media/images/product.jpg");
         assertThat(bookingClass.getImageUrl()).isEqualTo("/api/v1/media/images/class.jpg");
-    }
-
-    private void assertInvalidInput(Runnable command) {
-        assertThatThrownBy(command::run)
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }

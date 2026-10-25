@@ -1,8 +1,6 @@
 package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.content.ContentTextPolicy;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.qna.ProductQna;
@@ -10,8 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
@@ -83,11 +81,5 @@ class ContentTextPolicyTest {
         assertInvalidInput(() -> new ProductQna(1L, 1L, "   ", "질문 내용", false));
         assertInvalidInput(() -> new Notice("   ", "공지 내용", false));
         assertInvalidInput(() -> notice.update("   ", "수정 내용", true));
-    }
-
-    private void assertInvalidInput(Runnable command) {
-        assertThatThrownBy(command::run)
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }

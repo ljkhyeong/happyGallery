@@ -1,11 +1,11 @@
 package com.personal.happygallery.policy;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertErrorCode;
+import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.LocalDateTime;
@@ -34,9 +34,7 @@ class PassRefundAmountPolicyTest {
         for (int used = 1; used < credits; used++) {
             pass.useCredit(now);
         }
-        assertThatThrownBy(() -> pass.useCredit(now))
-                .isInstanceOfSatisfying(HappyGalleryException.class, error ->
-                        assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PASS_CREDIT_INSUFFICIENT));
+        assertErrorCode(() -> pass.useCredit(now), ErrorCode.PASS_CREDIT_INSUFFICIENT);
     }
 
     @DisplayName("이용권 전액 환불은 원결제액의 원 단위까지 모두 반환한다")
@@ -66,20 +64,14 @@ class PassRefundAmountPolicyTest {
     void forMember_nullUserId_rejected() {
         LocalDateTime purchasedAt = LocalDateTime.of(2026, 7, 21, 10, 0);
 
-        assertThatThrownBy(() -> PassPurchase.forMember(
-                null, purchasedAt, purchasedAt.plusMonths(3), 120_000L, PassPlan.REGULAR_CRAFT_4))
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertInvalidInput(() -> PassPurchase.forMember(
+                null, purchasedAt, purchasedAt.plusMonths(3), 120_000L, PassPlan.REGULAR_CRAFT_4));
     }
 
     @DisplayName("환불 요청은 0원 이하 금액으로 생성할 수 없다")
     @Test
     void refund_nonPositiveAmount_rejected() {
-        assertThatThrownBy(() -> Refund.forOrder(1L, 0L, "payment-key"))
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
-        assertThatThrownBy(() -> Refund.forOrder(1L, -1L, "payment-key"))
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertInvalidInput(() -> Refund.forOrder(1L, 0L, "payment-key"));
+        assertInvalidInput(() -> Refund.forOrder(1L, -1L, "payment-key"));
     }
 }

@@ -1,7 +1,6 @@
 package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -13,8 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertErrorCode;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("policy")
@@ -45,8 +44,9 @@ class NotificationOutboxPolicyTest {
         NotificationOutbox outbox = newOutbox();
         String token = outbox.markProcessing(NOW);
 
-        assertConflict(() -> outbox.reclaimProcessing(
-                NOW.plusSeconds(30), NOW.minusSeconds(30)));
+        assertErrorCode(
+                () -> outbox.reclaimProcessing(NOW.plusSeconds(30), NOW.minusSeconds(30)),
+                ErrorCode.CONFLICT);
 
         assertSoftly(softly -> {
             softly.assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.PROCESSING);
@@ -62,7 +62,7 @@ class NotificationOutboxPolicyTest {
         String token = outbox.markProcessing(NOW);
         outbox.markSent(token, NOW.plusSeconds(1));
 
-        assertConflict(() -> outbox.markProcessing(NOW.plusMinutes(2)));
+        assertErrorCode(() -> outbox.markProcessing(NOW.plusMinutes(2)), ErrorCode.CONFLICT);
         assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
     }
 
@@ -74,7 +74,7 @@ class NotificationOutboxPolicyTest {
         outbox.markDeliveryFailed(
                 token, "모든 채널 실패", NOW.plusMinutes(1), NOW.plusSeconds(1), 1);
 
-        assertConflict(() -> outbox.markProcessing(NOW.plusMinutes(2)));
+        assertErrorCode(() -> outbox.markProcessing(NOW.plusMinutes(2)), ErrorCode.CONFLICT);
         assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.FAILED);
     }
 
@@ -98,7 +98,7 @@ class NotificationOutboxPolicyTest {
             softly.assertThat(outbox.getProcessingToken()).isNull();
             softly.assertThat(outbox.getLockedAt()).isNull();
         });
-        assertConflict(() -> outbox.markProcessing(NOW.plusMinutes(2)));
+        assertErrorCode(() -> outbox.markProcessing(NOW.plusMinutes(2)), ErrorCode.CONFLICT);
     }
 
     @DisplayName("발송 준비는 현재 실행권만 게스트 수신자를 회원으로 바꾸고 lease를 연장한다")
@@ -161,9 +161,4 @@ class NotificationOutboxPolicyTest {
                 NOW);
     }
 
-    private void assertConflict(Runnable command) {
-        assertThatThrownBy(command::run)
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
-    }
 }

@@ -19,6 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertErrorCode;
+import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,11 +42,7 @@ class ReviewPolicyTest {
         assertThat(review.getBookingClassId()).isNull();
         assertThat(review.getStatus()).isEqualTo(ReviewStatus.PUBLISHED);
 
-        assertThatThrownBy(() -> Review.forProduct(1L, 2L, 3L, 0, "내용", NOW))
-                .isInstanceOfSatisfying(
-                        HappyGalleryException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.INVALID_INPUT));
+        assertInvalidInput(() -> Review.forProduct(1L, 2L, 3L, 0, "내용", NOW));
         assertThatThrownBy(() -> Review.forProduct(1L, 2L, 3L, 6, "내용", NOW))
                 .isInstanceOf(HappyGalleryException.class);
         assertThatThrownBy(() -> Review.forProduct(1L, 2L, 3L, 5, " ", NOW))
@@ -149,11 +147,7 @@ class ReviewPolicyTest {
 
         assertThat(review.getContentRevision()).isEqualTo(3L);
         assertThatCode(() -> review.requireContentRevision(3L)).doesNotThrowAnyException();
-        assertThatThrownBy(() -> review.requireContentRevision(2L))
-                .isInstanceOfSatisfying(
-                        HappyGalleryException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.REVIEW_CONTENT_CHANGED));
+        assertErrorCode(() -> review.requireContentRevision(2L), ErrorCode.REVIEW_CONTENT_CHANGED);
     }
 
     @Test
@@ -162,11 +156,7 @@ class ReviewPolicyTest {
         Review review = Review.forProduct(1L, 2L, 3L, 5, "최초 내용", NOW);
 
         assertThatCode(() -> review.requireVersion(0L)).doesNotThrowAnyException();
-        assertThatThrownBy(() -> review.requireVersion(1L))
-                .isInstanceOfSatisfying(
-                        HappyGalleryException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.CONFLICT));
+        assertErrorCode(() -> review.requireVersion(1L), ErrorCode.CONFLICT);
     }
 
     @Test
@@ -211,12 +201,9 @@ class ReviewPolicyTest {
 
         assertThat(report.getStatus()).isEqualTo(ReviewReportStatus.ACCEPTED);
         assertThat(report.getEvidenceSnapshotId()).isEqualTo(3L);
-        assertThatThrownBy(() -> report.decide(
-                ReviewReportStatus.REJECTED, null, 7L, NOW.plusMinutes(2)))
-                .isInstanceOfSatisfying(
-                        HappyGalleryException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.REVIEW_REPORT_DECISION_NOT_ALLOWED));
+        assertErrorCode(
+                () -> report.decide(ReviewReportStatus.REJECTED, null, 7L, NOW.plusMinutes(2)),
+                ErrorCode.REVIEW_REPORT_DECISION_NOT_ALLOWED);
     }
 
     @Test
@@ -224,12 +211,7 @@ class ReviewPolicyTest {
     void hiddenReviewRequiresModerationMetadata() {
         Review review = Review.forProduct(1L, 2L, 3L, 5, "좋아요", NOW);
 
-        assertThatThrownBy(() -> review.changeStatus(
-                ReviewStatus.HIDDEN, " ", 7L, NOW.plusMinutes(1)))
-                .isInstanceOfSatisfying(
-                        HappyGalleryException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.INVALID_INPUT));
+        assertInvalidInput(() -> review.changeStatus(ReviewStatus.HIDDEN, " ", 7L, NOW.plusMinutes(1)));
         assertThatThrownBy(() -> review.changeStatus(
                 ReviewStatus.HIDDEN, "사유", null, NOW.plusMinutes(1)))
                 .isInstanceOf(HappyGalleryException.class);
@@ -247,11 +229,7 @@ class ReviewPolicyTest {
             if (allowed.contains(status)) {
                 assertThatCode(status::requireReviewable).doesNotThrowAnyException();
             } else {
-                assertThatThrownBy(status::requireReviewable)
-                        .isInstanceOfSatisfying(
-                                HappyGalleryException.class,
-                                exception -> assertThat(exception.getErrorCode())
-                                        .isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED));
+                assertErrorCode(status::requireReviewable, ErrorCode.REVIEW_NOT_ALLOWED);
             }
         }
     }
@@ -263,11 +241,7 @@ class ReviewPolicyTest {
             if (status == BookingStatus.COMPLETED) {
                 assertThatCode(status::requireReviewable).doesNotThrowAnyException();
             } else {
-                assertThatThrownBy(status::requireReviewable)
-                        .isInstanceOfSatisfying(
-                                HappyGalleryException.class,
-                                exception -> assertThat(exception.getErrorCode())
-                                        .isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED));
+                assertErrorCode(status::requireReviewable, ErrorCode.REVIEW_NOT_ALLOWED);
             }
         }
     }

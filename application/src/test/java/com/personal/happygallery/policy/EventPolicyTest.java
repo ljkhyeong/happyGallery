@@ -1,11 +1,9 @@
 package com.personal.happygallery.policy;
 
+import static com.personal.happygallery.policy.PolicyAssertions.assertInvalidInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.event.Event;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -90,11 +88,5 @@ class EventPolicyTest {
         return new Event(
                 "이벤트", "이벤트 요약", "이벤트 내용", null,
                 startAt, endAt, false, false, null, relatedProductIds);
-    }
-
-    private static void assertInvalidInput(Runnable command) {
-        assertThatThrownBy(command::run)
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 }
