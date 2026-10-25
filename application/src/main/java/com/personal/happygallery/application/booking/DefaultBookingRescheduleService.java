@@ -41,43 +41,48 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         this.clock = clock;
     }
 
+    /** 비회원 예약 슬롯을 변경한다. access_token으로 예약을 조회·검증한다. */
+    @Override
+    public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
+        return reschedule(bookingSupport.findByToken(bookingId, accessToken), newSlotId);
+    }
+
+    /** 회원 예약 슬롯을 변경한다. accessToken 대신 userId 소유권으로 검증한다. */
+    @Override
+    public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
+        return reschedule(bookingSupport.findByIdAndUserId(bookingId, userId), newSlotId);
+    }
+
     /**
-     * 비회원 예약 슬롯을 변경한다.
-     *
      * <ol>
-     *   <li>access_token으로 예약 조회 및 검증</li>
-     *   <li>공통 검증 + 새 슬롯 확정 + 기존 슬롯 반납</li>
+     *   <li>공통 검증(동일 슬롯 → 변경 마감 → 새 슬롯 가용·클래스 일치)</li>
      *   <li>전화번호 기준 중복 예약 체크</li>
+     *   <li>잠금 뒤 새 슬롯 확정 + 기존 슬롯 반납</li>
      *   <li>RESCHEDULED 이력 저장 + 예약 업데이트 + 알림</li>
      * </ol>
      */
-    @Override
-    public Booking rescheduleBooking(Long bookingId, String accessToken, Long newSlotId) {
-        Booking booking = bookingSupport.findByToken(bookingId, accessToken);
-        RescheduleSlots slots = prepareReschedule(booking, newSlotId);
+    private Booking reschedule(Booking booking, Long newSlotId) {
+        requireReschedulable(booking, newSlotId);
         if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
-                newSlotId, booking.getOwnerPhoneHmac(), bookingId)) {
+                newSlotId, booking.getOwnerPhoneHmac(), booking.getId())) {
             throw new DuplicateBookingException();
         }
-        return applyReschedule(booking, slots);
+
+        Long oldSlotId = booking.getSlot().getId();
+        slotCapacitySupport.lockClassesForSlots(List.of(oldSlotId, newSlotId));
+        Slot newSlot = slotCapacitySupport.reserveCapacity(newSlotId, booking.getParticipantCount());
+        Slot oldSlot = slotCapacitySupport.releaseCapacity(oldSlotId, booking.getParticipantCount());
+        booking.reschedule(newSlot);
+
+        bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
+                oldSlot, newSlot, BookingHistoryActor.CUSTOMER, null, null);
+
+        Booking saved = bookingStorePort.save(booking);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
+        return saved;
     }
 
-    /**
-     * 회원 예약 슬롯을 변경한다.
-     * accessToken 대신 userId 소유권으로 검증한다.
-     */
-    @Override
-    public Booking rescheduleMemberBooking(Long bookingId, Long userId, Long newSlotId) {
-        Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
-        RescheduleSlots slots = prepareReschedule(booking, newSlotId);
-        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
-                newSlotId, booking.getOwnerPhoneHmac(), bookingId)) {
-            throw new DuplicateBookingException();
-        }
-        return applyReschedule(booking, slots);
-    }
-
-    private RescheduleSlots prepareReschedule(Booking booking, Long newSlotId) {
+    private void requireReschedulable(Booking booking, Long newSlotId) {
         if (booking.getSlot().getId().equals(newSlotId)) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "현재 예약된 슬롯과 동일합니다.");
         }
@@ -92,25 +97,5 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
                     ErrorCode.INVALID_INPUT,
                     "같은 클래스의 슬롯으로만 예약을 변경할 수 있습니다.");
         }
-        Long oldSlotId = booking.getSlot().getId();
-        return new RescheduleSlots(oldSlotId, newSlotId);
     }
-
-    private Booking applyReschedule(Booking booking, RescheduleSlots slots) {
-        slotCapacitySupport.lockClassesForSlots(List.of(slots.oldSlotId(), slots.newSlotId()));
-        Slot newSlot = slotCapacitySupport.reserveCapacity(
-                slots.newSlotId(), booking.getParticipantCount());
-        Slot oldSlot = slotCapacitySupport.releaseCapacity(
-                slots.oldSlotId(), booking.getParticipantCount());
-        booking.reschedule(newSlot);
-
-        bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
-                oldSlot, newSlot, BookingHistoryActor.CUSTOMER, null, null);
-
-        Booking saved = bookingStorePort.save(booking);
-        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);
-        return saved;
-    }
-
-    private record RescheduleSlots(Long oldSlotId, Long newSlotId) {}
 }

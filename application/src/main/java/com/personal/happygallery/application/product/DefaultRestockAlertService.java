@@ -52,7 +52,6 @@ public class DefaultRestockAlertService implements RestockAlertUseCase {
     @Override
     public RestockAlert register(Long userId, Long productId, Long productVariantId) {
         var user = members.requireActiveForUpdate(userId);
-        if (!user.isActive()) throw new NotFoundException("회원");
         if (!user.isPhoneVerified()) throw new PhoneVerificationRequiredException();
         var product = products.findByIdWithLock(productId)
                 .filter(value -> value.getStatus() == ProductStatus.ACTIVE)

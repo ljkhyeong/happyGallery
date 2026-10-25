@@ -54,18 +54,29 @@ class BookingCreationSupport {
         }
     }
 
-    /** BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
+    /** 고객이 만든 예약의 BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Booking complete(Booking booking, Slot slot) {
-        bookingSupport.recordHistory(
-                booking, BookingHistoryAction.BOOKED, null, slot,
-                BookingHistoryActor.CUSTOMER, null, null);
-        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
-        return booking;
+        return complete(booking, slot, BookingHistoryActor.CUSTOMER, null, null);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     Booking saveAndComplete(Booking booking, Slot slot) {
-        return complete(bookingStorePort.save(booking), slot);
+        return saveAndComplete(booking, slot, BookingHistoryActor.CUSTOMER, null, null);
+    }
+
+    /** 예약을 저장한 뒤 행위자·사유를 담은 BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    Booking saveAndComplete(Booking booking, Slot slot,
+                            BookingHistoryActor actor, Long adminUserId, String reason) {
+        return complete(bookingStorePort.save(booking), slot, actor, adminUserId, reason);
+    }
+
+    private Booking complete(Booking booking, Slot slot,
+                             BookingHistoryActor actor, Long adminUserId, String reason) {
+        bookingSupport.recordHistory(
+                booking, BookingHistoryAction.BOOKED, null, slot, actor, adminUserId, reason);
+        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
+        return booking;
     }
 }

@@ -6,11 +6,16 @@ import java.util.Optional;
 
 /**
  * 회원 조회 포트.
+ *
+ * <p>{@link User}를 돌려주는 조회는 활성 회원만 반환하므로 호출자가 활성 여부를 다시 검사하지 않는다.
+ * 익명화된 탈퇴 회원은 {@link #findAllByIdForAdminHistory}만 포함한다.
  */
 public interface UserReaderPort {
 
+    /** 활성 회원만 반환한다. 탈퇴 회원은 {@code Optional.empty()}다. */
     Optional<User> findById(Long id);
 
+    /** 활성 회원만 행 잠금과 함께 반환한다. 탈퇴 회원은 {@code Optional.empty()}다. */
     Optional<User> findByIdForUpdate(Long id);
 
     Optional<User> findByEmail(String email);

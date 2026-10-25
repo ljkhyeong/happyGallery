@@ -66,7 +66,6 @@ public class DefaultBookingVacancyAlertService implements BookingVacancyAlertUse
     @Override
     public BookingVacancyAlert registerMember(Long slotId, Long userId) {
         User user = userReaderPort.findById(userId)
-                .filter(User::isActive)
                 .orElseThrow(NotFoundException.supplier("회원"));
         if (!user.isPhoneVerified()) {
             throw new PhoneVerificationRequiredException();
