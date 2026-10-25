@@ -48,8 +48,7 @@ class OwnerConstraintUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("예약과 주문은 회원 또는 비회원 소유자 중 정확히 하나만 저장한다")

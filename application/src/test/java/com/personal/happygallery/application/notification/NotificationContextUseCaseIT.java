@@ -75,10 +75,8 @@ class NotificationContextUseCaseIT {
     @AfterEach
     void tearDown() {
         JdbcTestUtils.deleteFromTables(jdbcTemplate, "product_qna");
-        cleanup.clearNotificationLogs();
         cleanup.clearOrderData();
-        cleanup.clearBookingWithPassAndRefundData();
-        cleanup.clearUsers();
+        cleanup.clearBookingDomainData();
     }
 
     @Test

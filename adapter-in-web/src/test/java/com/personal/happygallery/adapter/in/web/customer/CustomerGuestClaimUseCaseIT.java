@@ -123,8 +123,7 @@ class CustomerGuestClaimUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("휴대폰 번호 인증을 마친 회원은 같은 번호의 비회원 주문과 예약을 가져올 수 있다")

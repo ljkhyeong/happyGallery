@@ -285,8 +285,7 @@ class KeyRotationUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
         cleanupSupport.clearAdminUsers();
     }
 }

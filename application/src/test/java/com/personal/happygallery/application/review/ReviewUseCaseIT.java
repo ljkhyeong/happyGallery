@@ -100,11 +100,9 @@ class ReviewUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearReviewData();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
         if (createdAdminId != null) {
             adminUserRepository.deleteById(createdAdminId);
             adminUserRepository.flush();

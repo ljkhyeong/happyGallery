@@ -131,7 +131,11 @@ public class TestCleanupSupport {
         adminUserRepository.deleteAllInBatch();
     }
 
-    public void clearBookingWithPassAndRefundData() {
+    /**
+     * 예약·슬롯·클래스와 그에 얽힌 이용권·환불·결제 시도·비회원·알림 데이터를 외래 키 역순으로 정리한다.
+     * guests는 orders도 참조하므로 주문을 만든 테스트는 {@link #clearOrderData()}를 먼저 호출한다.
+     */
+    public void clearBookingData() {
         clearBookingCalendarData();
         clearBookingVacancyAlerts();
         clearReviewData();
@@ -149,33 +153,13 @@ public class TestCleanupSupport {
         slotRepository.deleteAllInBatch();
         classRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
-    }
-
-    /** 예약·이용권 IT가 남기는 예약·이용권·환불·알림 이력·회원 데이터를 한 번에 정리한다. */
-    public void clearBookingDomainData() {
-        clearBookingWithPassAndRefundData();
-        clearNotificationLogs();
-        clearUsers();
-    }
-
-    public void clearBookingReminderData() {
-        clearBookingCalendarData();
-        clearBookingVacancyAlerts();
-        clearReviewData();
-        clearOrderBenefitData();
-        policyConsentRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        paymentAttemptRepository.deleteAllInBatch();
-        notificationOutboxRepository.deleteAllInBatch();
-        bookingCancellationTaskRepository.deleteAllInBatch();
-        passLedgerRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        passPurchaseRepository.deleteAllInBatch();
-        guestRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
+    }
+
+    /** 예약·이용권 IT가 남기는 예약 도메인 데이터와 회원 데이터를 한 번에 정리한다. */
+    public void clearBookingDomainData() {
+        clearBookingData();
+        clearUsers();
     }
 
     public void clearOrderData() {
@@ -234,22 +218,6 @@ public class TestCleanupSupport {
         notificationOutboxRepository.deleteAllInBatch();
         passLedgerRepository.deleteAllInBatch();
         passPurchaseRepository.deleteAllInBatch();
-    }
-
-    public void clearBookingData() {
-        clearBookingCalendarData();
-        clearBookingVacancyAlerts();
-        clearReviewData();
-        clearOrderBenefitData();
-        policyConsentRepository.deleteAllInBatch();
-        refundRepository.deleteAllInBatch();
-        paymentAttemptRepository.deleteAllInBatch();
-        notificationOutboxRepository.deleteAllInBatch();
-        bookingCancellationTaskRepository.deleteAllInBatch();
-        bookingHistoryRepository.deleteAllInBatch();
-        bookingRepository.deleteAllInBatch();
-        slotRepository.deleteAllInBatch();
-        classRepository.deleteAllInBatch();
     }
 
     private void clearBookingCalendarData() {

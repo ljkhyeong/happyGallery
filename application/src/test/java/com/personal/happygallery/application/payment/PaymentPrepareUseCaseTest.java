@@ -121,8 +121,7 @@ class PaymentPrepareUseCaseTest {
     void tearDown() {
         cleanupSupport.clearCartData();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("prepare는 주문 예약 이용권 금액을 서버 기준으로 확정하고 결제 시도를 저장한다")

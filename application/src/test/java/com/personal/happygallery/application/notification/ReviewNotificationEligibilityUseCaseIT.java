@@ -73,10 +73,8 @@ class ReviewNotificationEligibilityUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
         cleanupSupport.clearAdminUsers();
     }
 
