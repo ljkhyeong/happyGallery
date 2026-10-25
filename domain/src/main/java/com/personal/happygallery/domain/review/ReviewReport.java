@@ -83,12 +83,12 @@ public class ReviewReport {
                         ReviewStatus snapshotStatus,
                         Long evidenceSnapshotId,
                         LocalDateTime createdAt) {
-        this.reviewId = requirePositive(reviewId, "후기 ID");
-        this.reporterUserId = requirePositive(reporterUserId, "신고 회원 ID");
+        this.reviewId = ReviewIds.requirePositive(reviewId, "후기 ID");
+        this.reporterUserId = ReviewIds.requirePositive(reporterUserId, "신고 회원 ID");
         this.reason = Objects.requireNonNull(reason, "신고 사유는 필수입니다.");
         this.detail = DomainText.optional(detail, "신고 상세는", MAX_DETAIL_LENGTH);
         this.snapshotStatus = Objects.requireNonNull(snapshotStatus, "신고 시점 후기 상태는 필수입니다.");
-        this.evidenceSnapshotId = requirePositive(evidenceSnapshotId, "후기 증거 ID");
+        this.evidenceSnapshotId = ReviewIds.requirePositive(evidenceSnapshotId, "후기 증거 ID");
         this.status = ReviewReportStatus.PENDING;
         this.createdAt = Objects.requireNonNull(createdAt, "신고 시각은 필수입니다.");
     }
@@ -105,15 +105,8 @@ public class ReviewReport {
         this.status = decision;
         this.decisionNote = DomainText.optional(
                 decisionNote, "신고 처리 메모는", MAX_DECISION_NOTE_LENGTH);
-        this.decidedByAdminId = requirePositive(adminUserId, "관리자 ID");
+        this.decidedByAdminId = ReviewIds.requirePositive(adminUserId, "관리자 ID");
         this.decidedAt = Objects.requireNonNull(decidedAt, "신고 처리 시각은 필수입니다.");
-    }
-
-    private static Long requirePositive(Long value, String name) {
-        if (value == null || value < 1L) {
-            throw new IllegalArgumentException(name + "가 올바르지 않습니다.");
-        }
-        return value;
     }
 
     public Long getId() { return id; }

@@ -96,67 +96,38 @@ public class NotificationOutbox {
 
     protected NotificationOutbox() {}
 
-    private NotificationOutbox(NotificationRecipientType recipientType,
-                               Long guestId,
-                               Long userId,
-                               NotificationEventType eventType,
-                               NotificationAggregateType aggregateType,
-                               Long aggregateId,
-                               String idempotencyKey,
-                               LocalDateTime now) {
-        this.recipientType = recipientType;
-        this.guestId = guestId;
-        this.userId = userId;
-        this.eventType = eventType;
-        this.aggregateType = aggregateType;
-        this.aggregateId = aggregateId;
-        this.idempotencyKey = idempotencyKey;
+    private NotificationOutbox(NotificationRequestedEvent event, LocalDateTime now) {
+        assignRecipient(event);
+        this.eventType = event.eventType();
+        this.aggregateType = event.aggregateType();
+        this.aggregateId = event.aggregateId();
+        this.idempotencyKey = event.idempotencyKey();
         this.status = NotificationOutboxStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = now;
     }
 
     public static NotificationOutbox from(NotificationRequestedEvent event, LocalDateTime now) {
-        return switch (event) {
-            case ForGuest e -> forGuest(e.guestId(), e.eventType(), e.aggregateType(), e.aggregateId(),
-                    e.idempotencyKey(), now);
-            case ForUser e -> forUser(e.userId(), e.eventType(), e.aggregateType(), e.aggregateId(),
-                    e.idempotencyKey(), now);
-        };
+        return new NotificationOutbox(event, now);
     }
 
-    private static NotificationOutbox forGuest(Long guestId,
-                                               NotificationEventType eventType,
-                                               NotificationAggregateType aggregateType,
-                                               Long aggregateId,
-                                               String idempotencyKey,
-                                               LocalDateTime now) {
-        return new NotificationOutbox(
-                NotificationRecipientType.GUEST,
-                guestId,
-                null,
-                eventType,
-                aggregateType,
-                aggregateId,
-                idempotencyKey,
-                now);
+    private void assignRecipient(NotificationRequestedEvent event) {
+        switch (event) {
+            case ForGuest e -> assignGuest(e.guestId());
+            case ForUser e -> assignUser(e.userId());
+        }
     }
 
-    private static NotificationOutbox forUser(Long userId,
-                                              NotificationEventType eventType,
-                                              NotificationAggregateType aggregateType,
-                                              Long aggregateId,
-                                              String idempotencyKey,
-                                              LocalDateTime now) {
-        return new NotificationOutbox(
-                NotificationRecipientType.USER,
-                null,
-                userId,
-                eventType,
-                aggregateType,
-                aggregateId,
-                idempotencyKey,
-                now);
+    private void assignGuest(Long guestId) {
+        this.recipientType = NotificationRecipientType.GUEST;
+        this.guestId = guestId;
+        this.userId = null;
+    }
+
+    private void assignUser(Long userId) {
+        this.recipientType = NotificationRecipientType.USER;
+        this.guestId = null;
+        this.userId = userId;
     }
 
     public String markProcessing(LocalDateTime now) {
@@ -201,17 +172,13 @@ public class NotificationOutbox {
                 if (guestId == null || userId != null) {
                     throw new IllegalArgumentException("비회원 알림 수신자 정보가 올바르지 않습니다.");
                 }
-                this.recipientType = NotificationRecipientType.GUEST;
-                this.guestId = guestId;
-                this.userId = null;
+                assignGuest(guestId);
             }
             case USER -> {
                 if (userId == null || guestId != null) {
                     throw new IllegalArgumentException("회원 알림 수신자 정보가 올바르지 않습니다.");
                 }
-                this.recipientType = NotificationRecipientType.USER;
-                this.guestId = null;
-                this.userId = userId;
+                assignUser(userId);
             }
         }
         this.lockedAt = now;
@@ -318,18 +285,7 @@ public class NotificationOutbox {
                 || !Objects.equals(aggregateId, event.aggregateId())) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 또는 재입고 요청만 다시 열 수 있습니다.");
         }
-        switch (event) {
-            case ForGuest e -> {
-                this.recipientType = NotificationRecipientType.GUEST;
-                this.guestId = e.guestId();
-                this.userId = null;
-            }
-            case ForUser e -> {
-                this.recipientType = NotificationRecipientType.USER;
-                this.guestId = null;
-                this.userId = e.userId();
-            }
-        }
+        assignRecipient(event);
         this.status = NotificationOutboxStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = now;
