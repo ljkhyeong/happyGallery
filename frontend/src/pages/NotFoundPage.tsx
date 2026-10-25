@@ -65,7 +65,8 @@ const NOT_FOUND_BY_SECTION = new Map<string, NotFoundCopy>(Object.entries({
   },
 }));
 
-const DEFAULT_NOT_FOUND: NotFoundCopy = {
+/** 구간별 안내가 없을 때의 기본 404 문구. 루트 ErrorBoundary의 404 화면도 같은 문구를 쓴다. */
+export const DEFAULT_NOT_FOUND: NotFoundCopy = {
   title: "페이지를 찾을 수 없습니다",
   description: "주소가 바뀌었거나 없는 페이지입니다. 아래에서 원하는 화면을 찾아 주세요.",
 };

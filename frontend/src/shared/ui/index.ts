@@ -12,4 +12,5 @@ export { ToastProvider, useToast } from "./ToastContainer";
 export { LinkButton } from "./LinkButton";
 export { PageHeader } from "./PageHeader";
 export { StatusPage } from "./StatusPage";
+export { isNotFoundRouteError, RouteLoadErrorStatus } from "./RouteLoadErrorStatus";
 export { CheckoutAmounts, CheckoutLayout, CheckoutPanel, CheckoutSummary } from "./Checkout";
