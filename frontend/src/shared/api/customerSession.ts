@@ -292,19 +292,32 @@ export function requireCurrentCustomerSession(
   }
 }
 
+/**
+ * 작업이 끝난 뒤(성공·실패 모두) 스냅샷의 회원 세션이 그대로인지 확인한다.
+ * 세션이 바뀌었으면 결과·오류 대신 CustomerSessionChangedError를 던진다.
+ */
+export async function settleForCustomerSession<T>(
+  snapshot: CustomerSessionSnapshot,
+  operation: () => Promise<T>,
+): Promise<T> {
+  let result: T;
+  try {
+    result = await operation();
+  } catch (error) {
+    requireCurrentCustomerSession(snapshot);
+    throw error;
+  }
+  requireCurrentCustomerSession(snapshot);
+  return result;
+}
+
+/** 실행 전에도 세션을 확인해, 이미 바뀐 세션으로는 작업을 시작하지 않는다. */
 export async function runForCustomerSession<T>(
   snapshot: CustomerSessionSnapshot,
   operation: () => Promise<T>,
 ): Promise<T> {
   requireCurrentCustomerSession(snapshot);
-  try {
-    const result = await operation();
-    requireCurrentCustomerSession(snapshot);
-    return result;
-  } catch (error) {
-    requireCurrentCustomerSession(snapshot);
-    throw error;
-  }
+  return settleForCustomerSession(snapshot, operation);
 }
 
 type CurrentCustomerEffect<T, R> = (

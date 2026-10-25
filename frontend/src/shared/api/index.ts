@@ -13,6 +13,7 @@ export {
   requireCurrentCustomerSession,
   runForCustomerSession,
   runForCurrentCustomer,
+  settleForCustomerSession,
   subscribeToCustomerSessionExpired,
   synchronizeCustomerSessionBoundary,
   type CustomerSessionSnapshot,

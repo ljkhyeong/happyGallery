@@ -3,7 +3,7 @@ import { ApiError } from "@/shared/api/error";
 import {
   captureCustomerSession,
   publishCustomerSessionExpired,
-  requireCurrentCustomerSession,
+  settleForCustomerSession,
 } from "@/shared/api/customerSession";
 import { sanitizeTelemetryPath } from "@/shared/lib/sentryUrl";
 import type { ErrorResponse } from "@/shared/types/error";
@@ -113,90 +113,67 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     ? AbortSignal.any([timeoutSignal, externalSignal])
     : timeoutSignal;
 
-  let response: Response;
-  try {
+  const execute = async (): Promise<T> => {
     if (requiresCsrf(path, rest.method)) {
       headers.set(CSRF_HEADER_NAME, await getCsrfToken(signal));
     }
 
-    response = await fetch(buildUrl(path, params), {
+    const response = await fetch(buildUrl(path, params), {
       ...rest,
       headers,
       body: serializeBody(body, rawBody),
       signal,
       credentials: "include",
     });
-  } catch (error) {
-    if (customerSessionSnapshot) {
-      requireCurrentCustomerSession(customerSessionSnapshot);
-    }
-    throw error;
-  }
 
-  if (!response.ok) {
-    let errorBody: ErrorResponse | undefined;
-    try {
-      errorBody = (await response.json()) as ErrorResponse;
-    } catch {
-      // non-JSON error
+    if (!response.ok) {
+      let errorBody: ErrorResponse | undefined;
+      try {
+        errorBody = (await response.json()) as ErrorResponse;
+      } catch {
+        // non-JSON error
+      }
+      const error = new ApiError(
+        response.status,
+        errorBody?.code ?? "UNKNOWN",
+        errorBody?.message ?? response.statusText,
+        errorBody?.requestId,
+      );
+      if (response.status >= 500) {
+        Sentry.withScope((scope) => {
+          if (error.requestId) scope.setTag("requestId", error.requestId);
+          scope.setTag(
+            "api.path",
+            sanitizeTelemetryPath(path, window.location.origin),
+          );
+          scope.setTag("api.status", response.status);
+          Sentry.captureException(error);
+        });
+      }
+      if (
+        response.status === 401
+        && error.code === "UNAUTHORIZED"
+        && customerSessionSnapshot !== undefined
+      ) {
+        publishCustomerSessionExpired(customerSessionSnapshot);
+      }
+      throw error;
     }
-    const error = new ApiError(
-      response.status,
-      errorBody?.code ?? "UNKNOWN",
-      errorBody?.message ?? response.statusText,
-      errorBody?.requestId,
-    );
-    if (response.status >= 500) {
-      Sentry.withScope((scope) => {
-        if (error.requestId) scope.setTag("requestId", error.requestId);
-        scope.setTag(
-          "api.path",
-          sanitizeTelemetryPath(path, window.location.origin),
-        );
-        scope.setTag("api.status", response.status);
-        Sentry.captureException(error);
-      });
-    }
-    if (
-      response.status === 401
-      && error.code === "UNAUTHORIZED"
-      && customerSessionSnapshot !== undefined
-    ) {
-      publishCustomerSessionExpired(customerSessionSnapshot);
-    }
-    if (customerSessionSnapshot) {
-      requireCurrentCustomerSession(customerSessionSnapshot);
-    }
-    throw error;
-  }
 
-  if (customerSessionSnapshot) {
-    requireCurrentCustomerSession(customerSessionSnapshot);
-  }
-  if (response.status === 204 || response.headers.get("content-length") === "0") {
-    return undefined as T;
-  }
-
-  const responseContentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-  if (responseContentType.startsWith("image/")) {
-    const blob = await response.blob();
-    if (customerSessionSnapshot) {
-      requireCurrentCustomerSession(customerSessionSnapshot);
+    if (response.status === 204 || response.headers.get("content-length") === "0") {
+      return undefined as T;
     }
-    return blob as T;
-  }
 
-  let responseBody: T;
-  try {
-    responseBody = (await response.json()) as T;
-  } catch (error) {
-    if (customerSessionSnapshot) {
-      requireCurrentCustomerSession(customerSessionSnapshot);
+    const responseContentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (responseContentType.startsWith("image/")) {
+      return (await response.blob()) as T;
     }
-    throw error;
-  }
-  if (customerSessionSnapshot) {
-    requireCurrentCustomerSession(customerSessionSnapshot);
-  }
-  return responseBody;
+    return (await response.json()) as T;
+  };
+
+  // /me 요청은 응답을 받은 뒤(성공·실패 모두) 회원 세션이 그대로인지 확인한다.
+  // 요청 전 검사는 두지 않아, 세션 경계가 바뀐 뒤에도 요청은 그대로 보내고 결과만 버린다.
+  return customerSessionSnapshot
+    ? settleForCustomerSession(customerSessionSnapshot, execute)
+    : execute();
 }
