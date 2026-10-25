@@ -1,6 +1,6 @@
 import { Col, Form, InputGroup, Row } from "react-bootstrap";
 import type { ShippingAddress } from "@/features/payment";
-import { isValidPhone, normalizePhone, toPhoneInputValue } from "@/shared/validation/phone";
+import { isValidPhone, pastedPhoneValue, toPhoneInputValue } from "@/shared/validation/phone";
 import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 
 interface Props {
@@ -40,8 +40,8 @@ export function ShippingAddressFields({ value, onChange }: Props) {
             }
             onChange={(event) => updateAddress("phone", toPhoneInputValue(event.target.value))}
             onPaste={(event) => {
-              const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
-              if (pastedPhone.length <= 11) {
+              const pastedPhone = pastedPhoneValue(event.clipboardData.getData("text"));
+              if (pastedPhone !== null) {
                 event.preventDefault();
                 updateAddress("phone", pastedPhone);
               }

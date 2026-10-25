@@ -14,6 +14,15 @@ export function toPhoneInputValue(input: string): string {
   return normalizePhone(input).slice(0, 11);
 }
 
+/**
+ * 붙여넣은 글에서 읽은 휴대폰 번호. 숫자가 11자리를 넘으면 번호가 아닌 글로 보고 null을 돌려
+ * 브라우저 기본 붙여넣기에 맡긴다.
+ */
+export function pastedPhoneValue(text: string): string | null {
+  const phone = normalizePhone(text);
+  return phone.length <= 11 ? phone : null;
+}
+
 export function isValidPhone(phone: string): boolean {
   return PHONE_REGEX.test(phone);
 }

@@ -7,7 +7,7 @@ import {
   type PhoneVerificationPurpose,
 } from "./api";
 import { ErrorAlert } from "@/shared/ui";
-import { isValidPhone, normalizePhone, toPhoneInputValue } from "@/shared/validation/phone";
+import { isValidPhone, normalizePhone, pastedPhoneValue, toPhoneInputValue } from "@/shared/validation/phone";
 import { useBotProtection } from "@/features/bot-protection/useBotProtection";
 
 interface Props {
@@ -90,8 +90,8 @@ export function PhoneVerificationStep({
               value={phone}
               onChange={(e) => setPhone(toPhoneInputValue(e.target.value))}
               onPaste={(event) => {
-                const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
-                if (pastedPhone.length <= 11) {
+                const pastedPhone = pastedPhoneValue(event.clipboardData.getData("text"));
+                if (pastedPhone !== null) {
                   event.preventDefault();
                   setPhone(pastedPhone);
                 }
