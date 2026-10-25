@@ -74,7 +74,7 @@ public class OrderService {
      *   <li>승인 마감({@code approvalDeadlineAt})을 결제 시각 + 24시간으로 설정한다.</li>
      * </ol>
      *
-     * @param guestId 비회원 ID (회원 주문은 null)
+     * @param guestId 비회원 ID (회원 주문은 {@link #createMemberOrder}가 생성한다)
      * @param items   주문 상품 목록
      * @return 생성된 주문
      */
