@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Container } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   buildAuthPageHref,
@@ -12,7 +12,7 @@ import {
   removeSessionValues,
 } from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
-import { describeError, LoadingSpinner } from "@/shared/ui";
+import { describeError, LoadingSpinner, StatusPage } from "@/shared/ui";
 import {
   clearCustomerStepUpContinuation,
   readCustomerStepUpContinuation,
@@ -164,11 +164,13 @@ export function SocialCallbackPage() {
         ? "동의하고 회원가입하기"
         : "로그인 페이지로 돌아가기";
 
+    // 실패 이유와 돌아갈 곳을 오류 안내 화면과 같은 틀로 보여 준다. 남은 인증 상태를 비우도록 전체 페이지로 이동한다.
     return (
-      <Container className="page-container" style={{ maxWidth: 480 }}>
-        <Alert variant="danger" className="mt-5">{error}</Alert>
-        <a href={errorHref}>{errorLinkLabel}</a>
-      </Container>
+      <StatusPage
+        title="소셜 계정 처리를 마치지 못했습니다"
+        description={error}
+        actions={<a className="btn btn-dark" href={errorHref}>{errorLinkLabel}</a>}
+      />
     );
   }
 
