@@ -367,6 +367,35 @@ test("@payment 종료가 거절된 결제가 이미 승인 실패로 끝났으�
   expect(await page.evaluate(() => sessionStorage.getItem("hg_payment_return_hint"))).toBeNull();
 });
 
+test("@payment 결제 종료 요청이 일시 오류로 실패해도 승인 전 결제는 같은 화면에서 다시 종료하고 돌아간다", async ({ page }) => {
+  await openCheckout(page);
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  let abandonAttempts = 0;
+  await page.route("**/api/v1/payments/easy-pay-test/abandon", (route) => {
+    abandonAttempts += 1;
+    return abandonAttempts === 1
+      ? route.fulfill({ status: 503, json: TEMPORARY_ERROR })
+      : route.fulfill({ status: 204 });
+  });
+  await page.route("**/api/v1/payments/easy-pay-test", (route) => fulfillJson(route, {
+    context: "ORDER", amount: 12000, status: "READY", domainId: null,
+    accessToken: null, accessRecoveryRequired: false, receiptUrl: null,
+  }));
+  await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
+  const back = page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true });
+  const statusRead = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/v1/payments/easy-pay-test");
+  await back.click();
+  await statusRead;
+  // 승인 전 상태를 받은 뒤에도 결제창 실패 카드에 남아 종료를 다시 시도할 수 있다.
+  await expect(page.getByRole("button", { name: "결제 상태 확인", exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "결제 실패", exact: true })).toBeVisible();
+  await back.click();
+  await expect(page).toHaveURL(/\/cart$/);
+  expect(abandonAttempts).toBe(2);
+});
+
 test("@payment SDK가 현재 화면에서 취소 오류를 반환하면 승인 전 결제를 종료한다", async ({ page }) => {
   const { prepares, confirms, abandoned } = await openCheckout(page);
   await page.evaluate(() => {

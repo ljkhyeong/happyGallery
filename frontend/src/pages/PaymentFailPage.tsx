@@ -61,8 +61,9 @@ export function PaymentFailPage() {
     window.history.replaceState(window.history.state, "", window.location.pathname);
   }, []);
 
-  // 종료 요청이 거절된 뒤 확인한 실제 결제 상태. 확인 전이거나 복귀 정보가 없으면 결제창에서 끝난 결제로 본다.
-  const currentStatus = returnHint ? statusQuery.data : undefined;
+  // 종료 요청이 실패한 뒤 확인한 실제 결제 상태. 확인 전이거나 복귀 정보가 없으면 결제창에서 끝난 결제로 본다.
+  // 승인 전(READY)이면 종료 요청이 일시 오류로 실패한 것이라 같은 카드에서 종료를 다시 시도한다.
+  const currentStatus = returnHint && statusQuery.data?.status !== "READY" ? statusQuery.data : undefined;
   if (currentStatus && isCompletedPayment(currentStatus)) {
     return (
       <Container className="page-container is-narrow">
