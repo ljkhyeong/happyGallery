@@ -39,8 +39,9 @@ export function GuestLookupPanel({ kind, title, showTitle = true, children, onKi
         })}
       </div>
       <div className="guest-lookup-fields">
+        {/* 조회 코드는 결제 완료 뒤 상세로 바로 이어질 때 쓰여 화면에 따로 보이지 않는다. 모르면 아래 도움말의 휴대폰 인증으로 찾는다. */}
         <p className="guest-lookup-instruction">
-          {kind === "orders" ? "주문 완료" : "예약 완료"} 화면에서 안내받은 번호와 조회 코드를 입력해 주세요.
+          {kind === "orders" ? "주문" : "예약"} 번호와 조회 코드를 입력해 주세요.
         </p>
         {children}
         <Link
