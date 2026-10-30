@@ -735,12 +735,23 @@ a.my-list-card:focus-visible,
   }
 }
 
+// 알림 창은 종 아이콘 오른쪽 끝에 붙는다. 좁은 화면은 종 오른쪽에 이름·로그아웃이 있어 창 왼쪽이 화면 밖으로 잘리므로,
+// 575.98px 이하에서는 내 메뉴(.app-account) 전체 오른쪽 끝에 붙이고 화면 여백 안에 들어가는 폭으로 둔다.
+.notification-bell {
+  position: relative;
+}
+
 .notification-popover {
   top: calc(100% + 0.5rem);
   z-index: 1050;
   background: var(--hg-surface);
-  width: min(20rem, calc(100vw - 1rem));
-  max-width: calc(100vw - 1rem);
+  width: min(20rem, calc(100vw - 2 * var(--hg-page-gutter)));
+}
+
+@media (max-width: 575.98px) {
+  .notification-bell {
+    position: static;
+  }
 }
 
 .notification-popover-body {

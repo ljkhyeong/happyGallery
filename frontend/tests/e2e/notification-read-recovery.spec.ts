@@ -50,7 +50,7 @@ async function mockNotifications(page: Page) {
 }
 
 async function openPopover(page: Page) {
-  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await page.getByRole("button", { name: /^알림(, 읽지 않은 알림 \d+개)?$/ }).click();
   const dialog = page.getByRole("dialog", { name: "알림 목록" });
   await expect(dialog).toBeVisible();
   return dialog;
@@ -82,7 +82,7 @@ test("상단 모두 읽음은 처리 중 중복 클릭을 막고 실패한 요�
   state.hold = false;
   state.release();
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("button", { name: "알림", exact: true })).toContainText("2");
+  await expect(page.getByRole("button", { name: "알림, 읽지 않은 알림 2개" })).toContainText("2");
   await page.screenshot({ path: testInfo.outputPath("popover-retry.png"), fullPage: true });
   state.fail = false;
   await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();

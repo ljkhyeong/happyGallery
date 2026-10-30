@@ -59,13 +59,15 @@ function NotificationBellContent() {
   if (!isAuthenticated) return null;
 
   return (
-    <div ref={containerRef} className="position-relative d-inline-block">
+    <div ref={containerRef} className="notification-bell d-inline-block">
       <Nav.Link
         as="button"
         ref={triggerRef}
         className="app-nav-link position-relative btn btn-link p-0 border-0"
         onClick={() => setOpen((v) => !v)}
-        aria-label={unreadQuery.error ? "알림, 읽지 않은 알림 수 확인 실패" : "알림"}
+        aria-label={unreadQuery.error
+          ? "알림, 읽지 않은 알림 수 확인 실패"
+          : unreadCount ? `알림, 읽지 않은 알림 ${unreadCount}개` : "알림"}
         aria-expanded={open}
         aria-controls={POPOVER_ID}
         aria-haspopup="dialog"

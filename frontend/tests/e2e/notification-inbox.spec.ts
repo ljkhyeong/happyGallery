@@ -35,7 +35,7 @@ test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await page.getByRole("button", { name: /^알림(, 읽지 않은 알림 \d+개)?$/ }).click();
   await expect(page.getByRole("dialog", { name: "알림 목록" }).getByText(orderTitle, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "다음", exact: true }).click();

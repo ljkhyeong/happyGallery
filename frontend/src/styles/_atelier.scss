@@ -178,6 +178,8 @@ textarea {
   flex-wrap: nowrap;
   align-items: center;
   gap: 1.1rem;
+  // 좁은 화면의 알림 창이 내 메뉴 오른쪽 끝을 기준으로 놓인다(_storefront.scss .notification-bell).
+  position: relative;
 }
 
 // 아이콘 위에 짧은 이름을 붙여 찜·장바구니·알림·로그인을 같은 모양으로 맞춘다.

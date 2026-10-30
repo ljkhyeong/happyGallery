@@ -50,7 +50,7 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
   await page.goto("/products/42");
   await page.getByRole("button", { name: "재입고 알림 받기", exact: true }).click();
   await expect(page.getByRole("button", { name: "재입고 알림 해지", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await page.getByRole("button", { name: /^알림(, 읽지 않은 알림 \d+개)?$/ }).click();
   await page.getByRole("dialog", { name: "알림 목록" }).getByRole("link", { name: /작품 재입고 안내/ }).click();
   await expect(page).toHaveURL(/\/my\/restock-alerts$/);
   const section = page.locator("#my-restock-alerts");
