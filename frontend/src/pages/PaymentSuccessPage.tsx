@@ -5,8 +5,9 @@ import {
   confirmPayment,
   consumePaymentReturnHint,
   fetchPaymentStatus,
+  isEndedWithoutPayment,
   isTerminalPaymentStatus,
-  PaymentCompletionNext,
+  PaymentCompletedCard,
   PaymentResultCard,
   PaymentStatusNotice,
   readPaymentConfirmSession,
@@ -20,7 +21,6 @@ import {
   type PaymentConfirmRequest,
   type PaymentSessionHandle,
 } from "@/features/payment";
-import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -56,13 +56,6 @@ function requiresPaymentReconciliation(error: unknown): boolean {
   return error instanceof ApiError
     && error.code === "PAYMENT_RECONCILIATION_REQUIRED";
 }
-
-/** 결제 직후 상태만 설명한다. 주문은 공방 승인 전이므로 확정·발송을 약속하지 않는다. */
-const PAYMENT_RESULT_LEAD: Record<ConfirmPaymentResponse["context"], string> = {
-  ORDER: "주문이 접수되어 공방 승인을 기다리고 있습니다. 진행 상황은 주문 상세에서 확인할 수 있습니다.",
-  BOOKING: "예약이 확정되었습니다. 수업 당일 공방에서 뵙겠습니다.",
-  PASS: "4회권이 발급되었습니다. 이제 이용권으로 정규 공예 수업을 예약할 수 있습니다.",
-};
 
 export function PaymentSuccessPage() {
   const [params] = useSearchParams();
@@ -377,7 +370,7 @@ export function PaymentSuccessPage() {
                 </Button>
               )}
               {/* 승인되지 않았거나 종료·환불된 결제는 구매 화면에서 다시 시작한다. */}
-              {returnPath !== "/" && ["FAILED", "EXPIRED", "REFUNDED"].includes(paymentStatus.status) && (
+              {returnPath !== "/" && isEndedWithoutPayment(paymentStatus.status) && (
                 <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
               )}
               <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
@@ -434,17 +427,7 @@ export function PaymentSuccessPage() {
 
   return (
     <Container className="page-container">
-      <PaymentResultCard
-        tone="success"
-        title="결제 완료"
-        lead={PAYMENT_RESULT_LEAD[result.context]}
-        actions={(
-          <>
-            <PaymentCompletionNext result={result} />
-            <PaymentReceiptLink receiptUrl={result.receiptUrl} size="default" />
-          </>
-        )}
-      />
+      <PaymentCompletedCard result={result} />
     </Container>
   );
 }

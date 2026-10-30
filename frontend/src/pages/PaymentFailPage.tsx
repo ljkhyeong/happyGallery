@@ -3,7 +3,8 @@ import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { abandonPayment, fetchPaymentStatus } from "@/features/payment/api";
 import {
   isCompletedPayment,
-  PaymentCompletionNext,
+  isEndedWithoutPayment,
+  PaymentCompletedCard,
   PaymentResultCard,
   paymentStatusPollingInterval,
   PaymentStatusNotice,
@@ -30,11 +31,12 @@ export function PaymentFailPage() {
     : null;
   const returnPath = resolveSafeReturnTo(returnHint?.value.returnPath);
   const returnMutation = useMutation({
-    mutationFn: async () => {
+    // 이미 끝난 결제(승인 실패·만료·환불)는 종료할 것이 없어 종료 요청 없이 돌아간다. 서버는 끝난 결제의 종료를 409로 거절한다.
+    mutationFn: async (endPendingPayment: boolean) => {
       requireCurrentCustomerSession(customerSession);
       const orderId = returnHint?.value.orderId;
       try {
-        if (orderId) {
+        if (orderId && endPendingPayment) {
           await abandonPayment(orderId, readPaymentStatusToken(orderId, customerSession));
         }
       } finally {
@@ -59,6 +61,36 @@ export function PaymentFailPage() {
     window.history.replaceState(window.history.state, "", window.location.pathname);
   }, []);
 
+  // 종료 요청이 거절된 뒤 확인한 실제 결제 상태. 확인 전이거나 복귀 정보가 없으면 결제창에서 끝난 결제로 본다.
+  const currentStatus = returnHint ? statusQuery.data : undefined;
+  if (currentStatus && isCompletedPayment(currentStatus)) {
+    return (
+      <Container className="page-container">
+        <PaymentCompletedCard result={currentStatus} />
+      </Container>
+    );
+  }
+  if (currentStatus && !isEndedWithoutPayment(currentStatus.status)) {
+    // 승인 확인·환불이 진행 중인 결제는 새 결제로 이어지지 않게 구매 화면 복귀 없이 상태만 보인다.
+    return (
+      <Container className="page-container">
+        <PaymentResultCard
+          tone="notice"
+          title="결제 상태"
+          actions={(
+            <>
+              <Button variant="primary" disabled={statusQuery.isFetching}
+                onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
+              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
+            </>
+          )}
+        >
+          <PaymentStatusNotice status={currentStatus} />
+        </PaymentResultCard>
+      </Container>
+    );
+  }
+
   return (
     <Container className="page-container">
       <PaymentResultCard
@@ -69,11 +101,11 @@ export function PaymentFailPage() {
           <>
             {returnPath !== "/" && (
               <Button variant="primary" disabled={returnMutation.isPending}
-                onClick={() => returnMutation.mutate()}>
+                onClick={() => returnMutation.mutate(currentStatus === undefined)}>
                 {returnMutation.isPending ? "결제 종료 중…" : "구매 화면으로 돌아가기"}
               </Button>
             )}
-            {orderId && returnMutation.isError && (
+            {orderId && returnMutation.isError && !currentStatus && (
               <Button variant="outline-primary" disabled={statusQuery.isFetching}
                 onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
             )}
@@ -82,16 +114,11 @@ export function PaymentFailPage() {
           </>
         )}
       >
-        {returnHint && <ErrorAlert error={returnMutation.error} />}
-        {returnHint && statusQuery.data && (
-          <div className="mb-3">
-            <PaymentStatusNotice status={statusQuery.data} />
-            {isCompletedPayment(statusQuery.data) && (
-              <div className="mt-2"><PaymentCompletionNext result={statusQuery.data} /></div>
-            )}
-          </div>
-        )}
-        {returnHint?.value.orderId && (
+        {/* 승인 실패·만료·환불로 끝난 결제는 종료할 것이 없어 거절 오류와 종료 안내 대신 그 상태를 보인다. */}
+        {currentStatus
+          ? <PaymentStatusNotice status={currentStatus} />
+          : returnHint && <ErrorAlert error={returnMutation.error} />}
+        {orderId && !currentStatus && (
           <p className="payment-result-note">구매 화면으로 돌아가면 승인 전 결제를 종료하고 쿠폰·적립금 사용 예약을 해제합니다.</p>
         )}
       </PaymentResultCard>

@@ -336,10 +336,35 @@ test("@payment 승인 중인 결제는 종료하지 못하며 구매 화면 대�
   await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
   await page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true }).click();
   await expect(page.getByText("결제를 확인하고 있습니다", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "결제 상태", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true })).toHaveCount(0);
   await expect(page).toHaveURL(/\/payments\/fail$/);
   expect(prepares).toHaveLength(1);
   expect(confirms).toHaveLength(0);
   expect(await page.evaluate(() => sessionStorage.getItem("hg_payment_return_hint"))).not.toBeNull();
+});
+
+test("@payment 종료가 거절된 결제가 이미 승인 실패로 끝났으면 다시 종료하지 않고 구매 화면으로 돌아간다", async ({ page }) => {
+  await openCheckout(page);
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  const abandonRequests: string[] = [];
+  await page.route("**/api/v1/payments/easy-pay-test/abandon", (route) => {
+    abandonRequests.push(route.request().method());
+    return route.fulfill({ status: 409, json: { code: "CONFLICT" } });
+  });
+  await page.route("**/api/v1/payments/easy-pay-test", (route) => fulfillJson(route, {
+    context: "ORDER", amount: 12000, status: "FAILED", domainId: null,
+    accessToken: null, accessRecoveryRequired: false, receiptUrl: null,
+  }));
+  await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
+  const back = page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true });
+  await back.click();
+  await expect(page.getByText("결제가 승인되지 않았습니다", { exact: true })).toBeVisible();
+  await back.click();
+  await expect(page).toHaveURL(/\/cart$/);
+  expect(abandonRequests).toEqual(["POST"]);
+  expect(await page.evaluate(() => sessionStorage.getItem("hg_payment_return_hint"))).toBeNull();
 });
 
 test("@payment SDK가 현재 화면에서 취소 오류를 반환하면 승인 전 결제를 종료한다", async ({ page }) => {

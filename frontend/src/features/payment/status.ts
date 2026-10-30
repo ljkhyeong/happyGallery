@@ -19,6 +19,11 @@ export function isTerminalPaymentStatus(status: CustomerPaymentStatus): boolean 
     || status === "EXPIRED";
 }
 
+/** 승인되지 않았거나 종료·환불되어 남은 결제가 없는 상태. 구매 화면에서 다시 시작할 수 있다. */
+export function isEndedWithoutPayment(status: CustomerPaymentStatus): boolean {
+  return isTerminalPaymentStatus(status) && status !== "COMPLETED";
+}
+
 /** 결제가 끝나 주문·예약·이용권이 만들어진 상태. 결과 화면의 다음 행동을 이 값으로 정한다. */
 export function isCompletedPayment(status: PaymentStatusResponse): boolean {
   return status.status === "COMPLETED" && status.domainId != null;
