@@ -46,7 +46,7 @@ export function MyOrderDetailPage() {
 
   return (
     <>
-      <Link to={{ pathname: "/my/orders", search }} className="my-back-link">
+      <Link to={{ pathname: "/my/orders", search }} className="page-back-link">
         &larr; {myNavLabel("/my/orders")}
       </Link>
       <PageHeader

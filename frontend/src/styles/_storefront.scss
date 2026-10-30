@@ -1908,19 +1908,6 @@ a.my-list-card:focus-visible {
   }
 }
 
-.my-back-link {
-  display: inline-block;
-  margin-bottom: 0.75rem;
-  color: var(--hg-ink-soft);
-  font-size: 0.85rem;
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
-  }
-}
-
 // ── 내 정보 홈 ─────────────────────────────────────────
 .my-dashboard-hero {
   display: grid;

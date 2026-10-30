@@ -46,7 +46,7 @@ export function MyBookingDetailPage() {
 
   return (
     <>
-      <Link to={{ pathname: "/my/bookings", search }} className="my-back-link">
+      <Link to={{ pathname: "/my/bookings", search }} className="page-back-link">
         &larr; {myNavLabel("/my/bookings")}
       </Link>
       <PageHeader
