@@ -1437,6 +1437,11 @@
     }
   }
 
+  // 클래스 목록의 상황 칩 줄은 블록이라 화면 끝까지 넓힌다(홈의 탭·칩은 머리 줄 안의 항목이라 그대로 둔다).
+  .class-situation-chips {
+    @include hg-scroll-row-bleed;
+  }
+
   .home-event-panel {
     grid-template-columns: 1fr;
   }

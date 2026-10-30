@@ -32,6 +32,14 @@ body {
   --bs-gutter-x: calc(var(--hg-page-gutter) * 2);
 }
 
+// 좁은 화면에서 가로로 밀어 보는 줄(블록 요소)은 화면 끝까지 넓혀, 잘린 항목이 여백선이 아니라 화면 끝에서 사라지게 한다.
+@mixin hg-scroll-row-bleed {
+  max-width: none;
+  margin-inline: calc(-1 * var(--hg-page-gutter));
+  padding-inline: var(--hg-page-gutter);
+  scroll-padding-inline: var(--hg-page-gutter);
+}
+
 // 화면 본문 틀: container에 위아래 여백만 더한다.
 .page-container {
   padding-block: clamp(2rem, 4vw, 3.5rem) clamp(3rem, 6vw, 5rem);

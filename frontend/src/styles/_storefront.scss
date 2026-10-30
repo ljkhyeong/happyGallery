@@ -177,9 +177,9 @@
   margin-top: clamp(3rem, 6vw, 4.5rem);
   overflow-x: auto;
   white-space: nowrap;
-  background: #FFFFFF;
+  // 바닥 선은 배경으로 그려 현재 구역의 2px 밑줄이 줄 안에서 그 위를 덮는다(작품 목록 카테고리 탭과 같은 방식).
+  background: linear-gradient(var(--hg-border), var(--hg-border)) left bottom / 100% 1px no-repeat, #FFFFFF;
   border-top: 1px solid var(--hg-dark);
-  border-bottom: 1px solid var(--hg-border);
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
@@ -188,7 +188,6 @@
 
   a {
     flex: 0 0 auto;
-    margin-bottom: -1px;
     padding: 0.9rem 0;
     color: var(--hg-ink-soft);
     border-bottom: 2px solid transparent;
@@ -604,7 +603,8 @@ a.my-list-card:focus-visible {
   margin: 1.25rem 0 1rem;
   overflow-x: auto;
   white-space: nowrap;
-  border-bottom: 1px solid var(--hg-border);
+  // 바닥 선은 배경으로 그려 현재 탭의 2px 밑줄이 줄 안에서 그 위를 덮는다(음수 margin은 가로 스크롤 줄 밖으로 넘쳐 잘린다).
+  background: linear-gradient(var(--hg-border), var(--hg-border)) left bottom / 100% 1px no-repeat;
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
@@ -613,7 +613,6 @@ a.my-list-card:focus-visible {
 
   a {
     flex: 0 0 auto;
-    margin-bottom: -1px;
     padding: 0.75rem 0;
     color: var(--hg-ink-soft);
     border-bottom: 2px solid transparent;
@@ -692,6 +691,10 @@ a.my-list-card:focus-visible {
   .store-filter-search {
     flex-basis: 100%;
     max-width: none;
+  }
+
+  .store-category-tabs {
+    @include hg-scroll-row-bleed;
   }
 
   .store-filter-select {
