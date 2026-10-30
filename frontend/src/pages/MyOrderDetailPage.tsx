@@ -71,7 +71,7 @@ export function MyOrderDetailPage() {
             onCancel={() => cancelMutation.mutate()}
             onDelayDecision={(decision) => delayMutation.mutate(decision)}
           />
-          <OrderReviewsSection orderId={order.orderId} items={order.items} />
+          <OrderReviewsSection orderId={order.orderId} status={order.status} items={order.items} />
           <OrderClaimSection order={order} access={{ kind: "member" }} />
         </>
       )}

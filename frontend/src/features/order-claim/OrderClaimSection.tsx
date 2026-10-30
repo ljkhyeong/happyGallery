@@ -141,8 +141,8 @@ export function OrderClaimSection({ order, access }: Props) {
   }
 
   return (
-    <section className="mt-4 border-top pt-4" aria-labelledby="order-claim-title">
-      <h5 id="order-claim-title" className="display-heading">반품·교환</h5>
+    <section className="my-detail-page-section" aria-labelledby="order-claim-title">
+      <h2 id="order-claim-title" className="my-detail-page-title mb-3">반품·교환</h2>
 
       {isLoading && <LoadingSpinner />}
       <ErrorAlert
@@ -251,7 +251,7 @@ export function OrderClaimSection({ order, access }: Props) {
 
       {claims && claims.length > 0 && (
         <div>
-          <h6>접수 내역</h6>
+          <h3 className="h6">접수 내역</h3>
           {claims.map((claim) => <OrderClaimHistoryItem key={claim.id} claim={claim} />)}
         </div>
       )}

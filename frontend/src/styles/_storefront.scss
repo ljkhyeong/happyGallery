@@ -1053,10 +1053,6 @@ a.my-list-card:focus-visible {
   box-shadow: 0 0 0 0.2rem rgba(34, 34, 34, 0.16);
 }
 
-.member-source-reviews {
-  margin-top: 2rem;
-}
-
 .review-image-manager {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -2059,7 +2055,7 @@ a.my-list-card:focus-visible {
 
 // 다른 화면의 링크가 #id로 여는 내 정보 구역은 위에 여유를 두고 멈춘다.
 .my-anchor-section,
-.member-source-reviews {
+.my-detail-page-section {
   scroll-margin-top: 1.5rem;
 }
 
@@ -2236,6 +2232,21 @@ a.my-list-card:focus-visible {
 
 .my-detail-row-wide {
   grid-column: 1 / -1;
+}
+
+// 주문·예약 상세 카드 아래 구역(작품·클래스 후기, 반품·교환): 같은 간격과 선으로 나누고 같은 크기의 명조 제목으로 시작한다.
+.my-detail-page-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--hg-border);
+
+  // 후기 머리(.review-section-header h2)의 공개 후기용 큰 제목보다 우선한다.
+  .my-detail-page-title {
+    margin: 0 0 0.25rem;
+    font-family: var(--hg-font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
 }
 
 // 주문 품목 표: 칸 이름은 행 이름처럼 작게, 결제 금액 합계 줄만 진하게 쓴다.
