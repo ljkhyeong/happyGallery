@@ -37,6 +37,15 @@ const initialForm = {
   smartStoreUrl: "",
 };
 
+/** 온라인 결제에 필요한 칸 안내. 값이 있으면 회색, 비었을 때만 빨간 글자로 알린다. */
+function PaymentRequiredHint({ value }: { value: string }) {
+  return (
+    <Form.Text className={value.trim() ? undefined : "text-danger"}>
+      온라인 결제를 받으려면 필수
+    </Form.Text>
+  );
+}
+
 function profileToForm(profile: WorkshopProfile): typeof initialForm {
   return {
     name: profile.name,
@@ -153,7 +162,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-phone">
             <Form.Label>연락처</Form.Label>
             <Form.Control value={form.phone} maxLength={30} onChange={(e) => update("phone", e.target.value)} />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.phone} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -165,7 +174,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={20}
               onChange={(e) => update("businessRegistrationNumber", e.target.value)}
             />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.businessRegistrationNumber} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -192,7 +201,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={100}
               onChange={(e) => update("representativeName", e.target.value)}
             />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.representativeName} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -204,7 +213,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={254}
               onChange={(e) => update("email", e.target.value)}
             />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.email} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -215,7 +224,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={100}
               onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
             />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.mailOrderRegistrationNumber} />
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -239,7 +248,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-address-line1">
             <Form.Label>기본 주소</Form.Label>
             <Form.Control value={form.addressLine1} maxLength={200} onChange={(e) => update("addressLine1", e.target.value)} />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.addressLine1} />
           </Form.Group>
         </Col>
         <Col md={4}>
