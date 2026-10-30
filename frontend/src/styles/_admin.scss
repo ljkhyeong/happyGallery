@@ -24,6 +24,14 @@
   font-weight: 700;
 }
 
+// 태블릿 폭에서는 탭 좌우 여백을 줄여 11개 메뉴가 768px 이상에서 한 줄에 다 보이게 한다.
+// 더 좁으면 가로로 밀어 보고 현재 메뉴를 useCenterActiveItem으로 보이는 곳에 둔다.
+@media (max-width: 991.98px) {
+  .admin-workspace-nav .nav-link {
+    padding-inline: 0.625rem;
+  }
+}
+
 .admin-workspace-mobile-nav {
   margin-bottom: 1rem;
 }
