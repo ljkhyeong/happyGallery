@@ -92,6 +92,7 @@ export function GuestRecordRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_RECORD_RECOVERY"
           title="주문·예약 조회 코드 재발급"
+          titleAs="h3"
           description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
           confirmLabel="조회 코드 재발급"
           confirming={recovery.isPending}

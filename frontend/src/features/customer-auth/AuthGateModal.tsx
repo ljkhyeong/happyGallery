@@ -204,6 +204,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <PhoneVerificationStep
                 purpose="SIGNUP"
                 title="휴대폰 번호 인증"
+                titleAs="h2"
                 initialPhone={signupPhone}
                 confirmLabel="입력 완료"
                 onVerified={(phone, code) => {
@@ -239,6 +240,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <PhoneVerificationStep
                 key={guestVerificationReset.version}
                 title="휴대폰 인증"
+                titleAs="h2"
                 initialPhone={guestPhone}
                 purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {

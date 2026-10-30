@@ -119,6 +119,7 @@ export function GuestClaimModal({
           <PhoneVerificationStep
             purpose="GUEST_CLAIM"
             title="휴대폰 재인증"
+            titleAs="h2"
             description="주문·예약에 사용한 휴대폰 번호를 한 번 더 인증해 주세요."
             initialPhone={normalizePhone(phone)}
             lockPhone

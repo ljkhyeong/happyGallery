@@ -962,11 +962,6 @@ a.my-list-card:focus-visible,
   object-fit: cover;
 }
 
-.review-image-link:focus-visible {
-  outline: 3px solid rgba(34, 34, 34, 0.28);
-  outline-offset: 2px;
-}
-
 .review-image-unavailable {
   display: flex;
   flex-direction: column;

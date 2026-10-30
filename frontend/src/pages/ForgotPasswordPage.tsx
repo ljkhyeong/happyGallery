@@ -75,6 +75,7 @@ export function ForgotPasswordPage() {
           <PhoneVerificationStep
             purpose="PASSWORD_RESET"
             title="휴대폰 인증"
+            titleAs="h2"
             initialPhone={prefill?.phone ?? ""}
             confirmLabel="인증하고 재설정"
             confirming={mutation.isPending}

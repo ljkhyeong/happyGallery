@@ -33,6 +33,7 @@ export function GuestPaymentStatusRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_PAYMENT_STATUS_RECOVERY"
           title="결제 결과 다시 확인"
+          titleAs="h2"
           description="결제에 쓴 휴대폰 번호를 인증하면 결제 내역을 볼 수 있습니다."
           confirmLabel="결제 결과 다시 확인"
           confirming={recovery.isPending}

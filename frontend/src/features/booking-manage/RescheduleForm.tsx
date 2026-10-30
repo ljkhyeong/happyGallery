@@ -147,6 +147,7 @@ export function RescheduleForm({
               action
               type="button"
               active={selectedSlotId === slot.id}
+              aria-pressed={selectedSlotId === slot.id}
               onClick={() => setSelectedSlotId(slot.id)}
               className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
             >
