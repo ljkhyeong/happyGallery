@@ -91,9 +91,9 @@ for (const scenario of scenarios) {
     const listUrl = page.url();
 
     await page.getByRole("link", { name: scenario.link }).click();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
     await page.locator(".page-back-link").click();
 
     await expect(page).toHaveURL(listUrl);
@@ -116,7 +116,7 @@ for (const scenario of scenarios) {
 
     api.detailAvailable = true;
     await retry.click();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
     await expect(retry).toHaveCount(0);
     expect(api.detailRequests).toBe(failedRequests + 1);
     await backLink.click();
