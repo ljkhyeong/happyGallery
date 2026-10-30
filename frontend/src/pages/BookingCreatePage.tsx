@@ -439,7 +439,7 @@ function BookingCreateContent({
           classNotice={requestedPassNeedsFallback && !passFallbackAccepted && (
             <Alert variant="warning" className="mt-3 mb-0">
               <p className="mb-2">
-                링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
+                링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.{" "}
                 <Link to="/my/passes?status=ACTIVE">이용권 상태</Link>를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
               </p>
               <Button
