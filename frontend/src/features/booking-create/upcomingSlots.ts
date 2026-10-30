@@ -42,10 +42,16 @@ export function slotDayParts(value: string): { month: string; day: string; weekd
   return { month: parts.month ?? "", day: parts.day ?? "", weekday: parts.weekday ?? "" };
 }
 
+/** 예: `{ date: "10/6(화)", time: "오전 10:00" }`. 좁은 칸에서 날짜와 시각을 따로 줄바꿈할 때 쓴다. */
+export function slotStartParts(slot: Pick<PublicSlotResponse, "startAt">): { date: string; time: string } {
+  const { month, day, weekday } = slotDayParts(slot.startAt);
+  return { date: `${month}/${day}(${weekday})`, time: formatTime(slot.startAt) };
+}
+
 /** 예: `10/6(화) 오전 10:00` */
 export function formatSlotStart(slot: Pick<PublicSlotResponse, "startAt">): string {
-  const { month, day, weekday } = slotDayParts(slot.startAt);
-  return `${month}/${day}(${weekday}) ${formatTime(slot.startAt)}`;
+  const { date, time } = slotStartParts(slot);
+  return `${date} ${time}`;
 }
 
 /** 종료 시각. 같은 날 끝나는 수업은 시각만, 다음 날 끝나는 수업은 종료 날짜까지 보여 준다. */

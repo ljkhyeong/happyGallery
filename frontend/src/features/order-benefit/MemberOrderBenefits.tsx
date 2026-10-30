@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, InputGroup } from "react-bootstrap";
 import type { MyCouponResponse } from "@/features/coupon/api";
 import { couponDiscountLabel } from "@/features/coupon/presentation";
 import { myCouponsQuery } from "@/features/coupon/queries";
@@ -114,7 +114,8 @@ export function MemberOrderBenefits({
 
       <Form.Group className="mb-3" controlId="member-order-reward-points">
         <Form.Label>사용할 적립금</Form.Label>
-        <div className="d-flex gap-2">
+        {/* 좁은 요약 칸에서도 버튼 글자가 꺾여 입력칸이 두 줄 높이로 커지지 않게 한 줄로 묶는다. */}
+        <InputGroup>
           <Form.Control
             type="number"
             inputMode="numeric"
@@ -131,12 +132,13 @@ export function MemberOrderBenefits({
           <Button
             type="button"
             variant="outline-secondary"
+            className="text-nowrap"
             disabled={disabled || maximumPoints === 0 || rewardQuery.isError}
             onClick={() => onRewardPointsChange(maximumPoints)}
           >
             전액 사용
           </Button>
-        </div>
+        </InputGroup>
         <Form.Text>
           사용 가능 {formatKRW(rewardQuery.data?.availableBalance ?? 0)} · 이번 주문 최대 {formatKRW(maximumPoints)}
         </Form.Text>
