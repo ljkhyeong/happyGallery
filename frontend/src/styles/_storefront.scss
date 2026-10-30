@@ -2739,6 +2739,18 @@ a.my-list-card:focus-visible,
   }
 }
 
+// 좁은 화면에서는 글자 길이가 다른 버튼이 엇갈려 쌓이지 않게 한 줄에 하나씩 꽉 채운다(주 버튼이 맨 위).
+@media (max-width: 575.98px) {
+  .payment-result-actions {
+    flex-direction: column;
+    justify-self: stretch;
+
+    > div {
+      flex-direction: column;
+    }
+  }
+}
+
 // 예약 변경: 빠른 날짜 칩 → 직접 날짜 입력 → 시간 칩 순서로 고른다.
 .reschedule-form {
   .booking-date-step {

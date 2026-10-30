@@ -132,6 +132,8 @@ export function GuestPaymentStatusPage() {
   if (!status) return null;
 
   const completedResult = isCompletedPayment(status) ? status : null;
+  const paymentCompleted = status.status === "COMPLETED";
+  const hasCompletionActions = completedResult !== null || Boolean(status.receiptUrl);
 
   return (
     <Container className="page-container is-narrow">
@@ -140,22 +142,19 @@ export function GuestPaymentStatusPage() {
         tone={paymentResultTone(status)}
         title="결제 상태"
         lead={<span className="text-break">결제번호 {orderId}</span>}
-        actions={(
-          <>
-            {completedResult && <PaymentCompletionNext result={completedResult} />}
-            {status.status === "COMPLETED" && (
+        // 완료된 결제는 새로 확인할 것이 없어 다음 행동과 영수증만 둔다. 조회한 목록은 위 뒤로 가기 링크로 돌아간다.
+        actions={paymentCompleted
+          ? hasCompletionActions && (
+            <>
+              {completedResult && <PaymentCompletionNext result={completedResult} />}
               <PaymentReceiptLink receiptUrl={status.receiptUrl} size="default" />
-            )}
-            <Button
-              variant={completedResult ? "outline-secondary" : "primary"}
-              disabled={isFetching}
-              onClick={() => void refetch()}
-            >
+            </>
+          )
+          : (
+            <Button variant="primary" disabled={isFetching} onClick={() => void refetch()}>
               {isFetching ? "확인 중..." : "상태 새로고침"}
             </Button>
-            <LinkButton to="/guest#payment-help" variant="outline-secondary">목록으로</LinkButton>
-          </>
-        )}
+          )}
       >
         <PaymentStatusNotice status={status} />
         {error && <ErrorAlert error={error} />}
