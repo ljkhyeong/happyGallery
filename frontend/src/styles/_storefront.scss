@@ -581,7 +581,8 @@
 }
 
 a.my-list-card:hover,
-a.my-list-card:focus-visible {
+a.my-list-card:focus-visible,
+.my-list-card.is-selected {
   border-color: var(--hg-dark);
 }
 

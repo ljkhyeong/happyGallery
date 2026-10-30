@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Card, Form } from "react-bootstrap";
+import { Alert, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
   cancelMyGroupInquiry, getMyGroupInquiry, updateMyGroupInquiry,
   type CancelMyGroupInquiryRequest, type MyGroupInquiryResponse, type UpdateMyGroupInquiryRequest,
@@ -14,6 +14,8 @@ import { formatDateTime } from "@/shared/lib";
 import { ConfirmModal, EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { GroupInquiryStatusBadge } from "./GroupInquiryStatusBadge";
+
+export const GROUP_INQUIRY_DETAIL_ID = "my-group-inquiry-detail";
 
 interface InquiryDraft {
   version: number;
@@ -105,7 +107,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   );
 
   return (
-    <Card ref={cardRef} className="mt-4 my-anchor-section"><Card.Body>
+    <Card ref={cardRef} id={GROUP_INQUIRY_DETAIL_ID} className="mt-4 my-anchor-section"><Card.Body>
       <h2 className="h6">문의 상세 · 접수 번호 {id}</h2>
       <Button size="sm" variant="link" disabled={busy} onClick={() => { void query.refetch(); }}>문의 새로고침</Button>
       {query.isLoading && <LoadingSpinner />}
@@ -125,16 +127,23 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             });
           }}>
             <fieldset disabled={!editable || busy}>
-              <Form.Group controlId={`inquiry-${id}-headcount`} className="mb-3">
-                <Form.Label>참여 인원</Form.Label>
-                <Form.Control type="number" inputMode="numeric" min={1} max={500} required value={values.headcount}
-                  onChange={(event) => edit({ headcount: event.target.value })} />
-              </Form.Group>
-              <Form.Group controlId={`inquiry-${id}-schedule`} className="mb-3">
-                <Form.Label>희망 일정</Form.Label>
-                <Form.Control required maxLength={200} value={values.preferredSchedule}
-                  onChange={(event) => edit({ preferredSchedule: event.target.value })} />
-              </Form.Group>
+              {/* 넓은 화면에서 입력칸이 카드 폭(약 840px)만큼 늘어나지 않도록 값 길이에 맞춘 칸에 둔다. */}
+              <Row className="g-3 mb-3">
+                <Col xs={12} sm={4} lg={3}>
+                  <Form.Group controlId={`inquiry-${id}-headcount`}>
+                    <Form.Label>참여 인원</Form.Label>
+                    <Form.Control type="number" inputMode="numeric" min={1} max={500} required value={values.headcount}
+                      onChange={(event) => edit({ headcount: event.target.value })} />
+                  </Form.Group>
+                </Col>
+                <Col xs={12} sm={8} lg={6}>
+                  <Form.Group controlId={`inquiry-${id}-schedule`}>
+                    <Form.Label>희망 일정</Form.Label>
+                    <Form.Control required maxLength={200} value={values.preferredSchedule}
+                      onChange={(event) => edit({ preferredSchedule: event.target.value })} />
+                  </Form.Group>
+                </Col>
+              </Row>
               {editable && <div className="d-flex gap-2">
                 <Button type="submit" disabled={writeDisabled}>{mutation.isPending && mutation.variables?.action === "update" ? "저장 중..." : "변경 저장"}</Button>
                 <Button variant="outline-dark" disabled={writeDisabled} onClick={() => setConfirmCancel(true)}>문의 취소</Button>
