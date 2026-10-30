@@ -255,7 +255,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
               onClick={closePasswordReauthentication}
               disabled={sensitiveActionPending}
             >
-              취소
+              닫기
             </Button>
             <Button
               type="submit"

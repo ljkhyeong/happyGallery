@@ -248,7 +248,6 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
           if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
         }}
         closeLabel="닫기"
-        cancelLabel="취소"
       >
         <p className="mb-0">
           등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?

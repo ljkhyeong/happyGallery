@@ -180,7 +180,7 @@ export function MemberEmailRegistrationModal({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-dark" onClick={close} disabled={busy}>
-          취소
+          닫기
         </Button>
       </Modal.Footer>
     </Modal>

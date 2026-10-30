@@ -163,8 +163,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             confirmLabel="문의 취소 확인" confirmVariant="dark" confirmDisabled={writeDisabled}
             onConfirm={() => mutation.mutate({
               action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
-            })}
-            cancelLabel="돌아가기">
+            })}>
             문의 #{id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.
             {dirty && <p className="mt-2 mb-0">저장하지 않은 일정과 인원 변경은 반영되지 않습니다.</p>}
             {mutationError}

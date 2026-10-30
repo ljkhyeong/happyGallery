@@ -106,7 +106,7 @@ export function MemberPhoneUpdateModal({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-dark" onClick={close} disabled={busy}>
-          {currentPhone ? "취소" : "나중에"}
+          {currentPhone ? "닫기" : "나중에"}
         </Button>
       </Modal.Footer>
     </Modal>

@@ -89,7 +89,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={close} disabled={mutation.isPending}>
-            취소
+            닫기
           </Button>
           <Button type="submit" disabled={!canSubmit || mutation.isPending}>
             {mutation.isPending ? "변경 중..." : "비밀번호 변경"}

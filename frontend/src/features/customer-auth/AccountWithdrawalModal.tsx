@@ -83,7 +83,7 @@ export function AccountWithdrawalModal({
               onClick={close}
               disabled={stepUpBusy}
             >
-              취소
+              닫기
             </Button>
           </Modal.Footer>
         </>
@@ -137,7 +137,7 @@ export function AccountWithdrawalModal({
               onClick={close}
               disabled={withdrawal.isPending}
             >
-              취소
+              닫기
             </Button>
             <Button
               type="submit"

@@ -755,7 +755,8 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
   const imageDeleteDialog = page.getByRole("dialog", { name: "후기 사진 삭제" });
   await expect(imageDeleteDialog).toContainText("삭제한 사진은 복구할 수 없습니다.");
   expect(deleteImageRequests).toBe(0);
-  await imageDeleteDialog.getByRole("button", { name: "취소" }).click();
+  // 머리글 닫기 버튼도 이름이 "닫기"라 아래 버튼 줄의 닫기를 누른다.
+  await imageDeleteDialog.locator(".modal-footer").getByRole("button", { name: "닫기", exact: true }).click();
   await expect(imageDeleteButton).toBeFocused();
 
   const editButton = card.getByRole("button", { name: "수정", exact: true });

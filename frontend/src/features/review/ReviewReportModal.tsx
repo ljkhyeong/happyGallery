@@ -136,7 +136,7 @@ export function ReviewReportModal({
               disabled={mutation.isPending}
               onClick={closeModal}
             >
-              취소
+              닫기
             </Button>
             <Button type="submit" variant="dark" disabled={mutation.isPending}>
               {mutation.isPending ? "접수 중..." : "신고 접수"}

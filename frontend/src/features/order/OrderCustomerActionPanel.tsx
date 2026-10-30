@@ -123,7 +123,6 @@ export function OrderCustomerActionPanel({
         confirmLabel={pending ? "처리 중..." : confirmLabel}
         confirmVariant="dark"
         onConfirm={submitConfirmedAction}
-        cancelLabel="돌아가기"
         cancelVariant="outline-dark"
         backdrop={pending ? "static" : true}
         keyboard={!pending}

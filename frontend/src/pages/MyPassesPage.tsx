@@ -181,7 +181,6 @@ export function MyPassesPage() {
         confirmVariant="dark"
         confirmDisabled={!refundTarget}
         onConfirm={() => refundTarget && refundMutation.mutate(refundTarget.passId)}
-        cancelLabel="취소"
       >
         <ErrorAlert error={refundMutation.error} />
         <p className="mb-2">

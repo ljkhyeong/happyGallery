@@ -187,7 +187,6 @@ function CartContent() {
         discardGuestCartMerge();
         setShowDiscardConfirm(false);
       }}
-      cancelLabel="취소"
     >
       다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
     </ConfirmModal>

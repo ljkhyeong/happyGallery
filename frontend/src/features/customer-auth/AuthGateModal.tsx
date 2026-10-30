@@ -88,7 +88,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-dark" onClick={onClose}>취소</Button>
+          <Button variant="outline-dark" onClick={onClose}>닫기</Button>
           <Button variant="primary" onClick={() => onMemberAuthenticated(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
