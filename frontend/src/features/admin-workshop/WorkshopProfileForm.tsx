@@ -178,22 +178,6 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col md={4}>
-          <Form.Group controlId="admin-workshop-kakao-talk-id">
-            <Form.Label>카카오톡 ID</Form.Label>
-            <Form.Control
-              value={form.kakaoTalkId}
-              maxLength={100}
-              onChange={(e) => update("kakaoTalkId", e.target.value)}
-            />
-          </Form.Group>
-        </Col>
-        <Col md={8}>
-          <Form.Group controlId="admin-workshop-naver-talk-url">
-            <Form.Label>네이버톡톡 링크 주소</Form.Label>
-            <Form.Control type="url" value={form.naverTalkUrl} maxLength={500} onChange={(e) => update("naverTalkUrl", e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col md={4}>
           <Form.Group controlId="admin-workshop-representative-name">
             <Form.Label>대표자명</Form.Label>
             <Form.Control
@@ -202,6 +186,17 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               onChange={(e) => update("representativeName", e.target.value)}
             />
             <PaymentRequiredHint value={form.representativeName} />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="admin-workshop-mail-order-number">
+            <Form.Label>통신판매업 신고번호</Form.Label>
+            <Form.Control
+              value={form.mailOrderRegistrationNumber}
+              maxLength={100}
+              onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
+            />
+            <PaymentRequiredHint value={form.mailOrderRegistrationNumber} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -217,14 +212,19 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col md={4}>
-          <Form.Group controlId="admin-workshop-mail-order-number">
-            <Form.Label>통신판매업 신고번호</Form.Label>
+          <Form.Group controlId="admin-workshop-kakao-talk-id">
+            <Form.Label>카카오톡 ID</Form.Label>
             <Form.Control
-              value={form.mailOrderRegistrationNumber}
+              value={form.kakaoTalkId}
               maxLength={100}
-              onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
+              onChange={(e) => update("kakaoTalkId", e.target.value)}
             />
-            <PaymentRequiredHint value={form.mailOrderRegistrationNumber} />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="admin-workshop-naver-talk-url">
+            <Form.Label>네이버톡톡 링크 주소</Form.Label>
+            <Form.Control type="url" value={form.naverTalkUrl} maxLength={500} onChange={(e) => update("naverTalkUrl", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -263,6 +263,12 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             <Form.Control as="textarea" rows={3} value={form.businessHours} maxLength={1000} onChange={(e) => update("businessHours", e.target.value)} />
           </Form.Group>
         </Col>
+        <Col md={6}>
+          <Form.Group controlId="admin-workshop-parking-info">
+            <Form.Label>주차 안내</Form.Label>
+            <Form.Control as="textarea" rows={3} value={form.parkingInfo} maxLength={1000} onChange={(e) => update("parkingInfo", e.target.value)} />
+          </Form.Group>
+        </Col>
         <Col md={12}>
           <Form.Group controlId="admin-workshop-introduction">
             <Form.Label>공방 소개</Form.Label>
@@ -275,28 +281,22 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-naver-blog-url">
             <Form.Label>네이버 블로그 링크 주소</Form.Label>
             <Form.Control type="url" value={form.naverBlogUrl} maxLength={500} onChange={(e) => update("naverBlogUrl", e.target.value)} />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-instagram-url">
             <Form.Label>인스타그램 링크 주소</Form.Label>
             <Form.Control type="url" value={form.instagramUrl} maxLength={500} onChange={(e) => update("instagramUrl", e.target.value)} />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-smart-store-url">
             <Form.Label>스마트스토어 링크 주소</Form.Label>
             <Form.Control type="url" value={form.smartStoreUrl} maxLength={500} onChange={(e) => update("smartStoreUrl", e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col md={6}>
-          <Form.Group controlId="admin-workshop-parking-info">
-            <Form.Label>주차 안내</Form.Label>
-            <Form.Control as="textarea" rows={3} value={form.parkingInfo} maxLength={1000} onChange={(e) => update("parkingInfo", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={9}>
