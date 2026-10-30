@@ -2546,10 +2546,10 @@ a.my-list-card:focus-visible,
     color: var(--hg-ink-soft);
   }
 
+  // 빈 상태 제목도 내 정보의 "예정된 수업이 없습니다"처럼 명조 500으로 쓴다(고딕 400이라 다른 제목과 달랐다).
   h2 {
     margin: 0.5rem 0 0;
-    font-size: 1.35rem;
-    font-weight: 400;
+    @include hg-display-heading(1.35rem);
   }
 
   p {
