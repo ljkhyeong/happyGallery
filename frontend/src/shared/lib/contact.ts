@@ -14,3 +14,9 @@ export function workshopAddress({ addressLine1, addressLine2 }: AddressLines): s
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/\D/g, "")}`;
 }
+
+/** 화면에 보이는 휴대폰 번호(010-1234-5678·010-123-4567). 숫자만 있는 휴대폰 번호가 아니면 받은 그대로 둔다. */
+export function formatPhone(phone: string): string {
+  const parts = /^(01\d)(\d{3,4})(\d{4})$/.exec(phone);
+  return parts ? `${parts[1]}-${parts[2]}-${parts[3]}` : phone;
+}

@@ -1,7 +1,7 @@
 import { Badge } from "react-bootstrap";
 import { Link } from "react-router";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, formatPhone } from "@/shared/lib";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { MyBookingSummary } from "./api";
 
@@ -25,7 +25,7 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
                 : "휴대폰 등록 필요"}
           </Badge>
           <span>{user.email}</span>
-          {user.phone && <span>{user.phone}</span>}
+          {user.phone && <span>{formatPhone(user.phone)}</span>}
         </div>
         <div className="my-dashboard-actions">
           <LinkButton to="/classes" variant="primary" size="sm">클래스 예약</LinkButton>

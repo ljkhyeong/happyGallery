@@ -1,4 +1,5 @@
 import { Button, Card } from "react-bootstrap";
+import { formatPhone } from "@/shared/lib";
 import { LinkButton } from "@/shared/ui";
 import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
@@ -53,7 +54,7 @@ export function MyAccountCard({
           <div>
             <h6 className="mb-1">휴대폰 번호</h6>
             <p className="text-muted-soft small mb-0">
-              {user.phone ?? "등록된 휴대폰 번호가 없습니다."}
+              {user.phone ? formatPhone(user.phone) : "등록된 휴대폰 번호가 없습니다."}
             </p>
           </div>
           <Button variant="outline-primary" size="sm" onClick={onUpdatePhone}>

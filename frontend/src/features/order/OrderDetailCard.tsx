@@ -3,7 +3,7 @@ import { Badge, Table } from "react-bootstrap";
 import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
 import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
-import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
+import { formatKRW, formatDateTime, formatDate, formatPhone, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/generated/api/order";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
@@ -131,7 +131,7 @@ function fulfillmentRows(fulfillment: NonNullable<OrderDetailResponse["fulfillme
       wide: true,
       value: (
         <>
-          {fulfillment.shippingAddress.recipientName} · {fulfillment.shippingAddress.phone}
+          {fulfillment.shippingAddress.recipientName} · {formatPhone(fulfillment.shippingAddress.phone)}
           <span className="d-block">
             ({fulfillment.shippingAddress.postalCode}) {fulfillment.shippingAddress.addressLine1}
             {fulfillment.shippingAddress.addressLine2 ? ` ${fulfillment.shippingAddress.addressLine2}` : ""}

@@ -1,4 +1,4 @@
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, formatPhone } from "@/shared/lib";
 import type { BookingDetailResponse } from "@/generated/api/booking";
 import { BookingInfoCard } from "./BookingInfoCard";
 
@@ -17,7 +17,7 @@ export function BookingDetail({ booking }: Props) {
       endAt={booking.endAt}
       refund={booking.refund}
       rows={[
-        { label: "예약자", value: `${booking.guestName} (${booking.guestPhone})` },
+        { label: "예약자", value: `${booking.guestName} (${formatPhone(booking.guestPhone)})` },
         { label: "예약 인원", value: `${booking.participantCount}명` },
         { label: "예약금", value: formatKRW(booking.depositAmount) },
         { label: "현장 잔금", value: formatKRW(booking.balanceAmount) },
