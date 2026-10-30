@@ -229,19 +229,21 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
               {salesQuery.data.length === 0 ? (
                 <EmptyState message="선택한 기간의 상품 주문이 없습니다." />
               ) : (
-                <Table responsive size="sm" className="mb-0 admin-compact-table">
-                  <thead><tr><th>기간</th><th>순매출</th><th>주문</th><th>평균 주문액</th></tr></thead>
-                  <tbody>
-                    {salesQuery.data.map((row) => (
-                      <tr key={row.periodLabel}>
-                        <td>{periodLabel(row.periodLabel, granularity)}</td>
-                        <td>{formatKRW(row.totalRevenue)}</td>
-                        <td>{row.orderCount.toLocaleString("ko-KR")}건</td>
-                        <td>{formatKRW(row.avgOrderValue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                <div className="admin-dashboard-table-scroll">
+                  <Table size="sm" className="mb-0 admin-compact-table">
+                    <thead><tr><th>기간</th><th>순매출</th><th>주문</th><th>평균 주문액</th></tr></thead>
+                    <tbody>
+                      {salesQuery.data.map((row) => (
+                        <tr key={row.periodLabel}>
+                          <td>{periodLabel(row.periodLabel, granularity)}</td>
+                          <td>{formatKRW(row.totalRevenue)}</td>
+                          <td>{row.orderCount.toLocaleString("ko-KR")}건</td>
+                          <td>{formatKRW(row.avgOrderValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               )}
             </section>
 
@@ -293,26 +295,29 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
             </section>
           </div>
 
-          <section className="admin-dashboard-panel" aria-labelledby="admin-slot-utilization-title">
+          <section className="admin-dashboard-panel mt-3" aria-labelledby="admin-slot-utilization-title">
             <h6 id="admin-slot-utilization-title">수업 일정 예약률</h6>
             {snapshotQuery.data.slotUtilization.length === 0 ? (
               <EmptyState message="선택한 기간에 등록된 수업 일정이 없습니다." />
             ) : (
-              <Table responsive size="sm" className="mb-0 admin-compact-table">
-                <thead>
-                  <tr><th>날짜</th><th>클래스</th><th>예약</th><th>이용률</th></tr>
-                </thead>
-                <tbody>
-                  {snapshotQuery.data.slotUtilization.map((slot) => (
-                    <tr key={`${slot.date}-${slot.className}`}>
-                      <td>{slot.date}</td>
-                      <td>{slot.className}</td>
-                      <td>{slot.totalBooked.toLocaleString("ko-KR")} / {slot.totalCapacity.toLocaleString("ko-KR")}</td>
-                      <td>{percent(slot.utilizationRate)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <div className="admin-dashboard-table-scroll">
+                <Table size="sm" className="mb-0 admin-compact-table">
+                  <thead>
+                    {/* 클래스 이름은 글자 칸이라 숫자 칸과 달리 왼쪽에 두고 줄을 바꾼다. */}
+                    <tr><th>날짜</th><th className="text-start">클래스</th><th>예약</th><th>이용률</th></tr>
+                  </thead>
+                  <tbody>
+                    {snapshotQuery.data.slotUtilization.map((slot) => (
+                      <tr key={`${slot.date}-${slot.className}`}>
+                        <td>{slot.date}</td>
+                        <td className="text-start text-wrap">{slot.className}</td>
+                        <td>{slot.totalBooked.toLocaleString("ko-KR")} / {slot.totalCapacity.toLocaleString("ko-KR")}</td>
+                        <td>{percent(slot.utilizationRate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
             )}
           </section>
         </div>
