@@ -181,7 +181,7 @@ export function CancelButton({
         <ErrorAlert error={mutation.error} />
         <p className="mb-3">예약을 취소하면 되돌릴 수 없습니다.</p>
         <dl className="row small mb-3">
-          <dt className="col-6">환불·이용 횟수 복원 마감</dt>
+          <dt className="col-6">{passBooking ? "이용 횟수 복원 마감" : "환불 마감"}</dt>
           <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
           {!passBooking && (
             <>

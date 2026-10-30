@@ -288,7 +288,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
   await page.getByRole("button", { name: "예약 취소" }).click();
 
   const depositCancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
-  await expect(depositCancelDialog.getByText("환불·이용 횟수 복원 마감")).toBeVisible();
+  await expect(depositCancelDialog.getByText("환불 마감", { exact: true })).toBeVisible();
   await expect(depositCancelDialog.getByText("15,000원", { exact: true })).toBeVisible();
   await expect(depositCancelDialog.getByText(
     "취소 마감이 지나 예약금 15,000원은 환불되지 않습니다. 예약만 취소됩니다.",

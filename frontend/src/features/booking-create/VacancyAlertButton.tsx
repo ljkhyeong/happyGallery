@@ -234,6 +234,12 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
             })}
           />
         </Modal.Body>
+        {/* 신청 버튼은 인증 단계 안에 있어 바닥에는 다른 창과 같은 먹색 테두리 닫기만 둔다. */}
+        <Modal.Footer>
+          <Button type="button" variant="outline-dark" onClick={() => setShowGuestForm(false)}>
+            닫기
+          </Button>
+        </Modal.Footer>
       </Modal>
     </>
   );
