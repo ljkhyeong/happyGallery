@@ -19,6 +19,8 @@ interface Props {
   onRetry?: () => void;
   retrying?: boolean;
   retryLabel?: string;
+  /** 바깥 간격. 기본은 아래 1rem이고, gap으로 간격을 정하는 결제 결과 카드 안에서는 "mb-0"을 넘긴다. */
+  className?: string;
 }
 
 /**
@@ -43,20 +45,20 @@ export function describeError(error: unknown, fallback?: string): string {
   return "요청 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
-export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도" }: Props) {
+export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도", className = "mb-3" }: Props) {
   if (!error || error instanceof CustomerSessionChangedError) return null;
 
   // 설정 상태는 오류 대신 회색 안내 상자로 보이고, 다시 시도해도 같으므로 버튼을 두지 않는다.
   if (isSettingStateError(error)) {
     return (
-      <Alert variant="secondary" className="mb-3" role="status">
+      <Alert variant="secondary" className={className} role="status">
         {describeError(error)}
       </Alert>
     );
   }
 
   return (
-    <Alert variant="danger" className="mb-3" role="alert">
+    <Alert variant="danger" className={className} role="alert">
       <div>{describeError(error)}</div>
       {onRetry && (
         <Button

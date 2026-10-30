@@ -119,7 +119,7 @@ export function PaymentFailPage() {
         {/* 승인 실패·만료·환불로 끝난 결제는 종료할 것이 없어 거절 오류와 종료 안내 대신 그 상태를 보인다. */}
         {currentStatus
           ? <PaymentStatusNotice status={currentStatus} />
-          : returnHint && <ErrorAlert error={returnMutation.error} />}
+          : returnHint && <ErrorAlert error={returnMutation.error} className="mb-0" />}
         {orderId && !currentStatus && (
           <p className="payment-result-note">구매 화면으로 돌아가면 승인 전 결제를 종료하고 쿠폰·적립금 사용 예약을 해제합니다.</p>
         )}

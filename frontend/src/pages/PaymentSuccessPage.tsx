@@ -422,7 +422,7 @@ export function PaymentSuccessPage() {
               {describeError(error)}
               {reconciliationRequired && <WorkshopContactLinks />}
             </Alert>
-          ) : <ErrorAlert error={error} />}
+          ) : <ErrorAlert error={error} className="mb-0" />}
         </PaymentResultCard>
       </Container>
     );

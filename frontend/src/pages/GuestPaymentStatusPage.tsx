@@ -123,7 +123,7 @@ export function GuestPaymentStatusPage() {
           title="결제 상태를 불러오지 못했습니다"
           actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
         >
-          <ErrorAlert error={error} />
+          <ErrorAlert error={error} className="mb-0" />
         </PaymentResultCard>
       </Container>
     );
@@ -157,7 +157,7 @@ export function GuestPaymentStatusPage() {
           )}
       >
         <PaymentStatusNotice status={status} />
-        {error && <ErrorAlert error={error} />}
+        {error && <ErrorAlert error={error} className="mb-0" />}
         {status.status === "COMPLETED" && !completedResult && (
           <Alert variant="warning" className="mb-0">
             결제는 완료됐지만 연결된 주문·예약 또는 이용권 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.
