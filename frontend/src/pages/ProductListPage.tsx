@@ -5,7 +5,7 @@ import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ProductFilterBar } from "@/features/product/ProductFilterBar";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { LoadingSpinner, ErrorAlert, EmptyState, PageHeader } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, LinkButton, PageHeader } from "@/shared/ui";
 import { useProductListFilters } from "@/features/product/useProductListFilters";
 import { productListHeading } from "@/features/product/productFilters";
 import { SHOP_CATEGORIES } from "@/features/product/shopCategories";
@@ -70,6 +70,12 @@ export function ProductListPage({
   ];
   if (category && !categoryTabs.includes(category)) categoryTabs.push(category);
   const filtered = Object.keys(filterParams).some((name) => name !== "sort");
+  // 검색으로 비면 어떤 검색어인지 밝히고, 조건으로 좁힌 목록이 비면 전체 작품으로 돌아갈 버튼을 함께 둔다.
+  const emptyMessage = filterParams.keyword
+    ? `‘${filterParams.keyword}’에 맞는 ${category ? `${category} ` : ""}작품이 없습니다.`
+    : category && !filterParams.type
+      ? `판매 중인 ${category} 작품이 없습니다.`
+      : "조건에 맞는 작품이 없습니다.";
 
   return (
     <Container className="page-container">
@@ -123,9 +129,14 @@ export function ProductListPage({
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {products && products.length === 0 && (
-        <EmptyState message={category && !filterParams.keyword && !filterParams.type
-          ? `판매 중인 ${category} 작품이 없습니다.`
-          : "조건에 맞는 작품이 없습니다."} />
+        <>
+          <EmptyState message={emptyMessage} />
+          {filtered && (
+            <div className="text-center mb-5">
+              <LinkButton to="/products" variant="outline-dark">전체 작품 보기</LinkButton>
+            </div>
+          )}
+        </>
       )}
       {products && products.length > 0 && (
         <div className="product-grid">
