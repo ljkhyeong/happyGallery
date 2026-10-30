@@ -97,7 +97,7 @@ export function ReduceParticipantsForm({
             {participantCount - nextParticipantCount}명 취소 · 예상 예약금 환불 {formatKRW(estimatedRefund)}
           </Form.Text>
         </Form.Group>
-        <Button type="submit" variant="outline-warning" className="mt-3">
+        <Button type="submit" variant="outline-dark" className="mt-3">
           예약 인원 줄이기
         </Button>
       </Form>

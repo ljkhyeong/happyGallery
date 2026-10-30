@@ -99,7 +99,6 @@ export function AccountWithdrawalModal({
               </Alert>
             ) : <ErrorAlert error={withdrawal.error} />}
             <h2 className="h6">회원탈퇴 유의사항</h2>
-            <p className="small text-muted">탈퇴하기 전에 아래 내용을 확인해 주세요.</p>
             <ul className="small ps-3">
               <li className="mb-2">
                 탈퇴하면 이 계정으로 로그인할 수 없으며, 계정 개인정보와 비밀번호가

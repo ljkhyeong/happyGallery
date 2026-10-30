@@ -95,7 +95,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
           <p>현재 개당 가격: <strong>{formatKRW(selection.unitPrice)}</strong></p>
           <ProductPurchaseTerms productName={product.name} type={product.type} specification={product.specification}
             careInstructions={product.careInstructions} productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
-          {requiresSelection ? <Alert variant="info" className="mt-3">
+          {requiresSelection ? <Alert variant="warning" className="mt-3">
             작품 옵션이 바뀌었거나 직접 입력한 문구가 있습니다. 작품 상세에서 옵션과 문구를 다시 선택해 주세요.
             <div className="mt-2"><LinkButton to={productDetailHref(product.id, onlyTextChanged ? item.productVariantId : null)} size="sm" variant="outline-primary">옵션 다시 선택</LinkButton></div>
           </Alert> : <>
