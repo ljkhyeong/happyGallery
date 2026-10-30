@@ -18,7 +18,7 @@ import { formatDateTime } from "@/shared/lib";
 import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, isSettingStateError, LoadingSpinner, useToast } from "@/shared/ui";
 import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { CONTENT_BODY_MAX_LENGTH, contentLengthLabel } from "@/shared/validation/contentText";
 import { queryKeys } from "@/shared/api";
@@ -68,6 +68,9 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     enabled: inquiryType === "product",
   });
   const activeQuery = inquiryType === "product" ? productQuery : customerQuery;
+  const templateError = inquiryType === "product" ? templateQuery.error : null;
+  // 연동이 꺼져 있으면 목록과 답변 양식 조회가 같은 안내를 받으므로 패널에 한 번만 보인다.
+  const settingStateError = [activeQuery.error, templateError].find(isSettingStateError);
 
   return <>
     <div className="d-flex gap-2 mb-3">
@@ -106,12 +109,12 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
       checked={search.unansweredOnly}
       onChange={(event) => updateSearch({ unansweredOnly: event.target.checked, page: 0 })}
     />
-    {inquiryType === "product" && templateQuery.error && (
-      <ErrorAlert error={templateQuery.error}
+    {!settingStateError && templateError && (
+      <ErrorAlert error={templateError}
         onRetry={() => { void templateQuery.refetch(); }} retrying={templateQuery.isFetching} />
     )}
     {activeQuery.isLoading && <LoadingSpinner />}
-    <ErrorAlert error={activeQuery.error}
+    <ErrorAlert error={settingStateError ?? activeQuery.error}
       onRetry={() => { void activeQuery.refetch(); }} retrying={activeQuery.isFetching} />
     <p className="small text-muted-soft">조회 기간 {search.from} ~ {search.to} · 50건씩 표시</p>
     {activeQuery.data && (activeQuery.data.content.length === 0 ? (

@@ -1,6 +1,15 @@
 import { Alert, Button } from "react-bootstrap";
 import { ApiError, CustomerSessionChangedError } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
+import type { ErrorCode } from "@/shared/types/error";
+
+/** 실패가 아니라 운영 설정 상태를 알리는 오류 코드. 다시 시도해도 결과가 같다. */
+const SETTING_STATE_CODES: ReadonlyArray<ErrorCode> = ["SMARTSTORE_DISABLED"];
+
+/** 연동 꺼짐처럼 설정 상태를 알리는 오류인지 확인한다. 같은 안내가 한 영역에 겹치지 않게 할 때도 쓴다. */
+export function isSettingStateError(error: unknown): error is ApiError {
+  return error instanceof ApiError && SETTING_STATE_CODES.some((code) => error.is(code));
+}
 
 interface Props {
   error: unknown;
@@ -33,6 +42,15 @@ export function describeError(error: unknown, fallback?: string): string {
 
 export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도" }: Props) {
   if (!error || error instanceof CustomerSessionChangedError) return null;
+
+  // 설정 상태는 오류 대신 회색 안내 상자로 보이고, 다시 시도해도 같으므로 버튼을 두지 않는다.
+  if (isSettingStateError(error)) {
+    return (
+      <Alert variant="secondary" className="mb-3" role="status">
+        {describeError(error)}
+      </Alert>
+    );
+  }
 
   return (
     <Alert variant="danger" className="mb-3" role="alert">

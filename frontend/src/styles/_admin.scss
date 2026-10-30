@@ -103,9 +103,10 @@
   text-align: left;
 }
 
-// 제목 뒤에 빈 상태 안내만 있는 패널(감싼 요소 하나 안에 있는 경우 포함)은 제목과 안내를 한 줄에 둔다.
+// 제목 뒤에 빈 상태 안내나 연동 꺼짐 같은 설정 상태 안내(ErrorAlert의 회색 상자)만 있는 패널은
+// 감싼 요소 하나 안에 있는 경우를 포함해 제목과 안내를 한 줄에 둔다.
 // 제목 폭을 고정해 빈 패널이 이어질 때 안내가 같은 세로선에 서고, 좁은 폭에서는 안내가 제목 아래로 내려간다.
-.admin-workspace-panel:has(> h5 + .empty-state:last-child),
+.admin-workspace-panel:has(> h5 + :is(.empty-state, .alert-secondary):last-child),
 .admin-workspace-panel:has(> h5 + :last-child > .empty-state:only-child) {
   display: flex;
   flex-wrap: wrap;
@@ -121,6 +122,12 @@
   > :last-child {
     flex: 1 1 18rem;
     min-width: 0;
+  }
+
+  > .alert {
+    margin-bottom: 0;
+    padding-block: 0.5rem;
+    font-size: 0.875rem;
   }
 }
 

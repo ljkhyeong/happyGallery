@@ -1,6 +1,6 @@
 export { Layout } from "./Layout";
 export { LoadingSpinner } from "./LoadingSpinner";
-export { describeError, ErrorAlert } from "./ErrorAlert";
+export { describeError, ErrorAlert, isSettingStateError } from "./ErrorAlert";
 export { ConfirmModal } from "./ConfirmModal";
 export { CursorLoadMore, CursorQueryErrorAlert } from "./CursorLoadMore";
 export { ErrorBoundary } from "./ErrorBoundary";

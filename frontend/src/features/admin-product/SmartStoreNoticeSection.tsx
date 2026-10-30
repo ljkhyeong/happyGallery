@@ -10,7 +10,7 @@ import type {
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, isSettingStateError, LoadingSpinner, useToast } from "@/shared/ui";
 import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { SmartStoreNoticeApplyModal } from "./SmartStoreNoticeApplyModal";
 import {
@@ -91,9 +91,12 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     if (!save.isPending) setEditingId(undefined);
   };
 
+  // 연동이 꺼져 있으면 공지를 등록해도 스마트스토어에 반영할 수 없어 등록 버튼을 끈다.
+  const integrationOff = isSettingStateError(notices.error);
+
   return <>
     <div className="d-flex justify-content-end mb-3">
-      <Button size="sm" onClick={() => openEditor(null)}>공지 등록</Button>
+      <Button size="sm" disabled={integrationOff} onClick={() => openEditor(null)}>공지 등록</Button>
     </div>
     {notices.isLoading && <LoadingSpinner />}
     <ErrorAlert error={notices.error}
