@@ -365,6 +365,27 @@ textarea {
   border-top: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+// 카테고리 줄이 한 줄에 다 보이도록 1200px 아래에서는 메뉴 간격을 줄인다.
+// 그래도 넘치는 태블릿·모바일은 가로로 밀어 보고, 현재 메뉴는 Layout이 보이는 곳으로 옮긴다.
+@media (max-width: 1199.98px) {
+  .app-category-inner {
+    gap: 0 1.15rem;
+  }
+}
+
+// 태블릿·모바일은 로고·내 메뉴를 한 줄에, 검색창을 그 아래 한 줄에 둔다.
+// 세 칸을 한 줄에 두면 768~991px에서 내 메뉴가 로고 아래 왼쪽으로 떨어진다.
+@media (max-width: 991.98px) {
+  .app-search {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .app-account {
+    margin-left: auto;
+  }
+}
+
 @media (max-width: 767.98px) {
   .app-header-inner {
     gap: 0.6rem 1rem;
@@ -375,14 +396,7 @@ textarea {
     font-size: 1.35rem;
   }
 
-  // 좁은 화면은 로고·내 메뉴를 한 줄에, 검색창을 그 아래 한 줄에 둔다.
-  .app-search {
-    order: 3;
-    flex-basis: 100%;
-  }
-
   .app-account {
-    margin-left: auto;
     gap: 0.85rem;
   }
 }

@@ -1,7 +1,7 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Card, Form, Spinner } from "react-bootstrap";
+import { Button, Card, Container, Form, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
 import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 import type { AdminAuthResponse } from "./api";
@@ -63,7 +63,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
   }
 
   return (
-    <div className="page-container" style={{ maxWidth: 400 }}>
+    <Container className="page-container" style={{ maxWidth: 400 }}>
       <Card>
         <Card.Body>
           <h5 className="mb-3">
@@ -157,6 +157,6 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
           )}
         </Card.Body>
       </Card>
-    </div>
+    </Container>
   );
 }

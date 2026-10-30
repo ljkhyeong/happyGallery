@@ -2258,8 +2258,8 @@ a.my-list-card:focus-visible {
     .my-shell-nav {
       display: flex;
       gap: 0.4rem;
-      margin: 0 -1rem;
-      padding: 0 1rem 0.25rem;
+      margin: 0 calc(-1 * var(--hg-page-gutter));
+      padding: 0 var(--hg-page-gutter) 0.25rem;
       overflow-x: auto;
       scrollbar-width: none;
 
