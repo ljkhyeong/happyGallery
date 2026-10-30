@@ -75,7 +75,8 @@ export function MemberOrderBenefits({
 
   return (
     <div>
-      <h6 className="mb-1">쿠폰·적립금</h6>
+      {/* 장바구니·주문서 요약(h2)과 작품 상세 구매 상자(h2 아래 h3 단계)에 들어가므로 h3이고 모양은 h6이다. */}
+      <h3 className="h6 mb-1">쿠폰·적립금</h3>
       <p className="text-muted-soft small mb-3">
         회원 작품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
       </p>

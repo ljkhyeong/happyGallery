@@ -16,6 +16,8 @@ interface Props {
   onReset?: () => void;
   /** 바깥 패널이 제목을 이미 보여 주면 생략한다. */
   title?: string;
+  /** 제목의 단계. 쓰는 곳의 제목 구조에 맞추고, 모양은 단계와 관계없이 h6 크기다. */
+  titleAs?: "h2" | "h3" | "h4" | "h5" | "h6";
   description?: string;
   initialPhone?: string;
   lockPhone?: boolean;
@@ -34,6 +36,7 @@ export function PhoneVerificationStep({
   onVerified,
   onReset,
   title,
+  titleAs: Title = "h6",
   description,
   initialPhone = "",
   lockPhone = false,
@@ -75,7 +78,7 @@ export function PhoneVerificationStep({
 
   return (
     <div aria-busy={sendMutation.isPending || confirming}>
-      {title && <h6 className="mb-3">{title}</h6>}
+      {title && <Title className="h6 mb-3">{title}</Title>}
       {description && <p className="text-muted-soft small mb-3">{description}</p>}
       <ErrorAlert error={sendMutation.error} />
 

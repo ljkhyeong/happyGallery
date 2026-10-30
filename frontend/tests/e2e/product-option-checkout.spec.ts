@@ -301,7 +301,7 @@ for (const { quantity, limit, name } of [
     await expect(page.getByText("같은 옵션 조합으로 추가 가능: 3개")).toBeVisible();
     await add.click();
     await expect(page.getByRole("spinbutton", { name: "색상: 블루 / 각인 문구: 문구 C 수량", exact: true })).toHaveValue("1");
-    await expect(page.getByRole("button", { name: "로그인 후 구매하기", exact: true })).toBeEnabled();
+    await expect(page.getByRole("link", { name: "로그인 후 구매하기", exact: true })).toBeEnabled();
     if (quantity === 2) {
       await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
       await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
@@ -390,7 +390,7 @@ for (const readyStock of [true, false]) {
     await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
     await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
     await page.goto("/cart");
-    const plus = page.getByRole("button", { name: "+", exact: true });
+    const plus = page.getByRole("button", { name: "각인 키링 수량 늘리기", exact: true });
     await plus.click();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(2);
     product.stockQuantity = 1;
@@ -399,7 +399,7 @@ for (const readyStock of [true, false]) {
     await plus.click();
     await expect(page.getByText("각인 키링의 같은 옵션 조합은 합계 1개까지 담을 수 있습니다.")).toBeVisible();
     await expect(plus).toBeDisabled();
-    await page.getByRole("button", { name: "-", exact: true }).click();
+    await page.getByRole("button", { name: "각인 키링 수량 줄이기", exact: true }).click();
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(1);
     await expect(page.getByText(/수량을 줄여 주세요/)).toHaveCount(0);
   });
@@ -533,14 +533,14 @@ test("@payment 비회원은 같은 조합이라도 삭제된 각인이 있으면
   await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
   await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
   await page.goto("/cart");
-  const plus = page.getByRole("button", { name: "+", exact: true });
+  const plus = page.getByRole("button", { name: "각인 키링 수량 늘리기", exact: true });
   await expect(plus).toBeEnabled();
   product.optionGroups.find((group) => group.key === "note")!.required = true;
   await plus.click();
   await expect(page.getByText("각인 키링의 선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요.", { exact: true })).toBeVisible();
   await expect(plus).toBeDisabled();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(2);
-  await page.getByRole("button", { name: "-", exact: true }).click();
+  await page.getByRole("button", { name: "각인 키링 수량 줄이기", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(1);
   await page.getByRole("button", { name: "각인 키링 삭제", exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("hg_guest_cart"))).toBeNull();

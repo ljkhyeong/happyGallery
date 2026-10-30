@@ -217,9 +217,11 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
             />
           </Form.Group>
           <ErrorAlert error={registerMutation.error} />
+          {/* 창 제목(Modal.Title)은 제목 요소가 아니어서 창 안의 첫 제목으로 h2를 쓴다. */}
           <PhoneVerificationStep
             purpose="GUEST_BOOKING"
             title="휴대폰 인증"
+            titleAs="h2"
             description="빈자리 안내를 받을 휴대폰 번호를 확인합니다."
             confirmLabel="빈자리 알림 신청"
             confirming={registerMutation.isPending}

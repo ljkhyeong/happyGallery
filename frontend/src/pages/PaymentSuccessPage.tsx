@@ -316,7 +316,7 @@ export function PaymentSuccessPage() {
           tone="notice"
           title="회원 계정이 변경되었습니다"
           lead="이전 계정에서 시작한 결제 결과는 이 화면에 표시하지 않습니다."
-          actions={<Button variant="primary" onClick={() => navigate("/")}>홈으로</Button>}
+          actions={<LinkButton to="/" variant="primary">홈으로</LinkButton>}
         />
       </Container>
     );
@@ -380,7 +380,7 @@ export function PaymentSuccessPage() {
               {returnPath !== "/" && ["FAILED", "EXPIRED", "REFUNDED"].includes(paymentStatus.status) && (
                 <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
               )}
-              <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
+              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
             </>
           )}
         >
@@ -411,7 +411,7 @@ export function PaymentSuccessPage() {
                   {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
                 </Button>
               )}
-              <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
+              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
               {/* 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로 저장한 구매 화면으로 보낸다. */}
               {!retryable && !reconciliationRequired && (returnPath !== "/"
                 ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>

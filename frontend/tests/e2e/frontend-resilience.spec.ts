@@ -695,7 +695,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   await expect(page.getByText("장바구니가 비어 있습니다.")).toHaveCount(0);
   await page.getByRole("button", { name: "매장 수령" }).click();
 
-  const increaseButton = page.getByRole("button", { name: "+", exact: true });
+  const increaseButton = page.getByRole("button", { name: "복구 확인 작품 수량 늘리기", exact: true });
   const deleteButton = page.getByRole("button", { name: "복구 확인 작품 삭제", exact: true });
   const checkoutButton = page.getByRole("button", { name: "결제하기", exact: true });
   await expect(checkoutButton).toBeEnabled();

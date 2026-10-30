@@ -26,6 +26,11 @@ import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { useOrderPaymentTotal } from "@/features/order-benefit/useOrderPaymentTotal";
 
+/** 이름을 모르는 작품은 번호로 부른다. 작품 링크와 선택·수량·삭제 버튼 이름이 같은 이름을 쓴다. */
+function cartItemName(item: CartItemView): string {
+  return item.productName || `작품 #${item.productId}`;
+}
+
 export function CartPage() {
   const {
     status,
@@ -378,7 +383,7 @@ function CartContent() {
                     <div className="cart-item-title">
                       {isAuthenticated && <Form.Check
                         id={`cart-select-${item.cartItemId}`}
-                        aria-label={`${item.productName} 선택`}
+                        aria-label={`${cartItemName(item)} 선택`}
                         checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
                         disabled={selectionDisabled || !canSelect(item)}
                         onChange={(event) => {
@@ -389,7 +394,7 @@ function CartContent() {
                         }} />}
                       <div>
                         <Link to={productDetailHref(item.productId, item.productVariantId)}>
-                          {item.productName || `작품 #${item.productId}`}
+                          {cartItemName(item)}
                         </Link>
                         <div className="small text-muted-soft">{formatKRW(item.price)}</div>
                       </div>
@@ -424,17 +429,19 @@ function CartContent() {
                       <Button
                         variant="outline-secondary"
                         size="sm"
+                        aria-label={`${cartItemName(item)} 수량 줄이기`}
                         disabled={checkout.isPending || isItemMutationPending || item.qty <= 1}
                         onClick={() => {
                           void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
                         }}
                       >
-                        -
+                        −
                       </Button>
                       <span>{item.qty}</span>
                       <Button
                         variant="outline-secondary"
                         size="sm"
+                        aria-label={`${cartItemName(item)} 수량 늘리기`}
                         disabled={checkout.isPending || isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
                         onClick={() => {
                           void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
@@ -450,7 +457,7 @@ function CartContent() {
                       variant="outline-dark"
                       size="sm"
                       className="text-nowrap"
-                      aria-label={`${item.productName || `작품 #${item.productId}`} 삭제`}
+                      aria-label={`${cartItemName(item)} 삭제`}
                       disabled={checkout.isPending || isItemMutationPending}
                       onClick={() => {
                         void removeItem(item.cartItemId).catch(() => undefined);

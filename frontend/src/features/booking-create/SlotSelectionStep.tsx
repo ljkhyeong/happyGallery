@@ -287,7 +287,10 @@ export function SlotSelectionStep({
                   key={slot.id}
                   data-slot-id={slot.id}
                   action
+                  type="button"
                   active={selectedSlot?.id === slot.id}
+                  // 고른 시간은 테두리 색만 달라져 보조기기에는 눌림 상태로 알린다(날짜 칩과 같다).
+                  aria-pressed={selectedSlot?.id === slot.id}
                   onClick={() => onSelect(slot)}
                   className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
                 >

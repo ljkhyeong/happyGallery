@@ -1,6 +1,6 @@
 import type { FulfillmentSelection } from "./fulfillmentSelection";
 import { SavedShippingAddressActions } from "@/features/my/DefaultShippingAddress";
-import { Button, ButtonGroup, Form } from "react-bootstrap";
+import { Button, ButtonGroup } from "react-bootstrap";
 import { useOrderPricePolicy } from "./useOrderPricePolicy";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { formatKRW } from "@/shared/lib";
@@ -18,11 +18,12 @@ export function FulfillmentForm({ value, onChange }: Props) {
 
   return (
     <div>
-      <Form.Label className="fw-semibold d-block">수령 방법</Form.Label>
-      <ButtonGroup className="w-100 mb-3" aria-label="수령 방법 선택">
+      {/* 쓰는 곳마다 "수령 방법"·"받는 방법" 칸 제목이 있어 보이는 이름표는 두지 않고 버튼 묶음 이름으로만 둔다. */}
+      <ButtonGroup className="w-100 mb-3" aria-label="수령 방법">
         <Button
           type="button"
           variant={value.fulfillmentType === "PICKUP" ? "dark" : "outline-dark"}
+          aria-pressed={value.fulfillmentType === "PICKUP"}
           onClick={() => onChange({ ...value, fulfillmentType: "PICKUP" })}
         >
           매장 수령
@@ -30,6 +31,7 @@ export function FulfillmentForm({ value, onChange }: Props) {
         <Button
           type="button"
           variant={value.fulfillmentType === "SHIPPING" ? "dark" : "outline-dark"}
+          aria-pressed={value.fulfillmentType === "SHIPPING"}
           disabled={!pricePolicy}
           onClick={() => onChange({ ...value, fulfillmentType: "SHIPPING" })}
         >

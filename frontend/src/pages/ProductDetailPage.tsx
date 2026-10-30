@@ -406,15 +406,18 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                   </>
                 ) : !authLoading ? (
                   <div>
-                    <Button
+                    {/* 로그인 화면으로 가는 이동이라 링크로 두고, 고를 수 없는 상태는 아래 비회원 주문처럼 aria-disabled로 막는다. */}
+                    <LinkButton
+                      to={loginHref}
                       variant="dark"
                       size="lg"
-                      className="w-100 mb-2 store-purchase-btn-primary"
-                      disabled={!canBuy}
-                      onClick={() => navigate(loginHref)}
+                      aria-disabled={!canBuy}
+                      tabIndex={canBuy ? undefined : -1}
+                      onClick={(event) => { if (!canBuy) event.preventDefault(); }}
+                      className={`w-100 mb-2 store-purchase-btn-primary${canBuy ? "" : " disabled"}`}
                     >
                       로그인 후 구매하기
-                    </Button>
+                    </LinkButton>
                     {/* 비회원 주문도 장바구니와 같은 크기로 보여 찾기 쉽게 하고, 회원가입은 혜택과 함께 문장 링크로 둔다. */}
                     <div className="store-purchase-secondary">
                       {hasConfiguredOptions ? (

@@ -210,7 +210,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
   await expect.poll(() => prepareStarted).toBe(true);
 
   await page.getByRole("button", { name: "로그아웃" }).click();
-  await page.getByRole("button", { name: "로그인 후 구매하기" }).click();
+  await page.getByRole("link", { name: "로그인 후 구매하기" }).click();
   await page.getByLabel("이메일").fill(customerB.email);
   await page.getByLabel("비밀번호").fill("password123!");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
@@ -561,7 +561,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       page.getByRole("link", { name: "로그인", exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByText(customerB.name)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "로그인 후 구매하기" }))
+    await expect(page.getByRole("link", { name: "로그인 후 구매하기" }))
       .toBeVisible();
   } finally {
     releasePrepare?.();

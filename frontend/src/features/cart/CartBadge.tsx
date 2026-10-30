@@ -11,7 +11,8 @@ export function CartBadge() {
       as={Link}
       to="/cart"
       eventKey="/cart"
-      aria-label="장바구니"
+      // 링크 이름이 숫자 배지를 덮으므로 담은 수량을 이름에 함께 넣는다.
+      aria-label={itemCount > 0 ? `장바구니 ${itemCount}개` : "장바구니"}
       className="app-nav-link position-relative"
     >
       <ShoppingBag size={21} strokeWidth={1.8} aria-hidden="true" />
