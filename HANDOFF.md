@@ -1,18 +1,19 @@
 # HANDOFF
 
-## 디자인 점검: 화면 틀·태블릿·줄바꿈 (2026-10-30)
+## 디자인 점검·전수 검토 (2026-10-30)
 
-- 시작 SHA `69f3810f`, 브랜치 `codex/work-20261030-design-review`(진행 중인 아래 리팩토링 브랜치 HEAD에서 만듦). 사용자가 "디자인 개선할 부분을 체크해서 진행하라(Claude Design·프론트엔드 포함)"고 했다. 공개 25·회원 14화면을 1280·390px, 주요 10화면을 1024·820px로 캡처해 점검했다(`output/playwright/design-review-1030/`, 전 `before/`·`tablet/`, 후 `after/`·`after-tablet/`, 조각 보기 `tile.py`). 이전 점검은 1280·390px만 봐서 태블릿 폭 문제가 남아 있었다. 문제가 시안이 아니라 구현의 폭·줄바꿈이라 Claude Design 캔버스는 바꾸지 않았다.
-- 고친 것:
-  - 화면 틀: 머리글·홈은 Bootstrap 단계형 container(540·720·960·1180), 나머지는 1180px 유동형 `.page-container`라 기준선이 폭마다 어긋났다(1280px 12px, 1100px 51px, 820px 38px). container를 단계 없이 최대 1180px로 두고 좌우 여백을 `--hg-page-gutter`(24px, 575px 이하 16px)로 통일했다. `.page-container`는 위아래 여백만 둔다. 이 클래스만 쓰던 관리자 로그인 칸은 `Container`로 감쌌다.
-  - 태블릿 머리글: 768~991px에서 내 메뉴가 로고 아래 왼쪽으로 떨어지던 것을 로고·내 메뉴 한 줄, 검색창 한 줄로 바꿨다. 카테고리 줄은 1200px 미만에서 간격을 줄여 약 920px 이상이면 한 줄에 다 보인다(전에는 1000~1199px에서 "이벤트"가 잘려 마우스로 누를 수 없었다). 더 좁으면 현재 메뉴를 보이는 곳으로 옮긴다(`useCenterActiveItem`, 내 정보 가로 메뉴에 있던 코드를 옮겨 작품 목록 카테고리 탭·클래스 상황 칩에도 적용).
-  - 한글 줄바꿈: `body`에 `word-break: keep-all`·`overflow-wrap: break-word`를 두고 화면별 같은 선언 6곳을 정리했다(모바일 "팝니/다." 같은 음절 끊김).
-  - 작품 상세 구역 탭이 지금 보는 구역을 먹색 밑줄로 표시한다(`ProductDetailTabs`·`useScrollSpy`, `aria-current="location"`).
-  - 소개할 이벤트가 없는 홈 이벤트 칸은 먹색 대신 회색 면·테두리 버튼, 내 정보 "최근 예약·최근 주문" 칸 사이 3rem, 방문 안내 "지도에서 보기"는 테두리 버튼, 고객 화면 휴대폰 번호는 `formatPhone`(010-1234-5678, 관리자 화면은 숫자 그대로).
-  - README 디자인 기준과 PRD 0001(작품 상세 탭, 휴대폰 번호 표시)을 갱신했다.
-- 검증: frontend typecheck·build·변경 파일 ESLint·단위 88건 통과. 캡처 96장(1280·390·1024·820px) 가로 넘침·콘솔 오류 없음. 브라우저에서 820px 머리글·기준선(로고·제목·바닥글 모두 24px)과 이벤트 화면 카테고리 줄 이동, 작품 상세 탭 표시(맨 위 없음 → 작품 정보 → 배송·교환 → 후기 → 문의, 맨 아래 문의)를 확인했다. E2E 전체(`--project=app`, `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`) 257건 통과(9.4분). 그 뒤 현재 항목이 없는 화면(홈)에서 머리글 카테고리 줄을 처음으로 돌리는 처리를 더해 모바일에서 이벤트 → 홈 → 단체·출강 이동으로 확인했다.
-- 실행 조건: Docker `hg-design-mysql`(3307)·`happygallery-redis`, 백엔드 8081(`./gradlew --offline :bootstrap:bootRun`, `SERVER_PORT=8081 MANAGEMENT_PORT=8091 RATE_LIMIT_ENABLED=false`, DB `happygallery_g`), 프론트 `frontend-review`(3030). 캡처가 실제 모습을 보이도록 `happygallery_g`의 카테고리 없는 E2E 작품(id 13~60)을 `UPDATE products SET status='INACTIVE' WHERE id > 12 AND category IS NULL;`로 숨겼다(E2E를 돌리면 다시 생긴다, 되돌리기는 `status='ACTIVE'`). 원격 푸시는 하지 않았다.
-- 남긴 것: 작품 상세 "작품 사양·예상 제작 기간" 칸의 아래 선 불일치, 데스크톱 바닥글 오른쪽 빈 공간, 가로 메뉴 끝의 흐림 표시(현재 항목 이동으로 대신함).
+- 브랜치 `codex/work-20261030-design-review`(진행 중인 아래 리팩토링 브랜치 HEAD `69f3810f`에서 만듦). 원격 푸시는 하지 않았다. 1차 시작 `69f3810f`(커밋 7개, 끝 `fbeda290`), 2차 시작 `fbeda290`. 사용자가 "디자인 개선할 부분을 체크해서 진행"(1차), "전수 검토해서 더 있는지 확인해서 진행"(2차)이라고 했다. 문제가 시안이 아니라 구현이라 Claude Design 캔버스는 바꾸지 않았다.
+- 1차: 머리글·본문·바닥글 기준선 통일(container 최대 1180px·`--hg-page-gutter`), 768~991px 머리글 두 줄, 카테고리 줄 간격·현재 항목 맞춤(`useCenterActiveItem`), 한글 `keep-all`, 작품 상세 탭 현재 구역(`useScrollSpy`), 빈 홈 이벤트 칸, 내 정보 최근 칸 간격, 지도 링크 버튼, 고객 휴대폰 번호 하이픈.
+- 2차 점검 방법: 읽기 전용 감사 에이전트 4개(스타일·마크업/문구·데이터 상태 캡처·관리자 캡처)로 후보 100건을 모으고 코드로 확인한 뒤, 파일이 겹치지 않게 작업 트리 작업자 3개(관리자·구매 흐름·내 정보)와 메인 세션(공용·공개 화면)이 나눠 고쳐 cherry-pick했다(2차 커밋 54개). 캡처는 `output/playwright/design-review-1030/`(태블릿 `tablet-all/`, 관리자 `admin/`·`admin-after/`, 데이터 상태 `states/`, 구매 흐름 `purchase-before/`·`purchase-after/`, 내 정보 `my-after/`).
+- 2차에서 고친 것(자세한 기준은 README 디자인 기준):
+  - 공용: 체크박스·스위치 테두리 3:1, 메뉴 링크·닫기 버튼·아코디언 포커스 선, 먹색 버튼 hover #3A3A37, 머리글 아이콘 hover·현재 화면 밑줄, 글자 링크 밑줄, 토스트 fixed 위쪽 가운데, client-only 화면 31곳 문서 제목(`clientOnlyMeta`), 767px 이하 입력 16px(iPhone 확대 방지), 인라인 max-width → `.is-narrow`·`.is-form`·`.is-reading`, 로그인·회원가입 992px 미만 35rem, 화면 제목 28~40px, 화면별 page-container 여백 재정의 제거, 가로 스크롤 줄 화면 끝까지(`hg-scroll-row-bleed`)·탭 밑줄 잘림, 홈·클래스 목록 칩·안내 칸 통일, 공지·이벤트 이름표 회색, 클래스 카드 사진·제목 링크, 소셜 로그인 실패 화면 `StatusPage`, 알림 버튼 이름에 읽지 않은 수·모바일 알림 창 잘림.
+  - 구매 흐름: 장바구니·주문서의 주문 제작 안내 반복 제거, 하단 결제 칸이 바닥글을 가리던 것·결제 예정 금액·버튼 이름 "결제하기", 예약 시간 칩(남은 자리 빨강·고른 시간 먹색 채움·820px 4칸), 회차 카드 시각 줄바꿈, 안내 색(고객 할 일 노랑), 삭제 버튼 한 모양, 결제 결과 문구·아이콘, Toss 예약 주문명, 접근성 이름·선택 상태·제목 단계.
+  - 내 정보·상세: 상태 배지 tone 정리(`ToneBadge`, 공방 차례는 먹색), 목록 행 배지·금액 오른쪽 정렬, 이용권 상태 배지, 주문 상세 모바일 품목 카드, 지연 동의 안내 상자, 알림함 안 읽음 표시, 후기 사진 추가 버튼·삭제 확인 창, 적립금 부호, 제목 단계, 주문·예약 번호 "주문 #123"·비회원 조회 ORD-/BK- 입력 허용, EmptyState, 뒤로 가기 `page-back-link`.
+  - 관리자: 태블릿 표·필터 넘침, 탭 메뉴 한 줄·현재 메뉴 맞춤, 오늘 할 일 빈 패널 한 줄, 연동 꺼짐 회색 안내(`isSettingStateError`, 다시 시도 없음), 현황 표 정렬·높이, 새로 만들기 버튼 위치, 공방 정보 폼 열 폭, 버튼 높이·간격.
+- 결정: 후기 요약 칸 576~633px 넘침(감사 계산)은 767px 이하에서 이미 한 칸이라 고치지 않았다. 오류 상자 안 "다시 시도"는 빨강 테두리로 둔다(오류 맥락). 상품 문의 목록에 "답변 대기" 배지가 공개 화면에도 붙는다. "정규 공예 4회권"은 상품 이름이라 메뉴 이름("정규반·4회권")과 다르게 둔다.
+- 검증(2차): typecheck·build·단위 90건·변경 파일 ESLint 통과. 작업자별 관련 E2E(관리자 71건, 구매 흐름 99건, 내 정보 151건 중 선택자 3건 수정 후 통과)에 더해, 합친 브랜치에서 E2E 전체(`--project=app`) 257건 통과(8.7분, 1차도 257건 통과). 최종 캡처 고객 114장(`final/`, 1280·820·390px)·관리자 33장(`final-admin/`) 가로 넘침·예상 밖 콘솔 오류 없음.
+- 실행 조건: Docker `hg-design-mysql`(3307)·`happygallery-redis`, 백엔드 8081(`./gradlew --offline :bootstrap:bootRun`, `SERVER_PORT=8081 MANAGEMENT_PORT=8091 RATE_LIMIT_ENABLED=false`, DB `happygallery_g`), 프론트 `frontend-review`(3030). E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1 npx playwright test --project=app`. E2E가 `happygallery_g`에 카테고리 없는 테스트 작품을 만들면 캡처 전에 `UPDATE products SET status='INACTIVE' WHERE id > 12 AND category IS NULL;`로 숨긴다(되돌리기는 `status='ACTIVE'`). 미리보기 창이 숨어 있으면 부드러운 스크롤이 멈추므로 스크롤 측정 때는 `scroll-behavior: auto`로 바꾼다.
+- 남긴 것: 비회원 조회 안내는 "주문 완료 화면에서 안내받은 번호와 조회 코드"인데 결제 완료 화면이 번호·조회 코드를 직접 보여 주지 않는다(제품 흐름 확인 필요). 내 주문 검색칸은 "주문 #123"·"ORD-…"를 숫자로 바꾸지 않는다. `useMadeToOrderConsent`는 정책 캐시가 객체가 아니면 `.trim()`에서 오류가 난다(모의 응답에서만 드러남). 로컬 DB에서 주문 생성일이 결제일보다 9시간 늦게 보인다(로컬 MySQL 시간대로 보임, 미확인). 작품 상세 "작품 사양·예상 제작 기간" 칸 아래 선, 데스크톱 바닥글 오른쪽 빈 공간, 빈 상태 컴포넌트(장바구니·체크아웃)의 모양 통일.
 
 ## 리팩토링 전수 검토·구현 (2026-10-17 시작, 2026-10-25 진행 중)
 
