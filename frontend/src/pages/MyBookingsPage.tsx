@@ -1,6 +1,6 @@
 import { ListMyBookingsPageStatus } from "@/generated/api/booking";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Card, Col, Row } from "react-bootstrap";
+import { Card } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
@@ -67,21 +67,17 @@ export function MyBookingsPage() {
           to={{ pathname: `/my/bookings/${booking.bookingId}`, search }}
           className="mb-2 text-decoration-none my-list-card"
         >
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={5}>
-                <div className="fw-semibold small">{booking.className}</div>
-                <small className="text-muted-soft">
-                  {formatDateTime(booking.startAt)} · {booking.participantCount}명
-                </small>
-              </Col>
-              <Col xs={6} md={3}>
-                <StatusBadge status={booking.status} />
-              </Col>
-              <Col xs={6} md={4} className="text-md-end">
-                <small>{bookingDepositLabel(booking.depositAmount)}</small>
-              </Col>
-            </Row>
+          <Card.Body className="my-list-row py-3 px-3">
+            <div className="my-list-main">
+              <div className="fw-semibold small">{booking.className}</div>
+              <small className="text-muted-soft">
+                {formatDateTime(booking.startAt)} · {booking.participantCount}명
+              </small>
+            </div>
+            <div className="my-list-side">
+              <StatusBadge status={booking.status} />
+              <span>{bookingDepositLabel(booking.depositAmount)}</span>
+            </div>
           </Card.Body>
         </Card>
       ))}

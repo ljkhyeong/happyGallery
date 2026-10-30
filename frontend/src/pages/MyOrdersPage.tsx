@@ -1,7 +1,7 @@
 import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { ListMyOrdersPageStatus } from "@/generated/api/customerStore";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Card, Col, Row } from "react-bootstrap";
+import { Card } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
@@ -69,22 +69,18 @@ export function MyOrdersPage() {
           to={{ pathname: `/my/orders/${order.orderId}`, search }}
           className="mb-2 text-decoration-none my-list-card"
         >
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={4}>
-                <div className="fw-semibold small">주문 #{order.orderId}</div>
-                <OrderItemSummary items={order.items} />
-                <small className="text-muted-soft">
-                  {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
-                </small>
-              </Col>
-              <Col xs={6} md={3}>
-                <StatusBadge status={order.status} />
-              </Col>
-              <Col xs={6} md={5} className="text-md-end">
-                <small>{formatKRW(order.totalAmount)}</small>
-              </Col>
-            </Row>
+          <Card.Body className="my-list-row py-3 px-3">
+            <div className="my-list-main">
+              <div className="fw-semibold small">주문 #{order.orderId}</div>
+              <OrderItemSummary items={order.items} />
+              <small className="text-muted-soft">
+                {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
+              </small>
+            </div>
+            <div className="my-list-side">
+              <StatusBadge status={order.status} />
+              <span>{formatKRW(order.totalAmount)}</span>
+            </div>
           </Card.Body>
         </Card>
       ))}

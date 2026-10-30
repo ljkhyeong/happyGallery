@@ -585,6 +585,18 @@ a.my-list-card:focus-visible {
   border-color: var(--hg-dark);
 }
 
+// 내역 목록 행: 왼쪽에 이름·일시, 오른쪽 한 칸에 상태 배지와 금액을 위아래로 둔다(내 정보 홈 최근 칸과 같은 배치).
+.my-list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.my-list-main {
+  min-width: 0;
+}
+
 .my-quick-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2112,7 +2124,8 @@ a.my-list-card:focus-visible {
   }
 }
 
-.my-recent-side {
+.my-recent-side,
+.my-list-side {
   display: flex;
   flex: none;
   flex-direction: column;
@@ -2120,6 +2133,7 @@ a.my-list-card:focus-visible {
   gap: 0.35rem;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 // ── 내 정보 상세·문의 카드 ───────────────────────────────

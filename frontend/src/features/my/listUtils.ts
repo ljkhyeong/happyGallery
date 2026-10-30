@@ -19,6 +19,12 @@ export function getPassFilterKey(pass: MyPassSummary): string {
   return parseApiDateTime(pass.expiresAt) <= Date.now() ? "EXPIRED" : "ACTIVE";
 }
 
+/** 이용권 행의 상태 배지. 환불한 이용권은 남은 횟수가 0이어도 '모두 사용'이 아니라 환불 상태로 보인다. */
+export function passBadgeStatus(pass: MyPassSummary): string {
+  if (pass.refund) return pass.refund.status === "SUCCEEDED" ? "REFUNDED" : "REFUNDING";
+  return getPassFilterKey(pass);
+}
+
 export function isPassAvailableForBooking(pass: MyPassSummary): boolean {
   const expiresAt = parseApiDateTime(pass.expiresAt);
   return pass.refund === null

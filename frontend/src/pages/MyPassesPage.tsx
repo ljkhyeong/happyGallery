@@ -2,10 +2,15 @@ import { ListMyPassesPageStatus } from "@/generated/api/customerStore";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, Button, Card, Col, Row } from "react-bootstrap";
+import { Alert, Button, Card } from "react-bootstrap";
 import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
-import { getPassFilterKey, isPassAvailableForBooking } from "@/features/my/listUtils";
+import {
+  buildStatusFilterOptions,
+  getPassFilterKey,
+  isPassAvailableForBooking,
+  passBadgeStatus,
+} from "@/features/my/listUtils";
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import {
@@ -16,7 +21,16 @@ import {
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast, ConfirmModal, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
+import {
+  LoadingSpinner,
+  ErrorAlert,
+  EmptyState,
+  useToast,
+  ConfirmModal,
+  CursorLoadMore,
+  CursorQueryErrorAlert,
+  StatusBadge,
+} from "@/shared/ui";
 import {
   customerRefundRefetchInterval,
   formatDateTime,
@@ -30,18 +44,10 @@ const PASS_SORT_OPTIONS = [
   { value: "PURCHASE_DESC", label: "최근 구매순" },
   { value: "CREDITS_DESC", label: "잔여 횟수 많은순" },
 ] as const;
-const PASS_STATUS_OPTIONS = [
-  { value: "ALL", label: "전체 상태" },
-  { value: "ACTIVE", label: "사용 가능" },
-  { value: "USED_UP", label: "사용 완료" },
-  { value: "EXPIRED", label: "만료" },
-];
-const PASS_QUICK_TABS = [
-  { value: "ALL", label: "전체" },
-  { value: "ACTIVE", label: "사용 가능" },
-  { value: "USED_UP", label: "사용 완료" },
-  { value: "EXPIRED", label: "만료" },
-];
+// 상태 이름은 행의 상태 배지와 같은 말을 쓴다.
+const PASS_STATUS_FILTERS = buildStatusFilterOptions(["ACTIVE", "USED_UP", "EXPIRED"], { keepOrder: true });
+const PASS_STATUS_OPTIONS = [{ value: "ALL", label: "전체 상태" }, ...PASS_STATUS_FILTERS];
+const PASS_QUICK_TABS = [{ value: "ALL", label: "전체" }, ...PASS_STATUS_FILTERS];
 
 export function MyPassesPage() {
   const queryClient = useQueryClient();
@@ -111,27 +117,31 @@ export function MyPassesPage() {
         hasMore={query.hasNextPage}
       />
       {query.isLoading && <LoadingSpinner />}
-      {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 이용권 내역이 없습니다." />}
-      {passes.length > 0 && passes.map((pass) => (
-        <Card key={pass.passId} className="mb-2 my-list-card">
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={4}>
-                <div className="fw-semibold small">{pass.planName} #{pass.passId}</div>
-                <small className="text-muted-soft">구매 {formatDateTime(pass.purchasedAt)}</small>
-              </Col>
-              <Col xs={6} md={2}>
-                <small>잔여 <strong>{pass.remainingCredits}</strong>/{pass.totalCredits}회</small>
-              </Col>
-              <Col xs={6} md={2}>
-                <small>{formatKRW(pass.totalPrice)}</small>
-              </Col>
-              <Col xs={12} md={4} className="text-md-end">
-                <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
-                <div className="d-flex flex-wrap justify-content-md-end gap-2 mt-2">
+      {hasLoadedPasses && passes.length === 0 && (
+        <EmptyState message={filters.hasFilter ? "검색 조건에 맞는 이용권 내역이 없습니다." : "이용권 내역이 없습니다."} />
+      )}
+      {passes.length > 0 && passes.map((pass) => {
+        // 환불은 예약에 쓸 수 있는 이용권만 받으므로 두 버튼이 같은 조건을 쓴다.
+        const available = isPassAvailableForBooking(pass);
+        return (
+          <Card key={pass.passId} className="mb-2 my-list-card">
+            <Card.Body className="py-3 px-3">
+              <div className="my-list-row">
+                <div className="my-list-main">
+                  <div className="fw-semibold small">{pass.planName} #{pass.passId}</div>
+                  <small className="d-block mt-1">잔여 <strong>{pass.remainingCredits}</strong>/{pass.totalCredits}회</small>
+                  <small className="d-block text-muted-soft">구매 {formatDateTime(pass.purchasedAt)}</small>
+                  <small className="d-block text-muted-soft">만료 {formatDateTime(pass.expiresAt)}</small>
+                </div>
+                <div className="my-list-side">
+                  <StatusBadge status={passBadgeStatus(pass)} />
+                  <span>{formatKRW(pass.totalPrice)}</span>
+                </div>
+              </div>
+              {(pass.receiptUrl || available) && (
+                <div className="d-flex flex-wrap gap-2 mt-3">
                   <PaymentReceiptLink receiptUrl={pass.receiptUrl} />
-                  {/* 환불은 예약에 쓸 수 있는 이용권만 받으므로 두 버튼이 같은 조건을 쓴다. */}
-                  {isPassAvailableForBooking(pass) && (
+                  {available && (
                     <>
                       <LinkButton
                         to={`/bookings/new?passId=${pass.passId}`}
@@ -154,12 +164,12 @@ export function MyPassesPage() {
                     </>
                   )}
                 </div>
-              </Col>
-            </Row>
-            <RefundProgressAlert refund={pass.refund} />
-          </Card.Body>
-        </Card>
-      ))}
+              )}
+              <RefundProgressAlert refund={pass.refund} />
+            </Card.Body>
+          </Card>
+        );
+      })}
       <CursorLoadMore query={query} label="이용권 더 보기" loadingLabel="이용권 불러오는 중..." />
 
       <ConfirmModal
