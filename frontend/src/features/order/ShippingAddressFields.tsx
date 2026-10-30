@@ -52,7 +52,8 @@ export function ShippingAddressFields({ value, onChange }: Props) {
           </Form.Control.Feedback>
         </Form.Group>
       </Col>
-      <Col sm={4}>
+      {/* 둘째 줄도 첫 줄(받는 분·연락처)과 같은 반 칸에서 시작하도록 우편번호는 반 칸, 기본 주소는 한 줄 전체를 쓴다. */}
+      <Col sm={6}>
         <Form.Group controlId="shipping-postal-code">
           <Form.Label>우편번호</Form.Label>
           <InputGroup>
@@ -74,7 +75,7 @@ export function ShippingAddressFields({ value, onChange }: Props) {
           </InputGroup>
         </Form.Group>
       </Col>
-      <Col sm={8}>
+      <Col xs={12}>
         <Form.Group controlId="shipping-address-line1">
           <Form.Label>기본 주소</Form.Label>
           <Form.Control

@@ -9,7 +9,7 @@ import {
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, ToneBadge, useToast, type CustomerBadgeTone } from "@/shared/ui";
-import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
+import { bookingCreateHref, formatSlotEnd } from "@/features/booking-create/upcomingSlots";
 
 interface AlertStatusBadge {
   label: string;
@@ -84,7 +84,7 @@ export function MyVacancyAlertsSection() {
                   <ToneBadge tone={status.tone} className="badge-sm">{status.label}</ToneBadge>
                 </div>
                 <small className="text-muted-soft">
-                  {formatDateTime(alert.startAt)} ~ {formatDateTime(alert.endAt)}
+                  {formatDateTime(alert.startAt)} ~ {formatSlotEnd(alert.startAt, alert.endAt)}
                 </small>
               </div>
               <div className="d-flex flex-wrap gap-2">

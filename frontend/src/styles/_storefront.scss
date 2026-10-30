@@ -567,6 +567,11 @@
   border: 1px solid var(--hg-border);
 }
 
+// 내 찜 목록의 작품·클래스 이름표: 글자 수가 달라도 이름이 같은 선에서 시작한다.
+.my-favorite-kind {
+  flex: 0 0 3em;
+}
+
 .my-inline-link {
   color: var(--hg-accent);
   text-decoration: none;

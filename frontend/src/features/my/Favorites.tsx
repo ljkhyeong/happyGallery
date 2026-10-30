@@ -112,7 +112,9 @@ export function MyFavoritesSection() {
       retrying={mutation.isPending} retryLabel="찜 해제 다시 시도" />
     {query.data && items.length === 0 && <EmptyState message="찜한 항목이 없습니다." />}
     {items.map((item) => <div key={item.id} className="d-flex justify-content-between align-items-center gap-2 border-bottom py-2">
-      <div><span className="small text-muted me-2">{item.targetType === "PRODUCT" ? "작품" : "클래스"}</span>
+      {/* 작품·클래스 이름표를 같은 폭에 두어 이름이 같은 선에서 시작한다. */}
+      <div className="d-flex align-items-baseline gap-2" style={{ minWidth: 0 }}>
+        <span className="my-favorite-kind small text-muted">{item.targetType === "PRODUCT" ? "작품" : "클래스"}</span>
         {item.active ? <Link to={reviewTargetHref(item.targetType, item.targetId)}>{item.name}</Link> : <span>{item.name} · 현재 이용할 수 없음</span>}
       </div>
       <Button size="sm" variant="outline-secondary" disabled={mutation.isPending}
