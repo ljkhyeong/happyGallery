@@ -1076,18 +1076,22 @@ a.my-list-card:focus-visible {
   padding: 0;
 }
 
-.review-image-upload-label {
+// 후기 사진 추가: 기본 파일 선택 칸은 숨기고(btn-check) 테두리 버튼과 형식 안내를 한 줄에 둔다.
+.review-image-upload {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
-  font-weight: 600;
+  gap: 0.35rem 0.75rem;
+
+  .invalid-feedback {
+    flex-basis: 100%;
+    margin-top: 0;
+  }
 }
 
-.review-image-upload-label span {
+.review-image-upload-hint {
   color: var(--hg-ink-soft);
   font-size: 0.75rem;
-  font-weight: 400;
 }
 
 .review-opportunity-section {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Button, Card } from "react-bootstrap";
 import { Link } from "react-router";
 import type { MemberReviewResponse } from "./api";
-import { ErrorAlert } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert } from "@/shared/ui";
 import { ReviewDate, ReviewStars, ReviewStatusBadge } from "./ReviewDisplay";
 import { ReviewForm } from "./ReviewForm";
 import { ReviewImageUploader } from "./ReviewImageUploader";
@@ -25,8 +25,9 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   return (
     <Card className="review-card member-review-card">
       <Card.Body>
-        <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-          <div>
+        {/* 배지 줄이 길어도(수정됨) 수정·삭제 버튼이 다음 줄로 내려가지 않도록 왼쪽 칸만 줄여 감싼다. */}
+        <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <div className="flex-grow-1" style={{ minWidth: 0 }}>
             <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
               <ReviewStatusBadge status={review.status} />
               <ReviewStars rating={review.rating} />
@@ -42,8 +43,8 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               {review.targetType === "PRODUCT" ? "작품" : "클래스"} · <ReviewDate value={review.createdAt} />
             </div>
           </div>
-          {!editing && !confirmingDelete && (
-            <div className="d-flex gap-2">
+          {!editing && (
+            <div className="d-flex flex-shrink-0 gap-2">
               <Button
                 id={`member-review-edit-${review.id}`}
                 type="button"
@@ -56,7 +57,13 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               >
                 수정
               </Button>
-              <Button type="button" size="sm" variant="outline-dark" onClick={() => setConfirmingDelete(true)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline-dark"
+                aria-haspopup="dialog"
+                onClick={() => setConfirmingDelete(true)}
+              >
                 삭제
               </Button>
             </div>
@@ -102,45 +109,34 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
             : <p className="text-muted-soft small mb-0">작성한 내용 없이 별점만 남긴 후기입니다.</p>
         )}
 
-        {!editing && !confirmingDelete && (
+        {!editing && (
           <>
             <ReviewImageUploader review={review} />
             <ReviewOfficialReply reply={review.officialReply} />
           </>
         )}
 
-        {confirmingDelete && (
-          <Alert variant="danger" className="mb-0">
-            <p className="mb-2">이 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
-            <p className="small mb-2">
-              공방에서 비공개 처리한 후기는 삭제해도 같은 구매 건이나 예약에 다시 쓸 수 없습니다. 그 외 후기는 이용 완료 내역에서 다시 작성할 수 있습니다.
-            </p>
-            <div className="d-flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="dark"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(review)}
-              >
-                {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline-secondary"
-                disabled={deleteMutation.isPending}
-                onClick={() => {
-                  deleteMutation.reset();
-                  setConfirmingDelete(false);
-                }}
-              >
-                취소
-              </Button>
-            </div>
-            <div className="mt-2"><ErrorAlert error={deleteMutation.error} /></div>
-          </Alert>
-        )}
+        {/* 같은 카드의 사진 삭제(ReviewImageUploader)처럼 확인 창에서 되묻는다. */}
+        <ConfirmModal
+          show={confirmingDelete}
+          title="후기 삭제"
+          pending={deleteMutation.isPending}
+          onClose={() => {
+            deleteMutation.reset();
+            setConfirmingDelete(false);
+          }}
+          confirmLabel={deleteMutation.isPending ? "삭제 중..." : "후기 삭제"}
+          confirmVariant="dark"
+          onConfirm={() => deleteMutation.mutate(review)}
+          closeLabel="닫기"
+          cancelLabel="취소"
+        >
+          <p className="mb-2">{review.targetName} 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
+          <p className="small text-muted-soft mb-0">
+            공방에서 비공개 처리한 후기는 삭제해도 같은 구매 건이나 예약에 다시 쓸 수 없습니다. 그 외 후기는 이용 완료 내역에서 다시 작성할 수 있습니다.
+          </p>
+          <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
+        </ConfirmModal>
       </Card.Body>
     </Card>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { Alert, Button, Form } from "react-bootstrap";
+import { Alert, Button } from "react-bootstrap";
 import type { MemberReviewResponse } from "@/generated/api/review";
 import {
   captureCustomerSession,
@@ -84,6 +84,9 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
   });
 
   const remainingCount = MAX_REVIEW_IMAGES - review.images.length;
+  // 비공개 후기는 사진을 더해도 공개되지 않아 추가 버튼을 두지 않는다(등록한 사진 확인·삭제는 그대로).
+  const canAdd = remainingCount > 0 && review.status !== "HIDDEN";
+  if (review.images.length === 0 && !canAdd) return null;
 
   return (
     <section className="review-image-manager" aria-label="후기 사진 관리">
@@ -120,21 +123,21 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
         </div>
       )}
 
-      {remainingCount > 0 && (
+      {canAdd && (
         <div className="review-image-upload mt-3">
-          <Form.Label htmlFor={`review-images-${review.id}`} className="review-image-upload-label">
-            <ImagePlus size={17} aria-hidden="true" /> 사진 추가
-            <span>JPEG·PNG, 장당 5MB 이하 · 최대 {MAX_REVIEW_IMAGES}장</span>
-          </Form.Label>
-          <Form.Control
+          {/* 브라우저 기본 파일 선택 칸 대신 btn-check로 입력을 숨기고 바로 뒤 label을 버튼으로 쓴다(포커스 표시 포함). */}
+          <input
             ref={inputRef}
             id={`review-images-${review.id}`}
+            className="btn-check"
             type="file"
             accept="image/jpeg,image/png"
             multiple
             disabled={uploadMutation.isPending || deleteMutation.isPending}
             aria-invalid={validationMessage !== null}
-            aria-describedby={validationMessage ? `review-image-error-${review.id}` : undefined}
+            aria-describedby={validationMessage
+              ? `review-image-hint-${review.id} review-image-error-${review.id}`
+              : `review-image-hint-${review.id}`}
             onChange={(event) => {
               uploadMutation.reset();
               deleteMutation.reset();
@@ -152,6 +155,12 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               setFiles(selected);
             }}
           />
+          <label htmlFor={`review-images-${review.id}`} className="btn btn-sm btn-outline-dark">
+            <ImagePlus size={15} aria-hidden="true" className="me-1" />사진 추가
+          </label>
+          <span id={`review-image-hint-${review.id}`} className="review-image-upload-hint">
+            JPEG·PNG, 장당 5MB 이하 · 최대 {MAX_REVIEW_IMAGES}장
+          </span>
           {validationMessage && (
             <div id={`review-image-error-${review.id}`} className="invalid-feedback d-block">
               {validationMessage}
