@@ -2259,6 +2259,65 @@ a.my-list-card:focus-visible {
   }
 }
 
+// 모바일에서 작품 칸 아래에 보이는 "수량 × 단가 = 소계" 줄. 넓은 화면은 표의 세 칸이 같은 값을 보인다.
+.my-detail-item-calc {
+  display: none;
+  margin-top: 0.35rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+// 390px에서 작품 칸이 115px로 좁아지던 표를 작품마다 한 덩어리로 쌓고, 금액 합계는 이름·값 두 칸으로 둔다.
+@media (max-width: 575.98px) {
+  .my-detail-table {
+    display: block;
+
+    thead {
+      display: none;
+    }
+
+    tbody,
+    tfoot {
+      display: block;
+    }
+
+    > tbody > tr {
+      display: block;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--hg-border);
+    }
+
+    > tbody > tr > td {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    > tbody > tr > td.my-detail-item-num {
+      display: none;
+    }
+
+    .my-detail-item-calc {
+      display: block;
+    }
+
+    > tfoot > tr {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    > tfoot > tr > * {
+      padding: 0.45rem 0;
+      border: 0;
+    }
+
+    > tfoot > tr:first-child > * {
+      padding-top: 0.85rem;
+    }
+  }
+}
+
 .my-inquiry-card {
   margin-bottom: 0.75rem;
   padding: 1.1rem 1.25rem;

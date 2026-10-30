@@ -45,13 +45,17 @@ export function OrderDetailCard({ order }: Props) {
             </tr>
           </thead>
           <tbody>
-            {order.items.map((item, i) => (
-              <tr key={i}>
+            {order.items.map((item) => (
+              <tr key={item.orderItemId}>
                 <td>
                   <Link to={productDetailHref(item.productId, item.productVariantId)} className="order-item-name">
                     {item.productName}
                   </Link>
                   <OrderOptionList options={item.options} />
+                  {/* 575px 이하에서는 수량·단가·소계 칸을 숨기고 이 한 줄로 보인다. */}
+                  <div className="my-detail-item-calc">
+                    {item.qty}개 × {formatKRW(item.unitPrice)} = <strong>{formatKRW(item.grossAmount)}</strong>
+                  </div>
                   <div className="mt-2">
                     <ProductPurchaseTerms
                       productName={item.productName}
@@ -65,9 +69,9 @@ export function OrderDetailCard({ order }: Props) {
                   </div>
                   <OrderReorderButton item={item} />
                 </td>
-                <td className="text-end">{item.qty}</td>
-                <td className="text-end">{formatKRW(item.unitPrice)}</td>
-                <td className="text-end">{formatKRW(item.grossAmount)}</td>
+                <td className="text-end my-detail-item-num">{item.qty}</td>
+                <td className="text-end my-detail-item-num">{formatKRW(item.unitPrice)}</td>
+                <td className="text-end my-detail-item-num">{formatKRW(item.grossAmount)}</td>
               </tr>
             ))}
           </tbody>
