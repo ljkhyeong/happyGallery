@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Modal, Stack } from "react-bootstrap";
+import { Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { ErrorAlert, ToneBadge, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, ToneBadge, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
 import { normalizePhone } from "@/shared/validation/phone";
@@ -138,9 +138,7 @@ export function GuestClaimModal({
 
                 {preview.orders.length === 0 &&
                   preview.bookings.length === 0 && (
-                    <Alert variant="light" className="mb-0">
-                      가져올 비회원 주문·예약이 없습니다.
-                    </Alert>
+                    <EmptyState message="가져올 비회원 주문·예약이 없습니다." />
                   )}
 
                 {preview.orders.length > 0 && (

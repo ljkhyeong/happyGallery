@@ -11,7 +11,7 @@ import {
   runForCustomerSession, type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { ConfirmModal, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ConfirmModal, EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { GroupInquiryStatusBadge } from "./GroupInquiryStatusBadge";
 
@@ -144,7 +144,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
           <p className="small text-muted mt-3">일정과 인원은 수업 확정 전까지 변경할 수 있습니다. 확정 후 변경은 공방에 문의해 주세요.</p>
           {detail.summary.status === "CONFIRMED" && <WorkshopContactLinks className="d-flex flex-wrap gap-2 mb-3" />}
           <h3 className="h6 mt-4">내 변경 이력</h3>
-          {detail.changes.length === 0 ? <p className="small text-muted">변경 이력이 없습니다.</p> : (
+          {detail.changes.length === 0 ? <EmptyState message="변경 이력이 없습니다." /> : (
             <ul className="ps-3 small">{detail.changes.map((change) => <li key={change.id} className="mb-2">
               <div>{change.note}</div><time className="text-muted">{formatDateTime(change.createdAt)}</time>
             </li>)}</ul>

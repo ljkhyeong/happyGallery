@@ -11,7 +11,7 @@ import {
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
-import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   fetchRecoveredGuestBookings,
   fetchRecoveredGuestOrders,
@@ -111,9 +111,7 @@ export function GuestRecordRecoverySection() {
         <CursorQueryErrorAlert query={bookingsQuery} />
 
         {result && recoveryPagesLoaded && !hasRecords && (
-          <Alert variant="light" className="mt-4 mb-0">
-            인증한 번호로 확인할 수 있는 비회원 주문이나 예약이 없습니다.
-          </Alert>
+          <EmptyState message="인증한 번호로 확인할 수 있는 비회원 주문이나 예약이 없습니다." />
         )}
 
         {result && hasRecords && recoveryView && (
