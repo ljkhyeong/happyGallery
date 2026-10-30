@@ -222,7 +222,7 @@ class SmartStoreInventoryMappingService {
     private void validate(Product product, List<VariantMapping> requested) {
         if (product.getType() == ProductType.READY_STOCK) {
             if (!requested.isEmpty()) {
-                throw new IllegalArgumentException("기성품은 스마트스토어 옵션 번호를 입력하지 않습니다.");
+                throw invalid("기성품은 스마트스토어 옵션 번호를 입력하지 않습니다.");
             }
             return;
         }
@@ -232,10 +232,10 @@ class SmartStoreInventoryMappingService {
                 .map(VariantMapping::productVariantId)
                 .collect(HashSet::new, Set::add, Set::addAll);
         if (requested.size() != requestedIds.size() || !requestedIds.equals(existingIds)) {
-            throw new IllegalArgumentException("주문제작 상품의 모든 옵션 조합에 스마트스토어 옵션 번호를 지정해 주세요.");
+            throw invalid("주문제작 상품의 모든 옵션 조합에 스마트스토어 옵션 번호를 지정해 주세요.");
         }
         if (requested.stream().map(VariantMapping::optionId).distinct().count() != requested.size()) {
-            throw new IllegalArgumentException("스마트스토어 옵션 번호를 중복해서 지정할 수 없습니다.");
+            throw invalid("스마트스토어 옵션 번호를 중복해서 지정할 수 없습니다.");
         }
     }
 
@@ -350,6 +350,11 @@ class SmartStoreInventoryMappingService {
                         mapping.getProductVariantId(), mapping.getOptionId()))
                 .collect(Collectors.joining(", "));
         return summary.isEmpty() ? null : summary;
+    }
+
+    /** 관리자가 고칠 수 있는 입력 오류라 500이 아니라 400 INVALID_INPUT으로 알린다. */
+    private static HappyGalleryException invalid(String message) {
+        return new HappyGalleryException(ErrorCode.INVALID_INPUT, message);
     }
 
     record MappingChangePlan(boolean originChanged) {}

@@ -169,6 +169,30 @@ class SmartStoreOrderInventoryUseCaseIT {
     }
 
     @Test
+    @DisplayName("관리자가 기성품을 옵션 조합과 함께 연결하면 400 INVALID_INPUT으로 거절하고 주문·재고를 바꾸지 않는다")
+    void resolveInventory_readyStockWithVariant_rejectsAsInvalidInput() {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "수동 연결 입력 오류", ProductType.READY_STOCK, null, 35000L, 3, null, null,
+                null, null, null, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        orderService.synchronize(detail("invalid-resolution", null, 2), change("invalid-resolution"));
+        var pending = orderRepository.findById("invalid-resolution").orElseThrow();
+
+        assertThatThrownBy(() -> channelOrderUseCase.resolveInventory(new InventoryResolutionCommand(
+                "invalid-resolution",
+                productId,
+                1L,
+                SmartStoreInventoryResolutionAction.APPLY_REMAINING,
+                "기성품에 옵션 조합 지정",
+                pending.inventoryResolutionVersion()), new AdminActor(17L, "운영 관리자")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        assertThat(quantity(productId, null)).isEqualTo(3);
+        assertThat(orderRepository.findById("invalid-resolution").orElseThrow().getProductId()).isNull();
+    }
+
+    @Test
     @DisplayName("확인 대상 주문 목록은 사유 필터와 커서로 중복 없이 다음 페이지를 조회한다")
     void listAttentionOrders_filtersReasonAndUsesCursor() {
         orderService.synchronize(detail("cursor-1", null, 1),

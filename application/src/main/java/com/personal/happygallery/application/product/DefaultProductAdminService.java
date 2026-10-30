@@ -7,6 +7,8 @@ import com.personal.happygallery.application.product.port.out.InventoryAdjustmen
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
@@ -85,7 +87,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
         Product product = productReaderPort.findByIdWithLock(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         if (command.type() != null && command.type() != product.getType()) {
-            throw new IllegalArgumentException("상품 유형은 변경할 수 없습니다.");
+            throw invalid("상품 유형은 변경할 수 없습니다.");
         }
         product.updateDetails(
                 command.name(), command.category(), command.price(),
@@ -127,14 +129,14 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
         InventoryService.InventoryChange change;
         if (product.getType() == ProductType.MADE_TO_ORDER) {
             if (command.productVariantId() == null) {
-                throw new IllegalArgumentException("주문제작 상품 재고 조정에는 옵션 조합이 필요합니다.");
+                throw invalid("주문제작 상품 재고 조정에는 옵션 조합이 필요합니다.");
             }
             change = variantStockService.adjust(
                     command.productId(), command.productVariantId(),
                     command.type(), command.quantity());
         } else {
             if (command.productVariantId() != null) {
-                throw new IllegalArgumentException("기성품에는 옵션 조합 재고를 지정할 수 없습니다.");
+                throw invalid("기성품에는 옵션 조합 재고를 지정할 수 없습니다.");
             }
             change = inventoryService.adjust(
                     command.productId(), command.type(), command.quantity());
@@ -163,8 +165,13 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
 
     private static int requireReadyStockQuantity(Integer quantity) {
         if (quantity == null || quantity < 1) {
-            throw new IllegalArgumentException("기성품 초기 재고는 1개 이상이어야 합니다.");
+            throw invalid("기성품 초기 재고는 1개 이상이어야 합니다.");
         }
         return quantity;
+    }
+
+    /** 관리자가 고칠 수 있는 입력 오류라 500이 아니라 400 INVALID_INPUT으로 알린다. */
+    private static HappyGalleryException invalid(String message) {
+        return new HappyGalleryException(ErrorCode.INVALID_INPUT, message);
     }
 }

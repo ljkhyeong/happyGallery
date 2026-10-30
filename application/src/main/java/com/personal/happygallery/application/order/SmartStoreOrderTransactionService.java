@@ -161,11 +161,11 @@ class SmartStoreOrderTransactionService {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         if (product.getType() == ProductType.READY_STOCK && productVariantId != null) {
-            throw new IllegalArgumentException("기성품은 옵션 조합 없이 연결해 주세요.");
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "기성품은 옵션 조합 없이 연결해 주세요.");
         }
         if (product.getType() == ProductType.MADE_TO_ORDER) {
             if (productVariantId == null) {
-                throw new IllegalArgumentException("주문제작 상품은 옵션 조합을 선택해 주세요.");
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문제작 상품은 옵션 조합을 선택해 주세요.");
             }
             variantReaderPort.findWithSelectionsById(productVariantId)
                     .filter(found -> found.getProductId().equals(productId))
