@@ -412,6 +412,11 @@ textarea {
     font-size: 1.35rem;
   }
 
+  // 머리글 검색창도 16px로 둬 iPhone Safari가 누를 때 화면을 확대하지 않게 한다.
+  .app-search input {
+    font-size: 1rem;
+  }
+
   .app-account {
     gap: 0.85rem;
   }

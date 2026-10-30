@@ -697,7 +697,8 @@ a.my-list-card:focus-visible {
     .form-select {
       padding-inline: 0.6rem 1.6rem;
       background-position: right 0.45rem center;
-      font-size: 0.82rem;
+      // iPhone Safari가 입력 칸을 누를 때 화면을 확대하지 않도록 16px로 둔다(_foundation.scss 입력 글자 기준).
+      font-size: 1rem;
     }
   }
 }

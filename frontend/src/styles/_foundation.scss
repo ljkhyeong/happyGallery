@@ -18,6 +18,15 @@ body {
   overflow-wrap: break-word;
 }
 
+// iPhone Safari는 글자가 16px보다 작은 입력 칸을 누르면 화면을 확대한다(기본 입력 글자는 15px).
+// 좁은 화면의 입력 글자는 16px로 두고, 확대를 막는 viewport 설정은 접근성 때문에 쓰지 않는다.
+@media (max-width: 767.98px) {
+  .form-control,
+  .form-select {
+    font-size: 1rem;
+  }
+}
+
 // ── 화면 틀 ─────────────────────────────────────────────
 // 머리글·본문·바닥글은 모두 Bootstrap container(최대 1180px, `_variables.scss`)에 같은 좌우 여백을 써서
 // 어느 폭에서나 같은 기준선에 선다. 화면 끝까지 밀어 보는 가로 메뉴는 이 여백만큼 바깥으로 넓힌다.
