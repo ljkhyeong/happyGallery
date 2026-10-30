@@ -68,6 +68,15 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
     : 0;
   // 모든 조합이 품절이라 판매할 수 없으면 담을 칸 없이 선택 옵션만 두어 그 조합의 재입고 알림을 받게 한다.
   const purchasable = product.available;
+  // 다른 칸에서 고른 값과 이어지는 판매 조합이 모두 재고 0이면 목록에 품절을 붙인다. 고를 수는 있어 재입고 알림으로 이어진다.
+  const isSoldOutValue = (groupKey: string, valueKey: string) => {
+    const variants = product.variants.filter((variant) => variant.active
+      && variant.selections.some((selection) => selection.groupKey === groupKey && selection.valueKey === valueKey)
+      && selectGroups.every((other) => other.key === groupKey || !currentSelectedValues[other.key]
+        || variant.selections.some((selection) => selection.groupKey === other.key
+          && selection.valueKey === currentSelectedValues[other.key])));
+    return variants.length > 0 && variants.every((variant) => variant.quantity === 0);
+  };
   const requiredComplete = selectGroups.every(
     (group) => !group.required || Boolean(currentSelectedValues[group.key]),
   ) && textGroups.every(
@@ -123,7 +132,9 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
           >
             <option value="">{group.required ? "선택해 주세요" : "선택 안 함"}</option>
             {group.values.map((value) => (
-              <option key={value.key} value={value.key}>{value.name}</option>
+              <option key={value.key} value={value.key}>
+                {isSoldOutValue(group.key, value.key) ? `${value.name} · 품절` : value.name}
+              </option>
             ))}
           </Form.Select>
         </Form.Group>
