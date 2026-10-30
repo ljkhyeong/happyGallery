@@ -98,7 +98,7 @@ export function AccountWithdrawalModal({
                 </ul>
               </Alert>
             ) : <ErrorAlert error={withdrawal.error} />}
-            <h2 className="h6">회원탈퇴 유의사항</h2>
+            <h2 className="h6">회원 탈퇴 유의사항</h2>
             <ul className="small ps-3">
               <li className="mb-2">
                 탈퇴하면 이 계정으로 로그인할 수 없으며, 계정 개인정보와 비밀번호가
@@ -124,7 +124,7 @@ export function AccountWithdrawalModal({
             <Form.Check
               id="withdrawal-agreement"
               type="checkbox"
-              label="[필수] 회원탈퇴 유의사항을 확인했으며, 탈퇴에 동의합니다."
+              label="[필수] 회원 탈퇴 유의사항을 확인했으며 탈퇴에 동의합니다."
               checked={agreed}
               onChange={(event) => setAgreed(event.target.checked)}
               disabled={withdrawal.isPending}
