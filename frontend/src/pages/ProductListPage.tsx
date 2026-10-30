@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
@@ -10,6 +11,7 @@ import { productListHeading } from "@/features/product/productFilters";
 import { SHOP_CATEGORIES } from "@/features/product/shopCategories";
 import type { ListProductsParams, ProductDetailResponse } from "@/generated/api/product";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 
 interface ProductListPageProps {
   initialProducts: ProductDetailResponse[];
@@ -34,6 +36,8 @@ export function ProductListPage({
   const category = filterParams.category ?? null;
   const sort = filterParams.sort ?? "newest";
   const heading = productListHeading(filterParams);
+  const categoryTabsRef = useRef<HTMLElement>(null);
+  useCenterActiveItem(categoryTabsRef, category);
 
   const hasActiveFilter = Object.keys(filterParams).length > 0;
 
@@ -79,7 +83,7 @@ export function ProductListPage({
       {/* 바로 아래 카테고리 탭이 선을 가지므로 머리 아래 선은 뺀다. */}
       <PageHeader title={heading.title} description={heading.lead} divider={false} />
 
-      <nav className="store-category-tabs" aria-label="카테고리">
+      <nav ref={categoryTabsRef} className="store-category-tabs" aria-label="카테고리">
         <Link
           to={categoryHref(null)}
           preventScrollReset

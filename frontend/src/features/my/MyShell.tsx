@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Container } from "react-bootstrap";
 import { Navigate, NavLink, useLocation, useNavigate } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CustomerSessionChangedError } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 import { LoadingSpinner, useToast } from "@/shared/ui";
 import { MyAuthGateCard } from "./MyAuthGateCard";
 import { findMyNavItem, MY_HOME_PATH, MY_NAV_GROUPS } from "./myNavigation";
@@ -66,14 +67,8 @@ export function MyShell({ children }: { children: ReactNode }) {
 
 function MyShellNav({ pathname }: { pathname: string }) {
   const navRef = useRef<HTMLElement>(null);
-
-  // 모바일 가로 메뉴에서 현재 화면 메뉴가 보이도록 가운데로 옮긴다. 세로 스크롤은 건드리지 않는다.
-  useEffect(() => {
-    const nav = navRef.current;
-    const active = nav?.querySelector<HTMLElement>("a.active");
-    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
-    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
-  }, [pathname]);
+  // 모바일 하위 화면의 가로 메뉴에서 현재 화면 메뉴가 보이게 한다.
+  useCenterActiveItem(navRef, pathname);
 
   return (
     <nav ref={navRef} className="my-shell-nav" aria-label="내 정보 관리 메뉴">

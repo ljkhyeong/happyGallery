@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
@@ -25,6 +26,7 @@ import { EmptyState, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui"
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import { useLoaderBackedQuery } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 
 const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
 
@@ -33,6 +35,8 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const filters = readClassListFilters(searchParams);
   const { passEligibleOnly, tag, when } = filters;
   const heading = classListHeading(filters);
+  const situationChipsRef = useRef<HTMLDivElement>(null);
+  useCenterActiveItem(situationChipsRef, tag ?? when);
   const {
     data: classes,
     error: classesError,
@@ -102,7 +106,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         divider={false}
       />
 
-      <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
+      <div ref={situationChipsRef} className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
         <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>
         {(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((option) => (
           <button key={option} type="button" aria-pressed={when === option} onClick={() => selectSituation({ when: option })}>
