@@ -650,13 +650,18 @@
   gap: 0.75rem;
 }
 
+.home-event-panel.is-empty {
+  color: var(--hg-dark);
+  background: var(--hg-surface-alt);
+}
+
 .home-event-empty {
   align-items: flex-start;
 
   > p {
     max-width: 30rem;
     margin-bottom: 1.75rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--hg-ink-soft-on-alt);
   }
 }
 

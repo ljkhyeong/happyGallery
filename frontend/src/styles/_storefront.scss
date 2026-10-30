@@ -1987,10 +1987,11 @@ a.my-list-card:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+// 두 칸의 머리(제목·전체 보기)가 한 줄로 이어 읽히지 않도록 칸 사이를 넓게 띄운다.
 .my-recent-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
+  gap: 1.5rem 3rem;
   margin-bottom: 1.75rem;
 }
 

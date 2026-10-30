@@ -16,10 +16,12 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
     (event) => event.featured && isEventAvailable(event),
   );
   const featured = featuredEvents.find((event) => isEventOngoing(event)) ?? featuredEvents[0];
+  // 소개할 이벤트가 없으면 먹색 홍보 칸 대신 옅은 회색 면으로 낮춰 옆의 공지보다 무겁게 보이지 않게 한다.
+  const empty = !error && !featured;
 
   return (
     <section
-      className={`home-update-panel home-event-panel${featured?.imageUrl ? " has-media" : ""}`}
+      className={`home-update-panel home-event-panel${featured?.imageUrl ? " has-media" : ""}${empty ? " is-empty" : ""}`}
       aria-labelledby="home-event-title"
     >
       {error && (
@@ -31,11 +33,11 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           />
         </div>
       )}
-      {!error && !featured && (
+      {empty && (
         <div className="home-event-copy home-event-empty">
           <h2 id="home-event-title">이벤트</h2>
           <p>지금 소개할 추천 이벤트가 없습니다.</p>
-          <LinkButton to="/events" variant="outline-light">이벤트 목록</LinkButton>
+          <LinkButton to="/events" variant="outline-dark">이벤트 목록</LinkButton>
         </div>
       )}
       {featured?.imageUrl && (

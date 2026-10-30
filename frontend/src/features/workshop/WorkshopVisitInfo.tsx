@@ -61,7 +61,7 @@ export function WorkshopVisitInfo() {
         </dl>
         <div className="workshop-visit-links">
           {profile.mapUrl && (
-            <a className="workshop-map-link" href={profile.mapUrl} target="_blank" rel="noreferrer">
+            <a className="btn btn-outline-dark btn-sm" href={profile.mapUrl} target="_blank" rel="noreferrer">
               지도에서 보기
             </a>
           )}

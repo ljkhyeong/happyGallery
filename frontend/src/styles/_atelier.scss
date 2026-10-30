@@ -742,18 +742,12 @@ textarea {
   }
 }
 
+// 지도 링크는 홈 공방 소개의 "오시는 길"처럼 테두리 버튼으로 둔다(굵은 글자만으로는 링크로 보이지 않는다).
 .workshop-visit-links {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
   align-items: flex-start;
-}
-
-.workshop-map-link {
-  color: var(--hg-accent-deep);
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
 }
 
 .legal-page-header {
