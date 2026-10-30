@@ -45,7 +45,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext value={contextValue}>
       {children}
-      <BsToastContainer position="top-end" className="p-3" style={{ zIndex: 1080 }}>
+      {/* 화면 기준으로 띄워 스크롤한 위치에서도 보이게 하고, 담기 직후 오른쪽 위 장바구니 숫자를 가리지 않게 가운데에 둔다. */}
+      <BsToastContainer position="top-center" containerPosition="fixed" className="p-3" style={{ zIndex: 1080 }}>
         {toasts.map((t) => (
           <Toast
             key={t.id}
