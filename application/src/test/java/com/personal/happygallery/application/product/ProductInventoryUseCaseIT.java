@@ -327,7 +327,8 @@ class ProductInventoryUseCaseIT {
         Long blueId = current.get(1).id();
         assertThatThrownBy(() -> smartStoreInventoryUseCase.saveMapping(productId,
                 mappingCommand(productId, 123L, true, List.of(new VariantMapping(redId, 101L)))))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
         smartStoreInventoryUseCase.saveMapping(productId, mappingCommand(productId, 123L, true,
                 List.of(new VariantMapping(redId, 101L), new VariantMapping(blueId, 102L))));
 
@@ -543,6 +544,29 @@ class ProductInventoryUseCaseIT {
     // -----------------------------------------------------------------------
     // Proof: 상품 등록 → 201, DB에 inventory row 생성
     // -----------------------------------------------------------------------
+
+    @DisplayName("기성품 등록에 초기 재고가 없거나 0이면 상품을 만들지 않고 400 INVALID_INPUT으로 거절한다")
+    @Test
+    void registerReadyStock_withoutInitialQuantity_rejectsAsInvalidInput() throws Exception {
+        long productCount = productRepository.count();
+        for (String quantity : List.of("", "\"quantity\": 0,")) {
+            mockMvc.perform(post("/api/v1/admin/products")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "name": "재고 없는 수납함",
+                                      "type": "READY_STOCK",
+                                      %s
+                                      "price": 35000
+                                    }
+                                    """.formatted(quantity)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                    .andExpect(jsonPath("$.message").value("기성품 초기 재고는 1개 이상이어야 합니다."));
+        }
+
+        assertThat(productRepository.count()).isEqualTo(productCount);
+    }
 
     @DisplayName("상품 등록과 콘텐츠 수정 결과가 공개 상세에 반영된다")
     @Test
@@ -811,6 +835,17 @@ class ProductInventoryUseCaseIT {
                         null,
                         "local-api-key")))
                 .isInstanceOf(InventoryNotEnoughException.class);
+        assertThatThrownBy(() -> productAdminUseCase.adjustInventory(
+                new ProductAdminUseCase.AdjustInventoryCommand(
+                        product.getId(),
+                        1L,
+                        InventoryAdjustmentType.INCREASE,
+                        1,
+                        "기성품에 옵션 조합 지정",
+                        null,
+                        "local-api-key")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
 
         Inventory current = inventoryRepository.findByProductId(product.getId()).orElseThrow();
         assertSoftly(softly -> {

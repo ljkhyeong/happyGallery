@@ -787,7 +787,7 @@ Content-Type: application/json
   - 공백 카테고리는 미입력과 동일하게 처리한다.
   - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다. 상한은 웹 클라이언트가 원 단위 금액을 정밀도 손실 없이 전달할 수 있는 기술 경계다.
   - `description`, `imageUrl`, `specification`, `careInstructions`는 선택값이며 `imageUrl`은 `/`로 시작하는 서비스 경로 또는 `http(s)` URL이어야 한다.
-  - `MADE_TO_ORDER`는 `specification`과 1~180일 `productionLeadDays`가 필수다. `READY_STOCK`은 `productionLeadDays=null`이어야 한다.
+  - `MADE_TO_ORDER`는 `specification`과 1~180일 `productionLeadDays`가 필수다. `READY_STOCK`은 `productionLeadDays=null`이어야 하고 1 이상의 초기 `quantity`가 필수다(없거나 0이면 `400 INVALID_INPUT`).
   - 주문제작은 선택형 옵션 그룹 최대 3개, 직접입력형 최대 5개, 전체 조합 최대 500개다. 선택 그룹은 미선택 조합을 포함하며 각 variant에 선택값, 가격 추가금, 재고, 판매 여부를 보낸다.
   - 선택형 옵션이 없는 주문제작 상품은 `optionGroups`, `variants`를 생략하고 `quantity`를 보내면 기본 variant 한 개를 만든다. 기성품의 옵션 배열은 생략하거나 빈 배열로 보낸다.
 
@@ -869,7 +869,7 @@ Content-Type: application/json
 
 - 성공: `200 OK`
 - 에러:
-  - `400 INVALID_INPUT` — 유형 누락, 1 미만 수량, 빈 사유 또는 500자 초과 사유
+  - `400 INVALID_INPUT` — 유형 누락, 1 미만 수량, 빈 사유 또는 500자 초과 사유, 상품 유형과 맞지 않는 `productVariantId`(기성품에 지정하거나 주문제작에 누락)
   - `404 NOT_FOUND` — 상품 재고 미존재
   - `409 INVENTORY_NOT_ENOUGH` — 감소 수량이 현재 재고보다 큼
 - 정책:
@@ -922,7 +922,7 @@ Content-Type: application/json
 
 - 성공: `200 OK` — 저장된 매핑의 불투명 `mappingVersion`과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
 - 최초 등록은 `expectedMappingVersion=null`, 수정은 직전 조회·저장 응답의 `mappingVersion`을 보낸다. 현재 값과 다르면 다른 화면에서 설정이 변경·삭제·재등록된 것이므로 `409 CONFLICT`를 반환하며 자동 병합하지 않는다.
-- 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다.
+- 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다. 기성품에 옵션 번호를 보내거나, 주문제작 상품의 현재 조합을 빠뜨리거나, 옵션 번호를 중복 지정하면 `400 INVALID_INPUT`이다.
 - 주문제작 상품은 관리자 상품 응답에 표시되는 현재 조합을 판매 중지 여부와 관계없이 정확히 한 번씩 보내야 한다. 과거 주문 보존용 조합은 입력하지 않는다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
 - 매핑 응답의 `variants`에는 현재 연결만 반환한다. 같은 원상품에서 옵션 구조 변경 또는 같은 조합의 원격 옵션 번호 변경으로 해제된 연결은 내부에 보존하며 자동 재고 전송에서는 0개를 보낸다. 실패하면 기존 재시도 경로에서 현재·과거 옵션을 함께 다시 전송한다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
 - 원상품 번호가 바뀌면 `previousOriginConfirmed=true`가 필수다. 서버는 기존 매핑이 남아 있는 동안 변경 주문을 현재 시점까지 수집하고, 수집 실패·진행 중·남은 페이지가 있으면 `409 CONFLICT`로 저장을 보류한다. 외부 수집 트랜잭션이 끝난 뒤 상품 행을 잠그고 `mappingVersion`을 다시 비교한 경우에만 새 원상품을 저장한다.
@@ -1011,7 +1011,7 @@ Content-Type: application/json
 }
 ```
 
-- `MAPPING_REQUIRED|STATUS_REVIEW` 주문만 처리한다. `productId`는 필수이며 기성품의 `productVariantId`는 명시적 `null`, 주문제작 상품은 해당 상품의 옵션 조합 ID가 필수다.
+- `MAPPING_REQUIRED|STATUS_REVIEW` 주문만 처리한다. `productId`는 필수이며 기성품의 `productVariantId`는 명시적 `null`, 주문제작 상품은 해당 상품의 옵션 조합 ID가 필수다. 어기면 `400 INVALID_INPUT`이다.
 - `action`은 남은 주문 수량까지 차감하는 `APPLY_REMAINING`, 현재 차감 수량을 모두 복원하는 `RESTORE_ALL`, 현재 차감을 유지하고 확인만 끝내는 `KEEP_CURRENT`다. 처리 사유는 500자 이하로 필수다.
 - 주문 잠금 안에서 `resolutionVersion`을 다시 비교하며 대상이 바뀌었으면 `409 CONFLICT`를 반환한다. 이미 재고가 반영된 주문은 다른 상품·옵션 조합으로 바꿀 수 없다.
 - 성공하면 상품 연결·재고 변경·`INVENTORY_RESOLVED` 처리 이력을 같은 트랜잭션으로 저장한다. 재고가 부족하면 연결은 유지하고 `STOCK_SHORTAGE`와 거절 이력을 반환 주문에 남긴다.
