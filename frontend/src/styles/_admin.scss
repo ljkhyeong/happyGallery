@@ -539,7 +539,9 @@
   border-bottom: 1px solid var(--hg-border);
 }
 
+// 날짜를 숨긴 시간표(달력 날짜 칸)에서도 눈금 안내는 오른쪽에 둔다.
 .admin-day-schedule-heading span {
+  margin-left: auto;
   color: var(--hg-ink-soft);
   font-size: 0.75rem;
 }

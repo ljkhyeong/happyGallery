@@ -338,6 +338,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                   endTime={calendarQuery.data.settings.closeTime}
                   items={selectedDaySchedule}
                   emptyMessage="기본 운영시간 전체가 예약 가능 상태입니다."
+                  showDate={false}
                 />
 
                 <Form.Group controlId="booking-calendar-day-reason" className="mb-3">
