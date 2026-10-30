@@ -56,7 +56,7 @@ export function WorkshopVisitInfo() {
               </dd>
             </>
           )}
-          {profile.businessHours && <><dt>운영시간</dt><dd>{profile.businessHours}</dd></>}
+          {profile.businessHours && <><dt>운영 시간</dt><dd>{profile.businessHours}</dd></>}
           {profile.parkingInfo && <><dt>주차</dt><dd>{profile.parkingInfo}</dd></>}
         </dl>
         <div className="workshop-visit-links">

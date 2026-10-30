@@ -50,7 +50,7 @@ test("이용권 구매 전에 사용 가능한 수업을 찾고 필터를 새로
   await expect(filter).toBeChecked();
   await expect(cards).toHaveCount(2);
   await expect(cards.getByRole("heading")).toHaveText(["가죽 공예", "위빙 공예"]);
-  await expect(page.getByRole("link", { name: "가죽 공예 예약하기" }))
+  await expect(page.getByRole("link", { name: "가죽 공예 날짜 선택하기" }))
     .toHaveAttribute("href", "/bookings/new?classId=41");
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
 

@@ -38,7 +38,7 @@ export function NoticeListWidget({ initialNotices }: { initialNotices: NoticeLis
               className="home-notice-row"
             >
               <div className="home-notice-title">
-                {n.pinned && <Badge bg="dark" className="badge-sm">고정</Badge>}
+                {n.pinned && <Badge bg="light" text="dark" className="badge-sm">고정</Badge>}
                 <strong>{n.title}</strong>
               </div>
               <div className="home-notice-meta">

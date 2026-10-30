@@ -65,7 +65,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
           <Badge bg={eventTimingLabel(event) === "진행 중" ? "dark" : "light"}>
             {eventTimingLabel(event)}
           </Badge>
-          {event.featured && <Badge bg="dark">추천</Badge>}
+          {event.featured && <Badge bg="light" text="dark">추천</Badge>}
         </div>
         <h1 className="display-heading mb-3">{event.title}</h1>
         <p className="lead text-muted-soft">{event.summary}</p>

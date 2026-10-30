@@ -8,7 +8,7 @@ export function EventCard({ event }: { event: EventResponse }) {
   const timing = eventTimingLabel(event);
 
   return (
-    <Card className="h-100 overflow-hidden">
+    <Card className="event-card h-100 overflow-hidden">
       {event.imageUrl && (
         <Card.Img
           variant="top"
@@ -20,10 +20,10 @@ export function EventCard({ event }: { event: EventResponse }) {
       <Card.Body className="d-flex flex-column gap-3">
         <div className="d-flex flex-wrap align-items-center gap-2">
           <Badge bg={timing === "진행 중" ? "dark" : "light"}>{timing}</Badge>
-          {event.featured && <Badge bg="dark">추천</Badge>}
+          {event.featured && <Badge bg="light" text="dark">추천</Badge>}
         </div>
         <div>
-          <Card.Title as="h2" className="h5">{event.title}</Card.Title>
+          <Card.Title as="h2" className="h5 display-heading">{event.title}</Card.Title>
           <Card.Text className="text-muted-soft mb-0">{event.summary}</Card.Text>
         </div>
         <EventPeriodText event={event} className="small text-muted-soft mb-0" />

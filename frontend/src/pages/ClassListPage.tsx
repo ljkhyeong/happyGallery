@@ -144,13 +144,14 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
       <div className="class-catalog-list">
         {visibleClasses?.map((bookingClass) => (
           <article className="class-catalog-item" key={bookingClass.id}>
-            <figure className="class-catalog-media">
+            {/* 사진도 제목과 같은 상세로 잇는다. 같은 곳을 두 번 지나지 않도록 사진 링크는 키보드·화면 낭독기에서 뺀다. */}
+            <Link to={`/classes/${bookingClass.id}`} className="class-catalog-media" tabIndex={-1} aria-hidden="true">
               <img
                 src={classImageSrc(bookingClass)}
-                alt={bookingClass.imageUrl ? `${bookingClass.name} 수업` : ""}
+                alt=""
                 loading="lazy"
               />
-            </figure>
+            </Link>
             <div className="class-catalog-content">
               {/* 4회권·상황 표시는 같은 조건의 목록으로 이어진다. */}
               <div className="class-catalog-labels">
@@ -165,14 +166,14 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 ))}
               </div>
               <div className="class-catalog-title-row">
-                <h2>{bookingClass.name}</h2>
+                <h2><Link to={`/classes/${bookingClass.id}`}>{bookingClass.name}</Link></h2>
                 <strong>{formatKRW(bookingClass.price)}</strong>
               </div>
               {bookingClass.description && (
                 <p className="class-catalog-description">{bookingClass.description}</p>
               )}
               <dl className="class-catalog-meta">
-                <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
+                <div><dt>소요 시간</dt><dd>{bookingClass.durationMin}분</dd></div>
                 <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
                 {bookingClass.targetAudience && (
                   <div className="class-catalog-meta-wide"><dt>추천 대상</dt><dd>{bookingClass.targetAudience}</dd></div>
@@ -186,7 +187,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 <LinkButton
                   to={bookingCreateHref(bookingClass.id)}
                   variant="dark"
-                  aria-label={`${bookingClass.name} 예약하기`}
+                  aria-label={`${bookingClass.name} 날짜 선택하기`}
                 >
                   날짜 선택하기
                 </LinkButton>

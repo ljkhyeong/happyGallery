@@ -27,7 +27,7 @@ export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetai
         <header>
           <h1>{notice.title}</h1>
           <p className="notice-meta">
-            {notice.pinned && <Badge bg="dark" className="me-2">고정</Badge>}
+            {notice.pinned && <Badge bg="light" text="dark" className="me-2">고정</Badge>}
             <time dateTime={notice.createdAt}>{formatDateTime(notice.createdAt)}</time> · 조회 {notice.viewCount}
           </p>
         </header>

@@ -519,7 +519,8 @@ textarea {
 // 안내 상자도 먹색 하나로 쓴다. 정보·완료 안내는 회색 면, 주의는 노랑 면에 먹색 글자, 오류만 빨강이다.
 .alert-info,
 .alert-success,
-.alert-secondary {
+.alert-secondary,
+.alert-light {
   --bs-alert-color: var(--hg-dark);
   --bs-alert-bg: var(--hg-surface-alt);
   --bs-alert-border-color: var(--hg-border);
