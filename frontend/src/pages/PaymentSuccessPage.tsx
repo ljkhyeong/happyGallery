@@ -324,7 +324,7 @@ export function PaymentSuccessPage() {
 
   if (confirming) {
     return (
-      <Container className="page-container text-center" style={{ maxWidth: 540 }}>
+      <Container className="page-container is-narrow text-center">
         <LoadingSpinner text={completedOrderId ? "결제 결과를 조회하고 있습니다..." : "결제를 확정하고 있습니다..."} />
       </Container>
     );

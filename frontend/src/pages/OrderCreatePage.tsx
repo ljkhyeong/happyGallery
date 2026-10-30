@@ -74,7 +74,7 @@ function NewOrderDraft({ productId, searchParams }: { productId: number | null; 
     void navigate(`/orders/new?${nextParams}`, { replace: true });
   }, [navigate, productId, searchParams]);
 
-  return <Container className="page-container" style={{ maxWidth: 640 }}>
+  return <Container className="page-container is-form">
     {saveFailed ? <Alert variant="warning">
       주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.
       <Button variant="link" onClick={() => void navigate(0)}>다시 시도</Button>
@@ -194,7 +194,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   }, [moveToNameAfterVerify, step]);
 
   if (draftMissing) {
-    return <Container className="page-container" style={{ maxWidth: 640 }}>
+    return <Container className="page-container is-form">
       <Alert variant="warning">{searchParams.get("draft") === "options"
         ? "선택한 옵션 정보를 불러올 수 없습니다. 작품 상세에서 옵션과 수량을 다시 선택해 주세요."
         : "주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요."}</Alert>
