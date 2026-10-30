@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import type { OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDate, formatKRW, formatTime } from "@/shared/lib";
 import { parseEnumValue } from "@/shared/lib/enum";
 import { ListOrdersStatus } from "@/generated/api/adminOrder";
 import { useOrderMutations } from "./useOrderMutations";
@@ -47,6 +47,17 @@ const STATUS_OPTIONS: ReadonlyArray<{ value: "" | ListOrdersStatus; label: strin
   { value: "PICKUP_EXPIRED", label: "미수령 환불 처리" },
   { value: "PICKUP_FORFEITED", label: "미수령 종료(환불 없음)" },
 ];
+
+/** 좁은 칸에서 날짜·시각이 여러 줄로 꺾이지 않게 날짜와 시각을 한 줄씩 둔다. */
+function DateTimeLines({ value }: { value: string | null | undefined }) {
+  if (!value) return <small>-</small>;
+  return (
+    <small className="d-block">
+      <span className="d-block text-nowrap">{formatDate(value)}</span>
+      <span className="d-block text-nowrap">{formatTime(value)}</span>
+    </small>
+  );
+}
 
 export function OrderListSection({
   adminKey,
@@ -152,6 +163,7 @@ export function OrderListSection({
         <Col xs="auto">
           <RiskActionButton
             variant="outline-secondary"
+            size="default"
             buttonLabel="수령 기한 지난 주문 미수령 처리"
             confirmLabel="미수령 처리 실행"
             title="수령 기한 지난 주문 처리 확인"
@@ -180,7 +192,7 @@ export function OrderListSection({
           <Table responsive hover size="sm">
             <thead>
               <tr>
-                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>처리</th><th></th>
+                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>처리</th>
               </tr>
             </thead>
             <tbody>
@@ -207,23 +219,26 @@ export function OrderListSection({
                   <td><StatusBadge status={o.status} audience="admin" /></td>
                   <td className="text-nowrap">{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "매장 수령" : "-"}</td>
                   <td className="text-nowrap">{formatKRW(o.totalAmount)}</td>
-                  <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
-                  <td><small>{formatDateTime(o.createdAt)}</small></td>
-                  <td><OrderActionCell orderId={o.orderId} status={o.status}
-                    fulfillmentType={o.fulfillmentType} mutations={mutations} /></td>
+                  <td><DateTimeLines value={o.paidAt} /></td>
+                  <td><DateTimeLines value={o.createdAt} /></td>
                   <td>
-                    <Button size="sm" variant="link"
-                      aria-expanded={fulfillmentOrderId === o.orderId}
-                      aria-controls={`order-fulfillment-${o.orderId}`}
-                      onClick={() => setFulfillmentOrderId(fulfillmentOrderId === o.orderId ? null : o.orderId)}>
-                      {fulfillmentOrderId === o.orderId ? "배송·수령 정보 닫기" : "배송·수령 정보"}
-                    </Button>
-                    <Button size="sm" variant="link"
-                      aria-expanded={historyOrderId === o.orderId}
-                      aria-controls={`order-history-${o.orderId}`}
-                      onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
-                      {historyOrderId === o.orderId ? "주문 처리 이력 닫기" : "주문 처리 이력"}
-                    </Button>
+                    <OrderActionCell orderId={o.orderId} status={o.status}
+                      fulfillmentType={o.fulfillmentType} mutations={mutations} />
+                    {/* 따로 칸을 두면 태블릿 폭에서 표가 넘쳐, 처리 버튼 아래에 세로로 둔다. */}
+                    <div className="d-flex flex-column align-items-start mt-1">
+                      <Button size="sm" variant="link" className="text-nowrap px-0"
+                        aria-expanded={fulfillmentOrderId === o.orderId}
+                        aria-controls={`order-fulfillment-${o.orderId}`}
+                        onClick={() => setFulfillmentOrderId(fulfillmentOrderId === o.orderId ? null : o.orderId)}>
+                        {fulfillmentOrderId === o.orderId ? "배송·수령 정보 닫기" : "배송·수령 정보"}
+                      </Button>
+                      <Button size="sm" variant="link" className="text-nowrap px-0"
+                        aria-expanded={historyOrderId === o.orderId}
+                        aria-controls={`order-history-${o.orderId}`}
+                        onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
+                        {historyOrderId === o.orderId ? "주문 처리 이력 닫기" : "주문 처리 이력"}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

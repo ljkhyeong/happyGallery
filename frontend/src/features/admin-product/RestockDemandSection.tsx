@@ -15,11 +15,11 @@ export function RestockDemandSection({ adminKey, onAuthError }: { adminKey: stri
   });
   return <div id="admin-restock-demand">
     <p className="small text-muted">알림 대기 인원이 많은 순서입니다. 구매 예약 수량은 아닙니다.</p>
-    <Button size="sm" variant="outline-secondary" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>대기 인원 새로고침</Button>
+    <Button size="sm" variant="outline-secondary" className="mb-3" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>대기 인원 새로고침</Button>
     {query.isLoading && <LoadingSpinner />}
     <ErrorAlert error={query.error} />
     {query.data?.content.length === 0 && <EmptyState message="재입고 알림을 기다리는 고객이 없습니다." />}
-    {query.data && query.data.content.length > 0 && <Table responsive size="sm" className="mt-2">
+    {query.data && query.data.content.length > 0 && <Table responsive size="sm">
       <thead><tr><th>상품</th><th>신청 옵션</th><th>대기 인원</th><th>재고 관리</th></tr></thead>
       <tbody>{query.data.content.map((row) => <tr key={`${row.productId}:${row.productVariantId ?? 0}`}>
         <td>{row.productName}</td><td>{row.optionLabel}</td><td>{row.waitingCount}명</td>

@@ -81,7 +81,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
   switch (status) {
     case "PAID_APPROVAL_PENDING":
       return (
-        <div className="d-flex gap-1 flex-wrap">
+        <div className="d-flex gap-1 flex-wrap text-nowrap">
           <Button size="sm" variant="success" disabled={pending}
             onClick={() => mutations.approve.mutate(orderId)}>
             {pending ? "처리 중..." : "승인"}
@@ -103,7 +103,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "IN_PRODUCTION":
       return (
-        <div className="d-flex gap-1 flex-wrap">
+        <div className="d-flex gap-1 flex-wrap text-nowrap">
           <Button size="sm" variant="info" disabled={pending}
             onClick={() => mutations.completeProduction.mutate(orderId)}>
             {pending ? "처리 중..." : "제작 완료"}
@@ -117,7 +117,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "DELAY_ACCEPTED":
       return (
-        <div className="d-flex gap-1 flex-wrap">
+        <div className="d-flex gap-1 flex-wrap text-nowrap">
           <Button size="sm" variant="outline-success" disabled={pending}
             onClick={() => mutations.resumeAfterDelay.mutate(orderId)}>
             {pending ? "처리 중..." : "주문 처리 계속"}
@@ -139,7 +139,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "APPROVED_FULFILLMENT_PENDING":
       return (
-        <div className="d-flex gap-1 flex-wrap">
+        <div className="d-flex gap-1 flex-wrap text-nowrap">
           {fulfillmentType === "PICKUP" && (
             <InputGroup size="sm" style={{ width: "auto" }}>
               <Form.Control type="datetime-local" value={pickupDeadline}
@@ -163,7 +163,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "SHIPPING_PREPARING":
       return (
-        <div className="d-flex gap-1 flex-wrap">
+        <div className="d-flex gap-1 flex-wrap text-nowrap">
           {shipDateInput}
           <Form.Select size="sm" aria-label="택배사"
             value={carrierCode}
@@ -192,14 +192,14 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
       );
     case "SHIPPED":
       return (
-        <Button size="sm" variant="success" disabled={pending}
+        <Button size="sm" variant="success" className="text-nowrap" disabled={pending}
           onClick={() => mutations.delivered.mutate(orderId)}>
           {pending ? "처리 중..." : "배송 완료로 표시"}
         </Button>
       );
     case "PICKUP_READY":
       return (
-        <Button size="sm" variant="outline-success" disabled={pending}
+        <Button size="sm" variant="outline-success" className="text-nowrap" disabled={pending}
           onClick={() => mutations.pickupDone.mutate(orderId)}>
           {pending ? "처리 중..." : "매장 수령 완료로 표시"}
         </Button>

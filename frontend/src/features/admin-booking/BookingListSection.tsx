@@ -211,7 +211,7 @@ export function BookingListSection({
   return (
     <div>
       <Row className="g-2 mb-3 align-items-end">
-        <Col xs={12} sm={5}>
+        <Col xs={12} sm={6} md>
           <Form.Group controlId="admin-booking-date-filter">
             <Form.Label>날짜</Form.Label>
             <Form.Control
@@ -221,7 +221,7 @@ export function BookingListSection({
             />
           </Form.Group>
         </Col>
-        <Col xs={12} sm={4}>
+        <Col xs={12} sm={6} md>
           <Form.Group controlId="admin-booking-status-filter">
             <Form.Label>상태</Form.Label>
             <Form.Select
@@ -239,8 +239,9 @@ export function BookingListSection({
             </Form.Select>
           </Form.Group>
         </Col>
-        <Col xs={12} sm={3}>
-          <Button className="w-100" onClick={() => setShowCreate(true)}>
+        {/* 등록 버튼 칸은 글자 폭만큼 두어 태블릿에서도 입력칸 높이의 한 줄로 둔다. */}
+        <Col xs={12} md="auto">
+          <Button className="w-100 text-nowrap" onClick={() => setShowCreate(true)}>
             <CalendarPlus size={16} aria-hidden="true" className="me-1" />
             전화·메신저·방문 예약 등록
           </Button>

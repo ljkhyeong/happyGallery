@@ -47,7 +47,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   return (
     <>
       <ErrorAlert error={statusMutation.error} />
-      <Table responsive hover size="sm">
+      <Table responsive hover size="sm" className="align-middle">
         <thead>
           <tr>
             <th>클래스 번호</th>
@@ -58,7 +58,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
             <th className="text-end">가격</th>
             <th>이용권</th>
             <th>운영 상태</th>
-            <th></th>
+            <th><span className="visually-hidden">관리</span></th>
           </tr>
         </thead>
         <tbody>

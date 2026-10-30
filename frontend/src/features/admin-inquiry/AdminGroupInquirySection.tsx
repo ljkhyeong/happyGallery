@@ -35,7 +35,7 @@ export function AdminGroupInquirySection({ token, onAuthError }: Props) {
   });
   return (
     <div id="admin-group-inquiries">
-      <div className="d-flex flex-wrap gap-2 justify-content-between mb-3">
+      <div className="d-flex flex-wrap align-items-end gap-2 justify-content-between mb-3">
         <Form.Group controlId="group-inquiry-status-filter"><Form.Label>문의 상태</Form.Label>
           <Form.Select value={status} onChange={(event) => { setStatus(event.target.value as GroupInquiryStatus | ""); paging.resetCursor(); setSelectedId(null); }}>
             <option value="">전체</option>{statuses.map((value) => <option key={value} value={value}>{GROUP_INQUIRY_STATUS[value]}</option>)}

@@ -47,7 +47,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
   return (
     <>
       <ErrorAlert error={statusMutation.error} />
-      <Table responsive hover size="sm">
+      <Table responsive hover size="sm" className="align-middle">
         <thead>
           <tr>
             <th>상품 번호</th>
@@ -57,7 +57,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
             <th className="text-end">수량</th>
             <th>판매 상태</th>
             <th>재고 상태</th>
-            <th></th>
+            <th><span className="visually-hidden">관리</span></th>
           </tr>
         </thead>
         <tbody>
@@ -65,7 +65,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
             <tr key={product.id}>
               <td>{product.id}</td>
               <td>{product.name}</td>
-              <td>{PRODUCT_TYPE_LABEL[product.type] ?? "상품 유형 확인 필요"}</td>
+              <td className="text-nowrap">{PRODUCT_TYPE_LABEL[product.type] ?? "상품 유형 확인 필요"}</td>
               <td className="text-end">{formatKRW(product.price)}</td>
               <td className="text-end">{product.quantity}</td>
               <td>
@@ -79,7 +79,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
                   : <Badge bg="warning" text="dark">품절</Badge>}
               </td>
               <td>
-                <div className="d-flex gap-2 justify-content-end flex-wrap" style={{ minWidth: 360 }}>
+                <div className="d-flex gap-2 justify-content-end flex-wrap">
                   <Button
                     size="sm"
                     variant="outline-dark"

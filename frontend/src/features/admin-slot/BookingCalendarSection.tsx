@@ -220,6 +220,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
               <Form.Label>예약 시작 간격</Form.Label>
               <Form.Select
                 value={settings.slotIntervalMin}
+                aria-describedby="booking-calendar-interval-help"
                 onChange={(event) => setSettings((current) => ({
                   ...current, slotIntervalMin: event.target.value,
                 }))}
@@ -228,13 +229,18 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                   <option key={minutes} value={minutes}>{minutes}분</option>
                 ))}
               </Form.Select>
-              <Form.Text className="text-muted">시간표 눈금은 설정과 관계없이 30분입니다.</Form.Text>
             </Form.Group>
           </Col>
           <Col xs={12} md={3}>
             <Button type="submit" className="w-100" disabled={settingsMutation.isPending}>
               {settingsMutation.isPending ? "저장 중..." : "기본 운영시간 저장"}
             </Button>
+          </Col>
+          {/* 칸 아래에 두면 그 칸만 위로 떠서, 입력칸 줄 아래 한 줄로 둔다. */}
+          <Col xs={12}>
+            <Form.Text id="booking-calendar-interval-help" className="text-muted">
+              시간표 눈금은 예약 시작 간격과 관계없이 30분입니다.
+            </Form.Text>
           </Col>
           <Col xs={12}>
             <Form.Check
