@@ -20,7 +20,8 @@ interface Params {
 export function useOrderPaymentTotal({ productAmount, fulfillmentType, couponId, rewardAmount }: Params) {
   // 쿠폰 목록은 MemberOrderBenefits와 같은 캐시를 쓰고, 쿠폰을 고르지 않았으면 조회하지 않는다.
   const couponsQuery = useQuery({ ...myCouponsQuery(), enabled: couponId !== null });
-  const { data: pricePolicy } = useOrderPricePolicy();
+  // 배송비는 택배를 고른 경우에만 필요하다. 그때는 수령 방법 칸이 이미 같은 캐시로 정책을 불러 둔다.
+  const { data: pricePolicy } = useOrderPricePolicy(fulfillmentType === "SHIPPING");
   const coupon = couponId === null
     ? undefined
     : selectableCoupons(couponsQuery.data, productAmount).find((item) => item.id === couponId);
