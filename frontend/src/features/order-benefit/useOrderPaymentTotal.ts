@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { myCouponsQuery } from "@/features/coupon/queries";
+import { orderPaymentTotalLabel, orderShippingFee } from "@/features/order/orderPaymentTotal";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
 import type { FulfillmentType } from "@/features/payment";
-import { formatKRW } from "@/shared/lib";
 import { calculateCouponDiscount, selectableCoupons } from "./policy";
 
 interface Params {
@@ -25,15 +25,9 @@ export function useOrderPaymentTotal({ productAmount, fulfillmentType, couponId,
   const coupon = couponId === null
     ? undefined
     : selectableCoupons(couponsQuery.data, productAmount).find((item) => item.id === couponId);
-  const amount = Math.max(0, productAmount - calculateCouponDiscount(coupon, productAmount) - rewardAmount);
-  let shippingFee: number | null = null;
-  if (fulfillmentType === "PICKUP") {
-    shippingFee = 0;
-  } else if (fulfillmentType === "SHIPPING" && pricePolicy) {
-    shippingFee = pricePolicy.shippingFee;
-  }
+  const amount = productAmount - calculateCouponDiscount(coupon, productAmount) - rewardAmount;
   return {
     label: "결제 예정 금액",
-    amount: shippingFee === null ? `${formatKRW(amount)} + 배송비` : formatKRW(amount + shippingFee),
+    amount: orderPaymentTotalLabel(amount, orderShippingFee(fulfillmentType, pricePolicy?.shippingFee)),
   };
 }
