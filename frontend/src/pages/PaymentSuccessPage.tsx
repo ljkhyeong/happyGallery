@@ -304,7 +304,7 @@ export function PaymentSuccessPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="회원 계정이 변경되었습니다"
@@ -326,7 +326,7 @@ export function PaymentSuccessPage() {
   // 결제창을 거치지 않고 들어왔거나 결제 정보 보관 시간이 지난 경우. 오류가 아니라 확인할 곳을 안내한다.
   if (missingPaymentInfo) {
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="확인할 결제 정보가 없습니다"
@@ -346,7 +346,7 @@ export function PaymentSuccessPage() {
 
   if (paymentStatus && paymentStatus.status !== "COMPLETED") {
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="결제 상태"
@@ -391,7 +391,7 @@ export function PaymentSuccessPage() {
     // 승인 결과를 아직 모르는 결제는 실패가 아니라 고객이 다시 확인할 일이라 notice·노랑 안내로 보인다.
     const statusCheckNotice = statusCheckRequired && !completedOrderId;
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone={statusCheckNotice ? "notice" : "danger"}
           title={completedOrderId
@@ -426,7 +426,7 @@ export function PaymentSuccessPage() {
   }
 
   return (
-    <Container className="page-container">
+    <Container className="page-container is-narrow">
       <PaymentCompletedCard result={result} />
     </Container>
   );

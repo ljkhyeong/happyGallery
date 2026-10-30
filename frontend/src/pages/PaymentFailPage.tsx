@@ -65,7 +65,7 @@ export function PaymentFailPage() {
   const currentStatus = returnHint ? statusQuery.data : undefined;
   if (currentStatus && isCompletedPayment(currentStatus)) {
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentCompletedCard result={currentStatus} />
       </Container>
     );
@@ -73,7 +73,7 @@ export function PaymentFailPage() {
   if (currentStatus && !isEndedWithoutPayment(currentStatus.status)) {
     // 승인 확인·환불이 진행 중인 결제는 새 결제로 이어지지 않게 구매 화면 복귀 없이 상태만 보인다.
     return (
-      <Container className="page-container">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="결제 상태"
@@ -92,7 +92,7 @@ export function PaymentFailPage() {
   }
 
   return (
-    <Container className="page-container">
+    <Container className="page-container is-narrow">
       <PaymentResultCard
         tone="danger"
         title="결제 실패"
