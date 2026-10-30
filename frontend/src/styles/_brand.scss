@@ -629,6 +629,10 @@
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
     font-weight: 500;
     line-height: 1.3;
+    // 820px 언저리에서 마지막 어절("할인")만 다음 줄에 남지 않게 한다. balance만 쓰면 가운뎃점 뒤("가죽·/레진")에서
+    // 끊기 쉬워, pretty를 지원하는 브라우저는 끝줄만 다듬고 지원하지 않으면 balance로 줄 길이를 고르게 나눈다.
+    text-wrap: balance;
+    text-wrap: pretty;
   }
 }
 

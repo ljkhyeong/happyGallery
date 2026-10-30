@@ -82,7 +82,8 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
 
         {visibleRelatedProducts.length > 0 && (
           <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
-            <h2 id="event-related-products" className="h5 display-heading mb-4">관련 작품</h2>
+            {/* 위 "이벤트 쿠폰" 제목과 같은 단계(h2)라 같은 크기로 쓴다. */}
+            <h2 id="event-related-products" className="h4 display-heading mb-4">관련 작품</h2>
             <div className="product-grid">
               {visibleRelatedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
