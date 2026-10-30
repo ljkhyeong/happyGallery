@@ -301,6 +301,12 @@
   &:first-of-type {
     padding-top: 0;
   }
+
+  // 판매할 수 없는 옵션 작품은 옵션 칸 뒤에 금액·결제 칸이 없어 아래 여백과 선을 뺀다.
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
 }
 
 .store-order-sheet-step-heading {

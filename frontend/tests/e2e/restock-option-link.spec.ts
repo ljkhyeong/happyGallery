@@ -127,7 +127,10 @@ test("재입고 내역은 해당 옵션을 선택하고 직접입력과 구매 �
 test("품절 옵션을 고른 비회원은 로그인 후 같은 옵션의 재입고 알림을 신청한다", async ({ page }) => {
   const state = await mockRestockProduct(page, { loggedIn: false, soldOut: true });
   await page.goto("/products/42");
-  await expect(page.getByRole("link", { name: "회원가입 후 구매하기", exact: true })).toBeVisible();
+  // 모든 옵션이 품절이면 구매 버튼과 옵션 추가 없이 옵션만 골라 재입고 알림을 받는다.
+  await expect(page.getByRole("link", { name: "로그인하고 찜하기", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "로그인 후 구매하기", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "선택한 옵션 추가", exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: /색상/ }).selectOption("blue");
   await page.getByRole("combobox", { name: /크기/ }).selectOption("large");
   const login = page.getByRole("link", { name: "로그인하고 재입고 알림 받기", exact: true });

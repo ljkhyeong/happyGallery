@@ -66,6 +66,8 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
       selectedQuantities.get(selectedVariant.id) ?? 0,
     )
     : 0;
+  // 모든 조합이 품절이라 판매할 수 없으면 담을 칸 없이 선택 옵션만 두어 그 조합의 재입고 알림을 받게 한다.
+  const purchasable = product.available;
   const requiredComplete = selectGroups.every(
     (group) => !group.required || Boolean(currentSelectedValues[group.key]),
   ) && textGroups.every(
@@ -127,7 +129,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
         </Form.Group>
       ))}
 
-      {textGroups.map((group) => (
+      {purchasable && textGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>
             {group.required && "[필수] "}{group.name}
@@ -148,18 +150,20 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
         </Form.Group>
       ))}
 
-      {selectedVariant && (
+      {purchasable && selectedVariant && (
         <Form.Text className="d-block">
           같은 옵션 조합으로 추가 가능: {remainingQuantity}개
         </Form.Text>
       )}
       {message && <Alert variant="warning" className="py-2 mb-0">{message}</Alert>}
       {selectedVariant && selectedVariant.quantity === 0 && <RestockAlertButton productId={product.id} productVariantId={selectedVariant.id} />}
-      <Button type="button" variant="outline-dark" onClick={addLine}>
-        선택한 옵션 추가
-      </Button>
+      {purchasable && (
+        <Button type="button" variant="outline-dark" onClick={addLine}>
+          선택한 옵션 추가
+        </Button>
+      )}
 
-      {lines.length > 0 && (
+      {purchasable && lines.length > 0 && (
         <Table responsive size="sm" className="align-middle mb-0">
           <tbody>
             {lines.map((line) => {
