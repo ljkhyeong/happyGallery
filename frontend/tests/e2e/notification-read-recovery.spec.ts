@@ -114,7 +114,7 @@ for (const surface of ["상단", "전체 목록"]) {
     state.fail = true;
     if (surface === "상단") {
       const dialog = await openPopover(page);
-      await dialog.getByRole("button").filter({ hasText: "가죽 지갑" }).click();
+      await dialog.getByRole("link").filter({ hasText: "가죽 지갑" }).click();
     } else {
       await page.locator(".card").filter({ hasText: "가죽 지갑" }).getByRole("link").click();
     }
@@ -130,7 +130,7 @@ test("계정 전환 뒤 도착한 이전 읽음 실패는 표시하지 않는다
   state.hold = true;
   state.fail = true;
   const dialog = await openPopover(page);
-  await dialog.getByRole("button").filter({ hasText: "가죽 지갑" }).click();
+  await dialog.getByRole("link").filter({ hasText: "가죽 지갑" }).click();
   await expect.poll(() => state.requests.length).toBe(1);
   state.accountId = 502;
   await changeAccount(page);

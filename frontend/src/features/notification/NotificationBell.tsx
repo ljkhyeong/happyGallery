@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Nav } from "react-bootstrap";
 import { Bell } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { NotificationContext } from "./NotificationContext";
 import { notificationTarget } from "./notificationTarget";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useUnreadCount, useNotificationList, useReadNotifications } from "./useNotifications";
 import { NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { formatRelativeTime } from "./formatRelativeTime";
@@ -19,7 +19,6 @@ export function NotificationBell() {
 
 function NotificationBellContent() {
   const { isAuthenticated } = useCustomerAuth();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -30,6 +29,7 @@ function NotificationBellContent() {
   const unreadCount = unreadQuery.data;
   const notifications = notificationQuery.data ?? [];
   const readMutation = useReadNotifications();
+  const loadError = notificationQuery.error ?? unreadQuery.error;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -126,42 +126,23 @@ function NotificationBellContent() {
                 />
               </div>
             )}
-            {unreadQuery.error && (
-              <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
-                <span className="small text-danger">읽지 않은 알림 수를 확인하지 못했습니다.</span>
-                <Button
-                  type="button"
-                  variant="outline-dark"
-                  size="sm"
-                  disabled={unreadQuery.isFetching}
-                  onClick={() => void unreadQuery.refetch()}
-                >
-                  {unreadQuery.isFetching ? "확인 중..." : "다시 시도"}
-                </Button>
-              </div>
-            )}
-            {notificationQuery.error && (
-              <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
-                <span className="small text-danger">
-                  {notificationQuery.data
-                    ? "새 알림을 불러오지 못했습니다."
-                    : "알림을 불러오지 못했습니다."}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline-danger"
-                  size="sm"
-                  disabled={notificationQuery.isFetching}
-                  onClick={() => void notificationQuery.refetch()}
-                >
-                  다시 시도
-                </Button>
+            {/* 읽지 않은 수·목록 조회 실패는 다른 오류 안내와 같은 모양으로 한 번에 다시 시도한다. */}
+            {loadError && (
+              <div className="px-3 pt-3">
+                <ErrorAlert
+                  error={loadError}
+                  onRetry={() => {
+                    if (unreadQuery.error) void unreadQuery.refetch();
+                    if (notificationQuery.error) void notificationQuery.refetch();
+                  }}
+                  retrying={unreadQuery.isFetching || notificationQuery.isFetching}
+                />
               </div>
             )}
             {notificationQuery.isPending ? (
               <LoadingSpinner text="알림을 불러오는 중..." />
             ) : notifications.length === 0 && !notificationQuery.error ? (
-              <div className="text-center text-muted py-4 small">알림이 없습니다.</div>
+              <EmptyState message="알림이 없습니다." />
             ) : (
               notifications.map((notification) => {
                 const target = notificationTarget(notification);
@@ -177,7 +158,26 @@ function NotificationBellContent() {
                     </div>
                   </>
                 );
-                const className = `w-100 text-start px-3 py-2 border-0 border-bottom small ${notification.read ? "bg-transparent" : "bg-light"}`;
+                const className = `d-block w-100 text-start px-3 py-2 border-0 border-bottom small ${notification.read ? "bg-transparent" : "bg-light"}`;
+
+                // 이동할 화면이 있는 알림은 링크로 열고(새 탭 열기·주소 복사 가능), 여는 순간 읽음 처리한다.
+                if (target) {
+                  return (
+                    <Link
+                      key={notification.id}
+                      to={target}
+                      className={`${className} text-reset text-decoration-none`}
+                      onClick={() => {
+                        if (!notification.read && !readMutation.isPending) {
+                          readMutation.mutate({ id: notification.id, notifyOnError: true });
+                        }
+                        setOpen(false);
+                      }}
+                    >
+                      {content}
+                    </Link>
+                  );
+                }
 
                 if (!actionable) {
                   return (
@@ -191,18 +191,10 @@ function NotificationBellContent() {
                   <button
                     key={notification.id}
                     type="button"
-                    disabled={readMutation.isPending && !notification.read}
+                    disabled={readMutation.isPending}
                     className={className}
                     style={{ color: "inherit", font: "inherit" }}
-                    onClick={() => {
-                      if (!notification.read) {
-                        readMutation.mutate({ id: notification.id, notifyOnError: Boolean(target) });
-                      }
-                      if (target) {
-                        setOpen(false);
-                        navigate(target);
-                      }
-                    }}
+                    onClick={() => readMutation.mutate({ id: notification.id, notifyOnError: false })}
                   >
                     {content}
                   </button>

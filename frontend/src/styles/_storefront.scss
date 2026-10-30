@@ -2119,6 +2119,26 @@ a.my-list-card:focus-visible {
   text-align: right;
 }
 
+// 알림함: 읽지 않은 알림은 굵은 제목과 제목 앞 먹색 점으로 읽은 알림과 구분한다.
+.my-notification-title {
+  font-weight: 500;
+}
+
+.my-notification-card.is-unread .my-notification-title {
+  font-weight: 700;
+
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.45rem;
+    border-radius: 50%;
+    background: var(--hg-dark);
+    vertical-align: 0.12em;
+  }
+}
+
 // ── 내 정보 상세·문의 카드 ───────────────────────────────
 .my-detail-card {
   margin-bottom: 1.5rem;

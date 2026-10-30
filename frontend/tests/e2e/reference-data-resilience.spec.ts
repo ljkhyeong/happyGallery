@@ -157,9 +157,10 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
   });
   await expect(notificationButton).toBeVisible();
   await notificationButton.click();
-  await expect(page.getByText("읽지 않은 알림 수를 확인하지 못했습니다.")).toBeVisible();
+  const popover = page.getByRole("dialog", { name: "알림 목록" });
+  await expect(popover.getByRole("alert")).toContainText("서비스를 일시적으로 사용할 수 없습니다.");
 
-  await page.getByRole("button", { name: "다시 시도" }).click();
+  await popover.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByRole("button", { name: "알림" }).getByText("3")).toBeVisible();
 });
 
