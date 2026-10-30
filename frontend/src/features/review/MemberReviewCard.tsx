@@ -127,7 +127,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           }}
           confirmLabel={deleteMutation.isPending ? "삭제 중..." : "후기 삭제"}
           confirmVariant="dark"
-          onConfirm={() => deleteMutation.mutate(review)}
+          onConfirm={() => deleteMutation.mutate(review, { onSuccess: () => setConfirmingDelete(false) })}
           closeLabel="닫기"
           cancelLabel="취소"
         >
