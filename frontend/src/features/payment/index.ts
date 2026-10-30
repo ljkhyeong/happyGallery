@@ -16,6 +16,7 @@ export {
   isEndedWithoutPayment,
   isTerminalPaymentStatus,
   PAYMENT_STATUS_POLL_INTERVAL_MS,
+  paymentResultTone,
   paymentStatusPollingInterval,
   shouldPollPaymentStatus,
 } from "./status";

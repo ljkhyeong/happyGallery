@@ -99,18 +99,19 @@ export function PaymentFailPage() {
         lead={<>결제가 완료되지 않았습니다.<br />{message}</>}
         actions={(
           <>
-            {returnPath !== "/" && (
+            {/* 주 버튼은 맨 앞에 하나다. 돌아갈 구매 화면이 없으면 작품 둘러보기가 주 버튼이다. */}
+            {returnPath !== "/" ? (
               <Button variant="primary" disabled={returnMutation.isPending}
                 onClick={() => returnMutation.mutate(currentStatus === undefined)}>
                 {returnMutation.isPending ? "결제 종료 중…" : "구매 화면으로 돌아가기"}
               </Button>
-            )}
+            ) : <LinkButton to="/products" variant="primary">작품 둘러보기</LinkButton>}
             {orderId && returnMutation.isError && !currentStatus && (
               <Button variant="outline-primary" disabled={statusQuery.isFetching}
                 onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
             )}
             <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
-            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>작품 둘러보기</LinkButton>
+            {returnPath !== "/" && <LinkButton to="/products" variant="outline-secondary">작품 둘러보기</LinkButton>}
           </>
         )}
       >

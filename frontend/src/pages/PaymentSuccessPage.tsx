@@ -9,6 +9,7 @@ import {
   isTerminalPaymentStatus,
   PaymentCompletedCard,
   PaymentResultCard,
+  paymentResultTone,
   PaymentStatusNotice,
   readPaymentConfirmSession,
   readPaymentReturnHint,
@@ -348,7 +349,7 @@ export function PaymentSuccessPage() {
     return (
       <Container className="page-container is-narrow">
         <PaymentResultCard
-          tone="notice"
+          tone={paymentResultTone(paymentStatus)}
           title="결제 상태"
           actions={(
             <>
@@ -390,6 +391,17 @@ export function PaymentSuccessPage() {
     const statusCheckRequired = retryable || reconciliationRequired;
     // 승인 결과를 아직 모르는 결제는 실패가 아니라 고객이 다시 확인할 일이라 notice·노랑 안내로 보인다.
     const statusCheckNotice = statusCheckRequired && !completedOrderId;
+    // 주 버튼은 맨 앞에 하나만 둔다. 다시 확인할 수 있으면 다시 확인, 승인되지 않은 결제는 저장한 구매 화면이다.
+    // 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로, 돌아갈 구매 화면을 모르면 홈으로만 안내한다.
+    const primaryAction = completedOrderId || retryable
+      ? (
+        <Button variant="primary" onClick={() => void resolvePayment()}>
+          {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
+        </Button>
+      )
+      : !reconciliationRequired && returnPath !== "/"
+        ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
+        : null;
     return (
       <Container className="page-container is-narrow">
         <PaymentResultCard
@@ -399,23 +411,18 @@ export function PaymentSuccessPage() {
             : statusCheckRequired ? "결제 상태 확인 필요" : "결제 확정 실패"}
           actions={(
             <>
-              {(completedOrderId || retryable) && (
-                <Button variant="primary" onClick={() => void resolvePayment()}>
-                  {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
-                </Button>
-              )}
-              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
-              {/* 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로 저장한 구매 화면으로 보낸다. */}
-              {!retryable && !reconciliationRequired && (returnPath !== "/"
-                ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
-                : <Button variant="primary" onClick={() => navigate(-1)}>이전으로</Button>)}
+              {primaryAction}
+              <LinkButton to="/" variant={primaryAction ? "outline-secondary" : "primary"}>홈으로</LinkButton>
             </>
           )}
         >
-          {statusCheckNotice
-            ? <Alert variant="warning" className="mb-3">{describeError(error)}</Alert>
-            : <ErrorAlert error={error} />}
-          {reconciliationRequired && <WorkshopContactLinks />}
+          {/* 대사가 필요한 결제의 연락 수단은 문의 안내와 같은 상자 안에 둔다(결과 확인 중 안내와 같은 모양). */}
+          {statusCheckNotice ? (
+            <Alert variant="warning" className="mb-0">
+              {describeError(error)}
+              {reconciliationRequired && <WorkshopContactLinks />}
+            </Alert>
+          ) : <ErrorAlert error={error} />}
         </PaymentResultCard>
       </Container>
     );

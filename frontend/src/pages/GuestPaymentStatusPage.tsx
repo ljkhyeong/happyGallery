@@ -8,6 +8,7 @@ import {
   fetchPaymentStatus,
   PaymentCompletionNext,
   PaymentResultCard,
+  paymentResultTone,
   PaymentStatusNotice,
   readPaymentStatusToken,
   isCompletedPayment,
@@ -136,7 +137,7 @@ export function GuestPaymentStatusPage() {
     <Container className="page-container is-narrow">
       <Link to="/guest#payment-help" className="page-back-link">&larr; 조회한 결제 목록</Link>
       <PaymentResultCard
-        tone={completedResult ? "success" : "notice"}
+        tone={paymentResultTone(status)}
         title="결제 상태"
         lead={<span className="text-break">결제번호 {orderId}</span>}
         actions={(
