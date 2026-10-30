@@ -70,6 +70,11 @@ body {
   letter-spacing: $letter-spacing;
 }
 
+// 화면 제목(h1) 크기(README 디자인 기준): 폭에 따라 28~40px. 목록 머리·약관·공지·비회원 조회·결과·오류 화면이 같은 크기를 쓴다.
+@mixin hg-page-title($line-height: null) {
+  @include hg-display-heading(clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem), $line-height: $line-height);
+}
+
 // 크기는 그대로 두고 화면·구역 제목을 명조 500으로 쓴다.
 .display-heading {
   @include hg-display-heading($letter-spacing: -0.02em);

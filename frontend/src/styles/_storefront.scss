@@ -2690,9 +2690,7 @@ a.my-list-card:focus-visible,
 
   h1 {
     margin: 0.25rem 0 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.7rem, 4vw, 2.2rem);
-    font-weight: 500;
+    @include hg-page-title;
   }
 
   > .alert,
