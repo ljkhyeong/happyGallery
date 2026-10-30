@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
 import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, formatPhone, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
+import { orderNumberLabel } from "@/shared/lib/labels";
 import type { OrderDetailResponse } from "@/generated/api/order";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
@@ -30,7 +31,7 @@ export function OrderDetailCard({ order, actions }: Props) {
   return (
     <article className="my-detail-card">
       <header className="my-detail-card-head">
-        <span>{order.orderNumber}</span>
+        <span>{orderNumberLabel(order.orderId)}</span>
         <StatusBadge status={order.status} />
       </header>
       <DetailRows rows={summaryRows} />

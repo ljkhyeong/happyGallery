@@ -513,7 +513,7 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   });
 
   await page.goto("/my/orders/75");
-  const orderCard = page.locator(".my-detail-card").filter({ hasText: "HG-BENEFIT-75" }).first();
+  const orderCard = page.locator(".my-detail-card").filter({ hasText: "주문 #75" }).first();
   await expect(orderCard.getByText("카드·간편결제 금액", { exact: true }).first().locator("..")).toContainText(
     "7,000원",
   );
@@ -530,7 +530,7 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   await expect(refundAlert.getByText(/쿠폰을 다시 사용할 수 있습니다./)).toBeVisible();
 
   await page.goto("/my/orders/76");
-  const couponOnlyCard = page.locator(".my-detail-card").filter({ hasText: "HG-COUPON-ONLY-76" }).first();
+  const couponOnlyCard = page.locator(".my-detail-card").filter({ hasText: "주문 #76" }).first();
   await expect(couponOnlyCard.getByRole("alert").getByText(
     "환불할 결제 금액은 없습니다.",
   )).toBeVisible();

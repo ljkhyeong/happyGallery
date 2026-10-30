@@ -1,6 +1,7 @@
 import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { orderNumberLabel } from "@/shared/lib/labels";
 import type { MyOrderSummary } from "./api";
 import { MyRecentSection } from "./MyRecentSection";
 
@@ -25,7 +26,7 @@ export function MyOrdersSection({ orders, ...state }: Props) {
       itemTo={(order) => `/my/orders/${order.orderId}`}
       renderMain={(order) => (
         <>
-          <strong>주문 #{order.orderId}</strong>
+          <strong>{orderNumberLabel(order.orderId)}</strong>
           <OrderItemSummary items={order.items} />
           <small>{order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}</small>
         </>

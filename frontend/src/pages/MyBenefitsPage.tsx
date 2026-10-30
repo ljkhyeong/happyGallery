@@ -12,6 +12,7 @@ import {
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { orderNumberLabel } from "@/shared/lib/labels";
 import { EmptyState, ErrorAlert, LoadingSpinner, ToneBadge, type CustomerBadgeTone } from "@/shared/ui";
 
 interface CouponStatusBadge {
@@ -104,7 +105,7 @@ export function MyBenefitsPage() {
                       <div className="text-muted-soft small">
                         {formatDateTime(history.createdAt)}
                         {history.orderId !== null && (
-                          <> · <Link to={`/my/orders/${history.orderId}`} className="text-nowrap">주문 #{history.orderId}</Link></>
+                          <> · <Link to={`/my/orders/${history.orderId}`} className="text-nowrap">{orderNumberLabel(history.orderId)}</Link></>
                         )}
                       </div>
                     </div>

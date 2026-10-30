@@ -10,6 +10,7 @@ import {
   type CursorPage,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
 import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   fetchRecoveredGuestBookings,
@@ -140,7 +141,7 @@ export function GuestRecordRecoverySection() {
                         className="d-flex justify-content-between align-items-start gap-3"
                       >
                         <span>
-                          <strong className="d-block">주문 #{order.orderId}</strong>
+                          <strong className="d-block">{orderNumberLabel(order.orderId)}</strong>
                           <small className="text-muted-soft">
                             {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                           </small>
@@ -178,7 +179,7 @@ export function GuestRecordRecoverySection() {
                         <span>
                           <strong className="d-block">{booking.className}</strong>
                           <small className="text-muted-soft">
-                            예약 #{booking.bookingId} · {formatDateTime(booking.startAt)}
+                            {bookingNumberLabel(booking.bookingId)} · {formatDateTime(booking.startAt)}
                           </small>
                         </span>
                         <StatusBadge status={booking.status} />

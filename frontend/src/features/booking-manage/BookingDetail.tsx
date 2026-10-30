@@ -1,4 +1,5 @@
 import { formatKRW, formatPhone } from "@/shared/lib";
+import { bookingNumberLabel } from "@/shared/lib/labels";
 import type { BookingDetailResponse } from "@/generated/api/booking";
 import { BookingInfoCard } from "./BookingInfoCard";
 
@@ -9,7 +10,7 @@ interface Props {
 export function BookingDetail({ booking }: Props) {
   return (
     <BookingInfoCard
-      label={booking.bookingNumber}
+      label={bookingNumberLabel(booking.bookingId)}
       status={booking.status}
       classId={booking.classId}
       className={booking.className}

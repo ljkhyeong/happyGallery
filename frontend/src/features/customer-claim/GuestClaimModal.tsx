@@ -7,6 +7,7 @@ import { trackClientEvent } from "@/features/monitoring/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, ToneBadge, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
+import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
@@ -160,7 +161,7 @@ export function GuestClaimModal({
                           }
                           label={
                             <div className="small">
-                              <div className="fw-semibold">주문 #{order.orderId}</div>
+                              <div className="fw-semibold">{orderNumberLabel(order.orderId)}</div>
                               <div className="text-muted-soft">
                                 {getStatusLabel(order.status)} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                               </div>
@@ -190,11 +191,9 @@ export function GuestClaimModal({
                           }
                           label={
                             <div className="small">
-                              <div className="fw-semibold">
-                                {booking.className} #{booking.bookingId}
-                              </div>
+                              <div className="fw-semibold">{booking.className}</div>
                               <div className="text-muted-soft">
-                                {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
+                                {bookingNumberLabel(booking.bookingId)} · {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
                               </div>
                             </div>
                           }

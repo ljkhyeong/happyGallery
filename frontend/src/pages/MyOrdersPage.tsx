@@ -11,6 +11,7 @@ import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
 import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { orderNumberLabel } from "@/shared/lib/labels";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -71,7 +72,7 @@ export function MyOrdersPage() {
         >
           <Card.Body className="my-list-row py-3 px-3">
             <div className="my-list-main">
-              <div className="fw-semibold small">주문 #{order.orderId}</div>
+              <div className="fw-semibold small">{orderNumberLabel(order.orderId)}</div>
               <OrderItemSummary items={order.items} />
               <small className="text-muted-soft">
                 {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}

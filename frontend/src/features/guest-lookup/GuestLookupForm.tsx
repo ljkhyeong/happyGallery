@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Form } from "react-bootstrap";
-import { parsePositiveId } from "@/shared/lib";
+import { parseGuestRecordNumber } from "./guestRecordNumber";
 
 export type GuestLookupKind = "orders" | "bookings";
 
@@ -21,7 +21,7 @@ export function GuestLookupForm({
   const [touched, setTouched] = useState({ id: false, token: false });
   const label = kind === "orders" ? "주문" : "예약";
   const prefix = kind === "orders" ? "order-detail" : "booking-lookup";
-  const parsedId = parsePositiveId(id);
+  const parsedId = parseGuestRecordNumber(id, kind);
   const validId = parsedId !== null;
   const normalizedToken = token.trim();
 
@@ -37,7 +37,8 @@ export function GuestLookupForm({
           type="text" inputMode="numeric" value={id}
           onChange={(event) => setId(event.target.value)}
           onBlur={() => setTouched((current) => ({ ...current, id: true }))}
-          placeholder={`${label} 번호를 입력해 주세요`}
+          // 화면·알림의 "주문 #123"에서 숫자만 넣어도, 번호 전체를 붙여 넣어도 된다.
+          placeholder="예: 123"
           isInvalid={touched.id && !validId}
           aria-invalid={touched.id && !validId}
           aria-describedby={touched.id && !validId ? `${prefix}-id-error` : undefined}
