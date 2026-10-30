@@ -333,9 +333,10 @@ function BookingCreateContent({
   const passPathSelected = paymentPath === "pass";
   // 이용권으로 예약하는 동안은 결제 수단을 숨기고 요약·버튼도 이용권 기준으로 보인다. 링크로 이용권을 고르고 들어와
   // 회원 확인이나 이용권 목록을 기다리는 동안도 같다. 그 수업에 쓸 수 없거나(fallback) 예약금 결제로 바꾸면 일반 예약이다.
+  // 이용권은 회원만 쓴다. 로그인 확인 전에는 회원으로 보고, 비회원으로 확인되면 일반 예약처럼 모든 수업을 보인다.
+  const requestedPassUsable = hasRequestedPass && (isAuthenticated || authStatus === "unknown");
   const passBooking = passPathSelected || (
-    hasRequestedPass
-    && (isAuthenticated || authStatus === "unknown")
+    requestedPassUsable
     && !requestedPassNeedsFallback
     && !passFallbackAccepted
   );
@@ -434,7 +435,7 @@ function BookingCreateContent({
           initialSlotId={requestedClassId !== null && initialClassId === requestedClassId
             ? requestedSlotId : null}
           selectInitialSlot={selectRequestedSlot}
-          passOnly={hasRequestedPass}
+          passOnly={requestedPassUsable}
           // 수업을 고르자마자 그 수업에 링크의 이용권을 쓸 수 없음을 알린다(시간을 고르기 전에도 보인다).
           classNotice={requestedPassNeedsFallback && !passFallbackAccepted && (
             <Alert variant="warning" className="mt-3 mb-0">
