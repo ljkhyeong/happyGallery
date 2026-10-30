@@ -165,7 +165,7 @@ export function MyPassesPage() {
                   )}
                 </div>
               )}
-              <RefundProgressAlert refund={pass.refund} />
+              <RefundProgressAlert refund={pass.refund} className="mt-3 mb-0" />
             </Card.Body>
           </Card>
         );

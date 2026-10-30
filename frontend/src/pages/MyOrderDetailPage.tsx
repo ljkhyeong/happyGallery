@@ -58,9 +58,11 @@ export function MyOrderDetailPage() {
       {order && (
         <>
           <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
-          <OrderDetailCard order={order} />
+          <OrderDetailCard
+            order={order}
+            actions={order.receiptUrl ? <PaymentReceiptLink receiptUrl={order.receiptUrl} /> : undefined}
+          />
           <ShippingAddressEditPanel order={order} onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all })} />
-          {order.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={order.receiptUrl} /></div>}
           <OrderCustomerActionPanel
             status={order.status}
             pending={cancelMutation.isPending || delayMutation.isPending}

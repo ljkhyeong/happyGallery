@@ -1,5 +1,6 @@
 import { BOOKING_BALANCE_STATUS_LABEL, formatKRW } from "@/shared/lib";
 import { BookingInfoCard } from "@/features/booking-manage/BookingInfoCard";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { MyBookingDetailResponse } from "@/shared/types";
 
 interface Props {
@@ -28,6 +29,7 @@ export function MyBookingDetailCard({ booking }: Props) {
       endAt={booking.endAt}
       refund={booking.refund}
       rows={rows}
+      actions={<PaymentReceiptLink receiptUrl={booking.receiptUrl} />}
     />
   );
 }

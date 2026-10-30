@@ -7,7 +7,6 @@ import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { myNavLabel } from "@/features/my/myNavigation";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
-import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
   cancelMyBooking,
   fetchMyBooking,
@@ -67,7 +66,6 @@ export function MyBookingDetailPage() {
       {booking && (
         <>
           <MyBookingDetailCard booking={booking} />
-          {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
 
           {isBooked && (
             <Card className="mt-4 border-0 my-action-card">

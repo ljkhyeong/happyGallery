@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { Badge, Table } from "react-bootstrap";
 import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
@@ -13,10 +13,12 @@ import { OrderOptionList } from "./OrderOptionList";
 
 interface Props {
   order: OrderDetailResponse;
+  /** 결제 요약 아래에 둘 버튼(회원 주문의 결제 영수증 등) */
+  actions?: ReactNode;
 }
 
 /** 회원·비회원 주문 상세가 함께 쓰는 주문 정보 카드. 예약 정보 카드(BookingInfoCard)와 같은 머리·행·구역으로 쓴다. */
-export function OrderDetailCard({ order }: Props) {
+export function OrderDetailCard({ order, actions }: Props) {
   const itemsTitleId = useId();
   const fulfillmentTitleId = useId();
   const summaryRows: DetailRow[] = [
@@ -32,6 +34,8 @@ export function OrderDetailCard({ order }: Props) {
         <StatusBadge status={order.status} />
       </header>
       <DetailRows rows={summaryRows} />
+      {actions && <div className="my-detail-card-actions">{actions}</div>}
+      <RefundProgressAlert refund={order.refund} couponStatus={order.couponStatus} />
 
       <section className="my-detail-section" aria-labelledby={itemsTitleId}>
         <h3 id={itemsTitleId}>주문한 작품</h3>
@@ -114,7 +118,6 @@ export function OrderDetailCard({ order }: Props) {
           <DetailRows rows={fulfillmentRows(order.fulfillment)} />
         </section>
       )}
-      <RefundProgressAlert refund={order.refund} couponStatus={order.couponStatus} />
     </article>
   );
 }
