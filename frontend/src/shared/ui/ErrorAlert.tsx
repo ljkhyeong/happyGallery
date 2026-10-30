@@ -6,8 +6,11 @@ import type { ErrorCode } from "@/shared/types/error";
 /** 실패가 아니라 운영 설정 상태를 알리는 오류 코드. 다시 시도해도 결과가 같다. */
 const SETTING_STATE_CODES: ReadonlyArray<ErrorCode> = ["SMARTSTORE_DISABLED"];
 
-/** 연동 꺼짐처럼 설정 상태를 알리는 오류인지 확인한다. 같은 안내가 한 영역에 겹치지 않게 할 때도 쓴다. */
-export function isSettingStateError(error: unknown): error is ApiError {
+/**
+ * 연동 꺼짐처럼 설정 상태를 알리는 오류인지 확인한다. 같은 안내가 한 영역에 겹치지 않게 할 때도 쓴다.
+ * false여도 다른 코드의 ApiError일 수 있어 타입 좁히기(error is ApiError) 대신 boolean을 돌려준다.
+ */
+export function isSettingStateError(error: unknown): boolean {
   return error instanceof ApiError && SETTING_STATE_CODES.some((code) => error.is(code));
 }
 
