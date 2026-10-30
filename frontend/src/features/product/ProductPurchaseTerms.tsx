@@ -56,7 +56,7 @@ export function ProductPurchaseTerms({
         </div>
       )}
       {isMadeToOrder && showCustomizationInquiry && (
-        <CustomizationInquiry productNames={[productName]} />
+        <CustomizationInquiry productNames={[productName]} className="product-terms-inquiry" />
       )}
     </div>
   );
@@ -78,7 +78,7 @@ export function MadeToOrderListNotice({ productNames }: { productNames: readonly
   );
 }
 
-function CustomizationInquiry({ productNames }: { productNames: readonly string[] }) {
+function CustomizationInquiry({ productNames, className }: { productNames: readonly string[]; className?: string }) {
   const { data: workshop } = useWorkshopProfile();
   if (!workshop?.naverTalkUrl) return null;
 
@@ -89,6 +89,6 @@ function CustomizationInquiry({ productNames }: { productNames: readonly string[
   ].join("\n");
 
   return (
-    <NaverTalkInquiry message={message} url={workshop.naverTalkUrl} label="맞춤 변경 네이버톡톡 상담" />
+    <NaverTalkInquiry message={message} url={workshop.naverTalkUrl} label="맞춤 변경 네이버톡톡 상담" className={className} />
   );
 }

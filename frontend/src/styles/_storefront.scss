@@ -237,7 +237,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 2rem;
 
-  > .alert {
+  // 안내 줄과 맞춤 상담은 한 줄 전체를 써서, 위 두 칸 아래에 같은 선이 생기게 한다(한 열만 쓰면 왼쪽 칸 아래에만 선이 남는다).
+  > .alert,
+  > .product-terms-inquiry {
     grid-column: 1 / -1;
   }
 
