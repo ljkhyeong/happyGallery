@@ -156,27 +156,66 @@
   }
 }
 
-// 상황별 바로가기: 각진 테두리 칩.
+// 상황별 바로가기 칩: 홈과 클래스 목록이 같은 항목(이번 주말·오늘 바로·상황 태그)을 같은 모양으로 보인다.
+// 손가락으로 누르기 쉽게 높이 2.75rem을 두고, 선택된 칩은 쓰는 곳에서 먹색 채움으로 표시한다.
+@mixin hg-situation-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.95rem;
+  color: var(--hg-dark);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--hg-transition), background var(--hg-transition);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--hg-dark);
+  }
+}
+
+// 4회권·단체수업 안내 칸: 홈과 클래스 목록이 같은 두 곳을 같은 모양(먹색 테두리·명조 제목)으로 잇는다.
+@mixin hg-program-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.6rem 1.75rem;
+  color: var(--hg-dark);
+  border: 1px solid var(--hg-dark);
+  text-decoration: none;
+
+  > strong {
+    font-family: var(--hg-font-display);
+    font-size: 1.4rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  > span {
+    color: #3A3A37;
+    font-size: 0.9rem;
+  }
+
+  &:hover > strong,
+  &:focus-visible > strong {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+}
+
 .gallery-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 
   > a {
-    display: inline-flex;
-    align-items: center;
-    height: 2.75rem;
-    padding: 0 0.95rem;
-    color: var(--hg-dark);
-    border: 1px solid #C9C9C4;
-    font-size: 0.88rem;
-    text-decoration: none;
-    white-space: nowrap;
-
-    &:hover,
-    &:focus-visible {
-      border-color: var(--hg-dark);
-    }
+    @include hg-situation-chip;
   }
 }
 
@@ -281,31 +320,7 @@
   margin-top: 2rem;
 
   > a {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 1.6rem 1.75rem;
-    color: var(--hg-dark);
-    border: 1px solid var(--hg-dark);
-    text-decoration: none;
-
-    > strong {
-      font-family: var(--hg-font-display);
-      font-size: 1.4rem;
-      font-weight: 500;
-      letter-spacing: -0.02em;
-    }
-
-    > span:last-child {
-      color: #3A3A37;
-      font-size: 0.9rem;
-    }
-
-    &:hover strong {
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 4px;
-    }
+    @include hg-program-link;
   }
 }
 
@@ -693,18 +708,7 @@
   margin-bottom: 1rem;
 
   button {
-    padding: 0.45rem 0.95rem;
-    color: var(--hg-dark);
-    background: var(--hg-surface);
-    border: 1px solid var(--hg-border);
-    border-radius: var(--hg-radius);
-    font-size: 0.88rem;
-    font-weight: 650;
-    transition: border-color var(--hg-transition), background var(--hg-transition);
-
-    &:hover {
-      border-color: var(--hg-accent);
-    }
+    @include hg-situation-chip;
 
     &[aria-pressed="true"] {
       color: #FFFFFF;
@@ -885,30 +889,7 @@
   margin-top: 2.5rem;
 
   > a {
-    display: grid;
-    gap: 0.35rem;
-    padding: 1.75rem 2rem;
-    color: var(--hg-dark);
-    background: var(--hg-leaf-tint);
-    border-radius: var(--hg-radius-media);
-    text-decoration: none;
-    transition: background var(--hg-transition);
-
-    &:hover,
-    &:focus-visible {
-      background: #E6E6E2;
-    }
-  }
-
-  strong {
-    font-family: var(--hg-font-display);
-    font-size: 1.35rem;
-    font-weight: 500;
-  }
-
-  span {
-    color: var(--hg-ink-soft);
-    font-size: 0.88rem;
+    @include hg-program-link;
   }
 }
 
