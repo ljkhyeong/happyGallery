@@ -5,7 +5,6 @@ import { myNavLabel } from "@/features/my/myNavigation";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { getMyOrder } from "@/generated/api/customerStore";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
-import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
@@ -62,10 +61,9 @@ export function MyOrderDetailPage() {
             order={order}
             actions={order.receiptUrl ? <PaymentReceiptLink receiptUrl={order.receiptUrl} /> : undefined}
           />
-          <ShippingAddressEditPanel order={order} onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all })} />
           <OrderCustomerActionPanel
-            status={order.status}
-            expectedShipDate={order.fulfillment?.expectedShipDate}
+            order={order}
+            shippingAddressEdit={{ onSaved: () => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }) }}
             pending={cancelMutation.isPending || delayMutation.isPending}
             error={cancelMutation.error ?? delayMutation.error}
             onCancel={() => cancelMutation.mutate()}
