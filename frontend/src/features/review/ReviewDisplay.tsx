@@ -3,7 +3,7 @@ import { formatDateTime } from "@/shared/lib";
 
 export function ReviewStars({ rating }: { rating: number }) {
   return (
-    <span className="review-stars" aria-label={`별점 ${rating}점`}>
+    <span className="review-stars" role="img" aria-label={`별점 ${rating}점`}>
       <span aria-hidden="true">{"★".repeat(rating)}{"☆".repeat(5 - rating)}</span>
     </span>
   );

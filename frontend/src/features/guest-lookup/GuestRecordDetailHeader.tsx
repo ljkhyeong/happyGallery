@@ -50,7 +50,12 @@ export function GuestRecordDetailHeader({ lookup, found, description, submitLabe
       )}
       {/* 조회 후에도 입력값은 유지해야 하므로 지우지 않고 숨긴다. */}
       <div id="guest-relookup" hidden={found && !relookupOpen}>
-        <GuestLookupPanel title={`비회원 ${label} 조회`} kind={lookupKind}>
+        {/* 기록을 찾은 뒤에는 위 머리의 h1이 화면 제목이라 조회 칸은 제목 줄 없이 연다(h1 하나). */}
+        <GuestLookupPanel
+          title={found ? "다른 번호로 찾기" : `비회원 ${label} 조회`}
+          showTitle={!found}
+          kind={lookupKind}
+        >
           <GuestLookupForm
             kind={lookupKind}
             onLookup={lookupRecord}

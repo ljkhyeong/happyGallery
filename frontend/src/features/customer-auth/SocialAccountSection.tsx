@@ -163,7 +163,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     <div className="border-top mt-3 pt-3">
       <div className="d-flex justify-content-between align-items-center gap-3 mb-2">
         <div>
-          <h6 className="mb-1">소셜 로그인</h6>
+          <h3 className="h6 mb-1">소셜 로그인</h3>
         </div>
         {isLoading && (
           <span role="status" aria-live="polite">

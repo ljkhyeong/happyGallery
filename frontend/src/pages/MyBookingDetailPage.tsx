@@ -69,7 +69,7 @@ export function MyBookingDetailPage() {
 
           {isBooked && (
             <Card className="mt-4 border-0 my-action-card">
-              <Card.Header>예약 변경</Card.Header>
+              <Card.Header as="h2">예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small">
                   예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
@@ -95,7 +95,7 @@ export function MyBookingDetailPage() {
           {/* 잔금까지 낸 예약은 고객이 인원을 바꿀 수 없어 취소 칸의 공방 문의 안내로 모은다. */}
           {isBooked && booking.participantCount > 1 && booking.cancelPolicy.cancellable && (
             <Card className="mt-3 border-0 my-action-card">
-              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Header as="h2">예약 인원 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small">
                   취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.

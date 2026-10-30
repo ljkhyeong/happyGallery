@@ -51,7 +51,7 @@ function BookingManageContent() {
 
           {isBooked && (
             <Card className="mt-4 my-action-card border-0">
-              <Card.Header>예약 변경</Card.Header>
+              <Card.Header as="h2">예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">
                   같은 클래스의 예약 가능한 날짜와 시간으로 변경할 수 있습니다.
@@ -72,7 +72,7 @@ function BookingManageContent() {
           {/* 잔금까지 낸 예약은 고객이 인원을 바꿀 수 없어 취소 칸의 공방 문의 안내로 모은다. */}
           {isBooked && booking.participantCount > 1 && booking.cancelPolicy.cancellable && (
             <Card className="mt-3 my-action-card border-0">
-              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Header as="h2">예약 인원 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">
                   취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
@@ -94,7 +94,7 @@ function BookingManageContent() {
 
           {isBooked && (
             <Card className="mt-3 my-action-card border-0">
-              <Card.Header>예약 취소</Card.Header>
+              <Card.Header as="h2">예약 취소</Card.Header>
               <Card.Body>
                 {booking.cancelPolicy.cancellable && (
                   <p className="text-muted-soft small mb-3">

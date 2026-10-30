@@ -124,7 +124,7 @@ export function GuestRecordRecoverySection() {
             <Row className="g-4">
               {orders.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 주문 · 불러온 {orders.length}건</h6>
+                  <h3 className="h6">비회원 주문 · 불러온 {orders.length}건</h3>
                   <ListGroup>
                     {orders.map((order) => (
                       <ListGroup.Item
@@ -160,7 +160,7 @@ export function GuestRecordRecoverySection() {
 
               {bookings.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 예약 · 불러온 {bookings.length}건</h6>
+                  <h3 className="h6">비회원 예약 · 불러온 {bookings.length}건</h3>
                   <ListGroup>
                     {bookings.map((booking) => (
                       <ListGroup.Item

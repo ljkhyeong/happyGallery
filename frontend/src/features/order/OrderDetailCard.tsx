@@ -38,7 +38,7 @@ export function OrderDetailCard({ order, actions }: Props) {
       <RefundProgressAlert refund={order.refund} couponStatus={order.couponStatus} />
 
       <section className="my-detail-section" aria-labelledby={itemsTitleId}>
-        <h3 id={itemsTitleId}>주문한 작품</h3>
+        <h2 id={itemsTitleId}>주문한 작품</h2>
         <Table responsive className="my-detail-table">
           <thead>
             <tr>
@@ -114,7 +114,7 @@ export function OrderDetailCard({ order, actions }: Props) {
 
       {order.fulfillment && (
         <section className="my-detail-section" aria-labelledby={fulfillmentTitleId}>
-          <h3 id={fulfillmentTitleId}>배송·수령 정보</h3>
+          <h2 id={fulfillmentTitleId}>배송·수령 정보</h2>
           <DetailRows rows={fulfillmentRows(order.fulfillment)} />
         </section>
       )}

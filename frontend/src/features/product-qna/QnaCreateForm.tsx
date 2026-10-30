@@ -85,7 +85,7 @@ export function QnaCreateForm({ productId }: Props) {
     ) : (
       <Card className="mb-0 w-100">
         <Card.Body>
-          <h6 className="mb-3">문의 작성</h6>
+          <h3 className="h6 mb-3">문의 작성</h3>
           <Form onSubmit={(event) => {
             event.preventDefault();
             if (!canSubmit || submitting.current) return;
