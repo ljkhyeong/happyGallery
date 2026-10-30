@@ -34,6 +34,8 @@ interface Options<TPage extends CursorPage, TStatus extends string, TSort extend
   sortOptions: readonly { value: TSort; label: string }[];
   defaultSort: TSort;
   refetchInterval?: HistoryRefetchInterval<TPage>;
+  /** 검색어를 서버에 보내기 전에 바꾼다(예: "주문 #123" → "123"). */
+  normalizeKeyword?: (keyword: string) => string;
 }
 
 /** 내 정보 예약·주문·이용권 이력: 주소의 검색 조건, 입력 지연, 커서 페이지 조회를 함께 맡는다. */
@@ -44,6 +46,7 @@ export function useMyHistoryList<TPage extends CursorPage, TStatus extends strin
   sortOptions,
   defaultSort,
   refetchInterval,
+  normalizeKeyword,
 }: Options<TPage, TStatus, TSort>) {
   const filters = useMyListFilters({
     defaultSort,
@@ -51,8 +54,9 @@ export function useMyHistoryList<TPage extends CursorPage, TStatus extends strin
     sortValues: sortOptions.map((option) => option.value),
   });
   const debouncedSearch = useDebouncedValue(filters.searchQuery, 300);
+  const keyword = debouncedSearch.trim();
   const requestFilters: MyHistoryFilters<TStatus, TSort> = {
-    keyword: debouncedSearch.trim() || undefined,
+    keyword: (normalizeKeyword && keyword ? normalizeKeyword(keyword) : keyword) || undefined,
     status: filters.statusFilter === "ALL" ? undefined : filters.statusFilter as TStatus,
     sort: filters.sortValue as TSort,
   };

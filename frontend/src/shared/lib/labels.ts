@@ -109,6 +109,20 @@ export function bookingNumberLabel(bookingId: number): string {
   return `예약 #${bookingId}`;
 }
 
+const RECORD_NUMBER_KEYWORD: Record<"orders" | "bookings", RegExp> = {
+  orders: /^(?:주문\s*)?#\s*0*(\d+)$|^ORD-0*(\d+)$/i,
+  bookings: /^(?:예약\s*)?#\s*0*(\d+)$|^BK-0*(\d+)$/i,
+};
+
+/**
+ * 내 주문·예약 검색어가 화면 표기("주문 #123")나 예전 상세 머리 표기("ORD-00000123")와 같으면 번호(123)로 바꾼다.
+ * 작품명·수업명처럼 번호 표기가 아닌 검색어는 그대로 둔다.
+ */
+export function recordNumberKeyword(keyword: string, kind: "orders" | "bookings"): string {
+  const match = RECORD_NUMBER_KEYWORD[kind].exec(keyword.trim());
+  return match?.[1] ?? match?.[2] ?? keyword;
+}
+
 export type StatusAudience = "customer" | "admin";
 
 const STATUS_LABEL: Record<string, string> = {

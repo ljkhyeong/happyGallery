@@ -11,7 +11,7 @@ import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
 import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { orderNumberLabel } from "@/shared/lib/labels";
+import { orderNumberLabel, recordNumberKeyword } from "@/shared/lib/labels";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -29,6 +29,7 @@ export function MyOrdersPage() {
     statusValues: Object.values(ListMyOrdersPageStatus),
     sortOptions: ORDER_SORT_OPTIONS,
     defaultSort: DEFAULT_SORT,
+    normalizeKeyword: (keyword) => recordNumberKeyword(keyword, "orders"),
   });
   const hasLoadedOrders = query.data !== undefined;
   const statusOptions = [

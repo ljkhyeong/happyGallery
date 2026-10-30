@@ -10,6 +10,7 @@ import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
 import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { recordNumberKeyword } from "@/shared/lib/labels";
 
 const DEFAULT_SORT = "SOONEST";
 const BOOKING_SORT_OPTIONS = [
@@ -26,6 +27,7 @@ export function MyBookingsPage() {
     statusValues: Object.values(ListMyBookingsPageStatus),
     sortOptions: BOOKING_SORT_OPTIONS,
     defaultSort: DEFAULT_SORT,
+    normalizeKeyword: (keyword) => recordNumberKeyword(keyword, "bookings"),
   });
   const hasLoadedBookings = query.data !== undefined;
   const statusOptions = [
