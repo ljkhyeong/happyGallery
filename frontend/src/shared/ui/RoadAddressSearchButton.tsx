@@ -93,7 +93,7 @@ export function RoadAddressSearchButton({ onSelect }: Props) {
     <>
       <Button type="button" variant="outline-dark" onClick={() => setOpen(true)}>주소 검색</Button>
       <Modal show={open} onHide={() => setOpen(false)} centered aria-labelledby="road-address-search-title">
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id="road-address-search-title" className="fs-6">도로명주소 검색</Modal.Title>
         </Modal.Header>
         <Modal.Body>{open && <PostcodeSearch onSelect={select} />}</Modal.Body>

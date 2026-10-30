@@ -82,7 +82,7 @@ export function MemberEmailRegistrationModal({
       keyboard={!busy}
       centered
     >
-      <Modal.Header closeButton={!busy}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!busy}>
         <Modal.Title id="member-email-registration-title" className="fs-6">
           로그인 이메일 등록
         </Modal.Title>

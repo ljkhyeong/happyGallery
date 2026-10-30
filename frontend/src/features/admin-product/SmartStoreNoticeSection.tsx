@@ -148,7 +148,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     )}
 
     <Modal show={editingId !== undefined} onHide={closeEditor} size="lg" centered>
-      <Modal.Header closeButton={!save.isPending}><Modal.Title className="fs-6">
+      <Modal.Header closeLabel="창 닫기" closeButton={!save.isPending}><Modal.Title className="fs-6">
         {editingId === null ? "스마트스토어 상품 공지 등록" : "스마트스토어 상품 공지 수정"}
       </Modal.Title></Modal.Header>
       <Form onSubmit={(event) => {

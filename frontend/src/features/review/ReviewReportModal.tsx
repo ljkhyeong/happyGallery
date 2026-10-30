@@ -97,7 +97,7 @@ export function ReviewReportModal({
             mutation.mutate();
           }}
         >
-          <Modal.Header closeButton={!mutation.isPending}>
+          <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}>
             <Modal.Title id={titleId} className="fs-6">후기 신고</Modal.Title>
           </Modal.Header>
           <Modal.Body>

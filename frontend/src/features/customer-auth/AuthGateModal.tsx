@@ -79,7 +79,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
         onHide={onClose}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id="auth-member-confirm-title">확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -128,7 +128,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
       centered
       size="sm"
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="auth-gate-title" className="fs-6">진행 방식 선택</Modal.Title>
       </Modal.Header>
       <Modal.Body>

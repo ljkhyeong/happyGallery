@@ -70,7 +70,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
         event.preventDefault();
         if (valid) mutation.mutate();
       }}>
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id="admin-class-edit-title">클래스 정보 수정</Modal.Title>
         </Modal.Header>
         <Modal.Body>

@@ -68,7 +68,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
       keyboard={!mutation.isPending}
       centered
     >
-      <Modal.Header closeButton={!mutation.isPending}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}>
         <Modal.Title id="password-change-title" className="fs-6">비밀번호 변경</Modal.Title>
       </Modal.Header>
       <Form onSubmit={submit} aria-busy={mutation.isPending}>

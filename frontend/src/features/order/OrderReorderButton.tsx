@@ -84,7 +84,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
   });
   return (
     <Modal show onHide={() => { if (!mutation.isPending) onClose(); }} centered aria-labelledby={titleId}>
-      <Modal.Header closeButton={!mutation.isPending}><Modal.Title id={titleId}>구매한 작품 다시 담기</Modal.Title></Modal.Header>
+      <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}><Modal.Title id={titleId}>구매한 작품 다시 담기</Modal.Title></Modal.Header>
       <Modal.Body>
         <p className="fw-semibold">{item.productName}</p>
         <p className="small text-muted">이전 주문: {item.qty}개 · 당시 개당 {formatKRW(item.unitPrice)}</p>

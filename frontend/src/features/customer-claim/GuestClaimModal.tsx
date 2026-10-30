@@ -106,7 +106,7 @@ export function GuestClaimModal({
       onHide={onClose}
       centered
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="guest-claim-title" className="fs-6">비회원 주문·예약 가져오기</Modal.Title>
       </Modal.Header>
       <Modal.Body>

@@ -162,7 +162,7 @@ function ReconciliationModal({
           openOrderAfterSave: false,
         });
       }}>
-        <Modal.Header closeButton={!reconcile.isPending}>
+        <Modal.Header closeLabel="창 닫기" closeButton={!reconcile.isPending}>
           <Modal.Title className="fs-6">스마트스토어 주문 처리 결과 확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>

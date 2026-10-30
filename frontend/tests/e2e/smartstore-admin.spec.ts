@@ -305,7 +305,7 @@ test("@admin 스마트스토어 공지 적용은 요청 중 선택을 고정하�
   await expect(selection(2)).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "다음", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+  await expect(dialog.getByRole("button", { name: "창 닫기", exact: true })).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   expect(requests[0]).toEqual({
@@ -1165,7 +1165,7 @@ for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해
     await expect.poll(() => requests.length).toBe(1);
     await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeDisabled();
     await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeDisabled();
-    await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+    await expect(dialog.getByRole("button", { name: "창 닫기", exact: true })).toBeHidden();
     for (const button of await dialog.getByRole("button").all()) await expect(button).toBeDisabled();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeVisible();
@@ -1181,7 +1181,7 @@ for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해
     await fulfillJson(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
     await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeEnabled();
     await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
-    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await dialog.getByRole("button", { name: "창 닫기", exact: true }).click();
     await expect(dialog).toBeHidden();
   });
 }
@@ -1207,11 +1207,11 @@ test("@admin 스마트스토어 재고 재시도는 작성 중인 설정을 유�
   await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
   await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).not.toBeChecked();
   await expect(confirmed).toBeChecked();
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await dialog.getByRole("button", { name: "창 닫기", exact: true }).click();
   await open("다른 작품");
   await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).not.toHaveClass(/table-primary/);
   await expect(dialog.getByRole("button", { name: "연동 저장", exact: true })).toBeDisabled();
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await dialog.getByRole("button", { name: "창 닫기", exact: true }).click();
   await open("연동 작품");
   await expect(dialog.getByRole("button").filter({ hasText: "기존 원상품" })).toHaveClass(/table-primary/);
   await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeChecked();

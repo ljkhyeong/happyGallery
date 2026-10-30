@@ -161,7 +161,7 @@ export function SmartStoreOrderDetailModal({
 
   return (
     <Modal show onHide={() => { if (!action.isPending) onClose(); }} size="lg" centered>
-      <Modal.Header closeButton={!action.isPending}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!action.isPending}>
         <Modal.Title>스마트스토어 주문 처리</Modal.Title>
       </Modal.Header>
       <Modal.Body>

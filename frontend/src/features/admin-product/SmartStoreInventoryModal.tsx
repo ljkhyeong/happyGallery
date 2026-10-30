@@ -232,7 +232,7 @@ export function SmartStoreInventoryModal({
 
   return (
     <Modal show onHide={close} centered size="lg">
-      <Modal.Header closeButton={!isPending}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!isPending}>
         <Modal.Title className="fs-6">{product.name} 스마트스토어 재고 연동</Modal.Title>
       </Modal.Header>
       <Modal.Body>

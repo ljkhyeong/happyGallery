@@ -69,7 +69,7 @@ export function InventoryResolutionModal({
         event.preventDefault();
         if (valid) submit.mutate();
       }}>
-        <Modal.Header closeButton={!submit.isPending}>
+        <Modal.Header closeLabel="창 닫기" closeButton={!submit.isPending}>
           <Modal.Title className="fs-6">스마트스토어 주문 재고 반영 방법 지정</Modal.Title>
         </Modal.Header>
         <Modal.Body>

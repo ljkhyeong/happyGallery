@@ -230,7 +230,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
         centered
       >
         <Form onSubmit={(event) => void handlePasswordReauthentication(event)}>
-          <Modal.Header closeButton={!sensitiveActionPending}>
+          <Modal.Header closeLabel="창 닫기" closeButton={!sensitiveActionPending}>
             <Modal.Title id="social-account-password-confirm-title" className="fs-6">
               비밀번호로 본인 확인
             </Modal.Title>

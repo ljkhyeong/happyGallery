@@ -31,7 +31,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("3");
   await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect(page.getByText("최소 보유 수량을 저장했습니다.", { exact: true })).toBeVisible();
-  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "창 닫기", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
   const panel = page.locator("section.admin-workspace-panel").filter({ hasText: "품절·재고 부족 상품과 옵션" });
   await expect(panel.getByText("재고 기준 작품", { exact: true })).toBeVisible();
@@ -40,7 +40,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("");
   await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect.poll(() => minimumStock).toBeNull();
-  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "창 닫기", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
   await expect(panel.getByText("재고를 채워야 할 판매 중 상품이 없습니다.", { exact: true })).toBeVisible();
 });

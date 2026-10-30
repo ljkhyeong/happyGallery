@@ -128,7 +128,6 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           confirmLabel={deleteMutation.isPending ? "삭제 중..." : "후기 삭제"}
           confirmVariant="dark"
           onConfirm={() => deleteMutation.mutate(review, { onSuccess: () => setConfirmingDelete(false) })}
-          closeLabel="닫기"
         >
           <p className="mb-2">{review.targetName} 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
           <p className="small text-muted-soft mb-0">

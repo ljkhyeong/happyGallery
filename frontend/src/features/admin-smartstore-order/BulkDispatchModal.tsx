@@ -56,7 +56,7 @@ export function BulkDispatchModal({
 
   return <Modal show onHide={() => { if (!dispatch.isPending) onClose(); }} size="lg" centered>
     <Form onSubmit={(event) => { event.preventDefault(); if (valid) dispatch.mutate(); }}>
-      <Modal.Header closeButton={!dispatch.isPending}><Modal.Title className="fs-6">
+      <Modal.Header closeLabel="창 닫기" closeButton={!dispatch.isPending}><Modal.Title className="fs-6">
         스마트스토어 주문 {productOrderIds.length}건 발송
       </Modal.Title></Modal.Header>
       <Modal.Body>

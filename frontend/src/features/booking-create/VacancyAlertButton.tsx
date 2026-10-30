@@ -200,7 +200,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         centered
         aria-labelledby={`vacancy-alert-title-${slotId}`}
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id={`vacancy-alert-title-${slotId}`} className="fs-6">빈자리 알림 신청</Modal.Title>
         </Modal.Header>
         <Modal.Body>

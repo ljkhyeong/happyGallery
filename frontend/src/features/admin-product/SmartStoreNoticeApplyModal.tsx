@@ -35,7 +35,7 @@ export function SmartStoreNoticeApplyModal({ adminKey, notice, onAuthError, onCl
   const close = () => { if (!apply.isPending) onClose(); };
 
   return <Modal show onHide={close} size="lg" centered>
-    <Modal.Header closeButton={!apply.isPending}>
+    <Modal.Header closeLabel="창 닫기" closeButton={!apply.isPending}>
       <Modal.Title className="fs-6">공지를 적용할 상품 선택</Modal.Title>
     </Modal.Header>
     <Modal.Body>

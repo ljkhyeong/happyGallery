@@ -90,7 +90,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
         event.preventDefault();
         if (valid) mutation.mutate();
       }}>
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id="admin-product-edit-title">상품 정보 수정</Modal.Title>
         </Modal.Header>
         <Modal.Body>

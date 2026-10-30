@@ -74,7 +74,7 @@ export function MemberPhoneUpdateModal({
       keyboard={!busy}
       centered
     >
-      <Modal.Header closeButton={!busy}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!busy}>
         <Modal.Title id="member-phone-update-title" className="fs-6">
           휴대폰 번호 {currentPhone ? "변경" : "등록"}
         </Modal.Title>

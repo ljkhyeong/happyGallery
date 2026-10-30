@@ -12,7 +12,7 @@ interface Props {
   /** 요청 중 여부와 별개로 확인을 막을 조건 */
   confirmDisabled?: boolean;
   onConfirm: () => void;
-  /** 머리글 닫기 버튼의 접근성 이름. 비우면 react-bootstrap 기본값을 쓴다. */
+  /** 머리글 X 버튼의 접근성 이름. 아래 "닫기" 버튼과 구분되게 기본값은 "창 닫기"다. */
   closeLabel?: string;
   cancelLabel?: string;
   cancelVariant?: ButtonProps["variant"];
@@ -34,7 +34,7 @@ export function ConfirmModal({
   confirmVariant,
   confirmDisabled = false,
   onConfirm,
-  closeLabel,
+  closeLabel = "창 닫기",
   cancelLabel = "닫기",
   cancelVariant = "outline-secondary",
   extraActions,

@@ -95,7 +95,7 @@ export function InventoryAdjustmentModal({
       centered
       size="lg"
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="admin-inventory-adjustment-title" className="fs-6">
           {product.name} 재고 조정
         </Modal.Title>

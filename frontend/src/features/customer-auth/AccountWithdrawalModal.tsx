@@ -58,7 +58,7 @@ export function AccountWithdrawalModal({
       centered
       scrollable
     >
-      <Modal.Header closeButton={!busy}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!busy}>
         <Modal.Title id="account-withdrawal-title" className="fs-6">회원 탈퇴</Modal.Title>
       </Modal.Header>
       {!reauthenticated ? (
