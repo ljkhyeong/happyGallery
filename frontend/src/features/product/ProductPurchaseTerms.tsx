@@ -10,6 +10,7 @@ interface Props {
   careInstructions: string | null;
   productionLeadDays: number | null;
   compact?: boolean;
+  /** 작품이 여러 개인 목록은 끄고 목록 아래에 `MadeToOrderListNotice`를 한 번만 둔다. */
   showCustomizationInquiry?: boolean;
 }
 
@@ -55,19 +56,35 @@ export function ProductPurchaseTerms({
         </div>
       )}
       {isMadeToOrder && showCustomizationInquiry && (
-        <CustomizationInquiry productName={productName} />
+        <CustomizationInquiry productNames={[productName]} />
       )}
     </div>
   );
 }
 
-function CustomizationInquiry({ productName }: { productName: string }) {
+/** 장바구니·주문서 목록: 주문 제작 작품이 있으면 고정 사양 안내와 맞춤 변경 상담을 목록 아래에 한 번만 보여 준다. */
+export function MadeToOrderListNotice({ productNames }: { productNames: readonly string[] }) {
+  const names = [...new Set(productNames)];
+  if (names.length === 0) return null;
+
+  return (
+    <div className="small mt-3">
+      <Alert variant="info" className="py-2 mb-2">
+        주문 제작 작품은 각 작품에 적힌 사양으로 결제 후 제작합니다.
+        맞춤 변경은 결제 전에 네이버톡톡으로 상담해 주세요.
+      </Alert>
+      <CustomizationInquiry productNames={names} />
+    </div>
+  );
+}
+
+function CustomizationInquiry({ productNames }: { productNames: readonly string[] }) {
   const { data: workshop } = useWorkshopProfile();
   if (!workshop?.naverTalkUrl) return null;
 
   const message = [
     "해피갤러리 작품 맞춤 변경 문의드립니다.",
-    `작품: ${productName}`,
+    `작품: ${productNames.join(", ")}`,
     "원하는 변경: ",
   ].join("\n");
 

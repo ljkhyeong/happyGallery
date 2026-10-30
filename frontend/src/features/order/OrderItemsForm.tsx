@@ -5,7 +5,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput } from "@/shared/types";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
-import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { MadeToOrderListNotice, ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { OrderOptionList } from "./OrderOptionList";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { productSelectionView } from "@/features/product/productSelectionView";
@@ -123,12 +123,15 @@ export function OrderItemsForm({ state, onChange }: Props) {
                 {product && (
                   <ProductPurchaseTerms productName={product.name} type={product.type}
                     specification={product.specification} careInstructions={product.careInstructions}
-                    productionLeadDays={product.productionLeadDays} compact />
+                    productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
                 )}
               </ListGroup.Item>
             ))}
           </ListGroup>
           <div className="text-end fw-bold">합계: {formatKRW(itemAmount)}</div>
+          <MadeToOrderListNotice
+            productNames={lines.flatMap(({ product }) => product?.type === "MADE_TO_ORDER" ? [product.name] : [])}
+          />
         </>
       )}
     </div>

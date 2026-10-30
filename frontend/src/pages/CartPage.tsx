@@ -21,7 +21,7 @@ import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
-import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { MadeToOrderListNotice, ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 
@@ -395,6 +395,7 @@ function CartContent() {
                           careInstructions={item.careInstructions}
                           productionLeadDays={item.productionLeadDays}
                           compact
+                          showCustomizationInquiry={false}
                         />
                       </div>
                     )}
@@ -451,6 +452,9 @@ function CartContent() {
               ))}
             </tbody>
           </Table>
+          <MadeToOrderListNotice
+            productNames={items.filter((item) => item.productType === "MADE_TO_ORDER").map((item) => item.productName)}
+          />
         </CheckoutPanel>
 
         {isAuthenticated && (
