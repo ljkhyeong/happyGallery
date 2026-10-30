@@ -41,7 +41,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   if (isNotFoundError(error)) return <NotFoundPage />;
 
   return (
-    <Container className="page-container" style={{ maxWidth: 900 }}>
+    <Container className="page-container is-reading">
       <Link to="/events" className="page-back-link">
         &larr; 이벤트 목록
       </Link>

@@ -49,6 +49,20 @@ body {
   padding-block: clamp(2rem, 4vw, 3.5rem) clamp(3rem, 6vw, 5rem);
 }
 
+// 본문 폭: 글과 폼이 1180px 틀 끝까지 늘어나지 않게 줄여 가운데에 둔다(인라인 max-width 대신 이 단계만 쓴다).
+// 단일 폼·결과 안내 35rem, 주문서 준비 40rem, 약관·사업자 정보·이벤트 글 56rem.
+.page-container.is-narrow {
+  max-width: 35rem;
+}
+
+.page-container.is-form {
+  max-width: 40rem;
+}
+
+.page-container.is-reading {
+  max-width: 56rem;
+}
+
 // ── Common utilities ───────────────────────────────────
 // 명조 제목 규칙(README 디자인 기준): 명조 글꼴·500 굵기에 제목마다 다른 크기·자간·줄 높이를 더한다.
 // 같은 크기 결정을 두 partial이 반복하지 않도록 선언만 끼워 넣는다. null 인자는 Sass가 출력하지 않는다.

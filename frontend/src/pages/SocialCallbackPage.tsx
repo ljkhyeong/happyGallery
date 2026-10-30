@@ -148,7 +148,7 @@ export function SocialCallbackPage() {
   const signupAttempt = searchParams.get("signupAttempt");
   if (signupAttempt && !error) {
     return (
-      <Container className="page-container" style={{ maxWidth: 480 }}>
+      <Container className="page-container is-narrow">
         <SocialSignupConsent attemptId={signupAttempt} returnTo={returnTo} />
       </Container>
     );

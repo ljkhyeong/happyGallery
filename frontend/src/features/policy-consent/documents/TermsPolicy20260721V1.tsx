@@ -7,7 +7,7 @@ import {
 
 export function TermsPolicy20260721V1() {
   return (
-    <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+    <Container className="page-container legal-page is-reading">
       <header className="legal-page-header">
         <h1>이용약관</h1>
         <p>시행일: 2026년 7월 21일</p>

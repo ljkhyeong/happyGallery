@@ -707,10 +707,11 @@ textarea {
   border-bottom: 0;
 }
 
+// 화면 제목: 휴대폰에서도 40px로 고정되면 다른 화면 제목(22~30px)보다 지나치게 커서 폭에 따라 28~40px로 줄인다.
 .store-section-title {
   margin-bottom: 0.55rem;
   font-family: var(--hg-font-display);
-  font-size: 2.55rem;
+  font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.55rem);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -779,7 +780,7 @@ textarea {
   h1 {
     margin-bottom: 0.75rem;
     font-family: var(--hg-font-display);
-    font-size: 2.5rem;
+    font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem);
     font-weight: 500;
     letter-spacing: 0;
   }
@@ -873,7 +874,6 @@ textarea {
 // 비회원 조회는 입력과 보조 안내의 순서를 명확히 구분한다.
 .guest-lookup-page {
   max-width: 672px;
-  padding-top: clamp(2rem, 5vw, 4rem);
 }
 
 .guest-lookup-panel {
@@ -1046,7 +1046,6 @@ textarea {
 // 공지 상세: 읽기 폭을 좁히고 제목은 세리프로 둔다.
 .notice-detail-page {
   max-width: 760px;
-  padding-bottom: 3rem;
 }
 
 .notice-article {

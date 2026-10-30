@@ -414,6 +414,18 @@
 }
 
 // ── Auth pages ─────────────────────────────────────────
+// 로그인·회원가입 틀: 넓은 화면은 안내·입력 2단(980px), 한 단으로 쌓이는 992px 미만은
+// 입력 칸이 화면 끝까지 늘어나지 않게 비밀번호 재설정과 같은 폭(.is-narrow)으로 줄인다.
+.page-container.auth-page {
+  max-width: 61.25rem;
+}
+
+@media (max-width: 991.98px) {
+  .page-container.auth-page {
+    max-width: 35rem;
+  }
+}
+
 .auth-hero-card,
 .auth-form-card {
   background: var(--hg-surface);

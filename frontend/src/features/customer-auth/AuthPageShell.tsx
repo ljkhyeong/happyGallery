@@ -29,7 +29,7 @@ interface Props {
 /** 로그인·회원가입 화면 틀: 입력 카드와 안내 카드를 2단으로 놓는다(모바일은 입력 카드가 먼저). */
 export function AuthPageShell({ title, children, social, footer, hero }: Props) {
   return (
-    <Container className="page-container" style={{ maxWidth: 980 }}>
+    <Container className="page-container auth-page">
       <Row className="g-4 align-items-stretch">
         <Col lg={{ span: 7, order: 2 }}>
           <Card className="auth-form-card border-0 h-100">

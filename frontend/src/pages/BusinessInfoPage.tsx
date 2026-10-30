@@ -14,7 +14,7 @@ export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: Worksho
   const address = workshopAddress(workshop);
 
   return (
-    <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+    <Container className="page-container legal-page is-reading">
       <header className="legal-page-header">
         <h1>사업자 정보</h1>
       </header>
