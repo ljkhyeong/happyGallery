@@ -152,6 +152,12 @@
   white-space: nowrap;
 }
 
+// 가로로 밀어 보는 표 안의 visually-hidden 글자(절대 위치)가 표 상자 밖 기준 상자에 붙어
+// 좁은 화면 전체를 가로로 밀지 않도록, 표 상자를 기준 상자로 둔다.
+.admin-workspace .table-responsive {
+  position: relative;
+}
+
 .admin-workspace-title + .admin-dashboard {
   border-top: 0;
 }
