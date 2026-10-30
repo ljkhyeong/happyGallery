@@ -105,7 +105,7 @@ function BookingCreateContent({
 }: BookingCreateContentProps) {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, user } = useCustomerAuth();
+  const { isAuthenticated, status: authStatus, user } = useCustomerAuth();
   const matchingResume = memberResume !== null
     && memberResume.boundMemberId !== null
     && memberResume.boundMemberId === user?.id
@@ -185,11 +185,11 @@ function BookingCreateContent({
   const initialClassId = selectedClass?.id ?? requestedClassId;
   const requestedPassCompatible = hasRequestedPass
     && availablePasses.some((pass) => pass.passId === requestedPassId);
+  // 링크의 이용권을 고른 수업에 쓸 수 없다. 이용권을 받지 않는 수업이면 이용권 목록을 기다리지 않고 바로 안다.
   const requestedPassNeedsFallback = hasRequestedPass
     && isAuthenticated
-    && passes !== undefined
     && selectedClass !== null
-    && !requestedPassCompatible;
+    && (!passAccepted || (passes !== undefined && !requestedPassCompatible));
   const requestedPassPrefillPending = hasRequestedPass
     && isAuthenticated
     && requestedPassCompatible
@@ -331,6 +331,14 @@ function BookingCreateContent({
     : null;
 
   const passPathSelected = paymentPath === "pass";
+  // 이용권으로 예약하는 동안은 결제 수단을 숨기고 요약·버튼도 이용권 기준으로 보인다. 링크로 이용권을 고르고 들어와
+  // 회원 확인이나 이용권 목록을 기다리는 동안도 같다. 그 수업에 쓸 수 없거나(fallback) 예약금 결제로 바꾸면 일반 예약이다.
+  const passBooking = passPathSelected || (
+    hasRequestedPass
+    && (isAuthenticated || authStatus === "unknown")
+    && !requestedPassNeedsFallback
+    && !passFallbackAccepted
+  );
   const submitButton = (
     <Button
       variant="primary" size="lg" className="w-100"
@@ -351,15 +359,15 @@ function BookingCreateContent({
         ? "선택 내용 확인 중..."
         : startPayment.isPending
         ? passPathSelected ? "예약 처리 중..." : "결제창 여는 중..."
-        : passPathSelected ? "이용권으로 예약하기" : "결제하기"}
+        : passBooking ? "이용권으로 예약하기" : "결제하기"}
     </Button>
   );
 
   return (
     <Container className="page-container">
       <PageHeader
-        title={hasRequestedPass ? "이용권으로 예약" : "체험 예약"}
-        description={hasRequestedPass
+        title={hasRequestedPass && passBooking ? "이용권으로 예약" : "체험 예약"}
+        description={hasRequestedPass && passBooking
           ? "이용권을 쓸 수 있는 수업만 보여 드립니다. 예약하면 이용권 1회가 차감됩니다."
           : "수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."}
       />
@@ -372,11 +380,11 @@ function BookingCreateContent({
             action={submitButton}
             // 모바일은 요약이 화면 아래에 있으므로 고정 바에 고른 일시를 함께 보여 준다.
             mobileTotal={selectedSlot && selectedClass
-              ? passPathSelected
+              ? passBooking
                 ? { label: formatSlotStart(selectedSlot), amount: "이용권 1회" }
                 : { label: formatSlotStart(selectedSlot), amount: `${formatKRW(depositAmount)} 결제` }
               : undefined}
-            note={selectedSlot && !passPathSelected
+            note={selectedSlot && !passBooking
               ? "결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다. 체험 전날 23:59까지 취소하면 예약금을 환불하며, 체험 당일 00:00부터는 환불되지 않습니다."
               : undefined}
           >
@@ -395,7 +403,7 @@ function BookingCreateContent({
                 ? `${formatSlotStart(selectedSlot)} · ${participantCount}명`
                 : "날짜와 시간을 선택해 주세요"}
             </p>
-            {selectedClass && selectedSlot && (passPathSelected ? (
+            {selectedClass && selectedSlot && (passBooking ? (
               <CheckoutAmounts
                 rows={[{ label: "1인 수업료", value: formatKRW(classPrice) }]}
                 total={{ label: "이용권 차감", value: "1회" }}
@@ -427,6 +435,27 @@ function BookingCreateContent({
             ? requestedSlotId : null}
           selectInitialSlot={selectRequestedSlot}
           passOnly={hasRequestedPass}
+          // 수업을 고르자마자 그 수업에 링크의 이용권을 쓸 수 없음을 알린다(시간을 고르기 전에도 보인다).
+          classNotice={requestedPassNeedsFallback && !passFallbackAccepted && (
+            <Alert variant="warning" className="mt-3 mb-0">
+              <p className="mb-2">
+                링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
+                <Link to="/my/passes?status=ACTIVE">이용권 상태</Link>를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
+              </p>
+              <Button
+                type="button"
+                variant="outline-dark"
+                size="sm"
+                onClick={() => {
+                  setPaymentPath("deposit");
+                  setPassId("");
+                  setPassFallbackAccepted(true);
+                }}
+              >
+                예약금 결제로 계속
+              </Button>
+            </Alert>
+          )}
           selectedSlot={selectedSlot}
           onSelect={(slot) => setSelectedSlot(slot)}
           onDeselect={() => setSelectedSlot(null)}
@@ -491,27 +520,6 @@ function BookingCreateContent({
               />
             )}
 
-            {requestedPassNeedsFallback && !passFallbackAccepted && (
-              <Alert variant="warning">
-                <p className="mb-2">
-                  링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
-                  <Link to="/my/passes?status=ACTIVE">이용권 상태</Link>를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline-dark"
-                  size="sm"
-                  onClick={() => {
-                    setPaymentPath("deposit");
-                    setPassId("");
-                    setPassFallbackAccepted(true);
-                  }}
-                >
-                  예약금 결제로 계속
-                </Button>
-              </Alert>
-            )}
-
             {passPathSelected && (
               <Form.Group controlId="booking-pass" className="mt-3">
                 <Form.Label>사용할 이용권</Form.Label>
@@ -546,7 +554,7 @@ function BookingCreateContent({
           </CheckoutPanel>
         )}
 
-        {paymentPath === "deposit" && (
+        {!passBooking && (
           <CheckoutPanel title="결제 수단">
             <PaymentMethodFields
               value={checkoutSelection}

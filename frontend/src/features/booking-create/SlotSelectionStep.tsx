@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, ListGroup } from "react-bootstrap";
 import {
@@ -30,6 +30,8 @@ interface Props {
   selectInitialSlot?: boolean;
   /** 이용권으로 예약하러 들어온 경우 이용권을 쓸 수 있는 수업만 고르게 한다. */
   passOnly?: boolean;
+  /** 수업 선택 바로 아래에 둘 안내. 링크의 이용권을 고른 수업에 쓸 수 없을 때처럼 수업 때문에 생긴 안내다. */
+  classNotice?: ReactNode;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
@@ -42,6 +44,7 @@ export function SlotSelectionStep({
   initialSlotId,
   selectInitialSlot = false,
   passOnly = false,
+  classNotice,
   selectedSlot,
   onSelect,
   onDeselect,
@@ -187,6 +190,7 @@ export function SlotSelectionStep({
             </Form.Select>
           </Form.Group>
         )}
+        {classNotice}
 
         {selectedClass && (
           <div className="booking-class-detail">
