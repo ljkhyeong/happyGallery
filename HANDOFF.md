@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 관리자 입력 오류 400 정리 (2026-10-30)
+
+- 시작 SHA `4aaba8ee`(main), 브랜치 `codex/work-20261030-admin-input-400`(작업 트리 `.claude/worktrees/admin-input-400`). 디자인 점검 브랜치 `codex/work-20261030-design-review`에서 캡처 데이터를 만들다 관리자 상품 등록이 500을 내는 것을 찾았고, 사용자가 이 세션에서 고치라고 했다. 원격 푸시는 하지 않았다.
+- 변경: 관리자가 고칠 수 있는 입력 오류를 `IllegalArgumentException`(전역 처리기에서 500) 대신 `HappyGalleryException(INVALID_INPUT)`(400)으로 던진다. 대상은 `DefaultProductAdminService`(기성품 초기 재고 누락·0, 상품 유형 변경, 재고 조정의 옵션 조합 지정 규칙), `SmartStoreInventoryMappingService`(옵션 번호 누락·중복·기성품 입력), `SmartStoreOrderTransactionService`(수동 연결의 옵션 조합 규칙)다. 재고 조정 수량 검사(`InventoryService`·`ProductVariantStockService`)는 웹 DTO `@Positive`가 먼저 막아 그대로 뒀다. PRD-0004에 400 조건을 적었고 OpenAPI·생성 client는 바뀌지 않는다(해당 컨트롤러는 작업별 오류 응답을 명세에 적지 않는다).
+- 검증: `:application:compileJava`·`compileTestJava`, `:application:useCaseTest --tests '*ProductInventoryUseCaseIT' --tests '*SmartStoreOrderInventoryUseCaseIT'` 42건 통과(새 테스트 2건: 기성품 재고 누락 등록 400·상품 미생성, 기성품 수동 연결에 옵션 조합 지정 400·주문·재고 불변), `agent-feedback final 4aaba8ee`(diff·architectureTest) 통과.
+- 남은 행동: 사용자가 요청하면 푸시·main PR. 작업 트리의 `gradlew.bat` 줄바꿈 변경은 체크아웃 산출물이라 커밋하지 않는다.
+
 ## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
 
 - 시작 SHA `76dc6990`, 브랜치 `codex/work-20261013-ghcr-anonymous-pull`. 아래 절의 운영 배포가 서버의 만료된 GHCR 로그인으로 `denied` 실패해, 사용자가 "배포마다 토큰을 다시 받아야 하냐"고 물었다. 공개 패키지를 인증 없이 받는 권장안으로 진행하기로 했다.
