@@ -331,7 +331,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       >
         {!user && (
           <CheckoutPanel title="휴대폰 인증">
-            {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
+            {!code && verificationReset.message && <Alert variant="warning">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
               key={verificationReset.version}
               initialPhone={phone}

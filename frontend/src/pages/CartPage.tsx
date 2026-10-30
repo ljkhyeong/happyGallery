@@ -313,7 +313,7 @@ function CartContent() {
               />
             ) : (
               <>
-                {selectedItems.length === 0 && <Alert variant="info">구매할 작품을 선택해 주세요.</Alert>}
+                {selectedItems.length === 0 && <Alert variant="warning">구매할 작품을 선택해 주세요.</Alert>}
                 {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
                   {item.productName}: 같은 작품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
                   현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
