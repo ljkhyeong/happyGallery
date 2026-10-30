@@ -1,11 +1,11 @@
 // ── 홈·클래스·단체수업 화면 ──────────────────────────────
 // 홈은 첫 화면·새로 올라온 작품·공방 클래스·재료별로 보기 순서이고, 섹션은 흰 면과 옅은 회색 면을 번갈아 쓴다.
 
+// 칸이 좁은 카드·표 안에서 긴 낱말이 칸을 밀어내지 않도록 최소 폭 계산에서도 끊을 수 있게 둔다.
 .gallery-section,
 .class-catalog-page,
 .class-detail-page,
 .group-class-page {
-  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 

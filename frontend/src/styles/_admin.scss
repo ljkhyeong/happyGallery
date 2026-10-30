@@ -95,12 +95,6 @@
   text-align: left;
 }
 
-// 한글이 글자 단위로 끊겨 표가 화면 폭에 눌리지 않게 단어 단위로 줄바꿈한다.
-// 좁은 화면에서는 Table responsive의 가로 스크롤로 본다.
-.admin-workspace .table {
-  word-break: keep-all;
-}
-
 .admin-workspace .table > thead th {
   white-space: nowrap;
 }
