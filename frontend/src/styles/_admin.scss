@@ -54,8 +54,25 @@
 }
 
 .admin-workspace-panel {
+  position: relative;
   padding-block: 1.5rem;
   border-bottom: 1px solid var(--hg-border);
+}
+
+// 목록 위 "새로 만들기" 버튼 줄. 패널 안에서는 상품·클래스 등록 패널처럼 제목 줄 오른쪽에 둔다.
+.admin-panel-create {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.admin-workspace-panel .admin-panel-create {
+  position: absolute;
+  top: 1.5rem;
+  right: 0;
+  margin: 0;
+  // 작은 버튼(약 31px)을 제목 줄(약 19px) 가운데에 맞춘다.
+  transform: translateY(-0.375rem);
 }
 
 .admin-workspace-panel > h5 {

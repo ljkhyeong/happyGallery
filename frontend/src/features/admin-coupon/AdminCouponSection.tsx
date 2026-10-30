@@ -178,8 +178,8 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
 
   return (
     <div>
-      <div className="d-flex justify-content-end mb-3">
-        <Button type="button" size="sm" variant="outline-primary" onClick={toggleForm}>
+      <div className="admin-panel-create">
+        <Button type="button" size="sm" variant={showForm ? "outline-secondary" : "primary"} onClick={toggleForm}>
           {showForm ? "취소" : "새 쿠폰 등록"}
         </Button>
       </div>

@@ -173,8 +173,8 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
 
   return (
     <div>
-      <div className="d-flex justify-content-end mb-3">
-        <Button size="sm" variant="outline-primary" onClick={toggleForm}>
+      <div className="admin-panel-create">
+        <Button size="sm" variant={showForm ? "outline-secondary" : "primary"} onClick={toggleForm}>
           {showForm ? "취소" : "새 이벤트 작성"}
         </Button>
       </div>

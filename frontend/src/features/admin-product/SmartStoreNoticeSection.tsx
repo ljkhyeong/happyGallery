@@ -95,7 +95,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
   const integrationOff = isSettingStateError(notices.error);
 
   return <>
-    <div className="d-flex justify-content-end mb-3">
+    <div className="admin-panel-create">
       <Button size="sm" disabled={integrationOff} onClick={() => openEditor(null)}>공지 등록</Button>
     </div>
     {notices.isLoading && <LoadingSpinner />}
