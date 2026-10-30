@@ -5,6 +5,7 @@ import { Button, Form, Modal } from "react-bootstrap";
 import { Link } from "react-router";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { contentLengthLabel } from "@/shared/validation/contentText";
 import { submitReviewReport, type ReviewReportReason } from "./api";
 import { REVIEW_REPORT_REASON_LABELS } from "./reviewLabels";
 
@@ -125,7 +126,7 @@ export function ReviewReportModal({
                 disabled={mutation.isPending}
                 onChange={(event) => setDetail(event.target.value)}
               />
-              <Form.Text>{detail.length.toLocaleString("ko-KR")} / 1,000자</Form.Text>
+              <Form.Text>{contentLengthLabel(detail, 1000)}</Form.Text>
             </Form.Group>
             <div className="mt-3"><ErrorAlert error={mutation.error} /></div>
           </Modal.Body>

@@ -20,6 +20,7 @@ import type { OrderDetailResponse } from "@/generated/api/order";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner, ToneBadge, useToast, type CustomerBadgeTone } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { contentLengthLabel } from "@/shared/validation/contentText";
 
 type ClaimAccess =
   | { kind: "member" }
@@ -240,7 +241,7 @@ export function OrderClaimSection({ order, access }: Props) {
               disabled={requestClaim.isPending}
               onChange={(event) => setReason(event.target.value)}
             />
-            <Form.Text className="text-muted">{reason.length}/1000자</Form.Text>
+            <Form.Text className="text-muted">{contentLengthLabel(reason, 1000)}</Form.Text>
           </Form.Group>
 
           <Button type="submit" disabled={!canSubmit || requestClaim.isPending}>
