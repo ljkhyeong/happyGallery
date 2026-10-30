@@ -124,7 +124,7 @@ export function AccountWithdrawalModal({
             <Form.Check
               id="withdrawal-agreement"
               type="checkbox"
-              label="회원탈퇴 유의사항을 확인했으며, 탈퇴에 동의합니다. (필수)"
+              label="[필수] 회원탈퇴 유의사항을 확인했으며, 탈퇴에 동의합니다."
               checked={agreed}
               onChange={(event) => setAgreed(event.target.checked)}
               disabled={withdrawal.isPending}

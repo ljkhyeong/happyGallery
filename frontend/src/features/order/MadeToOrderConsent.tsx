@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { Alert, Badge, Form } from "react-bootstrap";
+import { Alert, Form } from "react-bootstrap";
 import type { useMadeToOrderConsent } from "./useMadeToOrderConsent";
 
 interface Props {
@@ -15,10 +15,8 @@ export function MadeToOrderConsent({ consent }: Props) {
 
   return (
     <div className="border rounded p-3 mb-3">
-      <div className="d-flex align-items-center gap-2 mb-2">
-        <span className="fw-semibold">주문제작 상품 청약철회 제한 동의</span>
-        <Badge bg="dark">필수</Badge>
-      </div>
+      {/* 필수 표시는 다른 동의 칸처럼 "[필수]" 글자로 쓴다(README 디자인 기준). */}
+      <div className="fw-semibold mb-2">[필수] 주문제작 상품 청약철회 제한 동의</div>
 
       {versionMismatch && (
         <Alert variant="warning" className="small py-2">
