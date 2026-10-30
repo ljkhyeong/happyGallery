@@ -25,8 +25,11 @@ export function OrderDetailCard({ order, actions }: Props) {
   const summaryRows: DetailRow[] = [
     { label: "카드·간편결제 금액", value: formatKRW(order.pgPaidAmount) },
     { label: "결제일", value: order.paidAt ? formatDateTime(order.paidAt) : "-" },
-    { label: "공방 주문 승인 기한", value: order.approvalDeadlineAt ? formatDateTime(order.approvalDeadlineAt) : "-" },
   ];
+  // 서버는 승인한 뒤에도 기한 값을 지우지 않아 공방 승인을 기다리는 동안에만 보인다.
+  if (order.status === "PAID_APPROVAL_PENDING" && order.approvalDeadlineAt) {
+    summaryRows.push({ label: "공방 주문 승인 기한", value: formatDateTime(order.approvalDeadlineAt) });
+  }
 
   return (
     <article className="my-detail-card">
