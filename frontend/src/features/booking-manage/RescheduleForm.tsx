@@ -37,13 +37,30 @@ export function RescheduleForm({
 }: Props) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [date, setDate] = useState(currentStartAt.slice(0, 10));
+  // 고객이 칩이나 입력 칸으로 고른 날짜. 고르기 전에는 아래 기본 날짜를 보여 준다.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
 
   useEffect(() => {
-    setDate(currentStartAt.slice(0, 10));
+    setPickedDate(null);
     setSelectedSlotId(null);
   }, [classId, currentSlotId, currentStartAt]);
+
+  const upcomingQuery = useQuery(upcomingSlotsQuery(classId));
+  const availableDates = slotDates(
+    upcomingQuery.data?.filter((slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount),
+  );
+  // 처음에는 현재 예약일을 보이되, 그날 옮길 시간이 없으면 날짜 칩의 첫 날짜를 고른다. 고르지 않았는데
+  // "변경 가능한 시간이 없습니다"부터 보이지 않게 한다. 14일 안에 옮길 날짜가 없거나 조회하지 못하면 현재 예약일이다.
+  const currentDate = currentStartAt.slice(0, 10);
+  const defaultDate = upcomingQuery.isPending
+    ? ""
+    : availableDates.includes(currentDate) ? currentDate : availableDates[0] ?? currentDate;
+  const date = pickedDate ?? defaultDate;
+  const pickDate = (value: string) => {
+    setPickedDate(value);
+    setSelectedSlotId(null);
+  };
 
   const {
     data: slots,
@@ -56,7 +73,6 @@ export function RescheduleForm({
     queryFn: () => fetchRescheduleSlots(classId, date),
     enabled: date.length > 0,
   });
-  const upcomingQuery = useQuery(upcomingSlotsQuery(classId));
 
   const applySuccess = async (requireCurrent: () => void) => {
     requireCurrent();
@@ -78,9 +94,6 @@ export function RescheduleForm({
   const availableSlots = slots?.filter(
     (slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount,
   ) ?? [];
-  const availableDates = slotDates(
-    upcomingQuery.data?.filter((slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount),
-  );
   const selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId);
 
   return (
@@ -103,10 +116,7 @@ export function RescheduleForm({
           dates={availableDates}
           activeDate={date}
           disabled={mutation.isPending}
-          onSelect={(value) => {
-            setDate(value);
-            setSelectedSlotId(null);
-          }}
+          onSelect={pickDate}
         />
       ) : upcomingQuery.isSuccess && (
         <p className="booking-step-label">{UPCOMING_SLOT_DAYS}일 내 변경 가능한 날짜가 없습니다. 아래에서 날짜를 직접 골라 주세요.</p>
@@ -118,10 +128,7 @@ export function RescheduleForm({
           type="date"
           value={date}
           min={formatDateInput(Date.now())}
-          onChange={(event) => {
-            setDate(event.target.value);
-            setSelectedSlotId(null);
-          }}
+          onChange={(event) => pickDate(event.target.value)}
         />
         <Form.Text>
           현재 예약 {participantCount}명이 모두 이동할 수 있는 날짜와 시간만 보여 줍니다. {UPCOMING_SLOT_DAYS}일 뒤는 직접 고르세요.

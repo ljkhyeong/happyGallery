@@ -91,6 +91,10 @@ test("회원은 현재 인원이 모두 이동 가능한 날짜만 골라 예약
   const quickDates = panel.getByLabel("빠른 날짜 선택 (14일 이내)");
   await expect(quickDates.locator("[data-booking-date]")).toHaveCount(2);
   await expect(quickDates.locator('[data-booking-date="2099-01-15"]')).toBeVisible();
+  // 현재 예약일(1/12)에는 옮길 시간이 없어, 고르기 전에도 빈 안내 대신 첫 변경 가능 날짜의 시간을 보여 준다.
+  await expect(quickDates.locator('[data-booking-date="2099-01-14"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.locator("[data-slot-id]")).toHaveCount(2);
+  await expect(panel.getByText("선택한 날짜에 변경 가능한 시간이 없습니다.")).toHaveCount(0);
   await quickDates.locator('[data-booking-date="2099-01-14"]').click();
   await expect(quickDates.locator('[data-booking-date="2099-01-14"]')).toHaveAttribute("aria-pressed", "true");
   await expect(panel.getByLabel("변경할 날짜")).toHaveValue("2099-01-14");
@@ -145,6 +149,7 @@ test("14일 내 후보가 없어도 날짜를 직접 입력해 변경 가능한 
   const { panel } = await openBooking(page, true, { upcomingFailure: false, dateFailure: false, noUpcoming: true });
   await expect(panel.getByLabel("빠른 날짜 선택 (14일 이내)")).toHaveCount(0);
   await expect(panel.getByText("14일 내 변경 가능한 날짜가 없습니다.", { exact: false })).toBeVisible();
+  await expect(panel.getByText("선택한 날짜에 변경 가능한 시간이 없습니다.")).toBeVisible();
   await panel.getByLabel("변경할 날짜").fill("2099-02-12");
   await expect(panel.locator('[data-slot-id="75"]')).toBeVisible();
   await panel.locator('[data-slot-id="75"]').click();
