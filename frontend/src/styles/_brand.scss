@@ -692,8 +692,6 @@
 .event-coupon-panel {
   overflow: hidden;
   background: var(--hg-clay-tint);
-  border-radius: var(--hg-radius-media);
-  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.12);
 
   .card-body {
     padding: clamp(1.5rem, 4vw, 2.25rem);

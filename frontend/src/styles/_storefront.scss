@@ -440,8 +440,8 @@
 .auth-inline-link,
 .auth-footer-link a {
   color: var(--hg-accent);
-  text-decoration: none;
   font-weight: 600;
+  text-underline-offset: 3px;
 }
 
 .auth-footer-link {
