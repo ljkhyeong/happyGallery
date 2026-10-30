@@ -1630,14 +1630,14 @@ a.my-list-card:focus-visible,
       border-color: var(--hg-accent);
     }
 
-    &.is-full {
-      opacity: 0.6;
+    // 모든 회차가 만석인 날은 흐리게(요일·마감 2.5:1) 두지 않고 날짜도 보조 글자색(회색 면 5.9:1, 흰 바탕 6.5:1)과 "마감"으로 구분한다.
+    &.is-full:not([aria-pressed="true"]) b {
+      color: var(--hg-ink-soft);
     }
 
     &[aria-pressed="true"] {
       color: #FFFFFF;
       background: var(--hg-leaf-deep);
-      opacity: 1;
 
       span,
       small {
