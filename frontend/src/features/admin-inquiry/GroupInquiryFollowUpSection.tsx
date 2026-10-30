@@ -16,8 +16,11 @@ export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: str
     queryFn: () => listAdminGroupInquiryFollowUps({ cursor: paging.cursor, size: 20 }, { headers: adminHeaders(token) }),
     refetchInterval: 60_000,
   });
+  // 순서 안내는 목록이 있을 때만 둔다. 없으면 빈 상태 한 줄만 남아 오늘 할 일에서 한 줄로 줄어든다.
   return <div id="group-inquiry-follow-ups">
-    <p className="small text-muted">연락 예정일이 오늘까지인 문의를 오래된 순서로 표시합니다.</p>
+    {!!query.data?.content.length && (
+      <p className="small text-muted">연락 예정일이 오늘까지인 문의를 오래된 순서로 표시합니다.</p>
+    )}
     {query.isLoading && <LoadingSpinner />}
     <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
     {query.data?.content.length === 0 && <EmptyState message="오늘까지 연락할 단체 문의가 없습니다." />}
