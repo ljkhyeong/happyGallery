@@ -66,6 +66,7 @@ function OrderDetailContent() {
           {lookup && <ShippingAddressEditPanel key={lookup.requestId} order={order} accessToken={lookup.credentials.token} onSaved={refetchOrder} />}
           <OrderCustomerActionPanel
             status={order.status}
+            expectedShipDate={order.fulfillment?.expectedShipDate}
             pending={cancelMutation.isPending || delayMutation.isPending}
             error={cancelMutation.error ?? delayMutation.error}
             onCancel={() => lookup && cancelMutation.mutate(lookup.credentials)}

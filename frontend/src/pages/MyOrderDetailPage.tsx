@@ -65,6 +65,7 @@ export function MyOrderDetailPage() {
           <ShippingAddressEditPanel order={order} onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all })} />
           <OrderCustomerActionPanel
             status={order.status}
+            expectedShipDate={order.fulfillment?.expectedShipDate}
             pending={cancelMutation.isPending || delayMutation.isPending}
             error={cancelMutation.error ?? delayMutation.error}
             onCancel={() => cancelMutation.mutate()}
