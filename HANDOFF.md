@@ -1,5 +1,19 @@
 # HANDOFF
 
+## 디자인 점검: 화면 틀·태블릿·줄바꿈 (2026-10-30)
+
+- 시작 SHA `69f3810f`, 브랜치 `codex/work-20261030-design-review`(진행 중인 아래 리팩토링 브랜치 HEAD에서 만듦). 사용자가 "디자인 개선할 부분을 체크해서 진행하라(Claude Design·프론트엔드 포함)"고 했다. 공개 25·회원 14화면을 1280·390px, 주요 10화면을 1024·820px로 캡처해 점검했다(`output/playwright/design-review-1030/`, 전 `before/`·`tablet/`, 후 `after/`·`after-tablet/`, 조각 보기 `tile.py`). 이전 점검은 1280·390px만 봐서 태블릿 폭 문제가 남아 있었다. 문제가 시안이 아니라 구현의 폭·줄바꿈이라 Claude Design 캔버스는 바꾸지 않았다.
+- 고친 것:
+  - 화면 틀: 머리글·홈은 Bootstrap 단계형 container(540·720·960·1180), 나머지는 1180px 유동형 `.page-container`라 기준선이 폭마다 어긋났다(1280px 12px, 1100px 51px, 820px 38px). container를 단계 없이 최대 1180px로 두고 좌우 여백을 `--hg-page-gutter`(24px, 575px 이하 16px)로 통일했다. `.page-container`는 위아래 여백만 둔다. 이 클래스만 쓰던 관리자 로그인 칸은 `Container`로 감쌌다.
+  - 태블릿 머리글: 768~991px에서 내 메뉴가 로고 아래 왼쪽으로 떨어지던 것을 로고·내 메뉴 한 줄, 검색창 한 줄로 바꿨다. 카테고리 줄은 1200px 미만에서 간격을 줄여 약 920px 이상이면 한 줄에 다 보인다(전에는 1000~1199px에서 "이벤트"가 잘려 마우스로 누를 수 없었다). 더 좁으면 현재 메뉴를 보이는 곳으로 옮긴다(`useCenterActiveItem`, 내 정보 가로 메뉴에 있던 코드를 옮겨 작품 목록 카테고리 탭·클래스 상황 칩에도 적용).
+  - 한글 줄바꿈: `body`에 `word-break: keep-all`·`overflow-wrap: break-word`를 두고 화면별 같은 선언 6곳을 정리했다(모바일 "팝니/다." 같은 음절 끊김).
+  - 작품 상세 구역 탭이 지금 보는 구역을 먹색 밑줄로 표시한다(`ProductDetailTabs`·`useScrollSpy`, `aria-current="location"`).
+  - 소개할 이벤트가 없는 홈 이벤트 칸은 먹색 대신 회색 면·테두리 버튼, 내 정보 "최근 예약·최근 주문" 칸 사이 3rem, 방문 안내 "지도에서 보기"는 테두리 버튼, 고객 화면 휴대폰 번호는 `formatPhone`(010-1234-5678, 관리자 화면은 숫자 그대로).
+  - README 디자인 기준과 PRD 0001(작품 상세 탭, 휴대폰 번호 표시)을 갱신했다.
+- 검증: frontend typecheck·build·변경 파일 ESLint·단위 88건 통과. 캡처 96장(1280·390·1024·820px) 가로 넘침·콘솔 오류 없음. 브라우저에서 820px 머리글·기준선(로고·제목·바닥글 모두 24px)과 이벤트 화면 카테고리 줄 이동, 작품 상세 탭 표시(맨 위 없음 → 작품 정보 → 배송·교환 → 후기 → 문의, 맨 아래 문의)를 확인했다. E2E 전체(`--project=app`, `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`) 257건 통과(9.4분). 그 뒤 현재 항목이 없는 화면(홈)에서 머리글 카테고리 줄을 처음으로 돌리는 처리를 더해 모바일에서 이벤트 → 홈 → 단체·출강 이동으로 확인했다.
+- 실행 조건: Docker `hg-design-mysql`(3307)·`happygallery-redis`, 백엔드 8081(`./gradlew --offline :bootstrap:bootRun`, `SERVER_PORT=8081 MANAGEMENT_PORT=8091 RATE_LIMIT_ENABLED=false`, DB `happygallery_g`), 프론트 `frontend-review`(3030). 캡처가 실제 모습을 보이도록 `happygallery_g`의 카테고리 없는 E2E 작품(id 13~60)을 `UPDATE products SET status='INACTIVE' WHERE id > 12 AND category IS NULL;`로 숨겼다(E2E를 돌리면 다시 생긴다, 되돌리기는 `status='ACTIVE'`). 원격 푸시는 하지 않았다.
+- 남긴 것: 작품 상세 "작품 사양·예상 제작 기간" 칸의 아래 선 불일치, 데스크톱 바닥글 오른쪽 빈 공간, 가로 메뉴 끝의 흐림 표시(현재 항목 이동으로 대신함).
+
 ## 리팩토링 전수 검토·구현 (2026-10-17 시작, 2026-10-25 진행 중)
 
 - 시작 SHA `f93208d3`, 브랜치 `codex/work-20261017-refactor-audit`(아래 CI/CD 점검 브랜치 위에서 생성). 사용자가 "리팩토링 전수검토해서 진행해"라고 했다. 원격 푸시는 하지 않았다. `origin/main`에는 이 브랜치에 없는 병합 커밋 `4aaba8ee`가 있다(PR 전 병합 확인).
