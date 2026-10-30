@@ -48,7 +48,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   if (kind === "BOOKING") {
     await page.getByLabel("클래스").selectOption("42");
     await page.locator('[data-slot-id="77"]').click();
-    await page.getByRole("button", { name: "결제 진행하기" }).click();
+    await page.getByRole("button", { name: "결제하기" }).click();
     await page.getByRole("button", { name: "비회원", exact: true }).click();
   }
   return prepares;
@@ -57,9 +57,9 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
 for (const kind of ["ORDER", "BOOKING"] as const) {
   test(`@payment @identity 비회원 ${kind === "ORDER" ? "주문" : "예약"}은 인증 실패·결제창 취소 뒤 선택을 보존하고 재인증한다`, async ({ page }) => {
     const prepares = await openCheckout(page, kind);
-    const submit = () => page.getByRole("button", { name: kind === "ORDER" ? "결제 진행하기" : "비회원으로 진행", exact: true });
+    const submit = () => page.getByRole("button", { name: kind === "ORDER" ? "결제하기" : "비회원으로 진행", exact: true });
     const reopen = async () => {
-      if (kind === "BOOKING") await page.getByRole("button", { name: "결제 진행하기" }).click();
+      if (kind === "BOOKING") await page.getByRole("button", { name: "결제하기" }).click();
     };
     const verify = async (code: string) => {
       await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");

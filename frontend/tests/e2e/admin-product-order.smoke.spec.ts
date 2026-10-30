@@ -67,7 +67,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await expect(prefilledItem.getByRole("spinbutton")).toHaveValue("2");
   await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
@@ -144,7 +144,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     await page.getByRole("button", { name: "추가" }).click();
     await page.getByRole("button", { name: "매장 수령" }).click();
     await acceptCurrentPolicies(page);
-    await page.getByRole("button", { name: "결제 진행하기" }).click();
+    await page.getByRole("button", { name: "결제하기" }).click();
 
     await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
     await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();

@@ -34,6 +34,7 @@ import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFiel
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
+import { useOrderPaymentTotal } from "@/features/order-benefit/useOrderPaymentTotal";
 import { ApiError } from "@/shared/api";
 import { parsePositiveId } from "@/shared/lib";
 
@@ -122,6 +123,13 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
   const guestPolicyConsent = usePolicyAcceptance();
   const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
+  // 비회원은 쿠폰·적립금을 고르지 않으므로 null·0 그대로 넘긴다.
+  const paymentTotal = useOrderPaymentTotal({
+    productAmount: itemAmount,
+    fulfillmentType: fulfillment.fulfillmentType,
+    couponId: issuedCouponId,
+    rewardAmount,
+  });
 
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
   const orderQuery = searchParams.toString();
@@ -288,6 +296,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           <CheckoutSummary
             label="결제 요약"
             hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
+            mobileTotal={paymentTotal}
             action={(
               <Button
                 variant="primary" size="lg" className="w-100"
@@ -295,7 +304,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                   || !isFulfillmentComplete(fulfillment) || !consent.ready
                   || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
                 onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
-                {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
+                {mutation.isPending ? "결제창 여는 중..." : "결제하기"}
               </Button>
             )}
           >

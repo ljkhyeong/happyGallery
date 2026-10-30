@@ -102,7 +102,7 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   await signupCustomer(page, "p8-member-booking");
 
   await page.goto("/passes/purchase");
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 이용권 확인하기" })).toBeVisible();
   await page.getByRole("link", { name: "내 이용권 확인하기" }).click();

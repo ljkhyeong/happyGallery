@@ -24,6 +24,7 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MadeToOrderListNotice, ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
+import { useOrderPaymentTotal } from "@/features/order-benefit/useOrderPaymentTotal";
 
 export function CartPage() {
   const {
@@ -87,6 +88,13 @@ function CartContent() {
     (item) => item.productType === "MADE_TO_ORDER",
   );
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
+  // 비회원은 수령 방법·쿠폰·적립금을 고르지 않으므로 상품 합계에 배송비가 더해진다고 보인다.
+  const paymentTotal = useOrderPaymentTotal({
+    productAmount: totalAmount,
+    fulfillmentType: fulfillment.fulfillmentType,
+    couponId: issuedCouponId,
+    rewardAmount,
+  });
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/cart" });
   const checkout = useMutation({
     mutationFn: async () => {
@@ -247,7 +255,7 @@ function CartContent() {
         || !isFulfillmentComplete(fulfillment) || !consent.ready}
       onClick={handleCheckout}
     >
-      {checkout.isPending ? "결제 준비 중..." : "결제하기"}
+      {checkout.isPending ? "결제창 여는 중..." : "결제하기"}
     </Button>
   ) : (
     <LinkButton to={loginHref} variant="primary" size="lg" className="w-100">
@@ -283,6 +291,7 @@ function CartContent() {
             className="store-purchase-card"
             hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
             action={checkoutButton}
+            mobileTotal={paymentTotal}
             note={isAuthenticated
               ? "선택하지 않은 작품은 결제 후에도 장바구니에 남습니다."
               : "담은 작품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다."}

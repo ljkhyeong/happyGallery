@@ -90,7 +90,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption("42");
   await page.locator('[data-slot-id="77"]').click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
 
   await page.getByLabel("이메일").fill(member.email);
   await page.getByLabel("비밀번호").fill("password123!");
@@ -101,7 +101,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
   await expect(page.locator('[data-slot-id="77"]')).toContainText("2명 예약 가능");
   expect(preparePayloads).toHaveLength(0);
 
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await expect.poll(() => preparePayloads.length).toBe(1);
   expect(preparePayloads[0]).toMatchObject({
     userId: member.id,
@@ -176,7 +176,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption("51");
   await page.locator('[data-slot-id="88"]').click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await page.getByLabel("이메일").fill(memberA.email);
   await page.getByLabel("비밀번호").fill("password123!");
   await page.getByRole("button", { name: "로그인 후 내용 확인" }).click();
@@ -209,7 +209,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.getByLabel("클래스")).toHaveValue("");
   await expect(page.locator('[data-slot-id="88"].active')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "결제 진행하기" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeDisabled();
   expect(preparePayloads).toHaveLength(0);
 
   await page.evaluate(() => new Promise<void>((resolve) => {

@@ -231,7 +231,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
   const slot = page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ });
   await expect(slot).toBeVisible();
   await slot.click();
-  const submitButton = page.getByRole("button", { name: "결제 진행하기" });
+  const submitButton = page.getByRole("button", { name: "결제하기" });
   await expect(submitButton).toBeDisabled();
   await page.getByRole("button", { name: "다시 시도" }).click();
 
@@ -304,7 +304,7 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
   await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
 
   await page.getByLabel("예약금 결제").check();
-  await expect(page.getByRole("button", { name: "결제 진행하기" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeEnabled();
   await page.getByLabel("클래스").selectOption("43");
   await page.getByRole("button", { name: /2099\. 01\. 03\. 오전 10:00/ }).click();
 

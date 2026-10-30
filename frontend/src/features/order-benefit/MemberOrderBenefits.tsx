@@ -14,6 +14,7 @@ import {
   calculateCouponDiscount,
   maximumRewardPoints,
   normalizeRewardPoints,
+  selectableCoupons,
 } from "./policy";
 
 interface Props {
@@ -49,14 +50,11 @@ export function MemberOrderBenefits({
     queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyRewardWallet(signal)),
   });
 
-  const selectableCoupons = useMemo(
-    () => couponsQuery.data?.filter((coupon) => (
-      coupon.status === "AVAILABLE"
-      && calculateCouponDiscount(coupon, productAmount) > 0
-    )) ?? [],
+  const couponOptions = useMemo(
+    () => selectableCoupons(couponsQuery.data, productAmount),
     [couponsQuery.data, productAmount],
   );
-  const selectedCoupon = selectableCoupons.find((coupon) => coupon.id === selectedCouponId);
+  const selectedCoupon = couponOptions.find((coupon) => coupon.id === selectedCouponId);
   const couponDiscountAmount = calculateCouponDiscount(selectedCoupon, productAmount);
   const maximumPoints = maximumRewardPoints(
     rewardQuery.data?.availableBalance ?? 0,
@@ -103,13 +101,13 @@ export function MemberOrderBenefits({
           onChange={(event) => onCouponChange(parsePositiveId(event.target.value))}
         >
           <option value="">쿠폰을 사용하지 않음</option>
-          {selectableCoupons.map((coupon) => (
+          {couponOptions.map((coupon) => (
             <option key={coupon.id} value={coupon.id}>{couponLabel(coupon)}</option>
           ))}
         </Form.Select>
         <Form.Text>
-          {selectableCoupons.length > 0
-            ? `현재 주문에 사용할 수 있는 쿠폰 ${selectableCoupons.length}장`
+          {couponOptions.length > 0
+            ? `현재 주문에 사용할 수 있는 쿠폰 ${couponOptions.length}장`
             : "이 주문에 사용할 수 있는 쿠폰이 없습니다."}
         </Form.Text>
       </Form.Group>

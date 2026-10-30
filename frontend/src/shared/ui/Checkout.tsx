@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * 예약·4회권·주문서가 함께 쓰는 2단 배치.
@@ -46,11 +46,13 @@ interface SummaryProps {
 }
 
 export function CheckoutSummary({ label, media, children, action, mobileTotal, note, hint, className }: SummaryProps) {
+  const actionRef = useRef<HTMLDivElement>(null);
+  useFixedActionHeight(actionRef);
   return (
     <aside className={className ? `checkout-summary ${className}` : "checkout-summary"} aria-label={label}>
       {media && <div className="checkout-summary-media">{media}</div>}
       <div className="checkout-summary-body">{children}</div>
-      <div className="checkout-summary-action">
+      <div ref={actionRef} className="checkout-summary-action">
         {hint && <p className="checkout-summary-hint" role="status">{hint}</p>}
         {mobileTotal && (
           <p className="checkout-summary-mobile-total" aria-hidden="true">
@@ -63,6 +65,26 @@ export function CheckoutSummary({ label, media, children, action, mobileTotal, n
       {note && <div className="checkout-summary-note">{note}</div>}
     </aside>
   );
+}
+
+/**
+ * 모바일·태블릿에서 화면 아래에 고정되는 결제 칸의 높이(안전 영역 포함)를 문서에 알린다.
+ * 남은 단계 안내가 생기거나 줄바꿈되면 높이가 바뀌므로 크기 변화를 따라가고, 스타일이 그만큼 문서 끝을 띄운다.
+ */
+function useFixedActionHeight(ref: { current: HTMLElement | null }) {
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => {
+      root.style.setProperty("--hg-checkout-action-height", `${element.offsetHeight}px`);
+    });
+    observer.observe(element, { box: "border-box" });
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--hg-checkout-action-height");
+    };
+  }, [ref]);
 }
 
 interface AmountRow {

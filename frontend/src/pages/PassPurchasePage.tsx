@@ -52,7 +52,7 @@ export function PassPurchasePage() {
       disabled={purchaseMutation.isPending || !policy}
       onClick={() => purchaseMutation.mutate()}
     >
-      {purchaseMutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
+      {purchaseMutation.isPending ? "결제창 여는 중..." : "결제하기"}
     </Button>
   ) : (
     <LinkButton

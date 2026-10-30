@@ -308,9 +308,9 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await expect(page.getByLabel("작품", { exact: true })).toContainText("비회원 지연 결제 작품");
   await page.getByRole("button", { name: "매장 수령" }).click();
   await page.locator("#guest-order-policy-consent").check();
-  await expect(page.getByRole("button", { name: "결제 진행하기" }))
+  await expect(page.getByRole("button", { name: "결제하기" }))
     .toBeEnabled();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await expect.poll(() => prepareStarted).toBe(true);
   expect(guestPreparePayload).toMatchObject({
     phone: "01033333333",

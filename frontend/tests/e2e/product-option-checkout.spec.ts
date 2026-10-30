@@ -118,7 +118,7 @@ for (const readyStock of [false, true]) {
     await page.reload();
     await completeGuestOrderForm(page, !readyStock);
     await expect(row.getByRole("spinbutton")).toHaveValue("1");
-    await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+    await page.getByRole("button", { name: "결제하기", exact: true }).click();
     await expect.poll(() => prepared).toEqual([expect.objectContaining({ payload: expect.objectContaining({
       items: [{ productId: 80, productVariantId: readyStock ? null : 801, textInputs: [], qty: 1 }],
     }) })]);
@@ -139,7 +139,7 @@ for (const changed of ["재고 감소", "옵션 삭제", "판매 중지"] as con
     if (changed === "판매 중지") product.available = false;
     await page.getByRole("button", { name: /비회원 주문하기/ }).click();
     await completeGuestOrderForm(page);
-    const checkout = page.getByRole("button", { name: "결제 진행하기", exact: true });
+    const checkout = page.getByRole("button", { name: "결제하기", exact: true });
     await expect(checkout).toBeDisabled();
     expect(prepared).toHaveLength(0);
     if (changed === "재고 감소") {
@@ -186,7 +186,7 @@ test("@payment 옵션 주문 초안은 주문서별로 복원하고 누락되거
   await page.reload();
   await expect(page.getByText(/선택한 옵션 정보를 불러올 수 없습니다/)).toBeVisible();
   await expect(page.getByRole("link", { name: "작품 다시 선택", exact: true })).toHaveAttribute("href", "/products/80");
-  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "결제하기", exact: true })).toHaveCount(0);
   await page.goto("/orders/new?productId=80&draft=options");
   await expect(page.getByText(/선택한 옵션 정보를 불러올 수 없습니다/)).toBeVisible();
 });
@@ -220,7 +220,7 @@ test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실�
   await page.getByLabel("작품", { exact: true }).selectOption("81");
   await page.getByLabel("수량", { exact: true }).fill("2");
   await page.getByRole("button", { name: "추가", exact: true }).click();
-  await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
   await expect(page.getByRole("heading", { name: "결제 실패", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true }).click();
   await expect(page).toHaveURL(orderUrl);
@@ -234,7 +234,7 @@ test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실�
   await page.reload();
   await verifyGuestOrderPhone(page);
   await expect(page.locator(".list-group-item")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "결제하기", exact: true })).toBeDisabled();
 });
 
 test("@payment 수동 주문서도 초안을 만들고 저장 실패 시 현재 수량을 유지하며 재저장한다", async ({ page }) => {
@@ -260,9 +260,9 @@ test("@payment 수동 주문서도 초안을 만들고 저장 실패 시 현재 
   await quantity.fill("2");
   await expect(quantity).toHaveValue("2");
   await expect(page.getByText(/변경한 주문 내용을 저장하지 못했습니다/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "결제하기", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "다시 저장", exact: true }).click();
-  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "결제하기", exact: true })).toBeEnabled();
   await page.reload();
   await verifyGuestOrderPhone(page);
   await expect(quantity).toHaveValue("2");
@@ -352,7 +352,7 @@ test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 �
   await page.getByRole("button", { name: "매장 수령", exact: true }).click();
   await page.getByRole("checkbox", { name: "주문제작 조건에 동의합니다.", exact: true }).check();
   await page.getByRole("checkbox", { name: /이용약관/ }).check();
-  await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
   await expect.poll(() => prepared).toEqual([expect.objectContaining({ payload: expect.objectContaining({
     items: [
       { productId: 80, productVariantId: 801, textInputs: [{ groupKey: "engraving", value: "<A> & B" }], qty: 1 },

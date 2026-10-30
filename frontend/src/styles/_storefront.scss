@@ -1688,12 +1688,15 @@ a.my-list-card:focus-visible {
 @media (max-width: 991.98px) {
   .checkout-layout {
     grid-template-columns: minmax(0, 1fr);
-    padding-bottom: 7rem;
 
     &.is-single {
       grid-template-columns: minmax(0, 1fr);
-      padding-bottom: 3rem;
     }
+  }
+
+  // 하단에 고정한 결제 칸이 맨 아래 바닥글을 가리지 않도록 칸 높이(안전 영역 포함, CheckoutSummary가 잰 값)만큼 문서 끝을 띄운다.
+  body:has(.checkout-summary-action) {
+    padding-bottom: var(--hg-checkout-action-height, 6rem);
   }
 
   .checkout-panel {

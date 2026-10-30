@@ -350,7 +350,7 @@ function BookingCreateContent({
         ? "선택 내용 확인 중..."
         : startPayment.isPending
         ? passPathSelected ? "예약 처리 중..." : "결제창 여는 중..."
-        : passPathSelected ? "이용권으로 예약하기" : "결제 진행하기"}
+        : passPathSelected ? "이용권으로 예약하기" : "결제하기"}
     </Button>
   );
 

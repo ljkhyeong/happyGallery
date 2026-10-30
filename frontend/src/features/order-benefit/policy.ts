@@ -38,6 +38,17 @@ export function calculateCouponDiscount(
   return Math.min(normalizedProductAmount, capped);
 }
 
+/** 이 주문 상품 금액에서 할인이 생기는 사용 가능 쿠폰만 고른다. */
+export function selectableCoupons<T extends CouponDiscountPolicy & { status: string }>(
+  coupons: readonly T[] | undefined,
+  productAmount: number,
+): T[] {
+  return coupons?.filter((coupon) => (
+    coupon.status === "AVAILABLE"
+    && calculateCouponDiscount(coupon, productAmount) > 0
+  )) ?? [];
+}
+
 export function maximumRewardPoints(
   availableBalance: number,
   productAmount: number,
