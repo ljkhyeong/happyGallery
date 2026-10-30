@@ -33,6 +33,17 @@ export function siteTitle(name: string): string {
   return `${name} | ${SITE_NAME}`;
 }
 
+/**
+ * 로그인·결제·내 정보 같은 client-only 화면의 meta. 탭·방문 기록·화면 낭독기가 화면을 구분하도록 이름을 붙이고,
+ * 검색에는 노출하지 않는다. 자식 라우트의 meta가 부모 meta를 대신하므로 robots도 함께 돌려준다.
+ */
+export function clientOnlyMeta(name?: string): MetaDescriptor[] {
+  return [
+    { title: name ? siteTitle(name) : SITE_NAME },
+    { name: "robots", content: "noindex,nofollow" },
+  ];
+}
+
 export function seoDescription(value: string | null | undefined, fallback: string): string {
   const normalized = value?.replace(/\s+/g, " ").trim();
   return (normalized || fallback).slice(0, 160);
