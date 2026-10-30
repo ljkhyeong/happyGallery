@@ -76,7 +76,6 @@ export function PassPurchasePage() {
             label="결제 요약"
             action={submitButton}
             mobileTotal={policy ? { label: "결제 금액", amount: formatKRW(policy.totalPrice) } : undefined}
-            note="결제 전 금액과 이용 기간을 확인해 주세요."
           >
             <h2 className="checkout-summary-title">정규 공예 4회권</h2>
             {policy && (

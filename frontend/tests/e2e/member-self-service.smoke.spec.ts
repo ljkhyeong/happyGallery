@@ -41,7 +41,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await expect(quantityInput).toHaveValue("2");
   await page.getByRole("button", { name: "바로 구매하기" }).click();
 
-  await expect(page.getByText("결제 결과를 다시 확인해 주세요")).toBeVisible();
+  await expect(page.getByText("결제 결과를 아직 받지 못했습니다")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect.poll(() => page.evaluate(() =>

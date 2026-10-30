@@ -98,7 +98,7 @@ export function GuestPaymentStatusPage() {
       <Container className="page-container">
         <PaymentResultCard
           tone="notice"
-          title="휴대폰 인증 후 결제 결과를 확인해 주세요"
+          title="휴대폰 인증이 필요합니다"
           lead="결제 때 사용한 휴대폰 번호를 인증하면 결제 상태를 볼 수 있습니다."
           actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증하기</LinkButton>}
         />

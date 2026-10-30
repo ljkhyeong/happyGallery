@@ -356,7 +356,7 @@ export function PaymentSuccessPage() {
       <Container className="page-container">
         <PaymentResultCard
           tone="notice"
-          title="결제 결과 확인"
+          title="결제 상태"
           actions={(
             <>
               {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (

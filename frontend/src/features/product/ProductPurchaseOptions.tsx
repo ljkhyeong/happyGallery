@@ -7,6 +7,7 @@ import type {
 } from "@/generated/api/product";
 import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { formatKRW } from "@/shared/lib";
+import { contentLengthLabel } from "@/shared/validation/contentText";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
 import { productQuantityLimit, remainingAddableQuantity, remainingLineQuantity } from "./purchaseStock";
 import { productOptionLineKey } from "./optionLineKey";
@@ -109,7 +110,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
       {selectGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>
-            {group.name} {group.required && <span className="text-danger">*</span>}
+            {group.required && "[필수] "}{group.name}
           </Form.Label>
           <Form.Select
             value={currentSelectedValues[group.key] ?? ""}
@@ -129,7 +130,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
       {textGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>
-            {group.name} {group.required && <span className="text-danger">*</span>}
+            {group.required && "[필수] "}{group.name}
             {(group.inputPriceAdjustment ?? 0) > 0 && (
               <span className="text-muted small ms-2">+{formatKRW(group.inputPriceAdjustment ?? 0)}</span>
             )}
@@ -143,7 +144,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
               setMessage(null);
             }}
           />
-          <Form.Text>{(textValues[group.key] ?? "").length}/{group.inputMaxLength ?? 200}자</Form.Text>
+          <Form.Text>{contentLengthLabel(textValues[group.key] ?? "", group.inputMaxLength ?? 200)}</Form.Text>
         </Form.Group>
       ))}
 

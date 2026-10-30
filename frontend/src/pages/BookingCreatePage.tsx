@@ -299,7 +299,8 @@ function BookingCreateContent({
         onPrepared: guest ? () => resetGuestVerification(
           "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
-        orderName: `${selectedClass?.name ?? "클래스"} 예약 ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
+        // 결제창·영수증에 보이는 이름이라 화면과 같은 서울 시각 표기(예: 10/6(화) 오전 10:00)를 쓴다.
+        orderName: `${selectedClass?.name ?? "클래스"} 예약 ${formatSlotStart(selectedSlot!)}`,
         customerKey: member ? `member_${member.id}` : undefined,
         customerName: guest?.name ?? member?.name,
         customerPhone: guest?.phone ?? member?.phone ?? undefined,
