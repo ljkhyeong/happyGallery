@@ -215,8 +215,16 @@
   scroll-margin-top: 4rem;
 }
 
-.store-detail-section {
+// 네 구역(작품 정보·배송·교환·후기·문의)이 같은 위 여백을 써서, 탭으로 이동하면 제목이 모두 같은 높이에 멈춘다.
+.store-detail-section,
+.store-detail-anchor {
   padding-top: clamp(2rem, 4vw, 2.75rem);
+}
+
+// 후기·문의 칸은 클래스 상세에서도 쓰여 위 여백을 스스로 가지므로, 작품 상세 구역 안에서는 구역 여백만 쓴다.
+.store-detail-anchor > .review-section,
+.store-detail-anchor > .product-qna-card {
+  margin-top: 0;
 }
 
 .store-detail-section-title {
