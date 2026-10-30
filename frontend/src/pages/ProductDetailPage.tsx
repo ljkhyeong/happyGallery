@@ -278,7 +278,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                   {hasConfiguredOptions ? "옵션 선택" : "수량 선택"}
                 </h3>
                 {selectionChanged && (
-                  <Alert variant="info" className="py-2">
+                  <Alert variant="warning" className="py-2">
                     작품 가격이나 옵션이 바뀌었습니다. 옵션과 금액을 다시 확인해 주세요.
                   </Alert>
                 )}
@@ -374,8 +374,9 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
 
               <div className="store-order-sheet-actions">
                 <PaymentErrorAlert error={consent.paymentError(orderMutation.error)} />
+                {/* 수량 한도는 고객이 줄이면 되는 안내라 장바구니 화면과 같은 노랑으로 보인다. */}
                 {cartMutation.error instanceof CartQuantityError ? (
-                  <Alert variant="danger">{cartMutation.error.message}</Alert>
+                  <Alert variant="warning">{cartMutation.error.message}</Alert>
                 ) : (
                   <ErrorAlert error={cartMutation.error} />
                 )}

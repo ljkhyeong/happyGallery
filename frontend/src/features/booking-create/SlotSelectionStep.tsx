@@ -157,7 +157,7 @@ export function SlotSelectionStep({
         />
         {classes !== undefined && initialClassId != null
           && !classes.some((bookingClass) => bookingClass.id === initialClassId) && (
-          <Alert variant="info">
+          <Alert variant="warning">
             이 수업은 현재 예약할 수 없습니다. 다른 수업을 선택해 주세요.
           </Alert>
         )}
@@ -233,7 +233,7 @@ export function SlotSelectionStep({
 
         {initialSlotId != null && selectedClass && upcomingSlots !== undefined && !slotsError && !slotsFetching
           && !upcomingSlots.some((slot) => slot.id === initialSlotId) && (
-          <Alert variant="info">
+          <Alert variant="warning">
             이 일정은 현재 예약할 수 없습니다. 다른 날짜나 시간을 선택해 주세요.
           </Alert>
         )}

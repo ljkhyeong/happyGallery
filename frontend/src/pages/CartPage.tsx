@@ -447,8 +447,10 @@ function CartContent() {
                   <td className="cart-item-subtotal">{formatKRW(item.subtotal)}</td>
                   <td className="cart-item-remove">
                     <Button
-                      variant="link"
+                      variant="outline-dark"
                       size="sm"
+                      className="text-nowrap"
+                      aria-label={`${item.productName || `작품 #${item.productId}`} 삭제`}
                       disabled={checkout.isPending || isItemMutationPending}
                       onClick={() => {
                         void removeItem(item.cartItemId).catch(() => undefined);

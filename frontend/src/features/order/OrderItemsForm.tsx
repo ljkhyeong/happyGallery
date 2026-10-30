@@ -17,6 +17,11 @@ interface Props {
   onChange: (items: OrderItemInput[]) => void;
 }
 
+/** 같은 작품을 옵션별로 여러 줄 담을 수 있어 수량·삭제 버튼 이름에 옵션까지 넣는다. */
+function orderLineName(productName: string | undefined, productId: number, optionLabel: string | undefined): string {
+  return `${productName ?? `작품 #${productId}`} ${optionLabel ?? ""}`.trim();
+}
+
 export function OrderItemsForm({ state, onChange }: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [qty, setQty] = useState("1");
@@ -107,9 +112,10 @@ export function OrderItemsForm({ state, onChange }: Props) {
                   <div className="d-flex align-items-center gap-2 flex-shrink-0">
                     <Form.Control type="number" inputMode="numeric" size="sm" style={{ width: 80 }}
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
-                      aria-label={`${product?.name ?? "작품"} ${selection?.label ?? ""} 주문 수량`}
+                      aria-label={`${orderLineName(product?.name, item.productId, selection?.label)} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />
                     <Button size="sm" variant="outline-dark" className="text-nowrap"
+                      aria-label={`${orderLineName(product?.name, item.productId, selection?.label)} 삭제`}
                       onClick={() => onChange(lines.filter((line) => line.key !== key).map((line) => line.item))}>삭제</Button>
                   </div>
                 </div>

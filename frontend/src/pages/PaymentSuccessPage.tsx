@@ -27,7 +27,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
-import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
+import { describeError, ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import {
   ApiError,
   captureCustomerSession,
@@ -335,7 +335,7 @@ export function PaymentSuccessPage() {
     return (
       <Container className="page-container">
         <PaymentResultCard
-          tone="danger"
+          tone="notice"
           title="확인할 결제 정보가 없습니다"
           lead="결제창을 거치지 않았거나 결과 확인 시간이 지났습니다. 결제 상태는 주문·예약 내역에서 확인할 수 있습니다."
           actions={(
@@ -395,10 +395,12 @@ export function PaymentSuccessPage() {
     const retryable = canRetryConfirm(error);
     const reconciliationRequired = requiresPaymentReconciliation(error);
     const statusCheckRequired = retryable || reconciliationRequired;
+    // 승인 결과를 아직 모르는 결제는 실패가 아니라 고객이 다시 확인할 일이라 notice·노랑 안내로 보인다.
+    const statusCheckNotice = statusCheckRequired && !completedOrderId;
     return (
       <Container className="page-container">
         <PaymentResultCard
-          tone="danger"
+          tone={statusCheckNotice ? "notice" : "danger"}
           title={completedOrderId
             ? "결제 결과 조회 실패"
             : statusCheckRequired ? "결제 상태 확인 필요" : "결제 확정 실패"}
@@ -417,7 +419,9 @@ export function PaymentSuccessPage() {
             </>
           )}
         >
-          <ErrorAlert error={error} />
+          {statusCheckNotice
+            ? <Alert variant="warning" className="mb-3">{describeError(error)}</Alert>
+            : <ErrorAlert error={error} />}
           {reconciliationRequired && <WorkshopContactLinks />}
         </PaymentResultCard>
       </Container>

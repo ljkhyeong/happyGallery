@@ -144,7 +144,7 @@ for (const changed of ["재고 감소", "옵션 삭제", "판매 중지"] as con
     expect(prepared).toHaveLength(0);
     if (changed === "재고 감소") {
       await expect(page.getByText(/같은 작품·옵션 조합은 합계 1개까지/)).toHaveCount(2);
-      await page.locator(".list-group-item").filter({ hasText: "둘째 각인" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await page.locator(".list-group-item").filter({ hasText: "둘째 각인" }).getByRole("button", { name: / 삭제$/ }).click();
       await expect(checkout).toBeEnabled();
       const quantity = page.locator(".list-group-item").getByRole("spinbutton");
       await quantity.fill("2");
@@ -216,7 +216,7 @@ test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실�
   const orderUrl = page.url();
   const brown = page.locator(".list-group-item").filter({ hasText: "색상: 브라운" });
   await brown.getByRole("spinbutton").fill("3");
-  await page.locator(".list-group-item").filter({ hasText: "색상: 블루" }).getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".list-group-item").filter({ hasText: "색상: 블루" }).getByRole("button", { name: / 삭제$/ }).click();
   await page.getByLabel("작품", { exact: true }).selectOption("81");
   await page.getByLabel("수량", { exact: true }).fill("2");
   await page.getByRole("button", { name: "추가", exact: true }).click();
@@ -229,8 +229,8 @@ test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실�
   await expect(brown.getByRole("spinbutton")).toHaveValue("3");
   await expect(page.locator(".list-group-item").filter({ hasText: "추가 작품" }).getByRole("spinbutton")).toHaveValue("2");
   await expect(page.locator(".list-group-item")).toHaveCount(2);
-  await page.locator(".list-group-item").getByRole("button", { name: "삭제", exact: true }).first().click();
-  await page.locator(".list-group-item").getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".list-group-item").getByRole("button", { name: / 삭제$/ }).first().click();
+  await page.locator(".list-group-item").getByRole("button", { name: / 삭제$/ }).click();
   await page.reload();
   await verifyGuestOrderPhone(page);
   await expect(page.locator(".list-group-item")).toHaveCount(0);
@@ -491,7 +491,7 @@ test("@payment 모든 옵션이 삭제되어도 이전 선택을 기본 상품 �
   await expect(page.locator(".store-option-form tbody tr")).toHaveCount(1);
   await expect(page.getByText("선택한 옵션이 변경되었습니다. 이 항목을 삭제한 뒤 다시 선택해 주세요.")).toBeVisible();
   await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeDisabled();
-  await page.locator(".store-option-form").getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".store-option-form").getByRole("button", { name: / 삭제$/ }).click();
   await expect(page.getByLabel("수량", { exact: true })).toHaveValue("1");
   await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeEnabled();
 });
@@ -504,7 +504,7 @@ test("@payment 선택형 그룹 삭제 뒤에는 남아 있는 옵션을 새로 
   product.variants = [{ id: 803, active: true, quantity: 5, priceAdjustment: 0, selections: [] }];
   await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
   await expect(page.getByText("선택한 옵션이 변경되었습니다. 이 항목을 삭제한 뒤 다시 선택해 주세요.")).toBeVisible();
-  await page.locator(".store-option-form").getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".store-option-form").getByRole("button", { name: / 삭제$/ }).click();
   await expect(page.getByRole("combobox", { name: /색상/ })).toHaveCount(0);
   await page.getByRole("textbox", { name: /각인 문구/ }).fill("새 문구");
   await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
@@ -528,7 +528,7 @@ test("@payment 비회원은 같은 조합이라도 삭제된 각인이 있으면
   await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
   await expect(page.getByText("각인 키링의 선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요.", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("hg_guest_cart"))).toBeNull();
-  await page.locator(".store-option-form tbody tr").filter({ hasText: "선택한 옵션이 변경되었습니다" }).getByRole("button", { name: "삭제", exact: true }).click();
+  await page.locator(".store-option-form tbody tr").filter({ hasText: "선택한 옵션이 변경되었습니다" }).getByRole("button", { name: / 삭제$/ }).click();
   await add.click();
   await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
   await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
@@ -542,6 +542,6 @@ test("@payment 비회원은 같은 조합이라도 삭제된 각인이 있으면
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(2);
   await page.getByRole("button", { name: "-", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(1);
-  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("button", { name: "각인 키링 삭제", exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("hg_guest_cart"))).toBeNull();
 });

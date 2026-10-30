@@ -2487,9 +2487,8 @@ a.my-list-card:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.cart-item-remove .btn {
-  padding: 0;
-  color: var(--hg-ink-soft);
+.cart-item-remove {
+  text-align: right;
 }
 
 @media (max-width: 767.98px) {

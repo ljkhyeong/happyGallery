@@ -200,8 +200,9 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
                     <Button
                       type="button"
                       size="sm"
-                      variant="link"
-                      className="text-danger"
+                      variant="outline-dark"
+                      className="text-nowrap"
+                      aria-label={`${view.label} 삭제`}
                       onClick={() => {
                         onChange(lines.filter((item) => item.key !== line.key));
                         setMessage(null);
