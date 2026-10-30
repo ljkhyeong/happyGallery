@@ -196,8 +196,10 @@
 
   a {
     flex: 0 0 auto;
+    margin-bottom: -1px;
     padding: 0.9rem 0;
     color: var(--hg-ink-soft);
+    border-bottom: 2px solid transparent;
     font-size: 0.95rem;
     font-weight: 500;
     text-decoration: none;
@@ -205,6 +207,13 @@
     &:hover,
     &:focus-visible {
       color: var(--hg-dark);
+    }
+
+    // 지금 보고 있는 구역: 작품 목록 카테고리 탭과 같은 먹색 2px 밑줄.
+    &[aria-current="location"] {
+      color: var(--hg-dark);
+      border-bottom-color: var(--hg-dark);
+      font-weight: 700;
     }
   }
 }

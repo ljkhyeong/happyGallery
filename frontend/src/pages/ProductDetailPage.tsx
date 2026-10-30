@@ -31,6 +31,7 @@ import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefit
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
+import { ProductDetailTabs } from "@/features/product/ProductDetailTabs";
 import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
 import { ProductPurchaseGuide } from "@/features/product/ProductPurchaseGuide";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
@@ -464,13 +465,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         </div>
       </div>
 
-      {/* 상세 아래 구역으로 바로 가는 탭. 화면 위에 붙어 따라오며 각 구역은 탭 높이만큼 띄워 멈춘다. */}
-      <nav className="store-detail-tabs" aria-label="작품 상세 구역">
-        {hasProductInfo && <a href="#product-info">작품 정보</a>}
-        <a href="#product-delivery">배송·교환</a>
-        <a href="#product-reviews">후기</a>
-        <a href="#product-qna">문의</a>
-      </nav>
+      <ProductDetailTabs hasProductInfo={hasProductInfo} />
 
       {hasProductInfo && (
         <section id="product-info" className="store-detail-section" aria-labelledby="product-information-title">
