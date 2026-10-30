@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Card, Form } from "react-bootstrap";
+import { Alert, Button, Card, Form } from "react-bootstrap";
 import {
   cancelMyGroupInquiry, getMyGroupInquiry, updateMyGroupInquiry,
   type CancelMyGroupInquiryRequest, type MyGroupInquiryResponse, type UpdateMyGroupInquiryRequest,
 } from "@/generated/api/customerStore";
-import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import {
   ApiError, captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer,
   runForCustomerSession, type CustomerSessionSnapshot,
@@ -14,6 +13,7 @@ import {
 import { formatDateTime } from "@/shared/lib";
 import { ConfirmModal, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
+import { GroupInquiryStatusBadge } from "./GroupInquiryStatusBadge";
 
 interface InquiryDraft {
   version: number;
@@ -113,7 +113,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
         retrying={busy} retryLabel="문의 조회 다시 시도" />
       {detail && values && (
         <>
-          <p>{detail.summary.organization} · <Badge bg="light">{GROUP_INQUIRY_STATUS[detail.summary.status]}</Badge></p>
+          <p>{detail.summary.organization} · <GroupInquiryStatusBadge status={detail.summary.status} /></p>
           {!confirmCancel && mutationError}
           <Form onSubmit={(event) => {
             event.preventDefault();

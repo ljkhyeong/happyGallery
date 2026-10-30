@@ -18,7 +18,7 @@ import type {
 } from "./types";
 import type { OrderDetailResponse } from "@/generated/api/order";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, ToneBadge, useToast, type CustomerBadgeTone } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 type ClaimAccess =
@@ -30,12 +30,18 @@ interface Props {
   access: ClaimAccess;
 }
 
-const STATUS_LABELS: Record<OrderClaimStatus, string> = {
-  REQUESTED: "접수",
-  REFUND_REQUESTED: "환불 처리 중",
-  EXCHANGE_APPROVED: "교환 승인",
-  REJECTED: "요청 거절",
-  COMPLETED: "완료",
+interface ClaimStatusBadge {
+  label: string;
+  tone: CustomerBadgeTone;
+}
+
+// 공방이 처리 중인 접수는 먹색, 끝난 접수(완료·요청 거절)는 회색 면이다.
+const STATUS_BADGES: Record<OrderClaimStatus, ClaimStatusBadge> = {
+  REQUESTED: { label: "접수", tone: "progress" },
+  REFUND_REQUESTED: { label: "환불 처리 중", tone: "progress" },
+  EXCHANGE_APPROVED: { label: "교환 승인", tone: "progress" },
+  REJECTED: { label: "요청 거절", tone: "done" },
+  COMPLETED: { label: "완료", tone: "done" },
 };
 
 const CLAIMABLE_STATUSES = new Set(["DELIVERED", "PICKED_UP", "COMPLETED"]);
@@ -254,6 +260,7 @@ export function OrderClaimSection({ order, access }: Props) {
 }
 
 function OrderClaimHistoryItem({ claim }: { claim: OrderClaimResponse }) {
+  const status: ClaimStatusBadge = STATUS_BADGES[claim.status] ?? { label: "상태 확인 필요", tone: "done" };
   return (
     <article className="border rounded p-3 mb-2">
       <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
@@ -261,9 +268,7 @@ function OrderClaimHistoryItem({ claim }: { claim: OrderClaimResponse }) {
           <strong>접수 #{claim.id}</strong>
           <Badge bg="light">{ORDER_CLAIM_TYPE_LABELS[claim.type]}</Badge>
           <Badge bg="light">{ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
-          <Badge bg="dark">
-            {STATUS_LABELS[claim.status]}
-          </Badge>
+          <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
         </div>
         <small className="text-muted-soft">{formatDateTime(claim.requestedAt)}</small>
       </div>

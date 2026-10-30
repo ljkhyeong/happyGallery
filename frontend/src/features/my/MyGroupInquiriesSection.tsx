@@ -1,9 +1,9 @@
 import { useSearchParams } from "react-router";
+import { GroupInquiryStatusBadge } from "./GroupInquiryStatusBadge";
 import { MyGroupInquiryDetail } from "./MyGroupInquiryDetail";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card } from "react-bootstrap";
+import { Button, Card } from "react-bootstrap";
 import { listMyGroupInquiries } from "@/generated/api/customerStore";
-import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -22,7 +22,7 @@ export function MyGroupInquiriesSection() {
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
       {query.data?.content.length === 0 && <EmptyState message="접수한 단체 수업 문의가 없습니다." />}
       {query.data?.content.map((inquiry) => <Card key={inquiry.id} className="mb-2 my-list-card"><Card.Body>
-        <strong>{inquiry.organization}</strong> <Badge bg="light">{GROUP_INQUIRY_STATUS[inquiry.status]}</Badge>
+        <strong>{inquiry.organization}</strong> <GroupInquiryStatusBadge status={inquiry.status} />
         <div>{inquiry.classInterest} · {inquiry.headcount}명 · {inquiry.preferredSchedule}</div>
         <div className="small text-muted">{inquiry.location} · 접수 번호 {inquiry.id} · {formatDateTime(inquiry.createdAt)}</div>
         <Button size="sm" variant="outline-primary" className="mt-2" onClick={() => {

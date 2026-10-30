@@ -1,8 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Badge } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
-import { LoadingSpinner, EmptyState, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
+import { LoadingSpinner, EmptyState, CursorLoadMore, CursorQueryErrorAlert, ToneBadge } from "@/shared/ui";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
 import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
@@ -36,9 +35,9 @@ export function MyInquiriesPage() {
       {inquiries.map((inquiry) => (
         <article key={inquiry.id} className="my-inquiry-card">
           <header>
-            <Badge bg={inquiry.hasReply ? "dark" : "light"}>
+            <ToneBadge tone={inquiry.hasReply ? "done" : "progress"}>
               {inquiry.hasReply ? "답변 완료" : "답변 대기"}
-            </Badge>
+            </ToneBadge>
             <h2>{inquiry.title}</h2>
             <time dateTime={inquiry.createdAt}>{formatDateTime(inquiry.createdAt)}</time>
           </header>

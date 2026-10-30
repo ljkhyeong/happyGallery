@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Badge } from "react-bootstrap";
 import { getStatusLabel, type StatusAudience } from "@/shared/lib/labels";
 
@@ -42,19 +43,54 @@ const VARIANT_MAP: Record<string, string> = {
   REFUND_FAILED: "danger",
 };
 
-// 고객 화면은 먹색 하나로 쓴다: 진행 중은 먹색, 끝난 상태는 회색 면, 고객이 확인할 일은 노랑(먹색 글자), 실패만 빨강.
-// 관리자 화면은 상태를 빠르게 훑도록 위 색을 그대로 쓴다.
-const CUSTOMER_TONE: Record<string, string> = {
-  primary: "dark",
-  info: "dark",
-  success: "light",
-  secondary: "light",
+/**
+ * 고객 화면 배지 색(README 프론트엔드 디자인 기준): 진행 중은 먹색, 끝난 상태와 이름표는 회색 면,
+ * 고객이 답하거나 확인할 일은 노랑(먹색 글자), 실패·오류만 빨강이다. 관리자 화면은 위 색을 그대로 쓴다.
+ */
+export type CustomerBadgeTone = "progress" | "done" | "action" | "error";
+
+const TONE_BG: Record<CustomerBadgeTone, string> = {
+  progress: "dark",
+  done: "light",
+  action: "warning",
+  error: "danger",
 };
-// 불참은 오류가 아니라 끝난 상태이고, 사용 가능한 이용권은 진행 중인 상태다.
-const CUSTOMER_STATUS_TONE: Record<string, string> = {
-  NO_SHOW: "light",
-  ACTIVE: "dark",
+
+const VARIANT_TONE: Record<string, CustomerBadgeTone> = {
+  primary: "progress",
+  info: "progress",
+  success: "done",
+  secondary: "done",
+  warning: "action",
+  danger: "error",
 };
+
+// 관리자 색과 고객 색이 다른 상태. 공방·결제사 차례인 대기와 이미 동의한 지연은 진행 중이고,
+// 불참은 오류가 아니라 끝난 상태다. 노랑은 지연 동의처럼 고객이 답할 상태에만 남긴다.
+const CUSTOMER_STATUS_TONE: Record<string, CustomerBadgeTone> = {
+  NO_SHOW: "done",
+  ACTIVE: "progress",
+  PAID_APPROVAL_PENDING: "progress",
+  DELAY_ACCEPTED: "progress",
+  REVIEW_REQUIRED: "progress",
+  REFUND_PENDING: "progress",
+};
+
+interface ToneBadgeProps {
+  tone: CustomerBadgeTone;
+  className?: string;
+  children: ReactNode;
+}
+
+/** 서버 상태 이름이 아닌 기능별 상태(문의 답변·알림 신청 등)를 고객 화면 색 기준으로 보여 준다. */
+export function ToneBadge({ tone, className = "badge-status", children }: ToneBadgeProps) {
+  const bg = TONE_BG[tone];
+  return (
+    <Badge bg={bg} text={bg === "light" || bg === "warning" ? "dark" : undefined} className={className}>
+      {children}
+    </Badge>
+  );
+}
 
 interface Props {
   status: string;
@@ -63,11 +99,15 @@ interface Props {
 
 export function StatusBadge({ status, audience = "customer" }: Props) {
   const variant = VARIANT_MAP[status] ?? "secondary";
-  const bg = audience === "customer"
-    ? CUSTOMER_STATUS_TONE[status] ?? CUSTOMER_TONE[variant] ?? variant
-    : variant;
+  if (audience === "customer") {
+    return (
+      <ToneBadge tone={CUSTOMER_STATUS_TONE[status] ?? VARIANT_TONE[variant] ?? "done"}>
+        {getStatusLabel(status, audience)}
+      </ToneBadge>
+    );
+  }
   return (
-    <Badge bg={bg} text={bg === "light" || bg === "warning" ? "dark" : undefined} className="badge-status">
+    <Badge bg={variant} text={variant === "light" || variant === "warning" ? "dark" : undefined} className="badge-status">
       {getStatusLabel(status, audience)}
     </Badge>
   );

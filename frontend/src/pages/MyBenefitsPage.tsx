@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card, Col, Row } from "react-bootstrap";
+import { Button, Card, Col, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import type { MyCouponResponse } from "@/features/coupon/api";
 import { couponConditionLabel, couponDiscountLabel } from "@/features/coupon/presentation";
@@ -12,15 +12,22 @@ import {
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, ToneBadge, type CustomerBadgeTone } from "@/shared/ui";
 
-const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
-  AVAILABLE: { label: "사용 가능", bg: "dark" },
-  RESERVED: { label: "결제 처리 중", bg: "warning" },
-  REDEEMED: { label: "사용 완료", bg: "light" },
-  EXPIRED: { label: "기간 만료", bg: "light" },
-  CANCELED: { label: "사용 중지", bg: "light" },
+interface CouponStatusBadge {
+  label: string;
+  tone: CustomerBadgeTone;
+}
+
+// 쓸 수 있거나 결제에 묶인 쿠폰은 먹색, 끝난 쿠폰(사용 완료·만료·중지)은 회색 면이다.
+const COUPON_STATUS: Record<MyCouponResponse["status"], CouponStatusBadge> = {
+  AVAILABLE: { label: "사용 가능", tone: "progress" },
+  RESERVED: { label: "결제 처리 중", tone: "progress" },
+  REDEEMED: { label: "사용 완료", tone: "done" },
+  EXPIRED: { label: "기간 만료", tone: "done" },
+  CANCELED: { label: "사용 중지", tone: "done" },
 };
+const UNKNOWN_COUPON_STATUS: CouponStatusBadge = { label: "상태 확인 필요", tone: "done" };
 
 const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
   EARN: "적립",
@@ -167,15 +174,14 @@ export function MyBenefitsPage() {
         />
         {couponsQuery.data?.length === 0 && <EmptyState message="보유한 쿠폰이 없습니다." />}
         {couponsQuery.data?.map((coupon) => {
-          const status = COUPON_STATUS[coupon.status]
-            ?? { label: "상태 확인 필요", bg: "light" };
+          const status = COUPON_STATUS[coupon.status] ?? UNKNOWN_COUPON_STATUS;
           return (
             <Card key={coupon.id} className="my-list-card mb-2">
               <Card.Body className="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                   <div className="d-flex flex-wrap gap-2 align-items-center mb-1">
                     <strong>{coupon.name}</strong>
-                    <Badge bg={status.bg}>{status.label}</Badge>
+                    <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                   </div>
                   <div className="small">{couponDiscountLabel(coupon)}</div>
                   <small className="text-muted-soft">{couponConditionLabel(coupon)}</small>

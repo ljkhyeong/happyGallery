@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
+import { Alert, Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ErrorAlert, ToneBadge, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
 
@@ -132,7 +132,7 @@ export function GuestClaimModal({
               <Stack gap={3}>
                 <div className="d-flex justify-content-between align-items-center">
                   <span className="small text-muted-soft">인증 상태</span>
-                  <Badge bg="dark">확인 완료</Badge>
+                  <ToneBadge tone="done">확인 완료</ToneBadge>
                 </div>
 
                 {preview.orders.length === 0 &&
