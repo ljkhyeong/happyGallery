@@ -133,12 +133,10 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
       {whenPending && <LoadingSpinner text={`${SLOT_WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (
-        <div className="text-center pb-4">
-          <EmptyState message={emptyMessage} />
-          {hasFilter && (
-            <Button variant="outline-dark" onClick={clearFilters}>전체 수업 보기</Button>
-          )}
-        </div>
+        <EmptyState
+          message={emptyMessage}
+          action={hasFilter ? <Button variant="outline-dark" onClick={clearFilters}>전체 수업 보기</Button> : undefined}
+        />
       )}
 
       <div className="class-catalog-list">

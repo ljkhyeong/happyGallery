@@ -129,14 +129,10 @@ export function ProductListPage({
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {products && products.length === 0 && (
-        <>
-          <EmptyState message={emptyMessage} />
-          {filtered && (
-            <div className="text-center mb-5">
-              <LinkButton to="/products" variant="outline-dark">전체 작품 보기</LinkButton>
-            </div>
-          )}
-        </>
+        <EmptyState
+          message={emptyMessage}
+          action={filtered ? <LinkButton to="/products" variant="outline-dark">전체 작품 보기</LinkButton> : undefined}
+        />
       )}
       {products && products.length > 0 && (
         <div className="product-grid">
