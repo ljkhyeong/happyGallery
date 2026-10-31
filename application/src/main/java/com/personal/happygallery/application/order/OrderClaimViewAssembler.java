@@ -6,7 +6,6 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderClaim;
 import com.personal.happygallery.domain.order.OrderClaimItem;
@@ -76,8 +75,7 @@ class OrderClaimViewAssembler {
                                   List<OrderItem> allOrderItems,
                                   Refund refund) {
         List<OrderClaimLine> lines = claimItems.stream()
-                .map(item -> new OrderClaimLine(
-                        item, requireOrderItem(orderItemsById, item.getOrderItemId())))
+                .map(item -> OrderClaimLine.of(item, orderItemsById))
                 .toList();
         return new OrderClaimView(
                 claim.getId(),
@@ -103,13 +101,5 @@ class OrderClaimViewAssembler {
                                 line.claimItem().getQuantity(),
                                 line.orderItem().getUnitPrice()))
                         .toList());
-    }
-
-    private OrderItem requireOrderItem(Map<Long, OrderItem> itemsById, Long orderItemId) {
-        OrderItem item = itemsById.get(orderItemId);
-        if (item == null) {
-            throw new NotFoundException("주문 상품");
-        }
-        return item;
     }
 }

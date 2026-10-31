@@ -1,19 +1,20 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, InputGroup } from "react-bootstrap";
 import type { MyCouponResponse } from "@/features/coupon/api";
 import { couponDiscountLabel } from "@/features/coupon/presentation";
 import { myCouponsQuery } from "@/features/coupon/queries";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatKRW, parsePositiveId } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
   calculateCouponDiscount,
   maximumRewardPoints,
   normalizeRewardPoints,
+  selectableCoupons,
 } from "./policy";
 
 interface Props {
@@ -46,17 +47,14 @@ export function MemberOrderBenefits({
   const couponsQuery = useQuery(myCouponsQuery());
   const rewardQuery = useQuery({
     queryKey: queryKeys.member.rewards,
-    queryFn: ({ signal }) => fetchMyRewardWallet(signal),
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyRewardWallet(signal)),
   });
 
-  const selectableCoupons = useMemo(
-    () => couponsQuery.data?.filter((coupon) => (
-      coupon.status === "AVAILABLE"
-      && calculateCouponDiscount(coupon, productAmount) > 0
-    )) ?? [],
+  const couponOptions = useMemo(
+    () => selectableCoupons(couponsQuery.data, productAmount),
     [couponsQuery.data, productAmount],
   );
-  const selectedCoupon = selectableCoupons.find((coupon) => coupon.id === selectedCouponId);
+  const selectedCoupon = couponOptions.find((coupon) => coupon.id === selectedCouponId);
   const couponDiscountAmount = calculateCouponDiscount(selectedCoupon, productAmount);
   const maximumPoints = maximumRewardPoints(
     rewardQuery.data?.availableBalance ?? 0,
@@ -77,7 +75,8 @@ export function MemberOrderBenefits({
 
   return (
     <div>
-      <h6 className="mb-1">쿠폰·적립금</h6>
+      {/* 장바구니·주문서 요약(h2)과 작품 상세 구매 상자(h2 아래 h3 단계)에 들어가므로 h3이고 모양은 h6이다. */}
+      <h3 className="h6 mb-1">쿠폰·적립금</h3>
       <p className="text-muted-soft small mb-3">
         회원 작품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
       </p>
@@ -103,20 +102,21 @@ export function MemberOrderBenefits({
           onChange={(event) => onCouponChange(parsePositiveId(event.target.value))}
         >
           <option value="">쿠폰을 사용하지 않음</option>
-          {selectableCoupons.map((coupon) => (
+          {couponOptions.map((coupon) => (
             <option key={coupon.id} value={coupon.id}>{couponLabel(coupon)}</option>
           ))}
         </Form.Select>
         <Form.Text>
-          {selectableCoupons.length > 0
-            ? `현재 주문에 사용할 수 있는 쿠폰 ${selectableCoupons.length}장`
+          {couponOptions.length > 0
+            ? `현재 주문에 사용할 수 있는 쿠폰 ${couponOptions.length}장`
             : "이 주문에 사용할 수 있는 쿠폰이 없습니다."}
         </Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="member-order-reward-points">
         <Form.Label>사용할 적립금</Form.Label>
-        <div className="d-flex gap-2">
+        {/* 좁은 요약 칸에서도 버튼 글자가 꺾여 입력칸이 두 줄 높이로 커지지 않게 한 줄로 묶는다. */}
+        <InputGroup>
           <Form.Control
             type="number"
             inputMode="numeric"
@@ -133,12 +133,13 @@ export function MemberOrderBenefits({
           <Button
             type="button"
             variant="outline-secondary"
+            className="text-nowrap"
             disabled={disabled || maximumPoints === 0 || rewardQuery.isError}
             onClick={() => onRewardPointsChange(maximumPoints)}
           >
             전액 사용
           </Button>
-        </div>
+        </InputGroup>
         <Form.Text>
           사용 가능 {formatKRW(rewardQuery.data?.availableBalance ?? 0)} · 이번 주문 최대 {formatKRW(maximumPoints)}
         </Form.Text>

@@ -75,10 +75,8 @@ class NotificationContextUseCaseIT {
     @AfterEach
     void tearDown() {
         JdbcTestUtils.deleteFromTables(jdbcTemplate, "product_qna");
-        cleanup.clearNotificationLogs();
         cleanup.clearOrderData();
-        cleanup.clearBookingWithPassAndRefundData();
-        cleanup.clearUsers();
+        cleanup.clearBookingDomainData();
     }
 
     @Test
@@ -94,7 +92,7 @@ class NotificationContextUseCaseIT {
         var bookingClass = classes.save(bookingClass("가죽공예", "CRAFT", 120, 50_000L, 30));
         var firstSlot = slots.save(slot(bookingClass, now.plusDays(2), now.plusDays(2).plusHours(2)));
         var nextSlot = slots.save(slot(bookingClass, now.plusDays(3), now.plusDays(3).plusHours(2)));
-        var booking = bookings.save(Booking.forMemberDeposit(user, firstSlot, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+        var booking = bookings.save(Booking.forMemberDeposit(user, firstSlot, 1, 5_000L, 45_000L, DepositPaymentMethod.CARD));
         var alert = restockAlerts.saveAndFlush(new RestockAlert(user.getId(), product.getId(), null, "기본 옵션", now));
         var orderNotice = sent(user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, order.getId());
         var bookingNotice = sent(user.getId(), NotificationEventType.BOOKING_CONFIRMED, NotificationAggregateType.BOOKING, booking.getId());
@@ -135,7 +133,7 @@ class NotificationContextUseCaseIT {
         var bookingClass = classes.save(bookingClass("가죽공예", "CRAFT", 120, 50_000L, 30));
         var bookedSlot = slots.save(slot(bookingClass, now.plusDays(2), now.plusDays(2).plusHours(2)));
         var fullSlot = slots.save(slot(bookingClass, now.plusDays(4), now.plusDays(4).plusHours(2)));
-        var booking = bookings.save(Booking.forMemberDeposit(user, bookedSlot, 5_000L, 45_000L, DepositPaymentMethod.CARD));
+        var booking = bookings.save(Booking.forMemberDeposit(user, bookedSlot, 1, 5_000L, 45_000L, DepositPaymentMethod.CARD));
         var refund = refunds.save(Refund.forBooking(booking, 5_000L));
         var vacancy = vacancyAlerts.save(BookingVacancyAlert.forUser(fullSlot, user.getId()));
         var qna = productQnas.save(new ProductQna(product.getId(), user.getId(), "배송 문의", "언제 오나요?", false));

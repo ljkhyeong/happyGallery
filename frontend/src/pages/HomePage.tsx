@@ -29,7 +29,7 @@ import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCateg
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { CLASS_SITUATION_TAG_OPTIONS, classImageSrc, formatKRW, getClassCategoryLabel, telHref, workshopAddress } from "@/shared/lib";
-import { ErrorAlert, LinkButton } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
@@ -190,7 +190,7 @@ export function HomePage({
             </div>
           )}
           {!productsError && featuredProducts.length === 0 && (
-            <p className="text-muted-soft">판매 중인 작품이 없습니다.</p>
+            <EmptyState message="판매 중인 작품이 없습니다." />
           )}
         </Container>
       </section>
@@ -239,7 +239,7 @@ export function HomePage({
             </ul>
           )}
           {!classesError && featuredClasses.length === 0 && (
-            <p className="text-muted-soft">지금 예약할 수 있는 클래스가 없습니다.</p>
+            <EmptyState message="지금 예약할 수 있는 클래스가 없습니다." />
           )}
           <div className="gallery-program-links">
             <Link to="/passes/purchase">

@@ -1,14 +1,12 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingHistoryActor;
-import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -18,18 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class DefaultBookingSettlementService implements BookingSettlementUseCase {
 
-    private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
     private final BookingSupport bookingSupport;
     private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final Clock clock;
 
-    DefaultBookingSettlementService(BookingReaderPort bookingReaderPort,
-                                    BookingStorePort bookingStorePort,
+    DefaultBookingSettlementService(BookingStorePort bookingStorePort,
                                     BookingSupport bookingSupport,
                                     ReviewNotificationPublisher reviewNotificationPublisher,
                                     Clock clock) {
-        this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
         this.bookingSupport = bookingSupport;
         this.reviewNotificationPublisher = reviewNotificationPublisher;
@@ -38,7 +33,7 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
 
     @Override
     public Booking markBalancePaid(Long bookingId, Long adminId) {
-        Booking booking = findBooking(bookingId);
+        Booking booking = bookingSupport.findById(bookingId);
         BalanceStatus previousBalanceStatus = booking.getBalanceStatus();
         boolean wasArrears = booking.isArrearsFlag();
         booking.markBalancePaid(LocalDateTime.now(clock));
@@ -57,7 +52,7 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
 
     @Override
     public Booking updateArrears(Long bookingId, boolean arrears, Long adminId) {
-        Booking booking = findBooking(bookingId);
+        Booking booking = bookingSupport.findById(bookingId);
         boolean previousArrears = booking.isArrearsFlag();
         booking.updateArrears(arrears);
         if (previousArrears != booking.isArrearsFlag()) {
@@ -72,7 +67,7 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
 
     @Override
     public Booking complete(Long bookingId, Long adminId) {
-        Booking booking = findBooking(bookingId);
+        Booking booking = bookingSupport.findById(bookingId);
         booking.complete(LocalDateTime.now(clock));
         bookingSupport.recordHistory(
                 booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null,
@@ -80,10 +75,5 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
         Booking completed = bookingStorePort.save(booking);
         reviewNotificationPublisher.requestForBooking(completed.getUserId(), completed.getId());
         return completed;
-    }
-
-    private Booking findBooking(Long bookingId) {
-        return bookingReaderPort.findById(bookingId)
-                .orElseThrow(NotFoundException.supplier("예약"));
     }
 }

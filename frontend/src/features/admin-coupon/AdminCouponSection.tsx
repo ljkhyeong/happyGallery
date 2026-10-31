@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
@@ -12,11 +11,11 @@ import {
   type UpdateCouponRequest,
 } from "./api";
 import { queryKeys } from "@/shared/api";
-import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
+import { useVersionedCrudForm } from "@/shared/hooks/useVersionedCrudForm";
+import { isVersionConflict } from "@/shared/hooks/useVersionedEdit";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 
 interface Props {
@@ -130,20 +129,6 @@ function discountLabel(coupon: AdminCouponResponse): string {
 
 export function AdminCouponSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
-  const toast = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState<CouponFormState>(emptyForm);
-  const [actionError, setActionError] = useState<Error | null>(null);
-  const edit = useVersionedEdit<AdminCouponResponse>({
-    onAuthError,
-    isConflict: isCouponVersionConflict,
-    applyToForm: (coupon) => setForm(formFrom(coupon)),
-    setError: setActionError,
-    onConflict: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.coupons });
-    },
-  });
 
   const couponsQuery = useAdminQuery(onAuthError, adminCouponsQuery(adminKey));
 
@@ -155,76 +140,46 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
     ]);
   };
 
-  const resetForm = () => {
-    edit.reset();
-    setShowForm(false);
-    setEditId(null);
-    setForm(emptyForm());
-    setActionError(null);
-  };
-
-  const createMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => createCoupon(createRequest(form)!, adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("쿠폰을 등록했습니다.");
-      resetForm();
-      invalidateCoupons();
+  const {
+    edit,
+    form,
+    setForm,
+    showForm,
+    editId,
+    actionError,
+    saving,
+    deleteMutation,
+    startEdit,
+    toggleForm,
+    submit,
+  } = useVersionedCrudForm({
+    onAuthError,
+    isConflict: isCouponVersionConflict,
+    emptyForm,
+    draftFrom: formFrom,
+    formFrom,
+    fetchLatest: (id) => fetchAdminCoupon(id, adminKey),
+    // 제출 전 request === null이면 막으므로 저장 시점의 요청은 항상 있다.
+    create: (draft) => createCoupon(createRequest(draft)!, adminKey),
+    update: (id, draft, expectedVersion) => updateCoupon(id, updateRequest(draft, expectedVersion)!, adminKey),
+    remove: (id, version) => deleteCoupon(id, version, adminKey),
+    onSaved: invalidateCoupons,
+    onConflict: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.coupons });
     },
-    onError: setActionError,
-  });
-
-  const updateMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateCoupon(
-      editId!,
-      updateRequest(form, edit.version!)!,
-      adminKey,
-    ),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("쿠폰을 수정했습니다.");
-      resetForm();
-      invalidateCoupons();
+    messages: {
+      created: "쿠폰을 등록했습니다.",
+      updated: "쿠폰을 수정했습니다.",
+      deleted: "쿠폰 사용을 중지했습니다.",
     },
-    onError: (error) => edit.handleSaveError(error, () => fetchAdminCoupon(editId!, adminKey)),
   });
-
-  const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: ({ id, version }: Pick<AdminCouponResponse, "id" | "version">) =>
-      deleteCoupon(id, version, adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("쿠폰 사용을 중지했습니다.");
-      invalidateCoupons();
-    },
-    onError: edit.handleDeleteError,
-  });
-
-  const startEdit = (coupon: AdminCouponResponse) => {
-    setEditId(coupon.id);
-    setForm(formFrom(coupon));
-    setShowForm(true);
-    void edit.startEdit(() => fetchAdminCoupon(coupon.id, adminKey));
-  };
 
   const request = createRequest(form);
-  const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div>
-      <div className="d-flex justify-content-end mb-3">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline-primary"
-          onClick={() => {
-            if (showForm) resetForm();
-            else {
-              resetForm();
-              setShowForm(true);
-            }
-          }}
-        >
+      <div className="admin-panel-create">
+        <Button type="button" size="sm" variant={showForm ? "outline-secondary" : "primary"} onClick={toggleForm}>
           {showForm ? "취소" : "새 쿠폰 등록"}
         </Button>
       </div>
@@ -246,8 +201,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
             <Form onSubmit={(event) => {
               event.preventDefault();
               if (!request) return;
-              if (editId === null) createMutation.mutate();
-              else if (edit.version !== null) updateMutation.mutate();
+              submit();
             }}>
               <Row className="g-3">
                 <Col md={8}>

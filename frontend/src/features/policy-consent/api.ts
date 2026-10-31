@@ -1,6 +1,8 @@
-import { getCurrentPolicyConsent } from "@/generated/api/policyConsent";
-import type { CurrentPolicyConsent } from "./types";
+import {
+  getCurrentPolicyConsent,
+  type CurrentPolicyConsentResponse,
+} from "@/generated/api/policyConsent";
 
-export function fetchCurrentPolicyConsent(): Promise<CurrentPolicyConsent> {
+export function fetchCurrentPolicyConsent(): Promise<CurrentPolicyConsentResponse> {
   return getCurrentPolicyConsent();
 }

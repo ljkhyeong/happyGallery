@@ -6,6 +6,7 @@ import {
   buildSeoMeta,
   buildWebPageJsonLd,
   seoDescription,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { buildCourseJsonLd } from "@/shared/seo/schemas";
 import { loadClass, requirePublicId } from "@/shared/seo/serverApi.server";
@@ -18,12 +19,21 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   return { bookingClass: await loadClass(classId, request.signal) };
 }
 
+/** meta와 화면이 같은 주소·제목·설명을 쓴다. */
+function seo({ bookingClass }: Route.ComponentProps["loaderData"]) {
+  return {
+    pathname: `/classes/${bookingClass.id}`,
+    title: siteTitle(bookingClass.name),
+    description: seoDescription(bookingClass.description, FALLBACK_DESCRIPTION),
+  };
+}
+
 export function meta({ loaderData, params }: Route.MetaArgs) {
-  const pathname = `/classes/${params.id ?? ""}`;
-  const title = loaderData ? `${loaderData.bookingClass.name} | 해피갤러리` : "클래스를 찾을 수 없습니다 | 해피갤러리";
-  const description = loaderData
-    ? seoDescription(loaderData.bookingClass.description, FALLBACK_DESCRIPTION)
-    : FALLBACK_DESCRIPTION;
+  const { pathname, title, description } = loaderData ? seo(loaderData) : {
+    pathname: `/classes/${params.id ?? ""}`,
+    title: siteTitle("클래스를 찾을 수 없습니다"),
+    description: FALLBACK_DESCRIPTION,
+  };
 
   return buildSeoMeta({
     title,
@@ -35,15 +45,12 @@ export function meta({ loaderData, params }: Route.MetaArgs) {
 }
 
 export default function ClassDetailRoute({ loaderData }: Route.ComponentProps) {
-  const pathname = `/classes/${loaderData.bookingClass.id}`;
-  const title = `${loaderData.bookingClass.name} | 해피갤러리`;
-  const description = seoDescription(loaderData.bookingClass.description, FALLBACK_DESCRIPTION);
+  const { pathname, title, description } = seo(loaderData);
   return (
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd(pathname, title, description),
         buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
           { name: "클래스", pathname: "/classes" },
           { name: loaderData.bookingClass.name, pathname },
         ]),

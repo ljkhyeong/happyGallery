@@ -66,7 +66,6 @@ public class DefaultBookingVacancyAlertService implements BookingVacancyAlertUse
     @Override
     public BookingVacancyAlert registerMember(Long slotId, Long userId) {
         User user = userReaderPort.findById(userId)
-                .filter(User::isActive)
                 .orElseThrow(NotFoundException.supplier("회원"));
         if (!user.isPhoneVerified()) {
             throw new PhoneVerificationRequiredException();
@@ -104,7 +103,7 @@ public class DefaultBookingVacancyAlertService implements BookingVacancyAlertUse
     private Slot requireFullSlot(Long slotId) {
         Slot slot = slotCapacitySupport.lockCapacityScope(slotId).source();
         LocalDateTime now = LocalDateTime.now(clock);
-        if (!slot.isReservableAt(now) || slot.getBookedCount() < slot.getCapacity()) {
+        if (!slot.isReservableAt(now) || !slot.isFull()) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
                     "현재 만석인 예약 가능 회차에만 빈자리 알림을 신청할 수 있습니다.");

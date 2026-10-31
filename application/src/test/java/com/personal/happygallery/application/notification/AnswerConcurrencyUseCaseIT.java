@@ -88,8 +88,7 @@ class AnswerConcurrencyUseCaseIT {
     }
 
     private User createUser() {
-        return userStore.save(new User(
-                "answer-concurrency@example.com", "password-hash", "답변 대상 회원", "01012345678"));
+        return userStore.save(TestFixtures.member("answer-concurrency@example.com", "01012345678"));
     }
 
     private void assertSingleAnswer(List<Throwable> outcomes,

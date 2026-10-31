@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PaymentSettlementRepository
         extends JpaRepository<PaymentSettlement, Long>, PaymentSettlementPort {
@@ -26,7 +27,7 @@ public interface PaymentSettlementRepository
             ORDER BY settlement.soldDate DESC, settlement.id DESC
             """)
     List<PaymentSettlement> findIssuesPage(
-            PaymentSettlementStatus matchedStatus, Pageable pageable);
+            @Param("matchedStatus") PaymentSettlementStatus matchedStatus, Pageable pageable);
 
     @Override
     default List<PaymentSettlement> findIssues(int limit) {

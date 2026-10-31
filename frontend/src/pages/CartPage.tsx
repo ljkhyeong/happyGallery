@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { productDetailHref } from "@/features/product/navigation";
-import { Alert, Container, Button, Modal, Table, Form } from "react-bootstrap";
+import { Alert, Container, Button, Table, Form } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { productQuantities, productSkuKey } from "@/features/product/purchaseStock";
@@ -11,23 +11,25 @@ import type { CartItemIdentifier, CartItemView } from "@/features/cart/guestCart
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
-import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
+import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ConfirmModal, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
-import {
-  FulfillmentForm,
-  fulfillmentPayload,
-  isFulfillmentComplete,
-  useFulfillmentSelection,
-} from "@/features/order/FulfillmentForm";
+import { FulfillmentForm } from "@/features/order/FulfillmentForm";
+import { fulfillmentPayload, isFulfillmentComplete, useFulfillmentSelection } from "@/features/order/fulfillmentSelection";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
-import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { MadeToOrderListNotice, ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
+import { useOrderPaymentTotal } from "@/features/order-benefit/useOrderPaymentTotal";
+
+/** 이름을 모르는 작품은 번호로 부른다. 작품 링크와 선택·수량·삭제 버튼 이름이 같은 이름을 쓴다. */
+function cartItemName(item: CartItemView): string {
+  return item.productName || `작품 #${item.productId}`;
+}
 
 export function CartPage() {
   const {
@@ -37,7 +39,7 @@ export function CartPage() {
   } = useCustomerAuth();
   if (status === "error") {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
       </Container>
@@ -91,6 +93,13 @@ function CartContent() {
     (item) => item.productType === "MADE_TO_ORDER",
   );
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
+  // 비회원은 수령 방법·쿠폰·적립금을 고르지 않으므로 상품 합계에 배송비가 더해진다고 보인다.
+  const paymentTotal = useOrderPaymentTotal({
+    productAmount: totalAmount,
+    fulfillmentType: fulfillment.fulfillmentType,
+    couponId: issuedCouponId,
+    rewardAmount,
+  });
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/cart" });
   const checkout = useMutation({
     mutationFn: async () => {
@@ -155,7 +164,7 @@ function CartContent() {
         )}
         <Button
           size="sm"
-          variant="outline-danger"
+          variant="outline-dark"
           onClick={() => setShowDiscardConfirm(true)}
         >
           이 기기에서 해당 작품 제거
@@ -167,35 +176,20 @@ function CartContent() {
     </Alert>
   );
   const discardConfirmModal = (
-    <Modal
+    <ConfirmModal
       show={showDiscardConfirm}
-      aria-labelledby="held-cart-discard-title"
-      onHide={() => setShowDiscardConfirm(false)}
-      centered
+      title="로그인 전에 담은 작품 제거"
+      pending={false}
+      onClose={() => setShowDiscardConfirm(false)}
+      confirmLabel="작품 제거"
+      confirmVariant="dark"
+      onConfirm={() => {
+        discardGuestCartMerge();
+        setShowDiscardConfirm(false);
+      }}
     >
-      <Modal.Header closeButton>
-        <Modal.Title id="held-cart-discard-title" className="fs-6">
-          로그인 전에 담은 작품 제거
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
-          취소
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => {
-            discardGuestCartMerge();
-            setShowDiscardConfirm(false);
-          }}
-        >
-          작품 제거
-        </Button>
-      </Modal.Footer>
-    </Modal>
+      다른 계정으로 로그인하기 전에 담은 작품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+    </ConfirmModal>
   );
 
   if (isLoading) {
@@ -204,7 +198,7 @@ function CartContent() {
 
   if (cartError && isAuthenticated) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
@@ -219,7 +213,7 @@ function CartContent() {
 
   if (items.length === 0) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         <PageHeader title="장바구니" />
         {mergeRecovery}
         {discardConfirmModal}
@@ -265,7 +259,7 @@ function CartContent() {
         || !isFulfillmentComplete(fulfillment) || !consent.ready}
       onClick={handleCheckout}
     >
-      {checkout.isPending ? "결제 준비 중..." : "결제하기"}
+      {checkout.isPending ? "결제창 여는 중..." : "결제하기"}
     </Button>
   ) : (
     <LinkButton to={loginHref} variant="primary" size="lg" className="w-100">
@@ -274,7 +268,7 @@ function CartContent() {
   );
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       <PageHeader title="장바구니" />
       {mergeRecovery}
       {discardConfirmModal}
@@ -301,6 +295,7 @@ function CartContent() {
             className="store-purchase-card"
             hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
             action={checkoutButton}
+            mobileTotal={paymentTotal}
             note={isAuthenticated
               ? "선택하지 않은 작품은 결제 후에도 장바구니에 남습니다."
               : "담은 작품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다."}
@@ -317,7 +312,7 @@ function CartContent() {
               />
             ) : (
               <>
-                {selectedItems.length === 0 && <Alert variant="info">구매할 작품을 선택해 주세요.</Alert>}
+                {selectedItems.length === 0 && <Alert variant="warning">구매할 작품을 선택해 주세요.</Alert>}
                 {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
                   {item.productName}: 같은 작품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
                   현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
@@ -387,7 +382,7 @@ function CartContent() {
                     <div className="cart-item-title">
                       {isAuthenticated && <Form.Check
                         id={`cart-select-${item.cartItemId}`}
-                        aria-label={`${item.productName} 선택`}
+                        aria-label={`${cartItemName(item)} 선택`}
                         checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
                         disabled={selectionDisabled || !canSelect(item)}
                         onChange={(event) => {
@@ -398,7 +393,7 @@ function CartContent() {
                         }} />}
                       <div>
                         <Link to={productDetailHref(item.productId, item.productVariantId)}>
-                          {item.productName || `작품 #${item.productId}`}
+                          {cartItemName(item)}
                         </Link>
                         <div className="small text-muted-soft">{formatKRW(item.price)}</div>
                       </div>
@@ -413,13 +408,15 @@ function CartContent() {
                           careInstructions={item.careInstructions}
                           productionLeadDays={item.productionLeadDays}
                           compact
+                          showCustomizationInquiry={false}
                         />
                       </div>
                     )}
                     {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
                     {!canSelect(item) && !item.quantityWarning && (
                       <div>
-                        <span className="badge bg-secondary">구매 불가</span>
+                        {/* 작품 카드·상세와 같은 판매 불가 빨간 점 표시를 쓴다. */}
+                        <span className="product-card-status">구매 불가</span>
                         <div className="small text-danger">
                           재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
                         </div>
@@ -431,17 +428,19 @@ function CartContent() {
                       <Button
                         variant="outline-secondary"
                         size="sm"
+                        aria-label={`${cartItemName(item)} 수량 줄이기`}
                         disabled={checkout.isPending || isItemMutationPending || item.qty <= 1}
                         onClick={() => {
                           void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
                         }}
                       >
-                        -
+                        −
                       </Button>
                       <span>{item.qty}</span>
                       <Button
                         variant="outline-secondary"
                         size="sm"
+                        aria-label={`${cartItemName(item)} 수량 늘리기`}
                         disabled={checkout.isPending || isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
                         onClick={() => {
                           void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
@@ -454,8 +453,10 @@ function CartContent() {
                   <td className="cart-item-subtotal">{formatKRW(item.subtotal)}</td>
                   <td className="cart-item-remove">
                     <Button
-                      variant="link"
+                      variant="outline-dark"
                       size="sm"
+                      className="text-nowrap"
+                      aria-label={`${cartItemName(item)} 삭제`}
                       disabled={checkout.isPending || isItemMutationPending}
                       onClick={() => {
                         void removeItem(item.cartItemId).catch(() => undefined);
@@ -468,6 +469,9 @@ function CartContent() {
               ))}
             </tbody>
           </Table>
+          <MadeToOrderListNotice
+            productNames={items.filter((item) => item.productType === "MADE_TO_ORDER").map((item) => item.productName)}
+          />
         </CheckoutPanel>
 
         {isAuthenticated && (

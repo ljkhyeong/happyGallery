@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, ListGroup } from "react-bootstrap";
 import {
   classAcceptsPass,
   isFewSeats,
   publicClassesQuery,
+  slotDates,
   slotDayParts,
   UPCOMING_SLOT_DAYS,
   upcomingSlotsQuery,
@@ -16,7 +17,7 @@ import {
   getClassCategoryLabel,
   formatDateInput,
 } from "@/shared/lib";
-import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
+import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";
@@ -29,6 +30,8 @@ interface Props {
   selectInitialSlot?: boolean;
   /** 이용권으로 예약하러 들어온 경우 이용권을 쓸 수 있는 수업만 고르게 한다. */
   passOnly?: boolean;
+  /** 수업 선택 바로 아래에 둘 안내. 링크의 이용권을 고른 수업에 쓸 수 없을 때처럼 수업 때문에 생긴 안내다. */
+  classNotice?: ReactNode;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
@@ -41,6 +44,7 @@ export function SlotSelectionStep({
   initialSlotId,
   selectInitialSlot = false,
   passOnly = false,
+  classNotice,
   selectedSlot,
   onSelect,
   onDeselect,
@@ -103,12 +107,7 @@ export function SlotSelectionStep({
     refetchOnMount: initialSlotId != null ? "always" : true,
   });
 
-  const availableDates = useMemo(
-    () => Array.from(
-      new Set(upcomingSlots?.map((slot) => slot.startAt.slice(0, 10)) ?? []),
-    ).sort(),
-    [upcomingSlots],
-  );
+  const availableDates = useMemo(() => slotDates(upcomingSlots), [upcomingSlots]);
   const activeDate = availableDates.includes(date) ? date : (availableDates[0] ?? "");
   const openDates = useMemo(
     () => new Set(upcomingSlots?.filter((slot) => slot.remainingCapacity > 0)
@@ -161,7 +160,7 @@ export function SlotSelectionStep({
         />
         {classes !== undefined && initialClassId != null
           && !classes.some((bookingClass) => bookingClass.id === initialClassId) && (
-          <Alert variant="info">
+          <Alert variant="warning">
             이 수업은 현재 예약할 수 없습니다. 다른 수업을 선택해 주세요.
           </Alert>
         )}
@@ -191,6 +190,7 @@ export function SlotSelectionStep({
             </Form.Select>
           </Form.Group>
         )}
+        {classNotice}
 
         {selectedClass && (
           <div className="booking-class-detail">
@@ -237,7 +237,7 @@ export function SlotSelectionStep({
 
         {initialSlotId != null && selectedClass && upcomingSlots !== undefined && !slotsError && !slotsFetching
           && !upcomingSlots.some((slot) => slot.id === initialSlotId) && (
-          <Alert variant="info">
+          <Alert variant="warning">
             이 일정은 현재 예약할 수 없습니다. 다른 날짜나 시간을 선택해 주세요.
           </Alert>
         )}
@@ -291,7 +291,10 @@ export function SlotSelectionStep({
                   key={slot.id}
                   data-slot-id={slot.id}
                   action
+                  type="button"
                   active={selectedSlot?.id === slot.id}
+                  // 고른 시간은 테두리 색만 달라져 보조기기에는 눌림 상태로 알린다(날짜 칩과 같다).
+                  aria-pressed={selectedSlot?.id === slot.id}
                   onClick={() => onSelect(slot)}
                   className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
                 >

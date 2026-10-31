@@ -1,10 +1,10 @@
-import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Modal } from "react-bootstrap";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { changePassword } from "./credentialApi";
-import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { CurrentPasswordInput } from "./CurrentPasswordInput";
 import { NewPasswordFields } from "./NewPasswordFields";
 import { runForCurrentCustomer } from "@/shared/api";
 
@@ -68,7 +68,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
       keyboard={!mutation.isPending}
       centered
     >
-      <Modal.Header closeButton={!mutation.isPending}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}>
         <Modal.Title id="password-change-title" className="fs-6">비밀번호 변경</Modal.Title>
       </Modal.Header>
       <Form onSubmit={submit} aria-busy={mutation.isPending}>
@@ -76,17 +76,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
           <ErrorAlert error={mutation.error} />
           <Form.Group className="mb-3" controlId="current-password">
             <Form.Label>현재 비밀번호</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              minLength={8}
-              maxLength={PASSWORD_MAX_UTF8_BYTES}
-              required
-              autoFocus
-            />
-            <PasswordLengthFeedback value={currentPassword} />
+            <CurrentPasswordInput value={currentPassword} onChange={setCurrentPassword} />
           </Form.Group>
           <NewPasswordFields
             idPrefix="new-password"
@@ -99,7 +89,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={close} disabled={mutation.isPending}>
-            취소
+            닫기
           </Button>
           <Button type="submit" disabled={!canSubmit || mutation.isPending}>
             {mutation.isPending ? "변경 중..." : "비밀번호 변경"}

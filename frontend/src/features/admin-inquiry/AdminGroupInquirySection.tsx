@@ -5,7 +5,7 @@ import { createAdminGroupInquiry, getAdminGroupInquiry, listAdminGroupInquiries,
   type AdminGroupInquiryResponse, type GroupInquiryRequest, type ListAdminGroupInquiriesParams } from "@/generated/api/adminOperations";
 import { GroupInquiryForm } from "@/features/group-inquiry/GroupInquiryForm";
 import { GROUP_INQUIRY_STATUS, type GroupInquiryStatus } from "@/features/group-inquiry/status";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
@@ -24,18 +24,18 @@ export function AdminGroupInquirySection({ token, onAuthError }: Props) {
   const [creating, setCreating] = useState(false);
   const paging = useCursorHistory();
   const client = useQueryClient();
-  const query = useAdminQuery(onAuthError, { queryKey: ["admin", "group-inquiries", status, filters, paging.cursor],
+  const query = useAdminQuery(onAuthError, { queryKey: queryKeys.admin.groupInquiries.page(status, filters, paging.cursor),
     queryFn: () => listAdminGroupInquiries({ ...filters, status: status || undefined, cursor: paging.cursor, size: 20 }, { headers: adminHeaders(token) }) });
   const create = useAdminMutation(onAuthError, {
     mutationFn: (request: GroupInquiryRequest) => createAdminGroupInquiry(request, { headers: adminHeaders(token) }),
     onSuccess: (result) => {
       setCreating(false); setSelectedId(result.summary.id); paging.resetCursor();
-      void client.invalidateQueries({ queryKey: ["admin", "group-inquiries"] });
+      void client.invalidateQueries({ queryKey: queryKeys.admin.groupInquiries.all });
     },
   });
   return (
     <div id="admin-group-inquiries">
-      <div className="d-flex flex-wrap gap-2 justify-content-between mb-3">
+      <div className="d-flex flex-wrap align-items-end gap-2 justify-content-between mb-3">
         <Form.Group controlId="group-inquiry-status-filter"><Form.Label>문의 상태</Form.Label>
           <Form.Select value={status} onChange={(event) => { setStatus(event.target.value as GroupInquiryStatus | ""); paging.resetCursor(); setSelectedId(null); }}>
             <option value="">전체</option>{statuses.map((value) => <option key={value} value={value}>{GROUP_INQUIRY_STATUS[value]}</option>)}
@@ -94,7 +94,7 @@ export function AdminGroupInquirySection({ token, onAuthError }: Props) {
 }
 
 export function GroupInquiryDetail({ id, token, onAuthError }: Props & { id: number }) {
-  const query = useAdminQuery(onAuthError, { queryKey: ["admin", "group-inquiry", id],
+  const query = useAdminQuery(onAuthError, { queryKey: queryKeys.admin.groupInquiry.detail(id),
     queryFn: () => getAdminGroupInquiry(id, { headers: adminHeaders(token) }) });
   return <Card className="mt-3"><Card.Body>
     <h6>상담 내용 · 접수 번호 {id}</h6>
@@ -118,16 +118,16 @@ function ConsultationForm({ detail, token, onAuthError }: Props & { detail: Admi
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateAdminGroupInquiry(id, { version: detail.version, status, note }, { headers: adminHeaders(token) }),
     onSuccess: (result) => {
-      client.setQueryData(["admin", "group-inquiry", id], result);
-      void client.invalidateQueries({ queryKey: ["admin", "group-inquiries"] });
+      client.setQueryData(queryKeys.admin.groupInquiry.detail(id), result);
+      void client.invalidateQueries({ queryKey: queryKeys.admin.groupInquiries.all });
       toast.show("상담 상태와 메모를 저장했습니다.");
     },
   });
   const contactMutation = useAdminMutation(onAuthError, {
     mutationFn: () => scheduleAdminGroupInquiryContact(id, { version: detail.version, nextContactOn: nextContactOn || null }, { headers: adminHeaders(token) }),
     onSuccess: (result) => {
-      client.setQueryData(["admin", "group-inquiry", id], result);
-      void client.invalidateQueries({ queryKey: ["admin", "group-inquiries"] });
+      client.setQueryData(queryKeys.admin.groupInquiry.detail(id), result);
+      void client.invalidateQueries({ queryKey: queryKeys.admin.groupInquiries.all });
       toast.show("다음 연락일을 저장했습니다.");
     },
   });

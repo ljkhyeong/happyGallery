@@ -8,6 +8,7 @@ import { notificationTarget } from "@/features/notification/notificationTarget";
 import { runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 
 export function MyNotificationsPage() {
   return <MySectionPage path="/my/notifications"><NotificationInbox /></MySectionPage>;
@@ -50,12 +51,12 @@ function NotificationInbox() {
         const target = notificationTarget(notification);
         const label = NOTIFICATION_EVENT_LABEL[notification.eventType] ?? "알림 내용 확인 필요";
         return (
-          <Card key={notification.id} className="mb-2"><Card.Body>
+          <Card key={notification.id} className={`mb-2 my-notification-card${notification.read ? "" : " is-unread"}`}><Card.Body>
             <div className="d-flex gap-3 justify-content-between align-items-start">
               <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                {target ? <Link to={target} onClick={() => {
+                {target ? <Link to={target} className="my-notification-title" onClick={() => {
                   if (!notification.read && !pending) readMutation.mutate({ id: notification.id, notifyOnError: true });
-                }}>{label}</Link> : <strong>{label}</strong>}
+                }}>{label}</Link> : <span className="my-notification-title">{label}</span>}
                 <NotificationContext notification={notification} />
                 <div className="small text-muted mt-1">{formatDateTime(notification.deliveredAt)} · {notification.read ? "읽음" : "읽지 않음"}</div>
               </div>
@@ -65,11 +66,15 @@ function NotificationInbox() {
           </Card.Body></Card>
         );
       })}
-      <nav aria-label="알림 페이지" className="d-flex align-items-center gap-3 mt-3">
-        <Button size="sm" variant="outline-secondary" disabled={page === 0 || query.isFetching || pending} onClick={() => update(page - 1)}>이전</Button>
-        <span>{page + 1}페이지</span>
-        <Button size="sm" variant="outline-secondary" disabled={query.data?.length !== NOTIFICATION_PAGE_SIZE || query.isFetching || pending} onClick={() => update(page + 1)}>다음</Button>
-      </nav>
+      <OffsetPager
+        as="nav"
+        ariaLabel="알림 페이지"
+        summary={`${page + 1}페이지`}
+        previousDisabled={page === 0 || query.isFetching || pending}
+        nextDisabled={query.data?.length !== NOTIFICATION_PAGE_SIZE || query.isFetching || pending}
+        onPrevious={() => update(page - 1)}
+        onNext={() => update(page + 1)}
+      />
     </>
   );
 }

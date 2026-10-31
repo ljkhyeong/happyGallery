@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "@/features/product/api";
 import { productSelectionView } from "@/features/product/productSelectionView";
-import { productQuantities, productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
+import {
+  productQuantities, productQuantityLimit, productSkuKey, quantityLimitExceededMessage, remainingLineQuantity,
+} from "@/features/product/purchaseStock";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import type { OrderItemInput } from "@/shared/types";
@@ -32,12 +34,12 @@ export function useOrderItems(requestedItems: OrderItemInput[]) {
       : !selection?.configurationValid
         ? "선택한 옵션이 변경되었습니다. 작품 상세에서 다시 선택해 주세요."
         : quantity > limit
-          ? `같은 작품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
+          ? quantityLimitExceededMessage(limit)
           : null;
     return {
       item, product, selection, problem,
       key: productOptionLineKey(item.productId, item.productVariantId, item.textInputs),
-      maxQuantity: Math.max(0, limit - quantity + item.qty),
+      maxQuantity: remainingLineQuantity(limit, quantity, item.qty),
     };
   });
   return {

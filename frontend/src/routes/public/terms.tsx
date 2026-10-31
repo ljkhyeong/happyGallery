@@ -5,10 +5,11 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "이용약관 | 해피갤러리";
+const TITLE = siteTitle("이용약관");
 const DESCRIPTION = "해피갤러리 서비스 이용약관입니다.";
 
 export function loader({ params }: Route.LoaderArgs) {
@@ -32,10 +33,7 @@ export default function TermsRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd(loaderData.pathname, TITLE, DESCRIPTION),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "이용약관", pathname: loaderData.pathname },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "이용약관", pathname: loaderData.pathname }]),
       ]} />
       <PolicyDocument />
     </>

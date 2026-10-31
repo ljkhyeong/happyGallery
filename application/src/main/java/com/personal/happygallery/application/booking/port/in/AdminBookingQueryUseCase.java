@@ -9,5 +9,5 @@ import java.util.List;
  */
 public interface AdminBookingQueryUseCase {
 
-    List<AdminBookingResponse> listBookings(LocalDate date, BookingStatus status);
+    List<AdminBookingView> listBookings(LocalDate date, BookingStatus status);
 }

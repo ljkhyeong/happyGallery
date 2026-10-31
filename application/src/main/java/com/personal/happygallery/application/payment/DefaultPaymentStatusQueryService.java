@@ -30,7 +30,7 @@ public class DefaultPaymentStatusQueryService implements PaymentStatusQueryUseCa
     @Override
     public PaymentStatusResult getStatus(String orderId, AuthContext auth, String statusToken) {
         PaymentAttempt attempt = attemptReader.findByOrderIdExternal(orderId)
-                .orElseThrow(() -> new NotFoundException("결제"));
+                .orElseThrow(NotFoundException.supplier("결제"));
         accessVerifier.requireCustomerAccess(attempt, auth, statusToken);
 
         CustomerPaymentStatus status = statusResolver.resolve(attempt);

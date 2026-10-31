@@ -48,9 +48,9 @@ final class NhnAlimtalkDeliveryResultProvider implements NotificationDeliveryRes
         }
     }
 
-    private record AlimtalkResultResponse(ResponseHeader header, Message message) {
+    private record AlimtalkResultResponse(NhnResponseHeader header, Message message) {
         private NotificationDeliveryResult result() {
-            if (header == null || !header.isSuccessful() || header.resultCode() != 0) {
+            if (header == null || !header.ok()) {
                 return NotificationDeliveryResult.unavailable("INVALID_RESPONSE_HEADER");
             }
             if (message == null || message.messageStatus() == null) {
@@ -64,8 +64,6 @@ final class NhnAlimtalkDeliveryResultProvider implements NotificationDeliveryRes
             };
         }
     }
-
-    private record ResponseHeader(boolean isSuccessful, int resultCode) {}
 
     private record Message(String messageStatus, String resultCode) {}
 }

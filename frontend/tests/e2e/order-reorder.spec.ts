@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_CART_VERSION, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 const item = (id: number, name: string, options: { type: string; groupName: string; value: string; priceAdjustment: number }[] = []) => ({
   orderItemId: id, productId: id, productName: name, productType: id === 42 ? "READY_STOCK" : "MADE_TO_ORDER",
@@ -14,12 +14,12 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
     item(44, "각인 상품", [{ type: "TEXT", groupName: "각인", value: "홍길동", priceAdjustment: 0 }])];
   const requests: { idempotencyKey: string; items: unknown[]; expectedCustomerId: number }[] = [];
   let cartQty = 0;
+  const member = memberFixture({ email: "reorder@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "reorder@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), totalAmount: cartQty * 15000,
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, totalAmount: cartQty * 15000,
       items: cartQty ? [{ productId: 42, productVariantId: null, qty: cartQty, available: true }] : [] });
+    if (await fulfillMemberCommon(route, { member })) return;
     if (path === "/api/v1/me/cart/merge") {
       requests.push(route.request().postDataJSON());
       if (requests.length === 1) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE", message: "잠시 후 재시도" }, 503);
@@ -38,7 +38,6 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
           selections: id === 43 ? [{ groupKey: "color", valueKey: "red" }] : [] }],
       });
     }
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     return fulfillJson(route, []);
   });
   await page.goto("/my/orders/200");
@@ -69,7 +68,7 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
 test("비회원은 조회한 주문의 상품을 현재 가격으로 이 기기의 장바구니에 다시 담는다 @payment", async ({ page }) => {
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (path === "/api/v1/orders/200") {
       expect(route.request().headers()["x-access-token"]).toBe("reorder-guest");
       return fulfillJson(route, { orderId: 200, orderNumber: "비회원 주문", status: "DELIVERED", items: [{ ...item(42, "비회원 머그"), qty: 1 }],
@@ -79,7 +78,6 @@ test("비회원은 조회한 주문의 상품을 현재 가격으로 이 기기�
     if (path === "/api/v1/products/42") return fulfillJson(route, { id: 42, name: "현재 머그", category: "공예", type: "READY_STOCK", price: 15000,
       imageUrl: null, available: true, stockQuantity: 5, specification: null, careInstructions: null, productionLeadDays: null,
       optionGroups: [], variants: [] });
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     return fulfillJson(route, []);
   });
   await page.goto("/guest/orders");

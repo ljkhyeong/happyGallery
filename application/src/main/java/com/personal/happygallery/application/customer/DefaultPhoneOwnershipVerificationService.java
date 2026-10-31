@@ -8,6 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 시도 제한과 인증 코드 소비를 현재 DB 트랜잭션 안에서 함께 수행한다.
+ *
+ * <p>잠금 아래 업무 조건을 먼저 확인한 뒤에야 시도 제한을 적용해야 하는 흐름(비회원 빈자리 알림의 만석 회차 확인)만 사용한다.
+ * 그 외 인증 코드 소비 흐름은 facade에서 {@link PhoneVerificationAttemptGuard}를 트랜잭션 밖에서 먼저 호출하고
+ * {@link PhoneVerificationConsumptionService}를 짧은 트랜잭션 안에서 호출한다.
+ */
 @Service
 public class DefaultPhoneOwnershipVerificationService implements PhoneOwnershipVerificationUseCase {
 

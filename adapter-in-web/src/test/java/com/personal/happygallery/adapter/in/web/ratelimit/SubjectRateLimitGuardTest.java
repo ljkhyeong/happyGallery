@@ -1,9 +1,7 @@
 package com.personal.happygallery.adapter.in.web.ratelimit;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
-import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.IpRules;
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
-import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.SubjectRules;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import java.time.Duration;
 import java.util.List;
@@ -170,46 +168,19 @@ class SubjectRateLimitGuardTest {
         return mock;
     }
 
+    /** 검증 대상 주체 규칙만 1회로 좁히고 나머지는 fixture 기본값(100회/1분)을 쓴다. */
     private static RateLimitProperties properties() {
-        Rule generousLimit = new Rule(100, Duration.ofMinutes(1));
-        return new RateLimitProperties(
-                true,
-                "test:rate",
-                new IpRules(
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit
-                , generousLimit),
-                new SubjectRules(
-                        new Rule(1, Duration.ofMinutes(1)),
-                        new Rule(1, Duration.ofMinutes(1)),
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        generousLimit,
-                        new Rule(1, Duration.ofMinutes(10)),
-                        new Rule(1, Duration.ofMinutes(1)),
-                        new Rule(1, Duration.ofMinutes(10)),
-                        new Rule(1, Duration.ofMinutes(10)),
-                        new Rule(1, Duration.ofMinutes(10)),
-                        new Rule(1, Duration.ofMinutes(10))
-                )
-        );
+        Rule oncePerMinute = new Rule(1, Duration.ofMinutes(1));
+        Rule oncePerTenMinutes = new Rule(1, Duration.ofMinutes(10));
+        return new RateLimitPropertiesFixture()
+                .subjectCustomerLogin(oncePerMinute)
+                .subjectPhoneVerification(oncePerMinute)
+                .subjectPassRefund(oncePerTenMinutes)
+                .subjectReviewMutation(oncePerMinute)
+                .subjectReviewHelpful(oncePerTenMinutes)
+                .subjectReviewReport(oncePerTenMinutes)
+                .subjectReviewImageUpload(oncePerTenMinutes)
+                .subjectAdminMfaRecovery(oncePerTenMinutes)
+                .build();
     }
 }

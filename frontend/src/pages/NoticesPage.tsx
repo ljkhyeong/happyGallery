@@ -23,7 +23,7 @@ export function NoticesPage({ initialNotices }: { initialNotices: NoticeListResp
           {notices.map((notice) => (
             <li key={notice.id}>
               <Link to={`/notices/${notice.id}`}>
-                {notice.pinned && <Badge bg="dark">고정</Badge>}
+                {notice.pinned && <Badge bg="light" text="dark">고정</Badge>}
                 <span>{notice.title}</span>
               </Link>
               <time dateTime={notice.createdAt}>{formatDate(notice.createdAt)}</time>

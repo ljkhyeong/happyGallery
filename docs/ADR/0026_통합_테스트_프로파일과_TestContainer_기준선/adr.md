@@ -2,7 +2,7 @@
 
 **날짜**: 2026-03-20  
 **상태**: Accepted
-**갱신**: 2026-09-27
+**갱신**: 2026-10-16
 
 ---
 
@@ -23,8 +23,9 @@
 
 ### 2. 통합 테스트 인프라는 Testcontainers를 사용한다
 
-- MySQL: `MySQLContainer("mysql:8.0")`
-- Redis: `GenericContainer("redis:7-alpine")`
+- MySQL: `MySQLContainer("mysql:8.4.10")`
+- Redis: `GenericContainer("redis:7.4.9-alpine")`
+- 두 이미지는 운영 manifest(`deploy/k3s/base`)·CI Browser Smoke의 서비스와 같은 버전으로 둔다. 상수는 `SharedTestContainers`에 있고 `deploy/k3s/scripts/validate.sh`가 일치를 검사한다. 운영 DB를 올리면 함께 올린다.
 - `SharedTestContainers`가 테스트 JVM마다 서버를 한 번 기동한다. `TestcontainersConfig`의 `DynamicPropertyRegistrar`가 할당된 DB의 연결 정보를 등록한다.
 - context마다 별도 MySQL DB와 Redis DB 번호를 배정한다. migration 검사는 클래스마다 별도 MySQL DB를 받아 `clean()`과 이전 버전 migration이 다른 검사에 영향을 주지 않게 한다.
 - 컨테이너를 Spring Bean이나 JUnit `@Container`로 등록하지 않는다. 개별 context·클래스 종료 시 서버를 닫지 않고, JVM 종료 후 Testcontainers의 Ryuk이 정리한다. 실행 간 컨테이너 재사용 옵션은 켜지 않는다.

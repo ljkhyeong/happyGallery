@@ -25,12 +25,9 @@ APP_IMAGE_DIGEST=$(require_env_value APP_IMAGE_DIGEST "$metadata")
 FRONTEND_IMAGE_DIGEST=$(require_env_value FRONTEND_IMAGE_DIGEST "$metadata")
 IMAGE_TAG=$(require_env_value IMAGE_TAG "$metadata")
 
-printf '%s' "$APP_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "보존된 app 이미지 digest가 올바르지 않습니다."
-printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "보존된 frontend 이미지 digest가 올바르지 않습니다."
-printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
-    || die "보존된 IMAGE_TAG가 올바르지 않습니다."
+is_sha256_digest "$APP_IMAGE_DIGEST" || die "보존된 app 이미지 digest가 올바르지 않습니다."
+is_sha256_digest "$FRONTEND_IMAGE_DIGEST" || die "보존된 frontend 이미지 digest가 올바르지 않습니다."
+is_image_tag "$IMAGE_TAG" || die "보존된 IMAGE_TAG가 올바르지 않습니다."
 case "$APP_IMAGE" in
     *:"$IMAGE_TAG") ;;
     *) die "보존된 APP_IMAGE 태그가 IMAGE_TAG와 다릅니다." ;;

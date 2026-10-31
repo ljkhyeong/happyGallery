@@ -10,7 +10,7 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @Profile("prod")
 class TossPaymentsRestClientConfig {
 

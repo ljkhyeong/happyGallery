@@ -25,7 +25,7 @@ for image_and_digest in \
     "$FRONTEND_IMAGE|$FRONTEND_IMAGE_DIGEST"; do
     image=${image_and_digest%%|*}
     expected_digest=${image_and_digest#*|}
-    printf '%s' "$expected_digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+    is_sha256_digest "$expected_digest" \
         || die "보존된 이미지 digest가 올바르지 않습니다: $expected_digest"
     containerd_has_image "$image@$expected_digest" \
         || die "rollback digest 이미지가 containerd에 남아 있지 않습니다: $image@$expected_digest"
@@ -45,6 +45,6 @@ kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+state_root=$(release_state_dir)
 ln -sfn "$release_dir" "$state_root/current"
 info "app/frontend digest rollback 완료. 데이터베이스와 stateful/cluster 리소스는 변경하지 않았습니다."

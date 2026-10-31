@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,6 +18,8 @@ import java.util.Objects;
 public class SmartStoreOrderActionHistory {
 
     public static final Duration STALE_REQUEST_AFTER = Duration.ofMinutes(5);
+    private static final int RESULT_MESSAGE_LIMIT = 1000;
+    private static final int RECONCILIATION_NOTE_LIMIT = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,7 +42,7 @@ public class SmartStoreOrderActionHistory {
     @Column(name = "result_code", length = 100)
     private String resultCode;
 
-    @Column(name = "result_message", length = 1000)
+    @Column(name = "result_message", length = RESULT_MESSAGE_LIMIT)
     private String resultMessage;
 
     @Column(name = "changed_by_admin_id")
@@ -58,7 +61,7 @@ public class SmartStoreOrderActionHistory {
     @Column(name = "reconciliation_outcome", length = 20)
     private SmartStoreOrderReconciliationOutcome reconciliationOutcome;
 
-    @Column(name = "reconciliation_note", length = 500)
+    @Column(name = "reconciliation_note", length = RECONCILIATION_NOTE_LIMIT)
     private String reconciliationNote;
 
     @Column(name = "reconciled_by_admin_id")
@@ -124,7 +127,7 @@ public class SmartStoreOrderActionHistory {
             throw new IllegalStateException("대사할 수 있는 스마트스토어 주문 처리 이력이 아닙니다.");
         }
         this.reconciliationOutcome = Objects.requireNonNull(outcome, "대사 결과는 필수입니다.");
-        this.reconciliationNote = truncate(requireText(note, "대사 근거"), 500);
+        this.reconciliationNote = DomainText.truncate(requireText(note, "대사 근거"), RECONCILIATION_NOTE_LIMIT);
         this.reconciledByAdminId = adminUserId;
         this.reconciledBy = requireText(adminName, "대사 처리자");
         this.reconciledAt = Objects.requireNonNull(reconciledAt, "대사 시각은 필수입니다.");
@@ -140,7 +143,7 @@ public class SmartStoreOrderActionHistory {
         }
         this.status = nextStatus;
         this.resultCode = optionalText(resultCode);
-        this.resultMessage = truncate(optionalText(resultMessage), 1000);
+        this.resultMessage = DomainText.truncate(optionalText(resultMessage), RESULT_MESSAGE_LIMIT);
         this.completedAt = Objects.requireNonNull(completedAt, "완료 시각은 필수입니다.");
     }
 
@@ -154,10 +157,6 @@ public class SmartStoreOrderActionHistory {
 
     private static String optionalText(String value) {
         return value == null || value.isBlank() ? null : value.strip();
-    }
-
-    private static String truncate(String value, int maxLength) {
-        return value == null || value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     public Long getId() { return id; }

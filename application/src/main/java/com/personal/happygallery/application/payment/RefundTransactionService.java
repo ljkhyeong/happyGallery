@@ -9,12 +9,11 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import com.personal.happygallery.domain.payment.PaymentFailureReason;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.Clock;
 import java.time.Duration;
@@ -30,9 +29,10 @@ class RefundTransactionService {
 
     static final Duration PROCESSING_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
-    private static final int MAX_FAILURE_REASON_LENGTH = 500;
     private static final String MISSING_PAYMENT_KEY_REASON =
             "paymentKey가 없어 PG 환불을 실행할 수 없습니다.";
+    private static final String UNKNOWN_REFUND_RESULT_REASON =
+            "PG 환불 처리 결과를 확인할 수 없습니다.";
 
     private final RefundPort refundPort;
     private final PaymentAttemptReaderPort paymentAttemptReader;
@@ -113,13 +113,7 @@ class RefundTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void requestManualRetry(Long refundId) {
-        Refund refund = findRefundForUpdate(refundId);
-        try {
-            refund.requestRetry(LocalDateTime.now(clock));
-        } catch (IllegalStateException e) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-                    "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
-        }
+        findRefundForUpdate(refundId).requestRetry(LocalDateTime.now(clock));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -143,7 +137,7 @@ class RefundTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markFailed(Long refundId, String processingToken, String reason) {
         Refund refund = findRefundForUpdate(refundId);
-        String resolvedReason = failureReason(reason);
+        String resolvedReason = PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON);
         if (refund.markFailed(processingToken, resolvedReason)) {
             markPaymentAttemptCompensationFailed(refund, resolvedReason);
         }
@@ -155,7 +149,7 @@ class RefundTransactionService {
         Refund refund = findRefundForUpdate(refundId);
         refund.markRetryable(
                 processingToken,
-                failureReason(reason),
+                PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON),
                 LocalDateTime.now(clock).plus(RETRY_DELAY));
         return refund;
     }
@@ -165,7 +159,7 @@ class RefundTransactionService {
         Refund refund = findRefundForUpdate(refundId);
         refund.markReconciliationRequired(
                 processingToken,
-                failureReason(reason),
+                PaymentFailureReason.normalize(reason, UNKNOWN_REFUND_RESULT_REASON),
                 LocalDateTime.now(clock).plus(RETRY_DELAY));
         return refund;
     }
@@ -173,15 +167,6 @@ class RefundTransactionService {
     private Refund findRefundForUpdate(Long refundId) {
         return refundPort.findByIdForUpdate(refundId)
                 .orElseThrow(NotFoundException.supplier("환불"));
-    }
-
-    private String failureReason(String reason) {
-        String resolved = StringUtils.hasText(reason)
-                ? reason
-                : "PG 환불 처리 결과를 확인할 수 없습니다.";
-        return resolved.length() <= MAX_FAILURE_REASON_LENGTH
-                ? resolved
-                : resolved.substring(0, MAX_FAILURE_REASON_LENGTH);
     }
 
     private void markPaymentAttemptCompensated(Refund refund) {
@@ -247,57 +232,25 @@ class RefundTransactionService {
 
     private void publishRefundSucceededNotification(Refund refund) {
         if (refund.getBookingId() != null) {
-            publishBookingRefunded(refund);
+            bookingReader.findById(refund.getBookingId()).ifPresent(booking -> publishRefunded(
+                    booking.getUserId(),
+                    booking.getGuest() == null ? null : booking.getGuest().getId(),
+                    NotificationEventType.DEPOSIT_REFUNDED,
+                    refund.getId()));
         } else if (refund.getOrderId() != null) {
-            publishOrderRefunded(refund);
+            orderReader.findById(refund.getOrderId()).ifPresent(order -> publishRefunded(
+                    order.getUserId(), order.getGuestId(), NotificationEventType.ORDER_REFUNDED, refund.getId()));
         } else if (refund.getPassPurchaseId() != null) {
-            publishPassRefunded(refund);
+            // 이용권은 회원 전용이라 비회원 수신자가 없다.
+            passPurchaseReader.findById(refund.getPassPurchaseId()).ifPresent(pass -> publishRefunded(
+                    pass.getUserId(), null, NotificationEventType.PASS_REFUNDED, refund.getId()));
         }
     }
 
-    private void publishBookingRefunded(Refund refund) {
-        bookingReader.findById(refund.getBookingId()).ifPresent(booking -> {
-            if (booking.getUserId() != null) {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        booking.getUserId(),
-                        NotificationEventType.DEPOSIT_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            } else {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                        booking.getGuest().getId(),
-                        NotificationEventType.DEPOSIT_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            }
-        });
-    }
-
-    private void publishOrderRefunded(Refund refund) {
-        orderReader.findById(refund.getOrderId()).ifPresent(order -> {
-            if (order.getUserId() != null) {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        order.getUserId(),
-                        NotificationEventType.ORDER_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            } else {
-                eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                        order.getGuestId(),
-                        NotificationEventType.ORDER_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId()));
-            }
-        });
-    }
-
-    private void publishPassRefunded(Refund refund) {
-        passPurchaseReader.findById(refund.getPassPurchaseId()).ifPresent(pass ->
-                eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                        pass.getUserId(),
-                        NotificationEventType.PASS_REFUNDED,
-                        NotificationAggregateType.REFUND,
-                        refund.getId())));
+    /** 회원이면 회원, 아니면 비회원 수신자로 환불 완료 알림을 요청한다. */
+    private void publishRefunded(Long userId, Long guestId, NotificationEventType eventType, Long refundId) {
+        eventPublisher.publishEvent(NotificationRequestedEvent.forRecipient(
+                userId, guestId, eventType, NotificationAggregateType.REFUND, refundId));
     }
 
     sealed interface RefundCall permits RefundCall.CancelRequired, RefundCall.LookupRequired,

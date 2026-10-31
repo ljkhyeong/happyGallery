@@ -1,12 +1,85 @@
 # HANDOFF
 
+## 디자인 점검·전수 검토 (2026-10-30)
+
+- 브랜치 `codex/work-20261030-design-review`(진행 중인 아래 리팩토링 브랜치 HEAD `69f3810f`에서 만듦). 원격 푸시는 하지 않았다. 1차 시작 `69f3810f`(커밋 7개, 끝 `fbeda290`), 2차 시작 `fbeda290`(끝 `133f5377`), 3차 시작 `133f5377`(커밋 33개). 사용자가 "디자인 개선할 부분을 체크해서 진행"(1차), "전수 검토해서 더 있는지 확인해서 진행"(2·3차)이라고 했다. 문제가 시안이 아니라 구현이라 Claude Design 캔버스는 바꾸지 않았다.
+- 1차: 머리글·본문·바닥글 기준선 통일(container 최대 1180px·`--hg-page-gutter`), 768~991px 머리글 두 줄, 카테고리 줄 간격·현재 항목 맞춤(`useCenterActiveItem`), 한글 `keep-all`, 작품 상세 탭 현재 구역(`useScrollSpy`), 빈 홈 이벤트 칸, 내 정보 최근 칸 간격, 지도 링크 버튼, 고객 휴대폰 번호 하이픈.
+- 2차 점검 방법: 읽기 전용 감사 에이전트 4개(스타일·마크업/문구·데이터 상태 캡처·관리자 캡처)로 후보 100건을 모으고 코드로 확인한 뒤, 파일이 겹치지 않게 작업 트리 작업자 3개(관리자·구매 흐름·내 정보)와 메인 세션(공용·공개 화면)이 나눠 고쳐 cherry-pick했다(2차 커밋 54개). 캡처는 `output/playwright/design-review-1030/`(태블릿 `tablet-all/`, 관리자 `admin/`·`admin-after/`, 데이터 상태 `states/`, 구매 흐름 `purchase-before/`·`purchase-after/`, 내 정보 `my-after/`).
+- 2차에서 고친 것(자세한 기준은 README 디자인 기준):
+  - 공용: 체크박스·스위치 테두리 3:1, 메뉴 링크·닫기 버튼·아코디언 포커스 선, 먹색 버튼 hover #3A3A37, 머리글 아이콘 hover·현재 화면 밑줄, 글자 링크 밑줄, 토스트 fixed 위쪽 가운데, client-only 화면 31곳 문서 제목(`clientOnlyMeta`), 767px 이하 입력 16px(iPhone 확대 방지), 인라인 max-width → `.is-narrow`·`.is-form`·`.is-reading`, 로그인·회원가입 992px 미만 35rem, 화면 제목 28~40px, 화면별 page-container 여백 재정의 제거, 가로 스크롤 줄 화면 끝까지(`hg-scroll-row-bleed`)·탭 밑줄 잘림, 홈·클래스 목록 칩·안내 칸 통일, 공지·이벤트 이름표 회색, 클래스 카드 사진·제목 링크, 소셜 로그인 실패 화면 `StatusPage`, 알림 버튼 이름에 읽지 않은 수·모바일 알림 창 잘림.
+  - 구매 흐름: 장바구니·주문서의 주문 제작 안내 반복 제거, 하단 결제 칸이 바닥글을 가리던 것·결제 예정 금액·버튼 이름 "결제하기", 예약 시간 칩(남은 자리 빨강·고른 시간 먹색 채움·820px 4칸), 회차 카드 시각 줄바꿈, 안내 색(고객 할 일 노랑), 삭제 버튼 한 모양, 결제 결과 문구·아이콘, Toss 예약 주문명, 접근성 이름·선택 상태·제목 단계.
+  - 내 정보·상세: 상태 배지 tone 정리(`ToneBadge`, 공방 차례는 먹색), 목록 행 배지·금액 오른쪽 정렬, 이용권 상태 배지, 주문 상세 모바일 품목 카드, 지연 동의 안내 상자, 알림함 안 읽음 표시, 후기 사진 추가 버튼·삭제 확인 창, 적립금 부호, 제목 단계, 주문·예약 번호 "주문 #123"·비회원 조회 ORD-/BK- 입력 허용, EmptyState, 뒤로 가기 `page-back-link`.
+  - 관리자: 태블릿 표·필터 넘침, 탭 메뉴 한 줄·현재 메뉴 맞춤, 오늘 할 일 빈 패널 한 줄, 연동 꺼짐 회색 안내(`isSettingStateError`, 다시 시도 없음), 현황 표 정렬·높이, 새로 만들기 버튼 위치, 공방 정보 폼 열 폭, 버튼 높이·간격.
+- 3차 점검 방법: 데이터 상태 캡처 에이전트가 72개 장면(결제 결과·실패, 비회원 조회, 확인·입력 창, 작품·예약, 공개 화면)을 1280·820·390px로 찍어 후보 25건을 찾았다(`states3/`, 장면 스크립트 `capture-states3.mjs`·`audit.mjs`). 작업 트리 작업자 2개(결제·예약, 작품·주문·이벤트)가 11개씩 커밋했고 메인 세션이 공용 부분을 맡았다. 작업자 캡처는 `round3-pay/`·`round3-product/`(전후 비교 `compare/`).
+- 3차에서 고친 것:
+  - 결제·예약: 결제창 실패 화면이 종료 거절(409) 뒤 실제 상태대로 보인다(완료는 `PaymentCompletedCard`, 확인·환불 진행 중은 구매 화면 복귀 없음, 끝난 실패는 종료 요청 없이 복귀, 승인 전은 종료 재시도). 결과 카드 `is-narrow`·주 버튼 맨 앞 하나·575px 이하 세로 버튼, 비회원 결제 완료의 겹치는 버튼, 예약 변경 첫 날짜, 이용권 예약 경로(결제 수단 숨김·"이용권으로 예약하기"·fallback 안내를 수업 칸 아래로·비회원은 모든 수업), 마감 날짜 칩 대비, 결제사 결과 확인 중 진행 중 tone, 예약금 예약 취소 창 "환불 마감".
+  - 작품·주문·이벤트: 품절 작품 결제 칸 숨김·재입고 블록, 옵션 "· 품절", 주문 상세 지연 동의 → 행동 줄(배송지 수정·주문 취소) → 편집 중 "수정 취소", 승인 기한 줄은 승인 대기만, 재입고 알림 토스트, 이벤트 상세 제목 크기·카드 링크 밑줄·홈 추천 이벤트 줄바꿈, 쿠폰 기한 자정 경계, 검색 0건 안내, 글자 수 표기, 탈퇴 문구 띄어쓰기.
+  - 공용: 창 닫기 "닫기"·머리글 X "창 닫기", 화면 제목 28~40px(`hg-page-title`), `EmptyState`의 `action` 자리, 결과 카드 안 `ErrorAlert` 간격.
+- 결정: 후기 요약 칸 576~633px 넘침(감사 계산)은 767px 이하에서 이미 한 칸이라 고치지 않았다. 오류 상자 안 "다시 시도"는 빨강 테두리로 둔다(오류 맥락). 상품 문의 목록에 "답변 대기" 배지가 공개 화면에도 붙는다. "정규 공예 4회권"은 상품 이름이라 메뉴 이름("정규반·4회권")과 다르게 둔다.
+- 검증(3차): typecheck·lint·build·단위 92건 통과. 작업자별 관련 E2E(결제·예약 약 150건, 작품·주문·이벤트 108건)에 더해 합친 브랜치에서 E2E 전체(`--project=app`) 260건 통과(8.9분), 마지막 수정 뒤 이용권 예약 관련 spec 18건 재통과. 최종 캡처 `round3-final/`(72개 장면 × 1280·820·390px, 216장, 시작 전 E2E 테스트 작품 숨김) 가로 넘침·장면 실행 오류·예상 밖 콘솔 오류 없음. 자동 검사는 `states3/` 대비 저대비 18→6건(남은 것은 접수할 수 없어 비활성화된 반품 선택 칸 라벨로 WCAG 예외), 줄 끝 한 어절 4→1건(이용권 번호 "#31)"), 같은 이름 버튼 72→69건. 작은 누름 영역(머리글·바닥글 링크 20~23px)은 그대로다.
+- 검증(2차): typecheck·build·단위 90건·변경 파일 ESLint 통과. 작업자별 관련 E2E(관리자 71건, 구매 흐름 99건, 내 정보 151건 중 선택자 3건 수정 후 통과)에 더해, 합친 브랜치에서 E2E 전체(`--project=app`) 257건 통과(8.7분, 1차도 257건 통과). 최종 캡처 고객 114장(`final/`, 1280·820·390px)·관리자 33장(`final-admin/`) 가로 넘침·예상 밖 콘솔 오류 없음.
+- 실행 조건: Docker `hg-design-mysql`(3307)·`happygallery-redis`, 백엔드 8081(`./gradlew --offline :bootstrap:bootRun`, `SERVER_PORT=8081 MANAGEMENT_PORT=8091 RATE_LIMIT_ENABLED=false`, DB `happygallery_g`), 프론트 `frontend-review`(3030). E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1 npx playwright test --project=app`. E2E가 `happygallery_g`에 카테고리 없는 테스트 작품을 만들면 캡처 전에 `UPDATE products SET status='INACTIVE' WHERE id > 12 AND category IS NULL;`로 숨긴다(되돌리기는 `status='ACTIVE'`). 미리보기 창이 숨어 있으면 부드러운 스크롤이 멈추므로 스크롤 측정 때는 `scroll-behavior: auto`로 바꾼다. 3차 캡처용으로 작품 #99(옵션, 블랙 재고 0)·#100(품절), 쿠폰 정의 #1, 이벤트 #1(진행 중·추천)·#2(12/1 시작)를 만들어 두었다(위 SQL로는 숨지 않는다). 숨기려면 관리자 API로 작품 `PATCH /api/v1/admin/products/{id}/status {"status":"INACTIVE"}`, 이벤트 `published:false`(expectedVersion 필요), 쿠폰 `active:false`.
+- 남긴 것: 결제 완료 화면이 비회원 번호·조회 코드를 직접 보여 주지 않는다(조회 안내 문구는 3차에서 실제 표시에 맞춤, 제품 흐름 확인 필요). `useMadeToOrderConsent`는 정책 캐시가 객체가 아니면 `.trim()`에서 오류가 난다(모의 응답에서만 드러남). 로컬 DB에서 주문 생성일이 결제일보다 9시간 늦게 보인다(로컬 MySQL 시간대로 보임, 미확인). 작품 상세 "작품 사양·예상 제작 기간" 칸 아래 선, 데스크톱 바닥글 오른쪽 빈 공간, 장바구니·체크아웃 빈 상태 모양 통일. 결제 확인 필요 카드의 공방 연락 버튼(`WorkshopContactLinks`)은 `btn-sm` 고정이라 안내 상자 안에 둔다. 관리자 취소 사유 칸(`CancelReasonField`) 글자 수는 `n/max자` 표기다. 화면 밖 결함: 관리자 상품 등록에서 기성품 초기 재고를 비우면 400 대신 500이던 것(같은 유형의 스마트스토어 매핑·수동 연결 포함)은 main 기준 브랜치 `codex/work-20261030-admin-input-400`(`5f81b0f5`, 푸시 전)에서 고쳤다.
+- PR: 사용자가 전체 스택 PR을 골라 초안 [ljkhyeong/happyGallery#183](https://github.com/ljkhyeong/happyGallery/pull/183)을 열었다(이 브랜치 → main, main에 없는 이전 커밋 130개 포함, 리팩토링은 진행 중). 디자인 변경 파일 236개 중 147개가 이전 커밋과 겹쳐 디자인만 분리하지 않았다. PR 전 최신 main을 합쳤고(내용 변화 없음), `npm audit --audit-level=high`를 막는 6개 패키지만 잠금 파일에서 올렸다(#182와 같은 범위). `npm ci`·audit·단위 92건·lint·`api:check`·build는 통과했고, 전체 `./gradlew --no-daemon check`와 E2E 재실행은 이 PR의 CI로 확인한다. 첫 CI에서 `Rolling Compatibility`가 OpenAPI 비호환으로 실패해 뒤 검사가 모두 건너뛰어졌다. `rolling-deployments.md`에 승인 목록이 없어 검사를 고치지 않고, 계약을 바꾼 리팩토링 `b404d8b2`(`ProductSelectionRequest` 통합)·`ef32f475`(`inquiryId` `@Positive` 이동)를 되돌렸다(`c044e6cb`). `openapi3.json`과 생성 client는 main과 같고 로컬 `RollingRelease.check_source`도 통과한다. 두 정리를 다시 하려면 새 schema 추가 → 사용처 전환 → 옛 schema 제거 순서로 진행한다. 병합은 사용자 요청이 있을 때만 한다(main 병합은 운영 배포로 이어지고, 초기화 배포 2·3단계 48시간 동안은 병합 금지). 미리보기 `frontend-review`(3030)는 `npm ci` 때문에 멈췄고 필요하면 다시 띄운다.
+
+## 리팩토링 전수 검토·구현 (2026-10-17 시작, 2026-10-25 진행 중)
+
+- 시작 SHA `f93208d3`, 브랜치 `codex/work-20261017-refactor-audit`(아래 CI/CD 점검 브랜치 위에서 생성). 사용자가 "리팩토링 전수검토해서 진행해"라고 했다. 원격 푸시는 하지 않았다. `origin/main`에는 이 브랜치에 없는 병합 커밋 `4aaba8ee`가 있다(PR 전 병합 확인).
+- 감사 결과: 25개 영역(도메인 2·application 5·웹 adapter 2·persistence·external/bootstrap·백엔드 테스트 4·프론트 7·운영 2·이전 보류 항목 재평가)에서 후보 447건을 찾아 존재·안전성·가치 관점으로 반박 검증했다. 생존 279건, 탈락 63건, 미검증 105건(fe-admin-a/b·fe-commerce·fe-tests·fe-shared-routes·fe-styles 일부, fe-customer-account 3, ops-deploy, ops-ci, deferred). 탈락 사유는 대부분 "한 줄 조건의 helper화", "하위 2개뿐인 추상화", "문구가 달라 합치면 동작 변경" 같은 churn·동작 변경 판정이다.
+- 감사 데이터(git 제외, 로컬 전용): `output/refactor-audit-20261017/` — `all-findings.json`(447건), `findings-<영역>.json`, `verified.json`(survivors/dropped/unverified), `waves.json`·`packages/<key>.json`(구현 묶음 73개, `build-packages.py`로 재생성), `merge-wave.sh`, `progress.md`(묶음별 진행 표·통합 검사 기록).
+- 구현 방식: 묶음마다 worktree 에이전트가 작업 브랜치 HEAD로 reset한 뒤 구현·검증·커밋하고, 완료된 worktree 커밋을 이 브랜치에 cherry-pick한다(한 배치 백엔드 4~5·프론트/운영 2~3개). 묶음 안에서 전제가 틀린 후보는 건너뛰고 이유를 progress.md에 남긴다. Agent worktree는 `.claude/worktrees/agent-*`에 생기며 병합 뒤 `git worktree remove -f -f`로 지운다.
+- 진행 현황(2026-10-25 저녁): 병합 완료 40개 묶음(`f93208d3` 이후 커밋 105개, HEAD `173f31b9`), 진행 중 3개(backend-application-commerce-03, frontend-admin-04, frontend-styles-tests-03), 미착수 30개. 미착수 묶음은 대부분 commerce-03 → adapters-02·platform-02·platform-06·commerce-08 → platform-03·adapters-11 → backend-tests-03…16 순서의 파일 겹침 의존 사슬에 있다(`progress.md`와 `waves.json`의 `dependsOn`으로 가용 묶음을 계산). 통합 브랜치에서 전체 컴파일·`:application:policyTest`·`architectureTest`·`:adapter-in-web:restDocsTest` 303건·최근 병합 대상 단위/IT 542건·frontend typecheck/lint·unit 88건·spec 32개 163건이 통과했다(각 묶음은 자체 IT·E2E로도 검증).
+- 주의: 세션 한도로 에이전트가 중단되면 worktree 작업은 보존되므로 SendMessage로 같은 에이전트를 재개한다(새로 시작하지 않는다). `backend-adapters-14`(ProductSelectionRequest 통합)처럼 OpenAPI schema 이름이 바뀌는 묶음은 와이어 호환이어도 로컬 `check-working-compatibility.rb`가 비호환으로 판정한다(초기화 표식 면제는 운영 rollout 기준 비교에서만 적용). `backend-adapters-13`(web-customer-08·09·12, web-admin-18)도 같은 유형이라 병합 전 판단이 필요하다. 2026-10-31 전체 스택 PR에서 `backend-adapters-14`의 `b404d8b2`와 `inquiryId` 검증 이동 `ef32f475`를 호환성 검사 때문에 되돌렸다(디자인 점검 절 PR 항목). 결함 후보 2건(`app-order-cart-01`, `app-product-review-1`)은 special 묶음(`backend-application-commerce-08`, `backend-application-platform-07`)에 있다.
+- 남은 행동: 진행 중·미착수 묶음 구현 → 전체 `./gradlew --no-daemon check`·frontend `build`/`lint`/`test:unit`·E2E smoke → `agent-feedback final f93208d3`(호환성 단계는 schema 이름 변경 때문에 실패 예상, 나머지 단계 개별 확인) → 미검증 105건 검증 또는 다음 라운드 인계 → HANDOFF 갱신.
+
+## CI/CD 점검 (2026-10-16)
+
+- 시작 SHA `8046eaa5`, 브랜치 `codex/work-20261016-cicd-review`. 아래 디자인 브랜치 위에서 만들었다(main에 없는 디자인 커밋 9개 포함). 사용자가 "CI/CD가 잘 구성됐는지 확인해서 고칠 곳을 고치라"고 했다. workflow 3개·배포 스크립트·최근 실행 100건·GitHub 설정을 확인했다. 최근 CI는 6~7분, 매일 보안 검사는 계속 성공 중이다. 원격 푸시는 하지 않았다.
+- 고친 것:
+  - 백엔드 통합 테스트(Testcontainers)는 지원이 끝난 `mysql:8.0`, CI smoke는 떠다니는 `mysql:8.4`·`redis:7-alpine`이었다. 운영(`mysql:8.4.10`·`redis:7.4.9-alpine`)과 같게 맞추고 상수를 `SharedTestContainers`에 모았다. ADR-0026을 갱신했다.
+  - `validate.sh`가 workflow·Gradle toolchain·Testcontainers의 Node·Java·MySQL·Redis 버전을 운영 이미지·manifest와 비교한다. Dependabot #175(node 24)처럼 운영 이미지만 올리면 이제 CI에서 멈춘다.
+  - Dependabot이 Gradle Actions 메이저(v6, 캐시가 비공개 약관 구성요소)를 제안하지 않게 했다. 기존 결정(v5 유지)에 맞춘 것이다.
+  - `cicd.md`의 사라진 migration 테스트 그룹·옛 실행 시간·브랜치 보호 상태와 초기화 절차(`rolling-deployments.md`의 48시간 기한·실행 checkout·CD 잠금)를 고쳤다.
+- 검증: 새 이미지로 `:application:check :adapter-in-web:check` 통과(application 768·policy 122·architecture 11·web 192·REST Docs 303, `verifyOpenApi` 포함). `validate.sh` 통과(Ruby 161건, 샌드박스 밖). 새 검사는 사본에 운영과 다른 버전 5가지(node 24·temurin 26·IT mysql 8.0·운영 redis만 올림·CI mysql 8.4)를 넣어 모두 실패함을 확인했다. `agent-feedback final 8046eaa5` 통과. actionlint와 E2E smoke는 로컬에서 돌리지 않았다(PR CI에서 확인).
+- 남은 행동(사용자·운영자, 원격 설정이라 손대지 않음):
+  - `main` 브랜치 보호가 여전히 꺼져 있다(protection API 404, `jkrule` ruleset 비활성). `deploy/k3s/cicd.md` "브랜치 보호 적용"의 `gh api --method PUT ... --input .github/branch-protection.json`을 실행한다.
+  - AWS 시절 설정이 남아 있다: 저장소 secret `AWS_ROLE_TO_ASSUME`, 변수 `ECR_REPOSITORY`·`ECS_CLUSTER`·`ECS_SERVICE`·`S3_BUCKET`·`CLOUDFRONT_DISTRIBUTION_ID`. workflow에서 쓰지 않는다. 지우고, AWS의 해당 IAM 역할 신뢰 정책도 정리한다.
+  - 초기화 배포: 2026-10-13 CD의 복구 묶음은 48시간이 지나 3단계에 쓸 수 없다. main 병합(또는 Production 재실행)으로 1단계를 다시 한 뒤 48시간 안에 `rolling-deployments.md`의 2·3단계를 CD worktree에서 CD 잠금을 잡고 진행한다. 그동안 main에 병합하지 않는다.
+  - Dependabot: #169는 위 제외 규칙 반영 뒤 닫는다. 실패 3건(#170 orval 생성 코드, #172 Sentry 11의 `sendDefaultPii` 제거, #177 springdoc OpenAPI 스냅샷과 Maven Central 429 1회)은 코드 수정이 필요하다. #175는 CI의 Node도 함께 올려야 한다. 병합마다 배포되므로 작업 브랜치 하나에 모아 처리한다.
+- 결정: 문서만 바뀐 병합도 운영 배포(백업 포함)가 실행되지만 이번에는 바꾸지 않았다. 건너뛰려면 서버의 "main 최신 commit만 배포" 검사와 함께 설계해야 한다. 마지막 성공 배포 이후 변경 파일로 판단하는 방식이 후보다.
+
+## 디자인 추가 점검: 색·모양·제목 글꼴과 배치 정리 (2026-10-14)
+
+- 시작 SHA `c60c4431`, 브랜치 `codex/work-20261014-design-polish`. 사용자가 "디자인 개선할 부분이 더 있는지 확인해서 진행하라"고 했다. 공개 화면 25개·회원 화면 14개를 1280·390px로 캡처해 보고(`output/playwright/design-polish/`, 전후는 `after/`), 탐색 에이전트로 고객 화면 코드를 README 디자인 기준과 대조했다.
+- 원인: `_variables.scss`의 `$success`(초록)·`$info`(청록)·`$secondary`(회색)가 먹색으로 바뀌지 않은 채 고객 화면의 배지·토스트·안내 상자·버튼에 쓰였다. 관리자 화면도 같은 변수와 `StatusBadge`를 써서 변수는 그대로 두고 고객 쪽만 바꿨다.
+- 색: 고객 `StatusBadge`(진행 먹색·끝남 회색 면·확인 필요 노랑·실패 빨강, 관리자는 기존 색), 토스트(완료·정보 먹색, 그림자 없음), 정보·완료 안내 상자(회색 면), 노랑 안내 글자 먹색, 머리글 장바구니·알림 숫자(먹색 각진 배지), 회색 테두리 버튼(전역 먹색), 확인 창 닫기(먹색 테두리), 취소·삭제·탈퇴 등 빨강 버튼(먹색), 초록 네이버톡톡 버튼, 배지 20여 곳, 할인 금액 초록 글자, 장바구니 "구매 불가"(작품 카드와 같은 빨간 점).
+- 모양: 이벤트 카드 그림자, 이벤트 상세 사진 둥근 모서리, 클래스 상세 태그 알약 모양, 알림 창 그림자, 모달 등 큰 모서리 4px → 2px. 약관·개인정보처리방침 9개 버전의 영문 대문자 이름표(TERMS OF SERVICE 등)와 상태 배지 대문자·넓은 자간을 지웠다. 정의가 없던 `badge-sm`을 `_foundation.scss`에 두었다.
+- 제목 글꼴: 고딕으로 나오던 화면 제목(로그인·회원가입·비밀번호 재설정·소셜 가입 동의·비회원 조회·비회원 상세·결제 결과·공지 상세·이벤트 상세·오류 화면·내 정보 홈)과 작품·수업 가격, 예약 요약·예약 정보의 수업 이름을 명조(500, 합계 600)로 맞췄다. 크기를 따로 둔 TSX 제목은 `.display-heading` 유틸리티를 쓴다.
+- 배치: 로그인·회원가입 안내 칸 링크가 맨 아래로 떨어지던 것, 단체수업 문의 칸(제목 아래 정렬·먹색 채움 하나), 클래스 카드 수업 정보(모두 이름·값 한 줄), 내 정보의 테두리 없는 칸(가져오기·계정 관리·목록 필터·예약 변경/취소)이 제목보다 들어가 보이던 것, 회원 목록 항목 테두리(`border-0`이 지우던 것)와 쿠폰·적립금 숫자 칸 테두리, 비회원 주문서의 겹치던 "작품 보러가기", 이벤트 목록 폭(머리글과 같게)을 고쳤다.
+- 문구: 주문·예약 내역은 검색 조건이 없으면 "주문(예약) 내역이 없습니다."를 보인다(`useMyListFilters`의 `hasFilter`). 빠른 상태 칩은 이름순 대신 진행 순서다.
+- README 디자인 기준에 상태 배지·안내 상자·토스트 색, 되돌릴 수 없는 버튼 색, `.display-heading`을 적었다.
+- 이어서 남긴 것 4가지를 처리했다(시작 SHA `a3f3f249`).
+  - 주문 상세: Bootstrap Card·Table·Row 대신 예약 상세와 같은 `my-detail-card`(머리·`DetailRows`·선으로 나눈 `my-detail-section`)로 바꿨다. 품목·금액은 수량·단가·소계가 있는 표라 표(`my-detail-table`)로 두고, 운송장 번호처럼 버튼이 붙는 행은 한 줄 전체(`wide`)를 쓴다. `DetailRows`는 `shared/ui`에 두고 예약 정보 카드도 쓴다.
+  - 작품·클래스 목록 머리를 `PageHeader`로 바꿨다. 바로 아래 탭·칩 줄이 선을 가져 `divider={false}`로 머리 아래 선을 뺀다. 전용 머리 스타일(`.store-list-*`, `.class-catalog-header`)은 지웠다.
+  - 결제 오류 안내: 약관 미동의(고객이 고칠 확인 요청)·장바구니 수량 한도·결제 상태 재확인 실패(일시·자동 재확인)는 노랑, 결제 복구 정보 저장 실패(결제를 막는 환경 오류)와 후기 사진 불러오기 실패는 빨강으로 나눴다.
+  - 회원·체크아웃 구역 제목(적립금·쿠폰, 후기, 반품·교환, 계정 관리, 최근 예약·주문, 체크아웃 칸, 예약 변경·취소 칸, 배송지 수정 등)을 명조 500으로 맞췄다. 구역 안 항목 이름(최근 적립금 이력, 접수 내역, 계정 관리의 각 행)은 고딕으로 둔다.
+  - README 디자인 기준에 목록 머리의 `divider`와 상세 카드 공용 구조를 적었다.
+  - 검증: typecheck·변경 파일 ESLint·build 통과. E2E 전체 257건 중 256건 통과, 1건(`guest-checkout-retry` 비회원 주문 재인증)은 E2E 도중 캡처를 함께 돌린 부하로 시간 초과해 같은 spec을 3회 반복(6건 모두 통과)으로 확인했다. 주문·예약 상세(가짜 응답)·작품/클래스 목록·쿠폰·적립금·체크아웃 1280·390px 캡처(`output/playwright/design-polish/after2/`) 가로 넘침·콘솔 오류 없음. `agent-feedback final a3f3f249` 통과.
+- 검증:
+  - frontend typecheck·변경 파일 ESLint·build·단위 81건 통과. 첫 커밋만 남긴 상태(나머지 변경을 치움)로도 build 통과.
+  - E2E 전체(`--project=app`) 257건 통과. 그 뒤 모바일 클래스 카드에서 추천 대상·준비물이 다시 보이던 CSS 우선순위 문제를 고쳤다(390px 0개·1280px 6개 표시로 확인, E2E가 다루지 않는 부분).
+  - 캡처: 공개 25·회원 14화면 1280·390px 전후(`output/playwright/design-polish/`, `after/`), 가짜 응답의 주문 목록·1:1 문의(`after/data-*`). 가로 넘침·콘솔 오류 없음.
+  - `agent-feedback final c60c4431` 통과(diff·ESLint·typecheck).
+- 실행 조건: 로컬 DB 컨테이너(`hg-design-mysql` 3307·`happygallery-redis`)가 Docker 재시작으로 내려가 있어 다시 올렸다(백엔드 8081은 자동 재연결). 원격 푸시는 하지 않았다.
+
 ## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
 
 - 시작 SHA `76dc6990`, 브랜치 `codex/work-20261013-ghcr-anonymous-pull`. 아래 절의 운영 배포가 서버의 만료된 GHCR 로그인으로 `denied` 실패해, 사용자가 "배포마다 토큰을 다시 받아야 하냐"고 물었다. 공개 패키지를 인증 없이 받는 권장안으로 진행하기로 했다.
 - 변경: `deploy-registry-images.sh`는 저장된 로그인이 없는 임시 `DOCKER_CONFIG`와 현재 데몬 주소(`docker context inspect`)로 `docker pull`한다. 이미지 확인(digest·commit·source label)은 그대로다. `deploy/k3s/cicd.md` 3절을 새 방식과 근거(공개 저장소, 이미지에 비밀값 없음, 장기 토큰 제거)로 바꿨다. 서버 진입점 재설치는 필요 없다.
 - 테스트: `cd-test.rb`의 가짜 `docker`가 실제처럼 설정 경로·context로 데몬을 고르고 만료 로그인을 GHCR처럼 거부한다. 만료 로그인과 별도 context가 남아 있어도 같은 데몬으로 받는지 검사하며, 수정 전 스크립트에서 `denied`로 실패함을 확인했다.
 - 검증: `validate.sh` 통과(Ruby 161건), `shellcheck -x` 통과. 이미지 두 개는 GHCR에서 익명으로 받아짐을 확인했다(manifest 200).
-- 남은 행동: PR을 main에 병합한 뒤 Production에서 이미지 받기가 통과하고 초기화 preflight에서 멈추는지 확인한다. 운영자는 서버에서 `docker logout ghcr.io`, GitHub에서 옛 `read:packages` 토큰 폐기(정리)를 하고, 초기화 release 3단계를 진행한다.
+- 결과: PR #178, CI `38403508389` 통과, Codex 지적 1건(상속된 `DOCKER_HOST`를 먼저 쓰기) 반영(`d7950017`), main 병합 `4aaba8ee`. Production `38404325294`에서 두 이미지를 토큰 없이 받았고(앱 JAR 검사·containerd 반입 통과), 배포 전 백업·R2 복구 묶음 검증(`~/.local/state/happygallery/cd/backups/20261013T133050Z/happygallery-20261013T133050Z.recovery.env`)과 `release.env` 갱신 뒤 초기화 preflight에서 의도대로 멈췄다. 운영은 이전 release(`982a88a2`) 그대로다.
+- 남은 행동(운영자): 정리로 서버에서 `docker logout ghcr.io`, GitHub에서 옛 `read:packages` 토큰을 폐기한다. `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계(`HAPPYGALLERY_SCHEMA_RESET=20261007-baseline`, 복구 묶음 확인, 앱 중지, DB·Redis 비우기, `rollout.sh`)를 진행한다. 이 결과 기록은 운영 배포를 다시 일으키지 않도록 로컬 커밋으로만 남겼다.
 
 ## main 병합 PR (2026-10-13)
 

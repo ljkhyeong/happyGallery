@@ -90,7 +90,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const memberQuery = useQuery({
     queryKey: [...queryKeys.member.cart, userId],
-    queryFn: fetchCart,
+    queryFn: () => runForCurrentCustomer(fetchCart),
     enabled: userId !== null,
   });
 

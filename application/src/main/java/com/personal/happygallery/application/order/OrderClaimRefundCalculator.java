@@ -2,10 +2,10 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.money.Proration;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.ProportionalAmountAllocator;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -108,10 +108,8 @@ final class OrderClaimRefundCalculator {
         if (earnedRewardAmount == 0L || order.getRewardEarnBase() == 0L) {
             return 0L;
         }
-        long cumulativeTarget = BigInteger.valueOf(earnedRewardAmount)
-                .multiply(BigInteger.valueOf(cumulativeProductPgRefund))
-                .divide(BigInteger.valueOf(order.getRewardEarnBase()))
-                .longValueExact();
+        long cumulativeTarget = Proration.floor(
+                earnedRewardAmount, cumulativeProductPgRefund, order.getRewardEarnBase());
         return Math.max(0L, cumulativeTarget - reservedRewardRevokeAmount);
     }
 

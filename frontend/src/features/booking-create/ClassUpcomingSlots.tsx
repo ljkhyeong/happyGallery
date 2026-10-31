@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import type { ClassResponse } from "@/generated/api/booking";
+import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
 import {
   bookingCreateHref,
   formatSlotStart,
   isFewSeats,
   openSlots,
   remainingSeatLabel,
+  slotStartParts,
   UPCOMING_SLOT_DAYS,
   upcomingSlotsQuery,
 } from "./upcomingSlots";
@@ -44,7 +45,7 @@ export function ClassUpcomingSlots({ bookingClass }: { bookingClass: Pick<ClassR
                 to={bookingCreateHref(bookingClass.id, slot.id, { selectSlot: true })}
                 aria-label={`${formatSlotStart(slot)} ${bookingClass.name} 예약하기, ${remainingSeatLabel(slot.remainingCapacity)}`}
               >
-                <strong>{formatSlotStart(slot)}</strong>
+                <strong><SlotStartText slot={slot} /></strong>
                 <small className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}>
                   {remainingSeatLabel(slot.remainingCapacity)}
                 </small>
@@ -60,4 +61,10 @@ export function ClassUpcomingSlots({ bookingClass }: { bookingClass: Pick<ClassR
       )}
     </section>
   );
+}
+
+/** 좁은 칸에서는 날짜 다음에서만 줄을 바꿔 "오전 10:00"이 함께 다니게 한다. */
+function SlotStartText({ slot }: { slot: PublicSlotResponse }) {
+  const { date, time } = slotStartParts(slot);
+  return <>{date} <span className="text-nowrap">{time}</span></>;
 }

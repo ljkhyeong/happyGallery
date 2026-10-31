@@ -43,11 +43,13 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 import { ADMIN_FOCUS_PARAMS, type AdminFocusParam } from "@/shared/lib/adminLinks";
 import { parseEnumValue } from "@/shared/lib/enum";
 import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
 import { ListBookingsStatus } from "@/generated/api/adminBooking";
 import { AdminOrderListItemResponseStatus } from "@/generated/api/adminOrder";
+import { queryKeys } from "@/shared/api";
 
 const ADMIN_VIEWS = [
   {
@@ -118,7 +120,7 @@ function parsePositiveId(value: string | null): number | undefined {
 function AdminSectionBoundary({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   return (
-    <SectionErrorBoundary onReset={() => void queryClient.resetQueries({ queryKey: ["admin"] })}>
+    <SectionErrorBoundary onReset={() => void queryClient.resetQueries({ queryKey: queryKeys.admin.all })}>
       {children}
     </SectionErrorBoundary>
   );
@@ -154,6 +156,27 @@ function AdminWorkspaceHeader({
         {loggingOut ? "로그아웃 중..." : "로그아웃"}
       </Button>
     </header>
+  );
+}
+
+/** 메뉴 탭 줄. 폭이 좁아 넘치면 현재 메뉴를 보이는 곳으로 옮긴다(로그인 직후 첫 표시 포함). */
+function AdminWorkspaceNav({ activeView, onSelect }: { activeView: AdminView; onSelect: (view: AdminView) => void }) {
+  const navRef = useRef<HTMLDivElement>(null);
+  useCenterActiveItem(navRef, activeView);
+  return (
+    <Nav
+      ref={navRef}
+      variant="tabs"
+      className="admin-workspace-nav d-none d-sm-flex"
+      activeKey={activeView}
+      onSelect={(view) => view && onSelect(view as AdminView)}
+    >
+      {ADMIN_VIEWS.map((view) => (
+        <Nav.Item key={view.value}>
+          <Nav.Link eventKey={view.value}>{view.label}</Nav.Link>
+        </Nav.Item>
+      ))}
+    </Nav>
   );
 }
 
@@ -224,7 +247,7 @@ export function AdminPage() {
 
   // 운영 빌드(또는 설정)에서만 조회한다. 조회하지 않으면 isLoading·error·data가 모두 비어 아래 등록 안내 분기도 건너뛴다.
   const productionMfaStatus = useAdminQuery(handleAuthError, {
-    queryKey: ["admin", "auth", "mfa", "enrollment-gate"],
+    queryKey: queryKeys.admin.auth.mfaEnrollmentGate,
     queryFn: () => getAdminMfaStatus(adminKey),
     enabled: REQUIRE_ADMIN_MFA_ENROLLMENT && isAuthenticated,
   });
@@ -328,18 +351,7 @@ export function AdminPage() {
         ))}
       </Form.Select>
 
-      <Nav
-        variant="tabs"
-        className="admin-workspace-nav d-none d-sm-flex"
-        activeKey={activeView}
-        onSelect={(view) => view && selectView(view as AdminView)}
-      >
-        {ADMIN_VIEWS.map((view) => (
-          <Nav.Item key={view.value}>
-            <Nav.Link eventKey={view.value}>{view.label}</Nav.Link>
-          </Nav.Item>
-        ))}
-      </Nav>
+      <AdminWorkspaceNav activeView={activeView} onSelect={selectView} />
 
       <div className="admin-workspace-title">
         <h5>{activeViewInfo.label}</h5>

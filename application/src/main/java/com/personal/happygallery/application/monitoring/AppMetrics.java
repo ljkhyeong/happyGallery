@@ -35,6 +35,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class AppMetrics {
 
+    /**
+     * 기동 시 last_success 게이지를 0으로 미리 등록해 한 번도 돌지 않은 배치도 정체 경보에 잡히게 하는 job.
+     * {@code monitoring/alerts.yml}의 배치 정체 경보가 참조하는 {@code exported_job} 집합과 같아야 하며,
+     * {@code deploy/k3s/scripts/validate.sh}가 두 목록과 {@code @BatchJob} id의 일치를 검사한다.
+     */
     private static final List<String> MONITORED_BATCH_JOBS = List.of(
             "order_auto_refund",
             "pickup_expire",

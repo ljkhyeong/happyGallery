@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "react-bootstrap";
 import { listAdminGroupInquiryFollowUps } from "@/generated/api/adminOperations";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -12,12 +12,15 @@ export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: str
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const paging = useCursorHistory();
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "group-inquiries", "follow-ups", paging.cursor],
+    queryKey: queryKeys.admin.groupInquiries.followUps(paging.cursor),
     queryFn: () => listAdminGroupInquiryFollowUps({ cursor: paging.cursor, size: 20 }, { headers: adminHeaders(token) }),
     refetchInterval: 60_000,
   });
+  // 순서 안내는 목록이 있을 때만 둔다. 없으면 빈 상태 한 줄만 남아 오늘 할 일에서 한 줄로 줄어든다.
   return <div id="group-inquiry-follow-ups">
-    <p className="small text-muted">연락 예정일이 오늘까지인 문의를 오래된 순서로 표시합니다.</p>
+    {!!query.data?.content.length && (
+      <p className="small text-muted">연락 예정일이 오늘까지인 문의를 오래된 순서로 표시합니다.</p>
+    )}
     {query.isLoading && <LoadingSpinner />}
     <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
     {query.data?.content.length === 0 && <EmptyState message="오늘까지 연락할 단체 문의가 없습니다." />}

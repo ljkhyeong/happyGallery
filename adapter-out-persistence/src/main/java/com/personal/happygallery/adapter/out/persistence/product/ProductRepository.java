@@ -6,6 +6,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Sort;
@@ -28,7 +29,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Override boolean existsById(Long id);
 
     @Override
-    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select product from Product product where product.id = :id")
     Optional<Product> findByIdWithLock(@Param("id") Long id);
 

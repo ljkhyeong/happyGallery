@@ -16,15 +16,11 @@ public enum ErrorCode {
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
     INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
-    SOCIAL_PHONE_REQUIRED(422, "소셜 계정의 휴대전화번호 제공 동의가 필요합니다. 동의 항목을 확인한 뒤 다시 로그인해주세요."),
     SOCIAL_LOGIN_FAILED(401, "소셜 로그인에 실패했습니다. 다시 시도해주세요."),
 
     // 403 Forbidden — 인증되었지만 권한 부족
     FORBIDDEN(403, "요청한 작업을 수행할 권한이 없습니다."),
     REAUTHENTICATION_REQUIRED(403, "보호된 계정 정보를 변경하려면 본인 확인이 필요합니다."),
-
-    // 429 Too Many Requests — 처리율 제한 초과
-    TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     // 404 Not Found — 리소스 미존재
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
@@ -80,6 +76,7 @@ public enum ErrorCode {
     PASS_NOT_APPLICABLE(422, "선택한 클래스에는 이 이용권을 사용할 수 없습니다."),
     CLASS_INACTIVE(422, "현재 운영하지 않는 클래스입니다."),
     PHONE_VERIFICATION_REQUIRED(422, "휴대폰 인증을 완료한 뒤 다시 시도해주세요."),
+    SOCIAL_PHONE_REQUIRED(422, "소셜 계정의 휴대전화번호 제공 동의가 필요합니다. 동의 항목을 확인한 뒤 다시 로그인해주세요."),
     POLICY_CONSENT_REQUIRED(422, "현재 이용약관과 개인정보처리방침에 동의해주세요."),
     ACCOUNT_WITHDRAWAL_BLOCKED(
             422,
@@ -93,6 +90,9 @@ public enum ErrorCode {
     REVIEW_SELF_INTERACTION_NOT_ALLOWED(422, "본인이 작성한 후기에는 이 작업을 수행할 수 없습니다."),
     REVIEW_IMAGE_LIMIT_EXCEEDED(422, "후기 사진은 최대 5장까지 등록할 수 있습니다."),
     REVIEW_REPORT_DECISION_NOT_ALLOWED(422, "처리 대기 중인 신고만 인정·반려할 수 있습니다."),
+
+    // 429 Too Many Requests — 처리율 제한 초과
+    TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     // 500 Internal Server Error — 서버 오류
     INTERNAL_ERROR(500, "서버 내부 오류가 발생했습니다."),

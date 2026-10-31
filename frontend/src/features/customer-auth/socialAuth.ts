@@ -8,8 +8,8 @@ export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 
 interface SocialProviderDetails {
   label: string;
-  buttonClassName?: string;
-  iconSrc?: string;
+  buttonClassName: string;
+  iconSrc: string;
 }
 
 export const SOCIAL_PROVIDER_DETAILS: Record<SocialProvider, SocialProviderDetails> = {

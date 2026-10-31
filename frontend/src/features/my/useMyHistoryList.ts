@@ -4,18 +4,11 @@ import {
   type QueryKey,
   type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { cursorPageParams, flattenCursorPages, runForCurrentCustomer, type CursorPage } from "@/shared/api";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMyListFilters } from "./useMyListFilters";
 
-interface HistoryPage {
-  content: unknown[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}
-
-export interface MyHistoryFilters<TStatus extends string, TSort extends string> {
+interface MyHistoryFilters<TStatus extends string, TSort extends string> {
   keyword: string | undefined;
   status: TStatus | undefined;
   sort: TSort;
@@ -29,7 +22,7 @@ type HistoryRefetchInterval<TPage> = UseInfiniteQueryOptions<
   string | undefined
 >["refetchInterval"];
 
-interface Options<TPage extends HistoryPage, TStatus extends string, TSort extends string> {
+interface Options<TPage extends CursorPage, TStatus extends string, TSort extends string> {
   /** 필터 객체를 덧붙일 이력 key 접두사. */
   queryKey: QueryKey;
   fetchPage: (
@@ -41,34 +34,37 @@ interface Options<TPage extends HistoryPage, TStatus extends string, TSort exten
   sortOptions: readonly { value: TSort; label: string }[];
   defaultSort: TSort;
   refetchInterval?: HistoryRefetchInterval<TPage>;
+  /** 검색어를 서버에 보내기 전에 바꾼다(예: "주문 #123" → "123"). */
+  normalizeKeyword?: (keyword: string) => string;
 }
 
 /** 내 정보 예약·주문·이용권 이력: 주소의 검색 조건, 입력 지연, 커서 페이지 조회를 함께 맡는다. */
-export function useMyHistoryList<TPage extends HistoryPage, TStatus extends string, TSort extends string>({
+export function useMyHistoryList<TPage extends CursorPage, TStatus extends string, TSort extends string>({
   queryKey,
   fetchPage,
   statusValues,
   sortOptions,
   defaultSort,
   refetchInterval,
+  normalizeKeyword,
 }: Options<TPage, TStatus, TSort>) {
-  const { isAuthenticated } = useCustomerAuth();
   const filters = useMyListFilters({
     defaultSort,
     statusValues,
     sortValues: sortOptions.map((option) => option.value),
   });
   const debouncedSearch = useDebouncedValue(filters.searchQuery, 300);
+  const keyword = debouncedSearch.trim();
   const requestFilters: MyHistoryFilters<TStatus, TSort> = {
-    keyword: debouncedSearch.trim() || undefined,
+    keyword: (normalizeKeyword && keyword ? normalizeKeyword(keyword) : keyword) || undefined,
     status: filters.statusFilter === "ALL" ? undefined : filters.statusFilter as TStatus,
     sort: filters.sortValue as TSort,
   };
   const query = useInfiniteQuery({
     queryKey: [...queryKey, requestFilters],
-    queryFn: ({ pageParam, signal }): Promise<TPage> => fetchPage(pageParam, signal, requestFilters),
+    queryFn: ({ pageParam, signal }): Promise<TPage> =>
+      runForCurrentCustomer(() => fetchPage(pageParam, signal, requestFilters)),
     ...cursorPageParams,
-    enabled: isAuthenticated,
     refetchInterval,
   });
   return { filters, query, items: flattenCursorPages(query.data) };

@@ -1,6 +1,8 @@
 package com.personal.happygallery.domain.notice;
 
 import com.personal.happygallery.domain.content.ContentTextPolicy;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -50,6 +52,15 @@ public class Notice {
         this.title = ContentTextPolicy.requireTitle(title, "공지 제목");
         this.content = ContentTextPolicy.requireBody(content, "공지 내용");
         this.pinned = pinned;
+    }
+
+    /** 불러온 뒤 다른 관리자가 먼저 수정했으면 충돌로 거절한다. */
+    public void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "다른 관리자가 공지사항을 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");
+        }
     }
 
     public Long getId() { return id; }

@@ -51,6 +51,9 @@ class PaymentConfirmFulfillmentTransactionService {
                     "승인된 결제만 도메인 생성에 사용할 수 있습니다.");
         }
         PreparedPaymentPayload payload = attemptResolver.readPayload(attempt);
+        // confirm 선점 트랜잭션과 별개로 도메인 생성 직전에 저장 payload 불변식을 한 번 검증한다.
+        // 관리자 대사·웹훅 승인처럼 선점을 거치지 않은 경로는 이 검증만 거친다.
+        attemptResolver.validateStoredPayload(attempt, payload);
         PaymentFulfiller.FulfillResult fulfilled = attemptResolver.fulfill(attempt, payload);
         String accessTokenEnc = fulfilled.rawAccessToken() == null
                 ? null
@@ -94,12 +97,9 @@ class PaymentConfirmFulfillmentTransactionService {
         if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
             return false;
         }
-        PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
+        // markFailed는 payload를 지우지 않으므로 전이 뒤에 읽어도 같은 payload로 해제한다.
         attempt.markFailed(reason);
-        if (payload != null) {
-            benefitReservationService.release(
-                    attempt, payload, LocalDateTime.now(clock));
-        }
+        benefitReservationService.release(attempt, LocalDateTime.now(clock));
         return true;
     }
 
@@ -114,6 +114,6 @@ class PaymentConfirmFulfillmentTransactionService {
 
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
+                .orElseThrow(NotFoundException.supplier("결제 시도"));
     }
 }

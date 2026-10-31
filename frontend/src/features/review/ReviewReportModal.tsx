@@ -5,6 +5,7 @@ import { Button, Form, Modal } from "react-bootstrap";
 import { Link } from "react-router";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { contentLengthLabel } from "@/shared/validation/contentText";
 import { submitReviewReport, type ReviewReportReason } from "./api";
 import { REVIEW_REPORT_REASON_LABELS } from "./reviewLabels";
 
@@ -96,7 +97,7 @@ export function ReviewReportModal({
             mutation.mutate();
           }}
         >
-          <Modal.Header closeButton={!mutation.isPending}>
+          <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}>
             <Modal.Title id={titleId} className="fs-6">후기 신고</Modal.Title>
           </Modal.Header>
           <Modal.Body>
@@ -125,7 +126,7 @@ export function ReviewReportModal({
                 disabled={mutation.isPending}
                 onChange={(event) => setDetail(event.target.value)}
               />
-              <Form.Text>{detail.length.toLocaleString("ko-KR")} / 1,000자</Form.Text>
+              <Form.Text>{contentLengthLabel(detail, 1000)}</Form.Text>
             </Form.Group>
             <div className="mt-3"><ErrorAlert error={mutation.error} /></div>
           </Modal.Body>
@@ -136,9 +137,9 @@ export function ReviewReportModal({
               disabled={mutation.isPending}
               onClick={closeModal}
             >
-              취소
+              닫기
             </Button>
-            <Button type="submit" variant="danger" disabled={mutation.isPending}>
+            <Button type="submit" variant="dark" disabled={mutation.isPending}>
               {mutation.isPending ? "접수 중..." : "신고 접수"}
             </Button>
           </Modal.Footer>

@@ -87,7 +87,10 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 - 공개 prepare 입력은 `PaymentPayload`의 `ORDER/BOOKING/PASS`만 허용한다. 서버 확정 스냅샷은 별도
   `PreparedPaymentPayload`의 `PREPARED_ORDER/PREPARED_BOOKING/PREPARED_PASS`로 분리한다. 내부 스냅샷은
   HTTP schema에 노출하지 않고, 공개 요청 타입은 fulfiller 계약에 전달하지 않는다. 필수 값이 빠진 스냅샷은
-  역직렬화 기본값으로 보정하지 않고 fulfiller 검증에서 `INVALID_INPUT`으로 거절해 새 prepare를 요구한다.
+  역직렬화 기본값으로 보정하지 않고 `INVALID_INPUT`으로 거절해 새 prepare를 요구한다. 주문 혜택 금액·상품 유형·
+  이용권 종류 같은 구조적 필수 값과 수령 방식·배송지·배송비 일관성은 `PreparedPaymentPayload`의 record 생성자가
+  역직렬화 시점에 거절하므로 confirm뿐 아니라 혜택 해제를 위해 payload를 읽는 만료·종료·대사 같은 경로에도 적용된다.
+  금액·상품명 같은 나머지 불변식과 `PaymentAttempt.amount` 대조는 `PaymentFulfiller.validateStoredPayload()`가 수행한다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. 비회원 공개 입력의 인증 코드 원문은 저장하지 않고 결제 귀속 HMAC 증거로 교체한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
 - `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 가격 구성과 옵션 스냅샷으로 `OrderItemRequest`를 만들며, 주문·SKU 재고 차감과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
@@ -267,6 +270,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `PaymentConfirmRecoveryTransactionService`
 - `PaymentConfirmAttemptResolver`
 - `DefaultPaymentConfirmService`
+- `PaymentFulfillmentCoordinator` (confirm·관리자 대사 공통의 fulfillment 실행과 실패 보상 요청)
 - `DefaultPaymentConfirmRecoveryService`, `PaymentConfirmRecoveryUseCase`, `BatchScheduler`
 - `DefaultPaymentAttemptExpiryBatchService`, `PaymentAttemptExpiryProcessor`
 - `DefaultPaymentReconciliationAdminService`, `PaymentReconciliationTransactionService`

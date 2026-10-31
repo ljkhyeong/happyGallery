@@ -3,7 +3,15 @@ import type { ProductDetailResponse } from "../../src/generated/api/product";
 import type { RestockAlertResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  orderPolicyFixture,
+  restockAlertFixture,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
@@ -32,26 +40,21 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
         selections: [{ groupKey: "color", valueKey: "brown" }, { groupKey: "size", valueKey: "large" }] },
     ],
   };
-  const alerts: RestockAlertResponse[] = [{ id: 901, productId: product.id, productVariantId: 802,
-    productName: product.name, optionLabel: "색상: 블루 / 크기: 대형", status: "NOTIFIED",
-    createdAt: "2026-09-11T10:00:00", notifiedAt: "2026-09-12T10:00:00" }];
+  const alerts: RestockAlertResponse[] = [restockAlertFixture({
+    productId: product.id, productVariantId: 802, productName: product.name, optionLabel: "색상: 블루 / 크기: 대형",
+    status: "NOTIFIED", createdAt: "2026-09-11T10:00:00", notifiedAt: "2026-09-12T10:00:00",
+  })];
   const state = { loggedIn, product, writes: [] as unknown[], productReads: 0 };
-  const member = { id: 501, name: "회원", email: "restock@example.com", phone: "01012345678",
-    phoneVerified: true, localPasswordEnabled: true };
+  const member = memberFixture({ email: "restock@example.com" });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
+    if (await fulfillMemberCommon(route, { member: state.loggedIn ? member : null })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=restock-option; Path=/" }, json: {} });
       case "/api/v1/auth/login": state.loggedIn = true; return fulfillJson(route, member);
-      case "/api/v1/me": return state.loggedIn ? fulfillJson(route, member) : fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/coupons": return fulfillJson(route, []);
-      case "/api/v1/me/rewards": return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/me/restock-alerts": {
         if (request.method() === "POST") {
@@ -64,9 +67,9 @@ async function mockRestockProduct(page: Page, { loggedIn = true, soldOut = false
       }
       case "/api/v1/products/42": state.productReads += 1; return fulfillJson(route, product);
       case "/api/v1/products/42/qna/page":
-      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      case "/api/v1/me/products/42/qna/page": return fulfillJson(route, EMPTY_CURSOR_PAGE);
       case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
-      case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      case "/api/v1/orders/policy": return fulfillJson(route, orderPolicyFixture());
       default: throw new Error(`정의하지 않은 재입고 옵션 테스트 요청: ${request.method()} ${pathname}`);
     }
   });
@@ -124,7 +127,10 @@ test("재입고 내역은 해당 옵션을 선택하고 직접입력과 구매 �
 test("품절 옵션을 고른 비회원은 로그인 후 같은 옵션의 재입고 알림을 신청한다", async ({ page }) => {
   const state = await mockRestockProduct(page, { loggedIn: false, soldOut: true });
   await page.goto("/products/42");
-  await expect(page.getByRole("link", { name: "회원가입 후 구매하기", exact: true })).toBeVisible();
+  // 모든 옵션이 품절이면 구매 버튼과 옵션 추가 없이 옵션만 골라 재입고 알림을 받는다.
+  await expect(page.getByRole("link", { name: "로그인하고 찜하기", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "로그인 후 구매하기", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "선택한 옵션 추가", exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: /색상/ }).selectOption("blue");
   await page.getByRole("combobox", { name: /크기/ }).selectOption("large");
   const login = page.getByRole("link", { name: "로그인하고 재입고 알림 받기", exact: true });

@@ -114,6 +114,7 @@ export function SignupPage() {
           <PhoneVerificationStep
             purpose="SIGNUP"
             title="휴대폰 번호 인증"
+            titleAs="h2"
             initialPhone={phone}
             confirmLabel="입력 완료"
             confirmedNote="인증번호를 입력했습니다. 가입할 때 함께 확인합니다."

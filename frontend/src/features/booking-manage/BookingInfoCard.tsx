@@ -1,16 +1,12 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { StatusBadge } from "@/shared/ui";
-import { formatDateTime, formatTime } from "@/shared/lib";
+import { DetailRows, StatusBadge, type DetailRow } from "@/shared/ui";
+import { formatDateTime } from "@/shared/lib";
+import { formatSlotEnd } from "@/features/booking-create/upcomingSlots";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
-import type { BookingDetailResponse } from "@/shared/types";
+import type { BookingDetailResponse } from "@/generated/api/booking";
 import { AddBookingToCalendarButton } from "./AddBookingToCalendarButton";
-
-export interface BookingInfoRow {
-  label: string;
-  value: ReactNode;
-}
 
 interface Props {
   label: string;
@@ -19,13 +15,14 @@ interface Props {
   className: string;
   startAt: string;
   endAt: string;
-  rows: BookingInfoRow[];
+  rows: DetailRow[];
   refund: BookingDetailResponse["refund"];
+  /** 캘린더 추가 버튼 앞에 둘 버튼(회원 예약의 결제 영수증 등) */
+  actions?: ReactNode;
 }
 
-/** 회원·비회원 예약 상세가 함께 쓰는 예약 정보 카드. 같은 날 끝나는 수업은 종료 날짜를 반복하지 않는다. */
-export function BookingInfoCard({ label, status, classId, className, startAt, endAt, rows, refund }: Props) {
-  const sameDay = endAt.slice(0, 10) === startAt.slice(0, 10);
+/** 회원·비회원 예약 상세가 함께 쓰는 예약 정보 카드. 환불 안내와 버튼은 예약 요약 바로 아래에 둔다. */
+export function BookingInfoCard({ label, status, classId, className, startAt, endAt, rows, refund, actions }: Props) {
   return (
     <article className="my-detail-card">
       <header className="my-detail-card-head">
@@ -34,20 +31,14 @@ export function BookingInfoCard({ label, status, classId, className, startAt, en
       </header>
       <div className="my-detail-card-hero">
         <h2><Link to={`/classes/${classId}`}>{className}</Link></h2>
-        <p>{formatDateTime(startAt)} ~ {sameDay ? formatTime(endAt) : formatDateTime(endAt)}</p>
+        <p>{formatDateTime(startAt)} ~ {formatSlotEnd(startAt, endAt)}</p>
       </div>
-      <dl className="my-detail-rows">
-        {rows.map((row) => (
-          <div key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="my-detail-card-actions">
+      <DetailRows rows={rows} />
+      <RefundProgressAlert refund={refund} />
+      <div className="my-detail-card-actions d-flex flex-column align-items-start gap-2">
+        {actions}
         <AddBookingToCalendarButton className={className} startAt={startAt} endAt={endAt} status={status} />
       </div>
-      <RefundProgressAlert refund={refund} />
       <div className="my-detail-card-visit">
         <WorkshopVisitInfo />
       </div>

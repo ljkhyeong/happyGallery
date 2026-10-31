@@ -18,6 +18,7 @@ description: happyGallery의 원격 푸시·PR 작성·CI 실패 분석·PR 리�
 - `gh pr checks <PR>`로 실패 작업을 찾고 `gh run view <run-id> --log-failed`로 실패 구간만 읽는다. 실행 ID를 기록하고 대기는 `gh run watch <run-id>`로 한다.
 - 진단 산출물(`backend-*-diagnostics`, `e2e-smoke-diagnostics`)은 `gh run download <run-id> -n <이름> -D output/ci/<run-id>`로 받는다.
 - 원인을 코드 결함·테스트 순서나 시간 의존·CI 환경(서비스 기동·캐시·외부 다운로드)으로 나눈다. `gh run rerun <run-id> --failed`는 일시 장애 근거가 있을 때만 쓴다.
+- 운영 이미지(Node·Java)나 DB manifest 버전만 올린 PR은 `validate.sh`의 버전 일치 검사에서 실패한다. workflow·Gradle toolchain·`SharedTestContainers` 버전을 같은 PR에서 함께 올린다.
 
 | CI 작업 | 로컬 재현 |
 |---|---|
@@ -26,7 +27,7 @@ description: happyGallery의 원격 푸시·PR 작성·CI 실패 분석·PR 리�
 | Backend Package & Module Checks | `./gradlew --no-daemon build -x :application:check -x :adapter-in-web:check` |
 | Backend Tests (application-*) | 실패 클래스만 `--tests`로 실행한다. 그룹 전체는 `:application:check -PciTestGroup=<core\|commerce>` |
 | Backend Tests (adapter-in-web) | 실패 클래스를 `:adapter-in-web:test` 또는 `restDocsTest`로 실행한다 |
-| Frontend Build | `frontend`에서 실패한 단계만 `test:unit`·`lint`·`api:check`·`build`로 실행한다 |
+| Frontend Build | `frontend`에서 실패한 단계만 `test:unit`·`lint`·`api:check`·`build`로 실행한다. 배포 검증 단계는 `LANG=ko_KR.UTF-8 bash deploy/k3s/scripts/validate.sh`(샌드박스 밖)다 |
 | Browser Smoke E2E | 실패 spec만 `npx playwright test <spec>`로 실행한다. CI는 local 프로필 jar와 `RATE_LIMIT_ENABLED=false`를 사용한다 |
 | Dependency Review·Container Security | 보고된 패키지·CVE와 수정 버전을 확인한다 |
 

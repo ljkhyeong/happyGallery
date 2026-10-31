@@ -17,6 +17,8 @@ interface Props {
   endTime?: string;
   items: HalfHourScheduleItem[];
   emptyMessage: string;
+  /** 시간표 머리에 날짜를 보인다. 바로 위에 같은 날짜 제목이 있으면 false로 둔다. */
+  showDate?: boolean;
 }
 
 interface NormalizedItem extends HalfHourScheduleItem {
@@ -76,6 +78,7 @@ export function HalfHourDaySchedule({
   endTime,
   items,
   emptyMessage,
+  showDate = true,
 }: Props) {
   const normalized = items
     .map((item): NormalizedItem | null => {
@@ -113,7 +116,7 @@ export function HalfHourDaySchedule({
   return (
     <section className="admin-day-schedule" aria-label={ariaLabel}>
       <div className="admin-day-schedule-heading">
-        <strong>{date}</strong>
+        {showDate && <strong>{date}</strong>}
         <span>30분 눈금</span>
       </div>
       <div className="admin-day-schedule-scroll">

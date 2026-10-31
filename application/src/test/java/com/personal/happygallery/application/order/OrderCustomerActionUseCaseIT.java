@@ -153,8 +153,7 @@ class OrderCustomerActionUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("회원은 배송비를 포함한 승인 대기 주문 전액을 취소하고 재고를 복구한다")

@@ -1,19 +1,21 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Card, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
   cancelMyGroupInquiry, getMyGroupInquiry, updateMyGroupInquiry,
   type CancelMyGroupInquiryRequest, type MyGroupInquiryResponse, type UpdateMyGroupInquiryRequest,
 } from "@/generated/api/customerStore";
-import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import {
   ApiError, captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer,
   runForCustomerSession, type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ConfirmModal, EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
+import { GroupInquiryStatusBadge } from "./GroupInquiryStatusBadge";
+
+export const GROUP_INQUIRY_DETAIL_ID = "my-group-inquiry-detail";
 
 interface InquiryDraft {
   version: number;
@@ -31,8 +33,6 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   useEffect(() => { cardRef.current?.scrollIntoView({ block: "start" }); }, []);
   const [draft, setDraft] = useState<InquiryDraft | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const leaveTitleId = useId();
-  const cancelTitleId = useId();
   const client = useQueryClient();
   const toast = useToast();
   const detailKey = queryKeys.member.groupInquiries.detail(id);
@@ -107,7 +107,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   );
 
   return (
-    <Card ref={cardRef} className="mt-4 my-anchor-section"><Card.Body>
+    <Card ref={cardRef} id={GROUP_INQUIRY_DETAIL_ID} className="mt-4 my-anchor-section"><Card.Body>
       <h2 className="h6">문의 상세 · 접수 번호 {id}</h2>
       <Button size="sm" variant="link" disabled={busy} onClick={() => { void query.refetch(); }}>문의 새로고침</Button>
       {query.isLoading && <LoadingSpinner />}
@@ -115,7 +115,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
         retrying={busy} retryLabel="문의 조회 다시 시도" />
       {detail && values && (
         <>
-          <p>{detail.summary.organization} · <Badge bg="secondary">{GROUP_INQUIRY_STATUS[detail.summary.status]}</Badge></p>
+          <p>{detail.summary.organization} · <GroupInquiryStatusBadge status={detail.summary.status} /></p>
           {!confirmCancel && mutationError}
           <Form onSubmit={(event) => {
             event.preventDefault();
@@ -127,58 +127,56 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             });
           }}>
             <fieldset disabled={!editable || busy}>
-              <Form.Group controlId={`inquiry-${id}-headcount`} className="mb-3">
-                <Form.Label>참여 인원</Form.Label>
-                <Form.Control type="number" inputMode="numeric" min={1} max={500} required value={values.headcount}
-                  onChange={(event) => edit({ headcount: event.target.value })} />
-              </Form.Group>
-              <Form.Group controlId={`inquiry-${id}-schedule`} className="mb-3">
-                <Form.Label>희망 일정</Form.Label>
-                <Form.Control required maxLength={200} value={values.preferredSchedule}
-                  onChange={(event) => edit({ preferredSchedule: event.target.value })} />
-              </Form.Group>
+              {/* 넓은 화면에서 입력칸이 카드 폭(약 840px)만큼 늘어나지 않도록 값 길이에 맞춘 칸에 둔다. */}
+              <Row className="g-3 mb-3">
+                <Col xs={12} sm={4} lg={3}>
+                  <Form.Group controlId={`inquiry-${id}-headcount`}>
+                    <Form.Label>참여 인원</Form.Label>
+                    <Form.Control type="number" inputMode="numeric" min={1} max={500} required value={values.headcount}
+                      onChange={(event) => edit({ headcount: event.target.value })} />
+                  </Form.Group>
+                </Col>
+                <Col xs={12} sm={8} lg={6}>
+                  <Form.Group controlId={`inquiry-${id}-schedule`}>
+                    <Form.Label>희망 일정</Form.Label>
+                    <Form.Control required maxLength={200} value={values.preferredSchedule}
+                      onChange={(event) => edit({ preferredSchedule: event.target.value })} />
+                  </Form.Group>
+                </Col>
+              </Row>
               {editable && <div className="d-flex gap-2">
                 <Button type="submit" disabled={writeDisabled}>{mutation.isPending && mutation.variables?.action === "update" ? "저장 중..." : "변경 저장"}</Button>
-                <Button variant="outline-danger" disabled={writeDisabled} onClick={() => setConfirmCancel(true)}>문의 취소</Button>
+                <Button variant="outline-dark" disabled={writeDisabled} onClick={() => setConfirmCancel(true)}>문의 취소</Button>
               </div>}
             </fieldset>
           </Form>
           <p className="small text-muted mt-3">일정과 인원은 수업 확정 전까지 변경할 수 있습니다. 확정 후 변경은 공방에 문의해 주세요.</p>
           {detail.summary.status === "CONFIRMED" && <WorkshopContactLinks className="d-flex flex-wrap gap-2 mb-3" />}
           <h3 className="h6 mt-4">내 변경 이력</h3>
-          {detail.changes.length === 0 ? <p className="small text-muted">변경 이력이 없습니다.</p> : (
+          {detail.changes.length === 0 ? <EmptyState message="변경 이력이 없습니다." /> : (
             <ul className="ps-3 small">{detail.changes.map((change) => <li key={change.id} className="mb-2">
               <div>{change.note}</div><time className="text-muted">{formatDateTime(change.createdAt)}</time>
             </li>)}</ul>
           )}
-          <Modal show={confirmCancel && blocker.state !== "blocked"} onHide={() => { if (!mutation.isPending) setConfirmCancel(false); }}
-            centered aria-labelledby={cancelTitleId}>
-            <Modal.Header closeButton={!mutation.isPending}><Modal.Title id={cancelTitleId}>단체 수업 문의 취소</Modal.Title></Modal.Header>
-            <Modal.Body>
-              문의 #{id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.
-              {dirty && <p className="mt-2 mb-0">저장하지 않은 일정과 인원 변경은 반영되지 않습니다.</p>}
-              {mutationError}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="outline-secondary" disabled={mutation.isPending} onClick={() => setConfirmCancel(false)}>돌아가기</Button>
-              <Button variant="danger" disabled={writeDisabled} onClick={() => mutation.mutate({
-                action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
-              })}>문의 취소 확인</Button>
-            </Modal.Footer>
-          </Modal>
+          <ConfirmModal show={confirmCancel && blocker.state !== "blocked"} title="단체 수업 문의 취소"
+            pending={mutation.isPending} onClose={() => setConfirmCancel(false)}
+            confirmLabel="문의 취소 확인" confirmVariant="dark" confirmDisabled={writeDisabled}
+            onConfirm={() => mutation.mutate({
+              action: "cancel", request: { version: values.version }, customerSession: captureCustomerSession(),
+            })}>
+            문의 #{id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.
+            {dirty && <p className="mt-2 mb-0">저장하지 않은 일정과 인원 변경은 반영되지 않습니다.</p>}
+            {mutationError}
+          </ConfirmModal>
         </>
       )}
-      <Modal show={blocker.state === "blocked"} onHide={() => blocker.reset?.()} centered aria-labelledby={leaveTitleId}>
-        <Modal.Header closeButton><Modal.Title id={leaveTitleId} className="fs-6">{dirty ? "문의 수정을 그만하시겠어요?" : "다른 화면으로 이동하시겠어요?"}</Modal.Title></Modal.Header>
-        <Modal.Body>
-          {mutation.isPending ? "요청을 처리하고 있습니다. 완료 후 이동해 주세요."
-            : dirty ? "저장하지 않은 일정과 인원 변경이 사라집니다." : "변경 내용을 처리했습니다. 이동할 수 있습니다."}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => blocker.reset?.()}>계속 수정</Button>
-          <Button variant="danger" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>{dirty ? "변경 버리고 이동" : "이동"}</Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmModal show={blocker.state === "blocked"} title={dirty ? "문의 수정을 그만하시겠어요?" : "다른 화면으로 이동하시겠어요?"}
+        pending={false} onClose={() => blocker.reset?.()}
+        confirmLabel={dirty ? "변경 버리고 이동" : "이동"} confirmVariant="dark" confirmDisabled={mutation.isPending}
+        onConfirm={() => blocker.proceed?.()} cancelLabel="계속 수정">
+        {mutation.isPending ? "요청을 처리하고 있습니다. 완료 후 이동해 주세요."
+          : dirty ? "저장하지 않은 일정과 인원 변경이 사라집니다." : "변경 내용을 처리했습니다. 이동할 수 있습니다."}
+      </ConfirmModal>
     </Card.Body></Card>
   );
 }

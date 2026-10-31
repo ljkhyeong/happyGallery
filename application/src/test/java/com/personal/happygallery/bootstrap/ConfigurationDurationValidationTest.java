@@ -28,7 +28,10 @@ class ConfigurationDurationValidationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(DurationPropertiesConfig.class)
-            .withPropertyValues("app.guest-token.hmac-secret=" + HMAC_SECRET);
+            .withPropertyValues("app.guest-token.hmac-secret=" + HMAC_SECRET,
+                    // thread-pool 블록은 기본값 없는 필수 설정이라 Duration 검증 대상과 무관하게 채운다.
+                    "app.external.payment.thread-pool.pool-size=1",
+                    "app.external.payment.thread-pool.queue-capacity=1");
 
     @BeforeAll
     static void setUpValidator() {

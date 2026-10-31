@@ -66,13 +66,13 @@ public class ReviewModerationAction {
                                    Long adminUserId,
                                    Long evidenceSnapshotId,
                                    LocalDateTime createdAt) {
-        this.reviewId = requirePositive(reviewId, "후기 ID");
+        this.reviewId = ReviewIds.requirePositive(reviewId, "후기 ID");
         this.action = Objects.requireNonNull(action, "운영 조치 유형은 필수입니다.");
         this.previousStatus = Objects.requireNonNull(previousStatus, "이전 상태는 필수입니다.");
         this.newStatus = Objects.requireNonNull(newStatus, "변경 상태는 필수입니다.");
         this.reason = reason;
-        this.adminUserId = requirePositive(adminUserId, "관리자 ID");
-        this.evidenceSnapshotId = requirePositive(evidenceSnapshotId, "후기 증거 ID");
+        this.adminUserId = ReviewIds.requirePositive(adminUserId, "관리자 ID");
+        this.evidenceSnapshotId = ReviewIds.requirePositive(evidenceSnapshotId, "후기 증거 ID");
         this.createdAt = Objects.requireNonNull(createdAt, "운영 조치 시각은 필수입니다.");
     }
 
@@ -107,13 +107,6 @@ public class ReviewModerationAction {
                 adminUserId,
                 evidenceSnapshotId,
                 createdAt);
-    }
-
-    private static Long requirePositive(Long value, String name) {
-        if (value == null || value < 1L) {
-            throw new IllegalArgumentException(name + "가 올바르지 않습니다.");
-        }
-        return value;
     }
 
     public Long getId() { return id; }

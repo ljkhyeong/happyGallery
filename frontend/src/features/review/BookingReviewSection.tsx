@@ -35,10 +35,10 @@ export function BookingReviewSection({ bookingId, className }: Props) {
   useHashScroll(REVIEW_SECTION_ID);
 
   return (
-    <section id={REVIEW_SECTION_ID} className="review-section member-source-reviews" aria-labelledby="booking-review-heading">
+    <section id={REVIEW_SECTION_ID} className="my-detail-page-section" aria-labelledby="booking-review-heading">
       <header className="review-section-header">
         <div>
-          <h5 id="booking-review-heading" className="mb-1">클래스 후기</h5>
+          <h2 id="booking-review-heading" className="my-detail-page-title">클래스 후기</h2>
           {/* 상태별 안내는 아래 본문이 보여 주므로, 머리에는 작성 가능·대기 상태만 적어 문장이 겹치거나 어긋나지 않게 한다. */}
           {creationStateQuery.data?.status === "AVAILABLE" && (
             <p className="text-muted-soft small mb-0">{className} 수업 후기를 쓸 수 있습니다.</p>

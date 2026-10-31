@@ -37,7 +37,7 @@ import { normalizePhone } from "@/shared/validation/phone";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 export type CustomerUser = CustomerUserResponse;
-export type CustomerAuthStatus =
+type CustomerAuthStatus =
   | "unknown"
   | "authenticated"
   | "unauthenticated"

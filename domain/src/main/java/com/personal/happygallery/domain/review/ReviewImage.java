@@ -46,9 +46,7 @@ public class ReviewImage {
     protected ReviewImage() {}
 
     public ReviewImage(Long reviewId, String imageUrl, int sortOrder, LocalDateTime createdAt) {
-        if (reviewId == null || reviewId < 1L) {
-            throw new IllegalArgumentException("후기 ID가 올바르지 않습니다.");
-        }
+        ReviewIds.requirePositive(reviewId, "후기 ID");
         if (imageUrl == null || imageUrl.isBlank() || imageUrl.length() > MAX_URL_LENGTH) {
             throw new IllegalArgumentException("후기 이미지 URL이 올바르지 않습니다.");
         }

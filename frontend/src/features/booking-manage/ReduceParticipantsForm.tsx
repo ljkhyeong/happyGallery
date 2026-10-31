@@ -1,6 +1,6 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Form } from "react-bootstrap";
 import type { ReduceBookingParticipantsResponse } from "@/generated/api/booking";
 import {
   invalidateSlotAvailability,
@@ -8,7 +8,7 @@ import {
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type { BookingCancelPolicy } from "@/shared/types";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 
 interface Props {
   participantCount: number;
@@ -27,7 +27,6 @@ export function ReduceParticipantsForm({
   onReduce,
   onSuccess,
 }: Props) {
-  const titleId = `booking-participant-reduction-title-${useId()}`;
   const queryClient = useQueryClient();
   const toast = useToast();
   const [nextParticipantCount, setNextParticipantCount] = useState(
@@ -98,51 +97,39 @@ export function ReduceParticipantsForm({
             {participantCount - nextParticipantCount}명 취소 · 예상 예약금 환불 {formatKRW(estimatedRefund)}
           </Form.Text>
         </Form.Group>
-        <Button type="submit" variant="outline-warning" className="mt-3">
+        <Button type="submit" variant="outline-dark" className="mt-3">
           예약 인원 줄이기
         </Button>
       </Form>
 
-      <Modal
+      <ConfirmModal
         show={showConfirm}
-        aria-labelledby={titleId}
-        onHide={() => setShowConfirm(false)}
-        centered
+        title="예약 인원 줄이기"
+        pending={false}
+        onClose={() => setShowConfirm(false)}
+        confirmLabel={mutation.isPending ? "처리 중..." : `${participantCount - nextParticipantCount}명 부분취소`}
+        confirmVariant="dark"
+        confirmDisabled={mutation.isPending}
+        onConfirm={() => mutation.mutate()}
+        cancelVariant="outline-dark"
       >
-        <Modal.Header closeButton>
-          <Modal.Title id={titleId}>예약 인원 줄이기</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={mutation.error} />
-          <p>
-            현재 {participantCount}명 예약을 {nextParticipantCount}명으로 변경합니다.
-            취소한 인원만큼 다른 고객이 예약할 수 있습니다.
-          </p>
-          <dl className="row small mb-3">
-            <dt className="col-6">취소 인원</dt>
-            <dd className="col-6 text-end">{participantCount - nextParticipantCount}명</dd>
-            <dt className="col-6">예상 예약금 환불</dt>
-            <dd className="col-6 text-end">{formatKRW(estimatedRefund)}</dd>
-            <dt className="col-6">부분취소 마감</dt>
-            <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
-          </dl>
-          <Alert variant="info" className="mb-0 py-2 small">
-            환불액은 현재 예약 금액에 따라 확정됩니다. 환불 완료까지는 시간이 걸릴 수 있습니다.
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirm(false)}>
-            닫기
-          </Button>
-          <Button
-            variant="warning"
-            disabled={mutation.isPending}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? "처리 중..." : `${participantCount - nextParticipantCount}명 부분취소`}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={mutation.error} />
+        <p>
+          현재 {participantCount}명 예약을 {nextParticipantCount}명으로 변경합니다.
+          취소한 인원만큼 다른 고객이 예약할 수 있습니다.
+        </p>
+        <dl className="row small mb-3">
+          <dt className="col-6">취소 인원</dt>
+          <dd className="col-6 text-end">{participantCount - nextParticipantCount}명</dd>
+          <dt className="col-6">예상 예약금 환불</dt>
+          <dd className="col-6 text-end">{formatKRW(estimatedRefund)}</dd>
+          <dt className="col-6">부분취소 마감</dt>
+          <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
+        </dl>
+        <Alert variant="info" className="mb-0 py-2 small">
+          환불액은 현재 예약 금액에 따라 확정됩니다. 환불 완료까지는 시간이 걸릴 수 있습니다.
+        </Alert>
+      </ConfirmModal>
     </>
   );
 }

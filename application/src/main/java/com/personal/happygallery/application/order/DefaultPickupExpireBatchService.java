@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase {
 
+    private static final int PAGE_SIZE = 100;
+
     private final FulfillmentPort fulfillmentPort;
     private final PickupExpireProcessor pickupExpireProcessor;
     private final Clock clock;
@@ -42,8 +44,6 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
      *
      * @return 처리된 건수
      */
-    private static final int PAGE_SIZE = 100;
-
     @Override
     public BatchResult expirePickups() {
         LocalDateTime now = LocalDateTime.now(clock);

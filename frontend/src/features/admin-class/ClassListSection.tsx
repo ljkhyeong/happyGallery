@@ -20,7 +20,6 @@ interface Props {
 export function ClassListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const { data: classes, isLoading, error, refetch, isFetching } = useAdminQuery(
     onAuthError,
     adminClassesQuery(adminKey),
@@ -29,13 +28,12 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateClassStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
-    onMutate: ({ id }) => setPendingStatusId(id),
     onSuccess: () => {
       invalidateClassQueries(queryClient);
       void invalidateSlotAvailability(queryClient);
     },
-    onSettled: () => setPendingStatusId(null),
   });
+  const pendingStatusId = statusMutation.isPending ? statusMutation.variables.id : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
@@ -49,7 +47,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   return (
     <>
       <ErrorAlert error={statusMutation.error} />
-      <Table responsive hover size="sm">
+      <Table responsive hover size="sm" className="align-middle">
         <thead>
           <tr>
             <th>클래스 번호</th>
@@ -60,7 +58,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
             <th className="text-end">가격</th>
             <th>이용권</th>
             <th>운영 상태</th>
-            <th></th>
+            <th><span className="visually-hidden">관리</span></th>
           </tr>
         </thead>
         <tbody>

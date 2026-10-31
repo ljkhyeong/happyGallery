@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.money.Proration;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import jakarta.persistence.Column;
@@ -16,7 +17,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 /** 체험 예약 — bookings 테이블 */
@@ -88,14 +88,14 @@ public class Booking {
     @Column(name = "payment_method", length = 15)
     private DepositPaymentMethod paymentMethod;
 
-    /** 비회원 예약 조회용 토큰 (V3에서 추가) */
+    /** 비회원 예약 조회용 토큰 해시. */
     @Column(name = "access_token", length = 64)
     private String accessToken;
 
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
-    /** 이용권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
+    /** 이용권 결제 연결. null이면 예약금 결제. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pass_purchase_id")
     private PassPurchase passPurchase;
@@ -148,12 +148,6 @@ public class Booking {
     }
 
     /** 게스트 예약금 예약 생성. */
-    public static Booking forGuestDeposit(Guest guest, Slot slot, long depositAmount, long balanceAmount,
-                                          DepositPaymentMethod paymentMethod, String accessToken) {
-        return forGuestDeposit(
-                guest, slot, 1, depositAmount, balanceAmount, paymentMethod, accessToken);
-    }
-
     public static Booking forGuestDeposit(Guest guest, Slot slot, int participantCount,
                                           long depositAmount, long balanceAmount,
                                           DepositPaymentMethod paymentMethod, String accessToken) {
@@ -163,13 +157,6 @@ public class Booking {
     }
 
     /** 회원 예약금 예약 생성. */
-    public static Booking forMemberDeposit(User member,
-                                           Slot slot, long depositAmount, long balanceAmount,
-                                           DepositPaymentMethod paymentMethod) {
-        return forMemberDeposit(
-                member, slot, 1, depositAmount, balanceAmount, paymentMethod);
-    }
-
     public static Booking forMemberDeposit(User member, Slot slot, int participantCount,
                                            long depositAmount, long balanceAmount,
                                            DepositPaymentMethod paymentMethod) {
@@ -245,26 +232,24 @@ public class Booking {
      */
     public void cancel() {
         status.requireBooked();
-        if (!isCustomerCancellationAllowedAfterBooked()) {
+        if (hasPaidBalance()) {
             throw new HappyGalleryException(
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
         }
-        this.status = BookingStatus.CANCELED;
-        this.ownerPhoneHmac = null;
+        closeAs(BookingStatus.CANCELED);
     }
 
     /** 공방 사정으로 예약을 취소한다. 고객 취소 제한과 관계없이 관리자 정산 흐름에서만 호출한다. */
     public void cancelByAdmin() {
         status.requireBooked();
-        this.status = BookingStatus.CANCELED;
-        this.ownerPhoneHmac = null;
+        closeAs(BookingStatus.CANCELED);
     }
 
     /** 예약을 유지하면서 취소한 인원만큼 예약금·잔금과 슬롯 점유를 줄인다. */
     public ParticipantReduction reduceParticipants(int newParticipantCount) {
         status.requireBooked();
-        if (!isCustomerCancellationAllowedAfterBooked()) {
+        if (hasPaidBalance()) {
             throw new HappyGalleryException(
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 인원을 줄일 수 없습니다. 관리자 정산이 필요합니다.");
@@ -282,8 +267,8 @@ public class Booking {
         int previousParticipantCount = participantCount;
         long previousDepositAmount = depositAmount;
         long previousBalanceAmount = balanceAmount;
-        depositAmount = prorated(previousDepositAmount, newParticipantCount, previousParticipantCount);
-        balanceAmount = prorated(previousBalanceAmount, newParticipantCount, previousParticipantCount);
+        depositAmount = Proration.floor(previousDepositAmount, newParticipantCount, previousParticipantCount);
+        balanceAmount = Proration.floor(previousBalanceAmount, newParticipantCount, previousParticipantCount);
         participantCount = newParticipantCount;
         return new ParticipantReduction(
                 previousParticipantCount - newParticipantCount,
@@ -291,15 +276,13 @@ public class Booking {
                 previousBalanceAmount - balanceAmount);
     }
 
-    private static long prorated(long amount, int numerator, int denominator) {
-        return BigInteger.valueOf(amount)
-                .multiply(BigInteger.valueOf(numerator))
-                .divide(BigInteger.valueOf(denominator))
-                .longValueExact();
+    public boolean isCustomerCancellationAllowed() {
+        return status == BookingStatus.BOOKED && !hasPaidBalance();
     }
 
-    public boolean isCustomerCancellationAllowed() {
-        return status == BookingStatus.BOOKED && isCustomerCancellationAllowedAfterBooked();
+    /** 잔금이 있고 결제까지 끝난 예약인지. 이때의 취소·인원 축소는 관리자 정산이 필요하다. */
+    public boolean hasPaidBalance() {
+        return balanceAmount > 0 && balanceStatus == BalanceStatus.PAID;
     }
 
     public record ParticipantReduction(
@@ -308,18 +291,11 @@ public class Booking {
             long reducedBalanceAmount
     ) {}
 
-    private boolean isCustomerCancellationAllowedAfterBooked() {
-        return balanceAmount == 0 || balanceStatus != BalanceStatus.PAID;
-    }
-
     /** 수업 종료 후 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */
     public void markNoShow(LocalDateTime now) {
         status.requireBooked();
-        if (now.isBefore(slot.getEndAt())) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
-        }
-        this.status = BookingStatus.NO_SHOW;
-        this.ownerPhoneHmac = null;
+        requireClassEnded(now, "수업 종료 전에는 노쇼 처리할 수 없습니다.");
+        closeAs(BookingStatus.NO_SHOW);
     }
 
     /** 현장 잔금 결제를 기록한다. 이미 결제된 예약은 최초 결제 시각을 유지한다. */
@@ -345,13 +321,25 @@ public class Booking {
     /** 수업 종료 후 예약을 완료한다. 미결제 잔금은 먼저 미수로 명시해야 한다. */
     public void complete(LocalDateTime now) {
         status.requireBooked();
-        if (now.isBefore(slot.getEndAt())) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수업 종료 전에는 예약을 완료할 수 없습니다.");
-        }
+        requireClassEnded(now, "수업 종료 전에는 예약을 완료할 수 없습니다.");
         if (balanceStatus == BalanceStatus.UNPAID && !arrearsFlag) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "미결제 잔금은 미수로 표시한 뒤 완료해 주세요.");
         }
-        this.status = BookingStatus.COMPLETED;
+        closeAs(BookingStatus.COMPLETED);
+    }
+
+    private void requireClassEnded(LocalDateTime now, String message) {
+        if (now.isBefore(slot.getEndAt())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, message);
+        }
+    }
+
+    /**
+     * 예약을 종료 상태로 전이한다. BOOKED가 아닌 예약은 owner_phone_hmac을 비워야 하는
+     * DB 제약(chk_bookings_owner_phone_hmac_lifecycle)과 활성 예약 유니크 키를 함께 지킨다.
+     */
+    private void closeAs(BookingStatus next) {
+        this.status = next;
         this.ownerPhoneHmac = null;
     }
 

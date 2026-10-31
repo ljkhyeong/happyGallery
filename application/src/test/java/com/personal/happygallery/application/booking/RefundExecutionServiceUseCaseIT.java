@@ -37,6 +37,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
+import static com.personal.happygallery.support.TestFixtures.orderRefund;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -65,13 +66,8 @@ class RefundExecutionServiceUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     private Order saveMemberOrder(LocalDateTime paidAt) {
@@ -217,7 +213,7 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         Order order = saveMemberOrder(paidAt);
         Refund requestedRefund = refundRepository.save(
-                Refund.forOrder(order.getId(), 55_000L, "payment-key"));
+                orderRefund(order.getId(), 55_000L, "payment-key"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.success("refund-transaction-key"));
 
@@ -244,7 +240,7 @@ class RefundExecutionServiceUseCaseIT {
         LocalDateTime paidAt = LocalDateTime.now(clock);
         Order order = saveMemberOrder(paidAt);
         Refund requestedRefund = refundRepository.save(
-                Refund.forOrder(order.getId(), 55_000L, "payment-key"));
+                orderRefund(order.getId(), 55_000L, "payment-key"));
         when(paymentProvider.refund(any(), anyLong(), any()))
                 .thenReturn(RefundResult.reconciliationRequired("PG 호출 결과 불명"));
 
@@ -351,7 +347,7 @@ class RefundExecutionServiceUseCaseIT {
                     Order order = orderRepository.save(
                             memberOrder(member.getId(), 55_000L, now, now.plusHours(24)));
                     return refundRepository.save(
-                            Refund.forOrder(order.getId(), 55_000L, "payment-key-" + index));
+                            orderRefund(order.getId(), 55_000L, "payment-key-" + index));
                 })
                 .toList();
         when(paymentProvider.refund(any(), anyLong(), any()))
@@ -363,7 +359,7 @@ class RefundExecutionServiceUseCaseIT {
         Order newOrder = orderRepository.save(
                 memberOrder(member.getId(), 55_000L, now, now.plusHours(24)));
         Refund newRefund = refundRepository.save(
-                Refund.forOrder(newOrder.getId(), 55_000L, "new-payment-key"));
+                orderRefund(newOrder.getId(), 55_000L, "new-payment-key"));
         jdbcTemplate.update("""
                 UPDATE refunds
                 SET next_attempt_at = ?
@@ -404,7 +400,7 @@ class RefundExecutionServiceUseCaseIT {
 
         LocalDateTime paidAt = LocalDateTime.now(clock);
         Order order = saveMemberOrder(paidAt);
-        Refund succeededRefund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
+        Refund succeededRefund = orderRefund(order.getId(), 55_000L, "payment-key");
         String processingToken = succeededRefund.startProcessing(paidAt, paidAt.minusMinutes(1));
         succeededRefund.markSucceeded(processingToken, "refund-transaction-key", LocalDateTime.now(clock));
         Refund savedRefund = refundRepository.save(succeededRefund);
@@ -418,7 +414,7 @@ class RefundExecutionServiceUseCaseIT {
     }
 
     private Refund saveReconciliationRequiredRefund(Order order, LocalDateTime now) {
-        Refund refund = Refund.forOrder(order.getId(), 55_000L, "payment-key");
+        Refund refund = orderRefund(order.getId(), 55_000L, "payment-key");
         String processingToken = refund.startProcessing(now.minusMinutes(2), now.minusMinutes(3));
         refund.markReconciliationRequired(
                 processingToken, "PG 호출 결과 불명", now.minusSeconds(1));
@@ -426,7 +422,7 @@ class RefundExecutionServiceUseCaseIT {
     }
 
     private Refund succeededRefund(Long orderId, String paymentKey, LocalDateTime now) {
-        Refund refund = Refund.forOrder(orderId, 55_000L, paymentKey);
+        Refund refund = orderRefund(orderId, 55_000L, paymentKey);
         String processingToken = refund.startProcessing(now, now.minusMinutes(1));
         refund.markSucceeded(processingToken, "shared-refund-transaction-key", now);
         return refund;

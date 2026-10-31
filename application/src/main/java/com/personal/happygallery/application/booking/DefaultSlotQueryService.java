@@ -5,8 +5,6 @@ import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -18,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class DefaultSlotQueryService implements SlotQueryUseCase {
-
-    private static final int MAX_UPCOMING_DAYS = 30;
 
     private final SlotReaderPort slotReaderPort;
     private final ClassReaderPort classReaderPort;
@@ -45,12 +41,9 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
         return slotMaterializer.materialize(bookingClass, dayStart, dayEnd);
     }
 
-    /** 오늘부터 지정한 일수 동안 예약 가능한 슬롯을 한 번에 조회한다. */
+    /** 오늘부터 지정한 일수 동안 예약 가능한 슬롯을 한 번에 조회한다. days 범위는 HTTP 파라미터 검증(웹 계층)이 보장한다. */
     @Override
     public List<Slot> listUpcoming(Long classId, int days, boolean includeFull) {
-        if (days < 1 || days > MAX_UPCOMING_DAYS) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "조회 기간은 1일에서 30일 사이여야 합니다.");
-        }
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime rangeStart = now.toLocalDate().atStartOfDay();
         LocalDateTime rangeEnd = rangeStart.plusDays(days);

@@ -24,6 +24,6 @@ description: happyGallery의 네이버 스마트스토어 재고·가격·판매
 
 - 재고 전송 버전·백오프는 `./gradlew :application:policyTest --tests "*SmartStoreStockSyncPolicyTest"`를 실행한다.
 - HTTP client·설정은 `./gradlew :adapter-out-external:test --tests "*SmartStoreRestClientConfigTest" --tests "*SmartStorePropertiesTest"`를 실행한다.
-- `NaverCommerce*ProviderTest`는 application 모듈에 있다. `./gradlew :application:test --tests "*NaverCommerceOrderProviderTest"`처럼 대상만 고른다. 주문 명령은 `DefaultSmartStoreChannelOrderServiceTest`, 정산은 `DefaultSmartStoreSettlementServiceTest`, 문의 기간은 `SmartStoreInquirySearchTest`를 함께 고른다.
+- `NaverCommerce*ProviderTest`는 adapter-out-external 모듈에 있다. `./gradlew :adapter-out-external:test --tests "*NaverCommerceOrderProviderTest"`처럼 대상만 고른다. 주문 명령은 `DefaultSmartStoreChannelOrderServiceTest`, 정산은 `DefaultSmartStoreSettlementServiceTest`, 문의 기간은 `SmartStoreInquirySearchTest`를 함께 고른다.
 - DB·트랜잭션은 `./gradlew --no-daemon :application:useCaseTest --tests "*X*"`로 상품 반영·수집 보류·원상품 변경 `SmartStoreProductSyncUseCaseIT`, 채널 주문 재고·반품 검수·대사 `SmartStoreOrderInventoryUseCaseIT`, 선점·커서 `SmartStoreSyncLeaseUseCaseIT`, 옵션 매핑 `ProductInventoryUseCaseIT`, 배송정보 키 회전 `KeyRotationUseCaseIT` 중 선택한다.
 - 관리자 API는 `:adapter-in-web:restDocsTest`의 `AdminAuthCatalogApiRestDocsTest`(정산은 `AdminOperationsApiRestDocsTest`), 화면은 `happygallery-frontend-flows`와 `frontend/tests/e2e/smartstore-admin.spec.ts`, 경보는 `happygallery-observability-flows`를 함께 적용한다. 실제 네이버 쓰기 API는 호출하지 않는다.

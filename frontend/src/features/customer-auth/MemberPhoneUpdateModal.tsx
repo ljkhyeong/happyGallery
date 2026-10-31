@@ -1,13 +1,10 @@
-import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Modal } from "react-bootstrap";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import {
-  ApiError,
-  runForCurrentCustomer,
-} from "@/shared/api";
+import { runForCurrentCustomer } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
+import { useReauthenticationGate } from "@/features/customer-auth/useReauthenticationGate";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { updateMemberPhone } from "./phoneRegistrationApi";
 
@@ -32,16 +29,13 @@ export function MemberPhoneUpdateModal({
   onUpdated,
 }: Props) {
   const toast = useToast();
-  const [stepUpBusy, setStepUpBusy] = useState(false);
-  const [reauthenticated, setReauthenticated] = useState(
-    currentPhone === null || initiallyReauthenticated,
-  );
-
-  useEffect(() => {
-    if (show) {
-      setReauthenticated(currentPhone === null || initiallyReauthenticated);
-    }
-  }, [show, currentPhone, initiallyReauthenticated]);
+  // 번호가 없는 회원의 첫 등록은 본인 확인 없이 진행한다.
+  const {
+    reauthenticated, stepUpBusy, setStepUpBusy, requireStepUpOnError, markVerified,
+  } = useReauthenticationGate({
+    show,
+    initiallyReauthenticated: currentPhone === null || initiallyReauthenticated,
+  });
 
   const update = useMutation({
     mutationFn: ({ phone, verificationCode }: { phone: string; verificationCode: string }) =>
@@ -60,11 +54,7 @@ export function MemberPhoneUpdateModal({
           onClose();
         },
       ),
-    onError: (error) => {
-      if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
-        setReauthenticated(false);
-      }
-    },
+    onError: requireStepUpOnError,
   });
 
   function close() {
@@ -84,7 +74,7 @@ export function MemberPhoneUpdateModal({
       keyboard={!busy}
       centered
     >
-      <Modal.Header closeButton={!busy}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!busy}>
         <Modal.Title id="member-phone-update-title" className="fs-6">
           휴대폰 번호 {currentPhone ? "변경" : "등록"}
         </Modal.Title>
@@ -98,7 +88,7 @@ export function MemberPhoneUpdateModal({
           <CustomerStepUpPrompt
             localPasswordEnabled={localPasswordEnabled}
             returnAction="phone-change"
-            onVerified={() => setReauthenticated(true)}
+            onVerified={markVerified}
             onBusyChange={setStepUpBusy}
           />
         ) : (
@@ -106,6 +96,7 @@ export function MemberPhoneUpdateModal({
             purpose={currentPhone ? "MEMBER_PHONE_CHANGE" : "MEMBER_PHONE_REGISTRATION"}
             key={`${show}-${currentPhone ?? "none"}`}
             title="휴대폰 인증"
+            titleAs="h2"
             description="인증된 번호는 연락과 비회원 주문·예약 확인에 사용됩니다."
             confirmLabel={currentPhone ? "인증하고 변경" : "인증하고 등록"}
             confirming={update.isPending}
@@ -114,8 +105,8 @@ export function MemberPhoneUpdateModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={close} disabled={busy}>
-          {currentPhone ? "취소" : "나중에"}
+        <Button variant="outline-dark" onClick={close} disabled={busy}>
+          {currentPhone ? "닫기" : "나중에"}
         </Button>
       </Modal.Footer>
     </Modal>

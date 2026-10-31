@@ -58,7 +58,7 @@ public interface SmartStoreOrderActionHistoryRepository
             Long cursorId,
             int limit) {
         return queryUnresolvedPage(
-                staleRequestedBefore, cursorRequestedAt, cursorId, PageRequest.of(0, limit));
+                staleRequestedBefore, cursorRequestedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override

@@ -20,7 +20,7 @@ export type {
 } from "@/generated/api/customerStore";
 export type { MyPassSummary };
 
-export const MY_HISTORY_PAGE_SIZE = 20;
+const MY_HISTORY_PAGE_SIZE = 20;
 
 export function fetchRecentMyOrders(signal?: AbortSignal) {
   return requestRecentMyOrders({ signal });

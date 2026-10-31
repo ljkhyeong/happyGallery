@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { isOrderItemInputLike, type StoredOrderItemInput } from "@/shared/validation/orderItemInput";
 import { editGuestCartExclusive } from "./guestCartLock";
 import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
@@ -42,40 +43,17 @@ function requireCartQuantity(qty: number) {
 }
 
 function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const item = value as Partial<GuestCartItem>;
-  if (
-    typeof item.productId !== "number"
-    || !Number.isSafeInteger(item.productId)
-    || item.productId <= 0
-    || (item.productVariantId !== null
-      && (typeof item.productVariantId !== "number"
-        || !Number.isSafeInteger(item.productVariantId)
-        || item.productVariantId <= 0))
-    || !Array.isArray(item.textInputs)
-    || typeof item.qty !== "number"
-    || !Number.isSafeInteger(item.qty)
-    || item.qty <= 0
-    || item.qty > MAX_PRODUCT_QUANTITY
-    || typeof item.lineageId !== "string"
-    || item.lineageId.length === 0
-  ) {
-    return undefined;
-  }
-  const textInputs = item.textInputs.filter((input) => (
-    typeof input === "object"
-    && input !== null
-    && typeof input.groupKey === "string"
-    && (input.value === undefined || typeof input.value === "string")
-  )) as ProductTextInputRequest[];
-  if (textInputs.length !== item.textInputs.length) return undefined;
+  // 글자 입력 value는 서버 계약처럼 비어 있을 수 있다. lineKey는 저장값을 믿지 않고 다시 계산한다.
+  if (!isOrderItemInputLike(value, { allowUndefinedText: true })) return undefined;
+  const { lineageId } = value as StoredOrderItemInput & { lineageId?: unknown };
+  if (typeof lineageId !== "string" || lineageId.length === 0) return undefined;
   return {
-    productId: item.productId,
-    productVariantId: item.productVariantId,
-    textInputs,
-    lineKey: productOptionLineKey(item.productId, item.productVariantId, textInputs),
-    qty: item.qty,
-    lineageId: item.lineageId,
+    productId: value.productId,
+    productVariantId: value.productVariantId,
+    textInputs: value.textInputs,
+    lineKey: productOptionLineKey(value.productId, value.productVariantId, value.textInputs),
+    qty: value.qty,
+    lineageId,
   };
 }
 

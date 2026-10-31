@@ -5,16 +5,19 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, fulfillJson } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  TEMPORARY_ERROR,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-const temporaryError = {
-  code: "SERVICE_UNAVAILABLE",
-  message: "잠시 후 다시 시도해 주세요.",
-};
 
 const workshop = {
   name: "해피갤러리",
@@ -25,7 +28,7 @@ const workshop = {
 
 test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문서 요청에서 복구한다", async ({ page }) => {
   await replaceSsrUpstreamFixtures({
-    ...ssrApiFixture("/workshop", temporaryError),
+    ...ssrApiFixture("/workshop", TEMPORARY_ERROR),
     status: 503,
   });
 
@@ -33,7 +36,7 @@ test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문�
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -59,7 +62,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/products", []),
     {
-      ...ssrApiFixture("/products/categories", temporaryError),
+      ...ssrApiFixture("/products/categories", TEMPORARY_ERROR),
       status: 503,
     },
   );
@@ -68,7 +71,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     const { pathname } = new URL(route.request().url());
 
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -88,7 +91,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
       await fulfillJson(
         route,
         policyAttempts <= 2
-          ? temporaryError
+          ? TEMPORARY_ERROR
           : { totalPrice: 240000, totalCredits: 4, validityDays: 45 },
         policyAttempts <= 2 ? 503 : 200,
       );
@@ -124,34 +127,22 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 103,
-        email: "notification-resilience@example.com",
-        name: "알림 복구 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
       unreadAttempts += 1;
       await fulfillJson(
         route,
-        unreadAttempts <= 2 ? temporaryError : { count: 3 },
+        unreadAttempts <= 2 ? TEMPORARY_ERROR : { count: 3 },
         unreadAttempts <= 2 ? 503 : 200,
       );
       return;
     }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 103, email: "notification-resilience@example.com", name: "알림 복구 회원" }),
+    })) return;
     if (pathname === "/api/v1/me/notifications") {
       await fulfillJson(route, []);
       return;
@@ -166,9 +157,10 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
   });
   await expect(notificationButton).toBeVisible();
   await notificationButton.click();
-  await expect(page.getByText("읽지 않은 알림 수를 확인하지 못했습니다.")).toBeVisible();
+  const popover = page.getByRole("dialog", { name: "알림 목록" });
+  await expect(popover.getByRole("alert")).toContainText("서비스를 일시적으로 사용할 수 없습니다.");
 
-  await page.getByRole("button", { name: "다시 시도" }).click();
+  await popover.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByRole("button", { name: "알림" }).getByText("3")).toBeVisible();
 });
 
@@ -180,52 +172,19 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 104,
-        email: "pass-intent@example.com",
-        name: "이용권 의도 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 104, email: "pass-intent@example.com", name: "이용권 의도 회원" }),
+    })) return;
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms" },
-        privacy: { version: "2026-07", documentPath: "/privacy" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        bufferMin: 30,
-        category: "LEATHER",
-        description: null,
-        durationMin: 120,
-        id: 42,
-        imageUrl: null,
-        name: "이용권 가능 클래스",
-        passEligible: true,
-        preparationInfo: null,
-        price: 50000,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "이용권 가능 클래스", durationMin: 120, passEligible: true })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -245,7 +204,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
       await fulfillJson(
         route,
         passAttempts <= 3
-          ? temporaryError
+          ? TEMPORARY_ERROR
           : {
               content: [{
                 expiresAt: "2099-12-31T00:00:00",
@@ -273,11 +232,13 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
   const slot = page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ });
   await expect(slot).toBeVisible();
   await slot.click();
-  const submitButton = page.getByRole("button", { name: "결제 진행하기" });
+  // 이용권 목록을 받기 전에도 이용권 예약 화면이라 결제 수단 없이 이용권 예약 버튼을 막아 둔다.
+  const submitButton = page.getByRole("button", { name: "이용권으로 예약하기" });
   await expect(submitButton).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "결제 수단" })).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();
 
-  await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
+  await expect(submitButton).toBeEnabled();
   await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
 });
 
@@ -288,68 +249,21 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
     const url = new URL(route.request().url());
     const { pathname } = url;
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 106,
-        email: "pass-class-switch@example.com",
-        name: "이용권 클래스 전환 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, workshop);
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 106, email: "pass-class-switch@example.com", name: "이용권 클래스 전환 회원" }),
+    })) return;
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms" },
-        privacy: { version: "2026-07", documentPath: "/privacy" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
       return;
     }
     if (pathname === "/api/v1/classes") {
       await fulfillJson(route, [
-        {
-          bufferMin: 30,
-          category: "LEATHER",
-          description: null,
-          durationMin: 120,
-          id: 42,
-          imageUrl: null,
-          name: "이용권 클래스 A",
-          passEligible: true,
-          preparationInfo: null,
-          price: 50000,
-          status: "ACTIVE",
-          targetAudience: null,
-          situationTags: [],
-        },
-        {
-          bufferMin: 30,
-          category: "UPCYCLING",
-          description: null,
-          durationMin: 90,
-          id: 43,
-          imageUrl: null,
-          name: "이용권 클래스 B",
-          passEligible: true,
-          preparationInfo: null,
-          price: 45000,
-          status: "ACTIVE",
-          targetAudience: null,
-          situationTags: [],
-        },
+        classFixture({ id: 42, name: "이용권 클래스 A", durationMin: 120, passEligible: true }),
+        classFixture({ id: 43, name: "이용권 클래스 B", category: "UPCYCLING", price: 45000, passEligible: true }),
       ]);
       return;
     }
@@ -393,10 +307,83 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
   await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
 
   await page.getByLabel("예약금 결제").check();
-  await expect(page.getByRole("button", { name: "결제 진행하기" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeEnabled();
   await page.getByLabel("클래스").selectOption("43");
   await page.getByRole("button", { name: /2099\. 01\. 03\. 오전 10:00/ }).click();
 
   await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
   await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
+});
+
+test("이용권 링크로 이용권을 받지 않는 수업을 열면 시간을 고르기 전에 일반 예약으로 안내한다", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    const { pathname } = url;
+
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, workshop);
+      return;
+    }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: 107, email: "pass-fallback@example.com", name: "이용권 불가 수업 회원" }),
+    })) return;
+    if (pathname === "/api/v1/policies/current") {
+      await fulfillJson(route, currentPoliciesFixture("2026-07", { terms: "/terms", privacy: "/privacy" }));
+      return;
+    }
+    if (pathname === "/api/v1/classes") {
+      await fulfillJson(route, [
+        classFixture({ id: 42, name: "이용권 가능 클래스", passEligible: true }),
+        classFixture({ id: 44, name: "이용권 불가 클래스", passEligible: false }),
+      ]);
+      return;
+    }
+    if (pathname === "/api/v1/slots/upcoming") {
+      const classId = Number(url.searchParams.get("classId"));
+      await fulfillJson(route, [{
+        bookedCount: 0,
+        capacity: 8,
+        classId,
+        endAt: "2099-01-02T12:00:00",
+        id: classId * 100 + 1,
+        remainingCapacity: 8,
+        startAt: "2099-01-02T10:00:00",
+      }]);
+      return;
+    }
+    if (pathname === "/api/v1/me/passes/page") {
+      await fulfillJson(route, {
+        content: [{
+          expiresAt: "2099-12-31T00:00:00",
+          passId: 9,
+          planCode: "REGULAR_CRAFT_4",
+          planName: "정규 공예 4회권",
+          purchasedAt: "2098-12-01T00:00:00",
+          refund: null,
+          remainingCredits: 3,
+          totalCredits: 4,
+          totalPrice: 240000,
+        }],
+        hasMore: false,
+        nextCursor: null,
+      });
+      return;
+    }
+
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/bookings/new?passId=9&classId=44");
+  const fallbackNotice = page.getByText("링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.", { exact: false });
+  await expect(fallbackNotice).toBeVisible();
+  await expect(page.getByRole("heading", { name: "체험 예약", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "결제 수단" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "예약금 결제로 계속" }).click();
+  await expect(fallbackNotice).toHaveCount(0);
+  await page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ }).click();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeEnabled();
 });

@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.PassCreditInsufficientException;
 import com.personal.happygallery.domain.error.PassExpiredException;
+import com.personal.happygallery.domain.money.Proration;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.OptionalInt;
 
 /** 이용권 구매 — pass_purchases 테이블 */
@@ -80,6 +82,11 @@ public class PassPurchase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 회원 정보가 누락되었습니다.");
         }
         return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice, plan);
+    }
+
+    /** 이용권이 해당 회원의 소유인지 확인한다. 회원 이용권만 존재하므로 null 회원은 항상 false다. */
+    public boolean isOwnedBy(Long expectedUserId) {
+        return Objects.equals(userId, expectedUserId);
     }
 
     /** 구매 시 확정한 상품 정책에 현재 클래스 카테고리가 포함되는지 검증한다. */
@@ -170,7 +177,7 @@ public class PassPurchase {
 
     /** 환불 크레딧을 총 결제액에 비례해 원 단위 버림으로 정산한다. 관리자 예상 환불액도 이 식을 쓴다. */
     public static long refundAmount(long totalPrice, int refundCredits, int totalCredits) {
-        return Math.multiplyExact(totalPrice, refundCredits) / totalCredits;
+        return Proration.floor(totalPrice, refundCredits, totalCredits);
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */

@@ -7,9 +7,11 @@ import {
   runForCustomerSession,
   cursorPageParams,
   flattenCursorPages,
+  type CursorPage,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore } from "@/shared/ui";
+import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
+import { EmptyState, ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   fetchRecoveredGuestBookings,
   fetchRecoveredGuestOrders,
@@ -25,14 +27,8 @@ import { useOwnedRecoveryResult, type OwnedRecoveryView } from "./useOwnedRecove
 
 type RecoveryView = OwnedRecoveryView<GuestRecordRecoverySession>;
 
-interface RecoveredPage {
-  content: unknown[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}
-
 /** 재발급한 조회 코드로 비회원 주문·예약 이력을 이어 받는다. 키에는 토큰 대신 소유자·만료 시각을 쓴다. */
-function useRecoveredRecords<TPage extends RecoveredPage>(
+function useRecoveredRecords<TPage extends CursorPage>(
   kind: "orders" | "bookings",
   recoveryView: RecoveryView | null,
   fetchPage: (accessToken: string, cursor?: string, signal?: AbortSignal) => Promise<TPage>,
@@ -96,6 +92,7 @@ export function GuestRecordRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_RECORD_RECOVERY"
           title="주문·예약 조회 코드 재발급"
+          titleAs="h3"
           description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
           confirmLabel="조회 코드 재발급"
           confirming={recovery.isPending}
@@ -111,21 +108,11 @@ export function GuestRecordRecoverySection() {
           </div>
         )}
 
-        <ErrorAlert
-          error={ordersQuery.isFetchNextPageError ? null : ordersQuery.error}
-          onRetry={() => { void ordersQuery.refetch(); }}
-          retrying={ordersQuery.isFetching && !ordersQuery.isFetchingNextPage}
-        />
-        <ErrorAlert
-          error={bookingsQuery.isFetchNextPageError ? null : bookingsQuery.error}
-          onRetry={() => { void bookingsQuery.refetch(); }}
-          retrying={bookingsQuery.isFetching && !bookingsQuery.isFetchingNextPage}
-        />
+        <CursorQueryErrorAlert query={ordersQuery} />
+        <CursorQueryErrorAlert query={bookingsQuery} />
 
         {result && recoveryPagesLoaded && !hasRecords && (
-          <Alert variant="light" className="mt-4 mb-0">
-            인증한 번호로 확인할 수 있는 비회원 주문이나 예약이 없습니다.
-          </Alert>
+          <EmptyState message="인증한 번호로 확인할 수 있는 비회원 주문이나 예약이 없습니다." />
         )}
 
         {result && hasRecords && recoveryView && (
@@ -137,7 +124,7 @@ export function GuestRecordRecoverySection() {
             <Row className="g-4">
               {orders.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 주문 · 불러온 {orders.length}건</h6>
+                  <h3 className="h6">비회원 주문 · 불러온 {orders.length}건</h3>
                   <ListGroup>
                     {orders.map((order) => (
                       <ListGroup.Item
@@ -153,7 +140,7 @@ export function GuestRecordRecoverySection() {
                         className="d-flex justify-content-between align-items-start gap-3"
                       >
                         <span>
-                          <strong className="d-block">주문 #{order.orderId}</strong>
+                          <strong className="d-block">{orderNumberLabel(order.orderId)}</strong>
                           <small className="text-muted-soft">
                             {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                           </small>
@@ -173,7 +160,7 @@ export function GuestRecordRecoverySection() {
 
               {bookings.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 예약 · 불러온 {bookings.length}건</h6>
+                  <h3 className="h6">비회원 예약 · 불러온 {bookings.length}건</h3>
                   <ListGroup>
                     {bookings.map((booking) => (
                       <ListGroup.Item
@@ -191,7 +178,7 @@ export function GuestRecordRecoverySection() {
                         <span>
                           <strong className="d-block">{booking.className}</strong>
                           <small className="text-muted-soft">
-                            예약 #{booking.bookingId} · {formatDateTime(booking.startAt)}
+                            {bookingNumberLabel(booking.bookingId)} · {formatDateTime(booking.startAt)}
                           </small>
                         </span>
                         <StatusBadge status={booking.status} />

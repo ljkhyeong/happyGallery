@@ -48,14 +48,9 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
     }
 
     private boolean processReminder(PickupReminderTarget target) {
-        Long orderId = target.orderId();
-        NotificationEventType eventType = NotificationEventType.PICKUP_DEADLINE_REMINDER;
-
-        NotificationRequestedEvent event = target.userId() != null
-                ? NotificationRequestedEvent.forUserOncePerAggregate(
-                        target.userId(), eventType, NotificationAggregateType.ORDER, orderId)
-                : NotificationRequestedEvent.forGuestOncePerAggregate(
-                        target.guestId(), eventType, NotificationAggregateType.ORDER, orderId);
+        NotificationRequestedEvent event = NotificationRequestedEvent.forRecipientOncePerAggregate(
+                target.userId(), target.guestId(), NotificationEventType.PICKUP_DEADLINE_REMINDER,
+                NotificationAggregateType.ORDER, target.orderId());
         return notificationOutboxService.enqueue(event);
     }
 }

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { currentPoliciesFixture, EMPTY_CURSOR_PAGE, UNAUTHORIZED_ERROR } from "./mock-support";
 
 async function mockAccount(page: Page, signedIn = false) {
   await page.route("**/api/v1/**", async (route) => {
@@ -21,13 +22,10 @@ async function mockAccount(page: Page, signedIn = false) {
         body = { id: 101, email: "guidance@example.com", name: "안내 확인 회원", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true };
       } else {
         status = 401;
-        body = { code: "UNAUTHORIZED", message: "로그인이 필요합니다." };
+        body = UNAUTHORIZED_ERROR;
       }
     } else if (pathname === "/api/v1/policies/current") {
-      body = {
-        terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-        privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-      };
+      body = currentPoliciesFixture();
     } else if (pathname === "/api/v1/workshop") {
       body = { name: "해피갤러리" };
     } else if (pathname === "/api/v1/me/cart") {
@@ -37,7 +35,7 @@ async function mockAccount(page: Page, signedIn = false) {
     } else if (pathname === "/api/v1/me/social-accounts") {
       body = { linkedProviders: [] };
     } else if (pathname.endsWith("/page")) {
-      body = { content: [], hasMore: false, nextCursor: null };
+      body = EMPTY_CURSOR_PAGE;
     }
     await route.fulfill({ status, json: body });
   });
@@ -77,7 +75,7 @@ test("@identity 탈퇴 제한 사유만 목록으로 표시하고 로그인 상�
   const reasons = modal.getByRole("alert").getByRole("listitem");
   await expect(reasons).toHaveText(["사용 가능한 이용권이 있습니다.", "처리 중인 환불이 있습니다."]);
   await expect(modal.getByRole("button", { name: "동의하고 탈퇴하기", exact: true })).toBeEnabled();
-  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  await modal.getByRole("button", { name: "닫기", exact: true }).click();
   await expect(page.getByText("guidance@example.com").first()).toBeVisible();
   await expect(page).toHaveURL(/\/my$/);
   await page.getByRole("button", { name: "탈퇴", exact: true }).click();

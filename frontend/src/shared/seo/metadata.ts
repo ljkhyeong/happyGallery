@@ -2,6 +2,8 @@ import type { MetaDescriptor } from "react-router";
 
 export const SITE_ORIGIN = "https://happy-gallery.com";
 export const SITE_NAME = "해피갤러리";
+/** 홈과 루트 meta 폴백이 함께 쓰는 기본 문서 제목. */
+export const DEFAULT_SEO_TITLE = "해피갤러리 | 충주 공예 클래스와 핸드메이드 공방";
 export const DEFAULT_SEO_DESCRIPTION =
   "충주 공예 공방 해피갤러리입니다. 원데이클래스·정규 과정·단체수업을 예약하고 공방에서 만든 작품을 살 수 있습니다.";
 
@@ -24,6 +26,22 @@ export interface BreadcrumbItem {
 
 export function absoluteSiteUrl(pathOrUrl: string): string {
   return new URL(pathOrUrl, SITE_ORIGIN).toString();
+}
+
+/** 화면 이름 뒤에 공방 이름을 붙인 문서 제목(`이름 | 해피갤러리`). */
+export function siteTitle(name: string): string {
+  return `${name} | ${SITE_NAME}`;
+}
+
+/**
+ * 로그인·결제·내 정보 같은 client-only 화면의 meta. 탭·방문 기록·화면 낭독기가 화면을 구분하도록 이름을 붙이고,
+ * 검색에는 노출하지 않는다. 자식 라우트의 meta가 부모 meta를 대신하므로 robots도 함께 돌려준다.
+ */
+export function clientOnlyMeta(name?: string): MetaDescriptor[] {
+  return [
+    { title: name ? siteTitle(name) : SITE_NAME },
+    { name: "robots", content: "noindex,nofollow" },
+  ];
 }
 
 export function seoDescription(value: string | null | undefined, fallback: string): string {
@@ -97,11 +115,14 @@ export function buildWebSiteJsonLd(description: string): JsonLd {
   };
 }
 
+const HOME_BREADCRUMB: BreadcrumbItem = { name: "홈", pathname: "/" };
+
+/** 홈을 첫 항목으로 붙인 BreadcrumbList. 홈 자체는 빈 배열을 넘긴다. */
 export function buildBreadcrumbJsonLd(items: readonly BreadcrumbItem[]): JsonLd {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: items.map((item, index) => ({
+    itemListElement: [HOME_BREADCRUMB, ...items].map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
       name: item.name,

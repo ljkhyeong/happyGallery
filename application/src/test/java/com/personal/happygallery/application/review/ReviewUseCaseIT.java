@@ -63,6 +63,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -99,11 +100,9 @@ class ReviewUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearReviewData();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
         if (createdAdminId != null) {
             adminUserRepository.deleteById(createdAdminId);
             adminUserRepository.flush();
@@ -1194,7 +1193,7 @@ class ReviewUseCaseIT {
     }
 
     private User createUser(String email, String phone, String name) {
-        return userStore.save(new User(email, "password-hash", name, phone));
+        return userStore.save(member(email, phone, name));
     }
 
     private ProductOrderSource createProductOrderSource(
@@ -1233,7 +1232,7 @@ class ReviewUseCaseIT {
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, endAt.minusHours(2), endAt));
         Booking booking = Booking.forMemberDeposit(
-                user, slot, 0L, 0L, DepositPaymentMethod.CARD);
+                user, slot, 1, 0L, 0L, DepositPaymentMethod.CARD);
         booking.complete(now);
         booking = bookingRepository.saveAndFlush(booking);
         return new ClassBookingSource(bookingClass, booking);

@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.cart.CartItem;
@@ -22,6 +23,7 @@ import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
@@ -66,13 +68,29 @@ public final class TestFixtures {
                 TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
     }
 
+    /** 비밀번호 해시·이름을 단언하지 않는 테스트 회원. 저장은 호출한 테스트가 한다. */
+    public static User member(String email, String phone) {
+        return member(email, phone, "회원");
+    }
+
+    public static User member(String email, String phone, String name) {
+        return new User(email, "password-hash", name, phone);
+    }
+
+    /** 1인 비회원 예약금 예약. */
     public static Booking booking(Guest guest,
                                   Slot slot,
                                   long depositAmount,
                                   long balanceAmount,
                                   DepositPaymentMethod paymentMethod,
                                   String accessToken) {
-        return Booking.forGuestDeposit(guest, slot, depositAmount, balanceAmount, paymentMethod, accessToken);
+        return Booking.forGuestDeposit(
+                guest, slot, 1, depositAmount, balanceAmount, paymentMethod, accessToken);
+    }
+
+    /** 혜택 복원·회수 없는 주문 환불 요청. PG 취소액과 고객 환불액이 같다. */
+    public static Refund orderRefund(Long orderId, long amount, String paymentKey) {
+        return Refund.forOrder(orderId, amount, amount, 0L, 0L, false, paymentKey);
     }
 
     public static PassPurchase passPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {

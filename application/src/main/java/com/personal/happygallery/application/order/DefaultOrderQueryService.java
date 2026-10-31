@@ -135,8 +135,6 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
         if (issued.getStatus() != IssuedCouponStatus.AVAILABLE) return issued.getStatus();
         var definition = couponDefinitionReader.findById(issued.getDefinitionId())
                 .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
-        if (!definition.isActive()) return IssuedCouponStatus.CANCELED;
-        return LocalDateTime.now(clock).isBefore(definition.getValidUntil())
-                ? IssuedCouponStatus.AVAILABLE : IssuedCouponStatus.EXPIRED;
+        return issued.statusAt(definition.isActive(), definition.getValidUntil(), LocalDateTime.now(clock));
     }
 }

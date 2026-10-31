@@ -5,6 +5,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateInput, formatKRW } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchSmartStoreAccountingReport } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -16,7 +17,7 @@ export function SmartStoreAccountingSection({ adminKey, onAuthError }: Props) {
   const [from, setFrom] = useState(range.from);
   const [to, setTo] = useState(range.to);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-settlements", "accounting", range.from, range.to],
+    queryKey: queryKeys.admin.smartStore.settlements.accounting(range.from, range.to),
     queryFn: () => fetchSmartStoreAccountingReport(adminKey, range.from, range.to),
   });
 

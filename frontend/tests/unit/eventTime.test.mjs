@@ -7,6 +7,7 @@ import {
   eventTimingLabel,
   isEventAvailable,
   isEventOngoing,
+  periodEndLabel,
 } from "../../src/features/event/time.ts";
 
 const event = {
@@ -55,4 +56,9 @@ test("시각이 있는 이벤트는 시작·종료 시각을 그대로 보여 �
   const label = eventPeriodLabel({ startAt: "2026-12-01T10:00:00", endAt: "2026-12-31T18:00:00" });
   assert.match(label.start, /오전 10:00/);
   assert.match(label.end ?? "", /오후 06:00/);
+});
+
+test("끝 시각만 있는 쿠폰 기한도 서울 자정이면 전날 날짜까지로, 다른 시각은 시각까지 보여 준다", () => {
+  assert.equal(periodEndLabel("2026-12-01T00:00:00"), "2026. 11. 30.");
+  assert.match(periodEndLabel("2026-12-31T23:59:59"), /^2026\. 12\. 31\. 오후 11:59$/);
 });

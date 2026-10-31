@@ -6,7 +6,16 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  orderPolicyFixture,
+  productDetailFixture,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -84,21 +93,11 @@ test.afterEach(async () => {
     usedAt: "2026-08-09T11:00:00",
   }));
 
+  const member = memberFixture({ id: 401, email: "benefits@example.com", name: "혜택 회원", phone: "01055555555" });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 401,
-        email: "benefits@example.com",
-        name: "혜택 회원",
-        phone: "01055555555",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/me/coupons/claimable") {
       await fulfillJson(route, claimed ? [] : [{
         definitionId: 9,
@@ -162,11 +161,7 @@ test.afterEach(async () => {
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture({ shippingFee: 3000 }));
       return;
     }
     if (pathname === "/api/v1/products/52") {
@@ -174,7 +169,7 @@ test.afterEach(async () => {
       return;
     }
     if (pathname.endsWith("/qna/page")) {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/52/reviews") {
@@ -204,18 +199,8 @@ test.afterEach(async () => {
       });
       return;
     }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-08T10:00:00",
-        version: 1,
-      });
-      return;
-    }
+    // 쿠폰·적립금·장바구니는 위에서 시나리오 값으로 응답했으므로 나머지 세션 조회만 공통 fixture로 처리한다.
+    if (await fulfillMemberCommon(route, { member })) return;
 
     await fulfillJson(route, []);
   });

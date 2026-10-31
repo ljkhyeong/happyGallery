@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
+import { Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, ToneBadge, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
+import { bookingNumberLabel, orderNumberLabel } from "@/shared/lib/labels";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
@@ -31,7 +32,7 @@ export function GuestClaimModal({
 
   const previewQuery = useQuery({
     queryKey: queryKeys.member.guestClaimPreview,
-    queryFn: getGuestClaimPreview,
+    queryFn: () => runForCurrentCustomer(getGuestClaimPreview),
     enabled: phoneVerified,
   });
 
@@ -105,7 +106,7 @@ export function GuestClaimModal({
       onHide={onClose}
       centered
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="guest-claim-title" className="fs-6">비회원 주문·예약 가져오기</Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -118,6 +119,7 @@ export function GuestClaimModal({
           <PhoneVerificationStep
             purpose="GUEST_CLAIM"
             title="휴대폰 재인증"
+            titleAs="h2"
             description="주문·예약에 사용한 휴대폰 번호를 한 번 더 인증해 주세요."
             initialPhone={normalizePhone(phone)}
             lockPhone
@@ -132,14 +134,12 @@ export function GuestClaimModal({
               <Stack gap={3}>
                 <div className="d-flex justify-content-between align-items-center">
                   <span className="small text-muted-soft">인증 상태</span>
-                  <Badge bg="success">확인 완료</Badge>
+                  <ToneBadge tone="done">확인 완료</ToneBadge>
                 </div>
 
                 {preview.orders.length === 0 &&
                   preview.bookings.length === 0 && (
-                    <Alert variant="light" className="mb-0">
-                      가져올 비회원 주문·예약이 없습니다.
-                    </Alert>
+                    <EmptyState message="가져올 비회원 주문·예약이 없습니다." />
                   )}
 
                 {preview.orders.length > 0 && (
@@ -160,7 +160,7 @@ export function GuestClaimModal({
                           }
                           label={
                             <div className="small">
-                              <div className="fw-semibold">주문 #{order.orderId}</div>
+                              <div className="fw-semibold">{orderNumberLabel(order.orderId)}</div>
                               <div className="text-muted-soft">
                                 {getStatusLabel(order.status)} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                               </div>
@@ -190,11 +190,9 @@ export function GuestClaimModal({
                           }
                           label={
                             <div className="small">
-                              <div className="fw-semibold">
-                                {booking.className} #{booking.bookingId}
-                              </div>
+                              <div className="fw-semibold">{booking.className}</div>
                               <div className="text-muted-soft">
-                                {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
+                                {bookingNumberLabel(booking.bookingId)} · {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
                               </div>
                             </div>
                           }
@@ -210,7 +208,7 @@ export function GuestClaimModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="outline-dark" onClick={onClose}>
           닫기
         </Button>
         <Button

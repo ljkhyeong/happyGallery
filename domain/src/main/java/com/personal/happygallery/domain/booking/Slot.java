@@ -124,6 +124,10 @@ public class Slot {
     public boolean isBufferBlocked() { return bufferBlockCount > 0; }
     public boolean isActive() { return adminActive && calendarActive && bufferBlockCount == 0; }
     public boolean hasBookings() { return bookedCount > 0; }
+    /** 점유 인원이 정원에 도달해 더 받을 수 없으면 true. */
+    public boolean isFull() { return bookedCount >= capacity; }
+    /** 아직 예약할 수 있는 남은 인원. */
+    public int remainingCapacity() { return capacity - bookedCount; }
     public boolean isReservableAt(LocalDateTime now) {
         return bookingClass.isActive() && isActive() && startAt.isAfter(now);
     }

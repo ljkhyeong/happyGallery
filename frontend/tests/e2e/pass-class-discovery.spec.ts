@@ -5,23 +5,16 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { classFixture, UNAUTHORIZED_ERROR } from "./mock-support";
 
-const craftClass: ClassResponse = {
+const craftClass = classFixture({
   id: 41,
   name: "가죽 공예",
-  category: "LEATHER",
-  durationMin: 90,
   price: 30000,
-  bufferMin: 30,
   capacity: 6,
   passEligible: true,
   description: "가죽 소품을 만드는 수업입니다.",
-  imageUrl: null,
-  preparationInfo: null,
-  targetAudience: null,
-  situationTags: [],
-  status: "ACTIVE",
-};
+});
 const classes: ClassResponse[] = [
   craftClass,
   { ...craftClass, id: 42, name: "위빙 공예", category: "WEAVING" },
@@ -33,7 +26,7 @@ async function registerClasses(rows: ClassResponse[]) {
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/classes", rows),
     ssrApiFixture("/workshop", { name: "해피갤러리" }),
-    { ...ssrApiFixture("/me", { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }), status: 401 },
+    { ...ssrApiFixture("/me", UNAUTHORIZED_ERROR), status: 401 },
     ssrApiFixture("/payments/pass-policy", { totalPrice: 120000, totalCredits: 4, validityDays: 90 }),
   );
 }
@@ -57,7 +50,7 @@ test("이용권 구매 전에 사용 가능한 수업을 찾고 필터를 새로
   await expect(filter).toBeChecked();
   await expect(cards).toHaveCount(2);
   await expect(cards.getByRole("heading")).toHaveText(["가죽 공예", "위빙 공예"]);
-  await expect(page.getByRole("link", { name: "가죽 공예 예약하기" }))
+  await expect(page.getByRole("link", { name: "가죽 공예 날짜 선택하기" }))
     .toHaveAttribute("href", "/bookings/new?classId=41");
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
 

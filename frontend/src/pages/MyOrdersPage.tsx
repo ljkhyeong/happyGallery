@@ -1,7 +1,7 @@
 import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { ListMyOrdersPageStatus } from "@/generated/api/customerStore";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Card, Col, Row } from "react-bootstrap";
+import { Card } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
@@ -9,8 +9,9 @@ import { buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
-import { CursorLoadMore, LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
+import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { orderNumberLabel, recordNumberKeyword } from "@/shared/lib/labels";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -28,6 +29,7 @@ export function MyOrdersPage() {
     statusValues: Object.values(ListMyOrdersPageStatus),
     sortOptions: ORDER_SORT_OPTIONS,
     defaultSort: DEFAULT_SORT,
+    normalizeKeyword: (keyword) => recordNumberKeyword(keyword, "orders"),
   });
   const hasLoadedOrders = query.data !== undefined;
   const statusOptions = [
@@ -36,7 +38,7 @@ export function MyOrdersPage() {
   ];
   const quickTabs = [
     { value: "ALL", label: "전체" },
-    ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"]),
+    ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"], { keepOrder: true }),
   ];
 
   return (
@@ -46,11 +48,7 @@ export function MyOrdersPage() {
         <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
       )}
     >
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => { void query.refetch(); }}
-        retrying={query.isFetching && !query.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={query} />
       <MyListFilterBar
         idPrefix="my-orders"
         searchLabel="주문 번호·작품명 검색"
@@ -63,30 +61,28 @@ export function MyOrdersPage() {
         hasMore={query.hasNextPage}
       />
       {query.isLoading && <LoadingSpinner />}
-      {hasLoadedOrders && orders.length === 0 && <EmptyState message="검색 조건에 맞는 주문 내역이 없습니다." />}
+      {hasLoadedOrders && orders.length === 0 && (
+        <EmptyState message={filters.hasFilter ? "검색 조건에 맞는 주문 내역이 없습니다." : "주문 내역이 없습니다."} />
+      )}
       {orders.length > 0 && orders.map((order) => (
         <Card
           key={order.orderId}
           as={Link}
           to={{ pathname: `/my/orders/${order.orderId}`, search }}
-          className="mb-2 text-decoration-none my-list-card border-0"
+          className="mb-2 text-decoration-none my-list-card"
         >
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={4}>
-                <div className="fw-semibold small">주문 #{order.orderId}</div>
-                <OrderItemSummary items={order.items} />
-                <small className="text-muted-soft">
-                  {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
-                </small>
-              </Col>
-              <Col xs={6} md={3}>
-                <StatusBadge status={order.status} />
-              </Col>
-              <Col xs={6} md={5} className="text-md-end">
-                <small>{formatKRW(order.totalAmount)}</small>
-              </Col>
-            </Row>
+          <Card.Body className="my-list-row py-3 px-3">
+            <div className="my-list-main">
+              <div className="fw-semibold small">{orderNumberLabel(order.orderId)}</div>
+              <OrderItemSummary items={order.items} />
+              <small className="text-muted-soft">
+                {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
+              </small>
+            </div>
+            <div className="my-list-side">
+              <StatusBadge status={order.status} />
+              <span>{formatKRW(order.totalAmount)}</span>
+            </div>
           </Card.Body>
         </Card>
       ))}

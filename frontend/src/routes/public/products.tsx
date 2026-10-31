@@ -6,11 +6,12 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadProductCategories, loadProducts } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "수공예 작품 | 해피갤러리";
+const TITLE = siteTitle("수공예 작품");
 const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 작품입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -27,7 +28,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const filters = loaderData?.filters ?? {};
   const { documentName } = productListHeading(filters);
   return buildSeoMeta({
-    title: documentName ? `${documentName} | 해피갤러리` : TITLE,
+    title: documentName ? siteTitle(documentName) : TITLE,
     description: filters.category
       ? `해피갤러리가 직접 만든 ${filters.category} 작품입니다.`
       : DESCRIPTION,
@@ -42,10 +43,7 @@ export default function ProductsRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd("/products", TITLE, DESCRIPTION, "CollectionPage"),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "공방 작품", pathname: "/products" },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "공방 작품", pathname: "/products" }]),
       ]} />
       <ProductListPage
         initialProducts={loaderData.products}

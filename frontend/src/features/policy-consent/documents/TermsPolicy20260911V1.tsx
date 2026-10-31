@@ -7,9 +7,8 @@ import {
 
 export function TermsPolicy20260911V1() {
   return (
-    <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+    <Container className="page-container legal-page is-reading">
       <header className="legal-page-header">
-        <p className="store-section-kicker">TERMS OF SERVICE</p>
         <h1>이용약관</h1>
         <p>시행일: 2026년 9월 11일</p>
       </header>

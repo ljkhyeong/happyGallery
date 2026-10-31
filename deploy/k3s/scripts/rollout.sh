@@ -35,10 +35,8 @@ case "$FRONTEND_IMAGE" in
     *:"$IMAGE_TAG") ;;
     *) die "FRONTEND_IMAGE 태그가 IMAGE_TAG와 다릅니다." ;;
 esac
-printf '%s' "$APP_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
-printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_sha256_digest "$APP_IMAGE_DIGEST" || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_sha256_digest "$FRONTEND_IMAGE_DIGEST" || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
 
 kube get crd certificates.cert-manager.io >/dev/null \
     || die "cert-manager가 설치되지 않았습니다. bootstrap-cluster.sh를 먼저 실행하세요."
@@ -80,7 +78,7 @@ if [ -n "$existing_mysql" ]; then
     info "배포 전 DB·미디어·호환 release 복구 묶음과 생성 시각을 확인했습니다."
 fi
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
+state_root=$(release_state_dir)
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 release_dir="$state_root/$timestamp-$IMAGE_TAG"
 mkdir -p "$release_dir"

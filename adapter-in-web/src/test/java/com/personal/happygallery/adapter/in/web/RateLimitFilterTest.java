@@ -1,9 +1,7 @@
 package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties;
-import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.IpRules;
-import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.Rule;
-import com.personal.happygallery.adapter.in.web.config.properties.RateLimitProperties.SubjectRules;
+import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitPropertiesFixture;
 import com.personal.happygallery.adapter.in.web.ratelimit.RedisRateLimiter;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import java.time.Duration;
@@ -42,7 +40,9 @@ class RateLimitFilterTest {
     @Test
     @DisplayName("단체 문의는 회원과 비회원 접수를 같은 IP 한도로 제한한다")
     void groupInquiries_sharePublicSubmissionLimit() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits().build(), mockRedis());
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipGroupInquiry(5)
+                .build(), mockRedis());
         for (int index = 0; index < 5; index++) {
             assertThat(perform(filter, "POST", "/api/v1/group-inquiries").getStatus()).isEqualTo(200);
         }
@@ -52,9 +52,9 @@ class RateLimitFilterTest {
     @DisplayName("API가 아닌 경로는 처리율 제한 없이 통과한다")
     @Test
     void passesThrough_whenPathIsNotRateLimited() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .phoneVerification(1)
-                .adminApi(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipPhoneVerification(1)
+                .ipAdminApi(1)
                 .build(), mockRedis());
 
         MockHttpServletResponse response = perform(filter, "GET", "/actuator/health");
@@ -65,8 +65,8 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 인증코드 발송 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenPhoneVerificationLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .phoneVerification(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipPhoneVerification(1)
                 .build(), mockRedis());
 
         perform(filter, "POST", "/api/v1/bookings/phone-verifications");
@@ -93,8 +93,8 @@ class RateLimitFilterTest {
     @DisplayName("동일 IP에서 관리자 요청이 초과되면 429를 반환한다")
     @Test
     void returns429_whenAdminLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .adminApi(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipAdminApi(1)
                 .build(), mockRedis());
 
         perform(filter, "POST", "/api/v1/admin/orders/expire-pickups");
@@ -111,9 +111,9 @@ class RateLimitFilterTest {
     @DisplayName("고객 주문 취소는 전용 처리율 제한을 적용한다")
     @Test
     void returns429_whenOrderCustomerActionLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .orderCustomerAction(1)
-                .defaultApi(100)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipOrderCustomerAction(1)
+                .ipDefaultApi(100)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(filter, "DELETE", "/api/v1/orders/1");
@@ -128,10 +128,10 @@ class RateLimitFilterTest {
     @DisplayName("후기 신고와 이미지 업로드는 서로 독립된 IP 제한을 적용한다")
     @Test
     void limitsReviewReportAndImageUploadIndependently() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .reviewReport(1)
-                .reviewImageUpload(1)
-                .defaultApi(100)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipReviewReport(1)
+                .ipReviewImageUpload(1)
+                .ipDefaultApi(100)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstReport = perform(
@@ -154,7 +154,7 @@ class RateLimitFilterTest {
     @DisplayName("X-Forwarded-For를 무시하고 servlet이 해석한 remoteAddr를 사용한다")
     @Test
     void usesRemoteAddr_regardlessOfForwardedFor() {
-        RateLimitProperties properties = new TestRateLimits().build();
+        RateLimitProperties properties = new RateLimitPropertiesFixture().build();
         RateLimitFilter filter = filter(properties, mockRedis());
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/products");
@@ -167,9 +167,9 @@ class RateLimitFilterTest {
     @DisplayName("로그인 경로는 일반 admin API보다 엄격한 rate limit이 적용된다")
     @Test
     void returns429_whenAdminLoginLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .adminLogin(1)
-                .adminApi(100)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipAdminLogin(1)
+                .ipAdminApi(100)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(filter, "POST", "/api/v1/admin/auth/login");
@@ -184,9 +184,9 @@ class RateLimitFilterTest {
     @DisplayName("MFA 복구도 일반 관리자 API보다 엄격한 로그인 처리율 제한을 적용한다")
     @Test
     void returns429_whenAdminMfaRecoveryLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .adminLogin(1)
-                .adminApi(100)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipAdminLogin(1)
+                .ipAdminApi(100)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(
@@ -204,9 +204,9 @@ class RateLimitFilterTest {
     @DisplayName("최초 관리자 setup 경로는 일반 admin API보다 별도 rate limit이 적용된다")
     @Test
     void returns429_whenAdminSetupLimitExceeded() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .adminSetup(1)
-                .adminApi(100)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipAdminSetup(1)
+                .ipAdminApi(100)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(filter, "POST", "/api/v1/admin/setup");
@@ -221,8 +221,8 @@ class RateLimitFilterTest {
     @DisplayName("구글과 네이버와 카카오 로그인은 동일한 소셜 로그인 처리율 제한을 사용한다")
     @Test
     void appliesSameLimit_forAllSocialLogins() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .socialLogin(2)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipSocialLogin(2)
                 .build(), mockRedis());
 
         MockHttpServletResponse googleResponse = perform(
@@ -242,8 +242,8 @@ class RateLimitFilterTest {
     @DisplayName("소셜 로그인 시작은 callback과 분리된 처리율 제한을 사용한다")
     @Test
     void limitsSocialLoginInitializationSeparately() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .socialLogin(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipSocialLogin(1)
                 .build(), mockRedis());
 
         MockHttpServletResponse loginResponse = perform(
@@ -267,9 +267,17 @@ class RateLimitFilterTest {
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("highRiskPostPaths")
     void prioritizesSpecificRuleOverDefaultApi(String path) throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .defaultApi(100)
-                .highRiskPosts(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipDefaultApi(100)
+                .ipCustomerLogin(1)
+                .ipAdminLogin(1)
+                .ipPaymentPrepare(1)
+                .ipPaymentConfirm(1)
+                .ipGuestClaimVerify(1)
+                .ipGuestRecordRecovery(1)
+                .ipClientMonitoring(1)
+                .ipReviewReport(1)
+                .ipReviewImageUpload(1)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(filter, "POST", path);
@@ -286,8 +294,8 @@ class RateLimitFilterTest {
     @DisplayName("구체 규칙이 없는 API는 DEFAULT_API 처리율 제한을 사용한다")
     @Test
     void appliesDefaultApiRule_whenNoSpecificRuleMatches() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .defaultApi(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipDefaultApi(1)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstResponse = perform(filter, "GET", "/api/v1/products");
@@ -303,9 +311,9 @@ class RateLimitFilterTest {
     @DisplayName("결제 prepare와 confirm은 서로 독립된 처리율 제한 버킷을 사용한다")
     @Test
     void limitsPaymentPrepareAndConfirmIndependently() throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .paymentPrepare(1)
-                .paymentConfirm(1)
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipPaymentPrepare(1)
+                .ipPaymentConfirm(1)
                 .build(), mockRedis());
 
         MockHttpServletResponse firstPrepare = perform(filter, "POST", "/api/v1/payments/prepare");
@@ -324,8 +332,8 @@ class RateLimitFilterTest {
     @DisplayName("Redis DataAccessException이 발생하면 처리율 제한을 fail-open 처리한다")
     @Test
     void failsOpen_whenRedisDataAccessExceptionOccurs() throws Exception {
-        RateLimitProperties properties = new TestRateLimits()
-                .defaultApi(1)
+        RateLimitProperties properties = new RateLimitPropertiesFixture()
+                .ipDefaultApi(1)
                 .build();
         RateLimitFilter filter = filter(properties, unavailableRedis());
 
@@ -340,7 +348,7 @@ class RateLimitFilterTest {
     @DisplayName("Redis 장애 시 고위험 경로는 fail-closed로 503을 반환한다")
     @Test
     void failsClosedForHighRiskPath_whenRedisDataAccessExceptionOccurs() throws Exception {
-        RateLimitProperties properties = new TestRateLimits().build();
+        RateLimitProperties properties = new RateLimitPropertiesFixture().build();
         RateLimitFilter filter = filter(properties, unavailableRedis());
 
         MockHttpServletResponse response = performWithSecurityHeaders(
@@ -362,7 +370,7 @@ class RateLimitFilterTest {
             "/api/v1/me/reviews/1/images"
     })
     void failsClosedForReviewWrite_whenRedisUnavailable(String path) throws Exception {
-        RateLimitFilter filter = filter(new TestRateLimits().build(), unavailableRedis());
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture().build(), unavailableRedis());
 
         MockHttpServletResponse response = perform(filter, "POST", path);
         String responseBody = response.getContentAsString();
@@ -379,9 +387,8 @@ class RateLimitFilterTest {
     @Test
     void fractionalSecondWindow_usesMillisecondsAndRoundsRetryAfterUp() throws Exception {
         StringRedisTemplate redisTemplate = mockRedis();
-        RateLimitFilter filter = filter(new TestRateLimits()
-                .defaultApi(1)
-                .defaultApiWindow(Duration.ofMillis(1_500))
+        RateLimitFilter filter = filter(new RateLimitPropertiesFixture()
+                .ipDefaultApi(1, Duration.ofMillis(1_500))
                 .build(), redisTemplate);
 
         perform(filter, "GET", "/api/v1/products");
@@ -463,146 +470,5 @@ class RateLimitFilterTest {
         Mockito.when(mock.execute(any(RedisScript.class), anyList(), any(String.class)))
                 .thenThrow(new DataAccessResourceFailureException("Redis unavailable"));
         return mock;
-    }
-
-    private static Rule perMinute(long capacity) {
-        return new Rule(capacity, Duration.ofMinutes(1));
-    }
-
-    private static final class TestRateLimits {
-
-        private long defaultApi = 100;
-        private long phoneVerification = 10;
-        private long customerLogin = 10;
-        private long customerSignup = 5;
-        private long adminLogin = 5;
-        private long adminSetup = 5;
-        private long adminApi = 120;
-        private long socialLogin = 10;
-        private long paymentPrepare = 100;
-        private long paymentConfirm = 100;
-        private long guestClaimVerify = 100;
-        private long guestRecordRecovery = 100;
-        private long clientMonitoring = 100;
-        private long reviewReport = 100;
-        private long reviewImageUpload = 100;
-        private long orderCustomerAction = 100;
-        private Duration defaultApiWindow = Duration.ofMinutes(1);
-
-        private TestRateLimits defaultApi(long capacity) {
-            defaultApi = capacity;
-            return this;
-        }
-
-        private TestRateLimits phoneVerification(long capacity) {
-            phoneVerification = capacity;
-            return this;
-        }
-
-        private TestRateLimits defaultApiWindow(Duration window) {
-            defaultApiWindow = window;
-            return this;
-        }
-
-        private TestRateLimits adminLogin(long capacity) {
-            adminLogin = capacity;
-            return this;
-        }
-
-        private TestRateLimits adminSetup(long capacity) {
-            adminSetup = capacity;
-            return this;
-        }
-
-        private TestRateLimits adminApi(long capacity) {
-            adminApi = capacity;
-            return this;
-        }
-
-        private TestRateLimits socialLogin(long capacity) {
-            socialLogin = capacity;
-            return this;
-        }
-
-        private TestRateLimits paymentPrepare(long capacity) {
-            paymentPrepare = capacity;
-            return this;
-        }
-
-        private TestRateLimits paymentConfirm(long capacity) {
-            paymentConfirm = capacity;
-            return this;
-        }
-
-        private TestRateLimits highRiskPosts(long capacity) {
-            customerLogin = capacity;
-            adminLogin = capacity;
-            paymentPrepare = capacity;
-            paymentConfirm = capacity;
-            guestClaimVerify = capacity;
-            guestRecordRecovery = capacity;
-            clientMonitoring = capacity;
-            reviewReport = capacity;
-            reviewImageUpload = capacity;
-            return this;
-        }
-
-        private TestRateLimits reviewReport(long capacity) {
-            reviewReport = capacity;
-            return this;
-        }
-
-        private TestRateLimits reviewImageUpload(long capacity) {
-            reviewImageUpload = capacity;
-            return this;
-        }
-
-        private TestRateLimits orderCustomerAction(long capacity) {
-            orderCustomerAction = capacity;
-            return this;
-        }
-
-        private RateLimitProperties build() {
-            return new RateLimitProperties(
-                    true,
-                    "test:rate",
-                    new IpRules(
-                            new Rule(defaultApi, defaultApiWindow),
-                            perMinute(phoneVerification),
-                            perMinute(100),
-                            perMinute(customerLogin),
-                            perMinute(customerSignup),
-                            perMinute(adminLogin),
-                            perMinute(adminSetup),
-                            perMinute(adminApi),
-                            perMinute(socialLogin),
-                            perMinute(paymentPrepare),
-                            perMinute(paymentConfirm),
-                            perMinute(guestClaimVerify),
-                            perMinute(guestRecordRecovery),
-                            perMinute(clientMonitoring),
-                            perMinute(reviewReport),
-                            perMinute(reviewImageUpload),
-                            perMinute(orderCustomerAction),
-                            perMinute(5)
-                    ),
-                    new SubjectRules(
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100),
-                            perMinute(100)
-                    )
-            );
-        }
     }
 }

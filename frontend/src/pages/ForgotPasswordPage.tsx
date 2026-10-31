@@ -43,10 +43,10 @@ export function ForgotPasswordPage() {
     && passwordMatches;
 
   return (
-    <Container className="page-container auth-shell" style={{ maxWidth: 560 }}>
+    <Container className="page-container is-narrow">
       <Card className="auth-form-card border-0">
         <Card.Body className="p-4 p-lg-5">
-          <h3 className="mb-2">비밀번호 재설정</h3>
+          <h1 className="h3 display-heading mb-2">비밀번호 재설정</h1>
           <p className="text-muted-soft small mb-4">
             가입한 이메일과 인증한 휴대폰 번호를 입력하세요.
           </p>
@@ -75,6 +75,7 @@ export function ForgotPasswordPage() {
           <PhoneVerificationStep
             purpose="PASSWORD_RESET"
             title="휴대폰 인증"
+            titleAs="h2"
             initialPhone={prefill?.phone ?? ""}
             confirmLabel="인증하고 재설정"
             confirming={mutation.isPending}

@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  fulfillJson,
+  installCsrfCookie,
+  orderPolicyFixture,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -13,23 +20,15 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    if (pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+    if (pathname === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (pathname === "/api/v1/bookings/phone-verifications") return fulfillJson(route, { verificationId: 1 });
-    if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-      terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-      privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-    });
+    if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture());
     if (pathname === "/api/v1/products") return fulfillJson(route, [{
       id: 42, name: "재인증 확인 작품", price: 12000, type: "READY_STOCK", status: "ACTIVE",
       available: true, stockQuantity: 10, variants: [], optionGroups: [], fulfillmentOptions: ["SHIPPING", "PICKUP"],
     }]);
-    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
-      shippingFee: 0, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "제작 동의",
-    });
-    if (pathname === "/api/v1/classes") return fulfillJson(route, [{
-      id: 42, name: "재인증 확인 수업", price: 50000, category: "LEATHER", status: "ACTIVE",
-      durationMin: 90, bufferMin: 0, passEligible: false, situationTags: [],
-    }]);
+    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, orderPolicyFixture({ shippingFee: 0, madeToOrderConsentText: "제작 동의" }));
+    if (pathname === "/api/v1/classes") return fulfillJson(route, [classFixture({ id: 42, name: "재인증 확인 수업", bufferMin: 0 })]);
     if (pathname === "/api/v1/slots/upcoming") return fulfillJson(route, [{
       id: 77, classId: 42, startAt: "2099-01-02T10:00:00", endAt: "2099-01-02T11:30:00",
       capacity: 4, bookedCount: 0, remainingCapacity: 4,
@@ -49,7 +48,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
   if (kind === "BOOKING") {
     await page.getByLabel("클래스").selectOption("42");
     await page.locator('[data-slot-id="77"]').click();
-    await page.getByRole("button", { name: "결제 진행하기" }).click();
+    await page.getByRole("button", { name: "결제하기" }).click();
     await page.getByRole("button", { name: "비회원", exact: true }).click();
   }
   return prepares;
@@ -58,9 +57,9 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
 for (const kind of ["ORDER", "BOOKING"] as const) {
   test(`@payment @identity 비회원 ${kind === "ORDER" ? "주문" : "예약"}은 인증 실패·결제창 취소 뒤 선택을 보존하고 재인증한다`, async ({ page }) => {
     const prepares = await openCheckout(page, kind);
-    const submit = () => page.getByRole("button", { name: kind === "ORDER" ? "결제 진행하기" : "비회원으로 진행", exact: true });
+    const submit = () => page.getByRole("button", { name: kind === "ORDER" ? "결제하기" : "비회원으로 진행", exact: true });
     const reopen = async () => {
-      if (kind === "BOOKING") await page.getByRole("button", { name: "결제 진행하기" }).click();
+      if (kind === "BOOKING") await page.getByRole("button", { name: "결제하기" }).click();
     };
     const verify = async (code: string) => {
       await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");

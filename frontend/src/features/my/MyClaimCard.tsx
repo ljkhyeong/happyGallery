@@ -32,7 +32,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
         )}
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <h6 className="mb-1">비회원 주문·예약 가져오기</h6>
+            <h2 className="my-account-title mb-1">비회원 주문·예약 가져오기</h2>
             <p className="text-muted-soft small mb-0">
               {!user.phone
                 ? "휴대폰 번호를 등록하면 같은 번호로 남긴 비회원 주문과 예약을 가져올 수 있습니다."

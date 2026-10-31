@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Container } from "react-bootstrap";
 import { Navigate, NavLink, useLocation, useNavigate } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CustomerSessionChangedError } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 import { LoadingSpinner, useToast } from "@/shared/ui";
 import { MyAuthGateCard } from "./MyAuthGateCard";
 import { findMyNavItem, MY_HOME_PATH, MY_NAV_GROUPS } from "./myNavigation";
@@ -18,6 +19,7 @@ const MOVED_SECTIONS: Record<string, string> = {
 
 /**
  * 내 정보 화면 공통 틀. 로그인 확인·안내와 메뉴를 한곳에서 처리한다.
+ * 로그인 전에는 자식을 렌더링하지 않으므로 셸 아래 화면의 조회는 `enabled: isAuthenticated`로 다시 막지 않는다.
  * 데스크톱은 왼쪽 메뉴, 모바일은 홈에서 묶음 목록·하위 화면에서 가로 메뉴로 보여 준다.
  */
 export function MyShell({ children }: { children: ReactNode }) {
@@ -35,7 +37,7 @@ export function MyShell({ children }: { children: ReactNode }) {
   if (!isAuthenticated || !user) {
     const item = findMyNavItem(pathname);
     return (
-      <Container className="page-container my-gate-page">
+      <Container className="page-container">
         {isHome || !item ? (
           <MyAuthGateCard
             title="로그인이 필요합니다"
@@ -65,14 +67,8 @@ export function MyShell({ children }: { children: ReactNode }) {
 
 function MyShellNav({ pathname }: { pathname: string }) {
   const navRef = useRef<HTMLElement>(null);
-
-  // 모바일 가로 메뉴에서 현재 화면 메뉴가 보이도록 가운데로 옮긴다. 세로 스크롤은 건드리지 않는다.
-  useEffect(() => {
-    const nav = navRef.current;
-    const active = nav?.querySelector<HTMLElement>("a.active");
-    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
-    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
-  }, [pathname]);
+  // 모바일 하위 화면의 가로 메뉴에서 현재 화면 메뉴가 보이게 한다.
+  useCenterActiveItem(navRef, pathname);
 
   return (
     <nav ref={navRef} className="my-shell-nav" aria-label="내 정보 관리 메뉴">

@@ -3,9 +3,8 @@ import { Link } from "react-router";
 
 export function PrivacyPolicy20260811V2() {
   return (
-    <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
+    <Container className="page-container legal-page is-reading">
       <header className="legal-page-header">
-        <p className="store-section-kicker">PRIVACY POLICY</p>
         <h1>개인정보처리방침</h1>
         <p>시행일: 2026년 8월 11일 · 버전 2</p>
       </header>

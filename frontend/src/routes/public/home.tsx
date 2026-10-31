@@ -7,6 +7,7 @@ import {
   buildWebSiteJsonLd,
   buildWebPageJsonLd,
   DEFAULT_SEO_DESCRIPTION,
+  DEFAULT_SEO_TITLE,
 } from "@/shared/seo/metadata";
 import { buildLocalBusinessJsonLd } from "@/shared/seo/schemas";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
@@ -17,8 +18,6 @@ import {
   loadProducts,
   loadWorkshop,
 } from "@/shared/seo/serverApi.server";
-
-const TITLE = "해피갤러리 | 충주 공예 클래스와 핸드메이드 공방";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const [products, classes, events, notices, workshop] = await Promise.all([
@@ -33,7 +32,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return buildSeoMeta({
-    title: TITLE,
+    title: DEFAULT_SEO_TITLE,
     description: DEFAULT_SEO_DESCRIPTION,
     pathname: "/",
     image: heroWorkshop,
@@ -46,8 +45,8 @@ export default function HomeRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebSiteJsonLd(DEFAULT_SEO_DESCRIPTION),
-        buildWebPageJsonLd("/", TITLE, DEFAULT_SEO_DESCRIPTION),
-        buildBreadcrumbJsonLd([{ name: "홈", pathname: "/" }]),
+        buildWebPageJsonLd("/", DEFAULT_SEO_TITLE, DEFAULT_SEO_DESCRIPTION),
+        buildBreadcrumbJsonLd([]),
         buildLocalBusinessJsonLd(loaderData.workshop, heroWorkshop),
       ]} />
       <HomePage

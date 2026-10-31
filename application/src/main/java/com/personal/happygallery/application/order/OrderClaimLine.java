@@ -2,9 +2,11 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.money.Proration;
 import com.personal.happygallery.domain.order.OrderClaimItem;
 import com.personal.happygallery.domain.order.OrderItem;
-import java.math.BigInteger;
+import java.util.Map;
 
 record OrderClaimLine(
         OrderClaimItem claimItem,
@@ -23,6 +25,15 @@ record OrderClaimLine(
         }
     }
 
+    /** 클레임 항목이 가리키는 주문 상품을 찾아 라인으로 묶는다. 주문 상품이 없으면 NotFound로 처리한다. */
+    static OrderClaimLine of(OrderClaimItem claimItem, Map<Long, OrderItem> orderItemsById) {
+        OrderItem orderItem = orderItemsById.get(claimItem.getOrderItemId());
+        if (orderItem == null) {
+            throw new NotFoundException("주문 상품");
+        }
+        return new OrderClaimLine(claimItem, orderItem);
+    }
+
     long customerRefundableAmount() {
         return Math.addExact(pgRefundableAmount(), rewardRestorableAmount());
     }
@@ -37,14 +48,7 @@ record OrderClaimLine(
 
     private long componentShare(long componentAmount) {
         long throughCurrent = previousApprovedQuantity + claimItem.getQuantity();
-        return prorated(componentAmount, throughCurrent, orderItem.getQty())
-                - prorated(componentAmount, previousApprovedQuantity, orderItem.getQty());
-    }
-
-    private static long prorated(long amount, long quantity, long totalQuantity) {
-        return BigInteger.valueOf(amount)
-                .multiply(BigInteger.valueOf(quantity))
-                .divide(BigInteger.valueOf(totalQuantity))
-                .longValueExact();
+        return Proration.floor(componentAmount, throughCurrent, orderItem.getQty())
+                - Proration.floor(componentAmount, previousApprovedQuantity, orderItem.getQty());
     }
 }

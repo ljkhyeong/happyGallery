@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { MyBookingDetail, PublicSlotResponse } from "../../src/generated/api/booking";
-import { fulfillJson } from "./mock-support";
+import type { PublicSlotResponse } from "../../src/generated/api/booking";
+import { fulfillJson, fulfillMemberCommon, memberFixture, myBookingDetailFixture } from "./mock-support";
 
 function slot(id: number, date: string, remainingCapacity: number, hour = "10"): PublicSlotResponse {
   return { id, classId: 27, capacity: 6, bookedCount: 6 - remainingCapacity, remainingCapacity,
@@ -16,15 +16,13 @@ const slots = [
 ];
 
 async function openBooking(page: Page, member: boolean, options = { upcomingFailure: false, dateFailure: false, noUpcoming: false }) {
-  const booking: MyBookingDetail = {
+  const booking = myBookingDetailFixture({
     bookingId: 7, classId: 27, className: "가죽 공예", slotId: 70,
     startAt: slots[0].startAt, endAt: slots[0].endAt, status: "BOOKED",
-    participantCount: 3, depositAmount: 30000, balanceAmount: 60000, balanceStatus: "UNPAID",
-    passBooking: false, receiptUrl: null, refund: null,
-    cancelPolicy: { cancellable: true, refundable: true, deadlineAt: "2099-01-11T00:00:00",
-      passCreditRestorable: false, manualCompensationRequired: false, warningCode: null },
-  };
+    participantCount: 3, depositAmount: 30000, balanceAmount: 60000,
+  });
   const changes: number[] = [];
+  const account = member ? memberFixture({ email: "reschedule@example.com" }) : null;
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
     if (pathname === "/api/v1/auth/csrf") return route.fulfill({
@@ -39,15 +37,12 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
       Object.assign(booking, { slotId: target.id, startAt: target.startAt, endAt: target.endAt });
       return fulfillJson(route, { ...booking, bookingNumber: "HG-7" });
     }
+    // 예약 상세의 공방 안내가 주소·연락처를 보여 주므로 공통 최소 응답 대신 직접 응답한다.
+    if (pathname === "/api/v1/workshop") return fulfillJson(route, {
+      name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
+    });
+    if (await fulfillMemberCommon(route, { member: account })) return;
     switch (pathname) {
-      case "/api/v1/me": return member
-        ? fulfillJson(route, { id: 501, name: "회원", email: "reschedule@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-        : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return fulfillJson(route, {
-        name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
-      });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/bookings/7": return fulfillJson(route, booking);
       case "/api/v1/bookings/7": return fulfillJson(route, {
         ...booking, bookingNumber: "HG-7", guestName: "비회원", guestPhone: "01087654321",
@@ -96,6 +91,10 @@ test("회원은 현재 인원이 모두 이동 가능한 날짜만 골라 예약
   const quickDates = panel.getByLabel("빠른 날짜 선택 (14일 이내)");
   await expect(quickDates.locator("[data-booking-date]")).toHaveCount(2);
   await expect(quickDates.locator('[data-booking-date="2099-01-15"]')).toBeVisible();
+  // 현재 예약일(1/12)에는 옮길 시간이 없어, 고르기 전에도 빈 안내 대신 첫 변경 가능 날짜의 시간을 보여 준다.
+  await expect(quickDates.locator('[data-booking-date="2099-01-14"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(panel.locator("[data-slot-id]")).toHaveCount(2);
+  await expect(panel.getByText("선택한 날짜에 변경 가능한 시간이 없습니다.")).toHaveCount(0);
   await quickDates.locator('[data-booking-date="2099-01-14"]').click();
   await expect(quickDates.locator('[data-booking-date="2099-01-14"]')).toHaveAttribute("aria-pressed", "true");
   await expect(panel.getByLabel("변경할 날짜")).toHaveValue("2099-01-14");
@@ -150,6 +149,7 @@ test("14일 내 후보가 없어도 날짜를 직접 입력해 변경 가능한 
   const { panel } = await openBooking(page, true, { upcomingFailure: false, dateFailure: false, noUpcoming: true });
   await expect(panel.getByLabel("빠른 날짜 선택 (14일 이내)")).toHaveCount(0);
   await expect(panel.getByText("14일 내 변경 가능한 날짜가 없습니다.", { exact: false })).toBeVisible();
+  await expect(panel.getByText("선택한 날짜에 변경 가능한 시간이 없습니다.")).toBeVisible();
   await panel.getByLabel("변경할 날짜").fill("2099-02-12");
   await expect(panel.locator('[data-slot-id="75"]')).toBeVisible();
   await panel.locator('[data-slot-id="75"]').click();

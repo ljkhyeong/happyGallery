@@ -3,7 +3,8 @@ package com.personal.happygallery.application.pass;
 import com.personal.happygallery.domain.pass.PassPurchase;
 
 /**
- * Booking 흐름이 Pass 내부 저장 포트를 직접 알지 않고 이용권 크레딧을 검증·차감·복구하게 하는 내부 협력 서비스.
+ * 이용권 행 잠금·소유권 확인·크레딧 차감·복구를 한 곳에서 처리하는 내부 협력 서비스.
+ * 예약 흐름은 Pass 내부 저장 포트 대신 이 서비스를 쓰고, 이용권 환불·만료 처리도 같은 잠금 조회를 재사용한다.
  */
 public interface PassCreditService {
 

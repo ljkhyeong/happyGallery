@@ -272,7 +272,7 @@ public class PaymentAttempt {
             return false;
         }
         this.status = PaymentAttemptStatus.RETRYABLE;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.processingToken = null;
         return true;
     }
@@ -283,7 +283,7 @@ public class PaymentAttempt {
             return false;
         }
         this.status = PaymentAttemptStatus.FAILED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.processingToken = null;
         return true;
     }
@@ -301,14 +301,14 @@ public class PaymentAttempt {
     public void markFailed(String reason) {
         requireStatus(PaymentAttemptStatus.APPROVED);
         this.status = PaymentAttemptStatus.FAILED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     /** PG 승인 후 도메인 생성 실패로 보상 환불을 요청한다. */
     public void markCompensationRequested(String reason) {
         requireStatus(PaymentAttemptStatus.APPROVED);
         this.status = PaymentAttemptStatus.COMPENSATION_REQUESTED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     public void markCompensationFailed(String reason) {
@@ -316,7 +316,7 @@ public class PaymentAttempt {
                 PaymentAttemptStatus.COMPENSATION_REQUESTED,
                 PaymentAttemptStatus.COMPENSATION_FAILED);
         this.status = PaymentAttemptStatus.COMPENSATION_FAILED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     public void markCompensated() {
@@ -339,11 +339,16 @@ public class PaymentAttempt {
         return true;
     }
 
+    /** confirm을 시작하지 않은 결제가 prepare 유효시간 경계를 지났는지 전이 없이 판정한다. */
+    public boolean isPendingExpiredBefore(LocalDateTime cutoff) {
+        return status == PaymentAttemptStatus.PENDING
+                && createdAt != null
+                && !createdAt.isAfter(cutoff);
+    }
+
     /** prepare 유효시간이 지난 미시작 결제를 취소하고 개인정보 payload를 제거한다. */
     public boolean expirePendingBefore(LocalDateTime cutoff) {
-        if (status != PaymentAttemptStatus.PENDING
-                || createdAt == null
-                || createdAt.isAfter(cutoff)) {
+        if (!isPendingExpiredBefore(cutoff)) {
             return false;
         }
         cancelPending("결제 준비 유효시간이 만료되었습니다.");
@@ -354,7 +359,7 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.CANCELED;
         this.processingToken = null;
         this.payloadEnc = null;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     /**
@@ -392,7 +397,7 @@ public class PaymentAttempt {
     private void applyConfirmReconciliationRequired(String reason) {
         this.status = PaymentAttemptStatus.RECONCILIATION_REQUIRED;
         this.processingToken = null;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     /** PG 조회로 승인되지 않았음이 확정된 대사 대상을 실패로 종결한다. */
@@ -401,7 +406,7 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.FAILED;
         this.processingToken = null;
         this.payloadEnc = null;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
     }
 
     public boolean requiresConfirmReconciliation(LocalDateTime automaticRetrySafeSince) {

@@ -50,7 +50,7 @@ export function isProductFormValid(values: ProductFormValues): boolean {
 
 /** 상품 등록·수정·판매 상태 변경 뒤 관리자 목록과 공개 상품 목록·카테고리를 다시 읽는다. */
 export function invalidateProductQueries(queryClient: QueryClient): void {
-  void queryClient.invalidateQueries({ queryKey: queryKeys.admin.products });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
   void queryClient.invalidateQueries({ queryKey: queryKeys.catalog.products });
   void queryClient.invalidateQueries({ queryKey: queryKeys.catalog.productCategories });
 }

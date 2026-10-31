@@ -3,9 +3,10 @@ import {
   getMyBooking,
   reduceMyBookingParticipants as requestParticipantReduction,
   rescheduleMyBooking as requestMyBookingReschedule,
+  type CancelResponse,
   type ReduceBookingParticipantsResponse,
 } from "@/generated/api/booking";
-import type { CancelResponse, MyBookingDetailResponse } from "@/shared/types";
+import type { MyBookingDetailResponse } from "@/shared/types";
 
 export function fetchMyBooking(bookingId: number): Promise<MyBookingDetailResponse> {
   return getMyBooking(bookingId);

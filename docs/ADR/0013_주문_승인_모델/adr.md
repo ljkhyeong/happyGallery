@@ -79,7 +79,8 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 ### 6. 환불 엔티티 재사용
 
 주문 환불은 기존 `Refund` 엔티티(refunds 테이블)에 `orderId` 필드를 통해 기록한다.
-별도 엔티티 없이 `Refund.forOrder(orderId, amount, paymentKey)` 팩토리로 기록한다.
+별도 엔티티 없이 `Refund.forOrder(...)` 팩토리로 기록하며, PG 취소액·고객 환불액·적립금 복원/회수액·쿠폰 복원 여부를
+환불 요청 시점 값으로 고정한다.
 픽업 만료 자체는 환불 이력을 만들지 않는다. `PICKUP_FORFEITED`는 상품 유형과 관계없는 미환불
 미수령 종료, `PICKUP_EXPIRED`는 관리자 예외 환불 또는 정책 변경 전 자동 환불된 과거 이력을 나타낸다.
 

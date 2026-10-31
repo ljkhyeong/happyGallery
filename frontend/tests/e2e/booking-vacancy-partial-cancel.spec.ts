@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  bookingCancelPolicyFixture,
+  classFixture,
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  myBookingDetailFixture,
+} from "./mock-support";
 
 test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,
@@ -26,30 +35,9 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        code: "UNAUTHORIZED",
-        message: "로그인이 필요합니다.",
-      }, 401);
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "빈자리 알림 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        capacity: 4,
-        price: 50000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "빈자리 알림 클래스", bufferMin: 10, capacity: 4 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -74,19 +62,8 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
       await route.fulfill({ status: 204 });
       return;
     }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-28T12:00:00",
-        version: 1,
-      });
-      return;
-    }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
     await fulfillJson(route, []);
@@ -117,22 +94,13 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
 
   let cancelCount = 0;
   await installCsrfCookie(context, baseURL);
+  const member = memberFixture({ id: 102, email: "vacancy-alert@example.com", name: "빈자리 알림 회원" });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 102,
-        email: "vacancy-alert@example.com",
-        name: "빈자리 알림 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/vacancy-alerts") {
       await fulfillJson(route, cancelCount === 0 ? [{
         alertId: 701,
@@ -154,31 +122,8 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
       await route.fulfill({ status: 204 });
       return;
     }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        items: [],
-        totalAmount: 0,
-        cartVersion: EMPTY_CART_VERSION,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-29T12:00:00",
-        version: 1,
-      });
-      return;
-    }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
     await fulfillJson(route, []);
@@ -204,22 +149,13 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
   let participantCount = 3;
   let requestedParticipantCount: number | null = null;
   await installCsrfCookie(context, baseURL);
+  const member = memberFixture({ id: 101, email: "partial-cancel@example.com", name: "부분취소 회원" });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 101,
-        email: "partial-cancel@example.com",
-        name: "부분취소 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === `/api/v1/me/bookings/${bookingId}/participants`) {
       const body = request.postDataJSON() as { participantCount: number };
       requestedParticipantCount = body.participantCount;
@@ -244,7 +180,7 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
       return;
     }
     if (pathname === `/api/v1/me/bookings/${bookingId}`) {
-      await fulfillJson(route, {
+      await fulfillJson(route, myBookingDetailFixture({
         bookingId,
         classId: 1,
         slotId: 88,
@@ -254,31 +190,8 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
         endAt: "2099-01-12T19:00:00",
         participantCount,
         depositAmount: participantCount === 3 ? 30000 : 20000,
-        balanceAmount: 0,
-        balanceStatus: "UNPAID",
-        passBooking: false,
-        cancelPolicy: {
-          cancellable: true,
-          refundable: true,
-          deadlineAt: "2099-01-11T00:00:00",
-          passCreditRestorable: false,
-          manualCompensationRequired: false,
-          warningCode: null,
-        },
-        refund: null,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        cartVersion: EMPTY_CART_VERSION,
-        items: [],
-        totalAmount: 0,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
+        cancelPolicy: bookingCancelPolicyFixture({ cancellable: true, refundable: true, deadlineAt: "2099-01-11T00:00:00" }),
+      }));
       return;
     }
     if (pathname === `/api/v1/me/reviews/bookings/${bookingId}`) {
@@ -291,14 +204,6 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
         sourceType: "BOOKING",
         targetType: "CLASS",
         status: "NOT_REVIEWABLE",
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-28T12:00:00",
-        version: 1,
       });
       return;
     }
@@ -324,20 +229,13 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
 
 test("잔금까지 낸 예약은 취소·인원 변경 대신 공방 문의 안내를 보인다", async ({ page }) => {
   const bookingId = 990003;
+  const member = memberFixture({ id: 101, email: "balance-paid@example.com", name: "잔금 결제 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    if (await fulfillMemberCommon(route, { member })) return;
     switch (pathname) {
-      case "/api/v1/me":
-        return fulfillJson(route, {
-          id: 101,
-          email: "balance-paid@example.com",
-          name: "잔금 결제 회원",
-          phone: "01012345678",
-          phoneVerified: true,
-          localPasswordEnabled: true,
-        });
       case `/api/v1/me/bookings/${bookingId}`:
-        return fulfillJson(route, {
+        return fulfillJson(route, myBookingDetailFixture({
           bookingId,
           classId: 1,
           slotId: 88,
@@ -349,24 +247,8 @@ test("잔금까지 낸 예약은 취소·인원 변경 대신 공방 문의 안�
           depositAmount: 30000,
           balanceAmount: 60000,
           balanceStatus: "PAID",
-          passBooking: false,
-          receiptUrl: null,
-          refund: null,
-          cancelPolicy: {
-            cancellable: false,
-            refundable: false,
-            deadlineAt: "2099-01-11T00:00:00",
-            passCreditRestorable: false,
-            manualCompensationRequired: false,
-            warningCode: null,
-          },
-        });
-      case "/api/v1/me/cart":
-        return fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count":
-        return fulfillJson(route, { count: 0 });
-      case "/api/v1/workshop":
-        return fulfillJson(route, { name: "해피갤러리", updatedAt: "2026-08-28T12:00:00", version: 1 });
+          cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2099-01-11T00:00:00" }),
+        }));
       case `/api/v1/me/reviews/classes/${bookingId}/creation-state`:
         return fulfillJson(route, { sourceId: bookingId, sourceType: "BOOKING", targetType: "CLASS", status: "NOT_REVIEWABLE" });
       default:

@@ -111,7 +111,7 @@ export function AdminBookingCreateModal({
       size="lg"
       centered
     >
-      <Modal.Header closeButton={!createMutation.isPending}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!createMutation.isPending}>
         <Modal.Title id="admin-booking-create-title" className="fs-6">
           전화·메신저·방문 예약 등록
         </Modal.Title>

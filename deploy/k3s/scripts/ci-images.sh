@@ -61,7 +61,7 @@ case "${1:-}" in
             docker push "$image:$GITHUB_SHA"
             digest=$(docker image inspect "$image:$GITHUB_SHA" --format '{{json .RepoDigests}}' \
                 | ruby -rjson -e 'refs=JSON.parse(STDIN.read).select { |ref| ref.start_with?(ARGV[0]+"@") }; abort "registry digest가 모호합니다." unless refs.one?; puts refs.first.split("@",2).last' "$image")
-            [[ $digest =~ ^sha256:[a-f0-9]{64}$ ]] || die "registry digest 형식이 올바르지 않습니다."
+            is_sha256_digest "$digest" || die "registry digest 형식이 올바르지 않습니다."
             printf '%s_digest=%s\n' "$component" "$digest" >> "$GITHUB_OUTPUT"
             printf '%s@%s\n' "$image" "$digest" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
         done

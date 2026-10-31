@@ -4,7 +4,17 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, navigateInApp, productDetailFixture, seedAdminSession } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  navigateInApp,
+  orderPolicyFixture,
+  productDetailFixture,
+  seedAdminSession,
+} from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -34,41 +44,12 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
 
   await seedAdminSession(page);
 
+  const member = memberFixture({ email: "qna-cache@example.com", name: "Q&A 캐시 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 501,
-        email: "qna-cache@example.com",
-        name: "Q&A 캐시 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, {
-        cartVersion: EMPTY_CART_VERSION,
-        items: [],
-        totalAmount: 0,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-08T10:00:00",
-        version: 1,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/products/42") {
       await route.fallback();
       return;
@@ -78,11 +59,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {
@@ -220,7 +197,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
     }
     if (pathname === "/api/v1/admin/inquiries"
       || pathname === "/api/v1/admin/group-inquiries") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-inquiries/page") {

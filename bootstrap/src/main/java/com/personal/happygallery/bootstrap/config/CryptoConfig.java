@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 public class CryptoConfig {
 
     @Bean
@@ -35,8 +35,8 @@ public class CryptoConfig {
     }
 
     @Bean
-    public BlindIndexer blindIndexer(FieldEncryptionProperties props) {
-        return new BlindIndexer(HexFormat.of().parseHex(props.hmacKey()));
+    public BlindIndexer blindIndexer(BlindIndexKeyRing blindIndexKeyRing) {
+        return blindIndexKeyRing.active();
     }
 
     private static Map<String, byte[]> parseKeys(String activeKeyId,
@@ -50,7 +50,7 @@ public class CryptoConfig {
         }
         for (String entry : previousKeys.split(",")) {
             String[] parts = entry.trim().split("=", 2);
-            if (parts.length != 2 || !parts[0].matches("^[A-Za-z0-9_-]{1,32}$")) {
+            if (parts.length != 2 || !parts[0].matches(FieldEncryptionProperties.KEY_ID_PATTERN)) {
                 throw new IllegalArgumentException(label + " 이전 키 형식은 keyId=64자리hex 이어야 합니다.");
             }
             if (parts[0].equals(activeKeyId) || keys.putIfAbsent(parts[0], parseKey(parts[1], label)) != null) {

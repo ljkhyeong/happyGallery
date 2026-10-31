@@ -36,11 +36,8 @@ public class ReviewHelpfulVote {
     protected ReviewHelpfulVote() {}
 
     public ReviewHelpfulVote(Long reviewId, Long userId, LocalDateTime createdAt) {
-        if (reviewId == null || reviewId < 1L || userId == null || userId < 1L) {
-            throw new IllegalArgumentException("후기와 회원 ID가 올바르지 않습니다.");
-        }
-        this.reviewId = reviewId;
-        this.userId = userId;
+        this.reviewId = ReviewIds.requirePositive(reviewId, "후기 ID");
+        this.userId = ReviewIds.requirePositive(userId, "회원 ID");
         this.createdAt = Objects.requireNonNull(createdAt, "도움돼요 시각은 필수입니다.");
     }
 

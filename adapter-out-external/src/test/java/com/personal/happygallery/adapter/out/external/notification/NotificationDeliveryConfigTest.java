@@ -51,7 +51,6 @@ class NotificationDeliveryConfigTest {
                     "app.external.notification.phone-verification-thread-pool.queue-capacity=5",
                     "app.external.notification.email-verification-thread-pool.pool-size=1",
                     "app.external.notification.email-verification-thread-pool.queue-capacity=5",
-                    "app.external.notification.circuit-breaker.failure-rate-threshold=50",
                     "app.external.email-verification.from=no-reply@mail.happy-gallery.com",
                     "spring.mail.host=smtp.example.com", "spring.mail.port=587",
                     "spring.mail.username=test", "spring.mail.password=test",
@@ -89,11 +88,10 @@ class NotificationDeliveryConfigTest {
     void defaultUsesNhn() {
         nhnRunner().run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(PhoneVerificationSender.class)
-                    .doesNotHaveBean("disabledPhoneVerificationSender");
+                    .hasBean("phoneVerificationSender").doesNotHaveBean("disabledPhoneVerificationSender");
             assertThat(context.getBeansOfType(NotificationSenderPort.class).values()).hasSize(2)
                     .allSatisfy(sender -> assertThat(sender).isInstanceOf(ResilientNotificationSender.class));
             assertThat(context.getBeansOfType(NotificationDeliveryResultProvider.class)).hasSize(2);
-            assertThat(context.getBean(PhoneVerificationSender.class)).isInstanceOf(ResilientPhoneVerificationSender.class);
         });
     }
 
@@ -131,8 +129,8 @@ class NotificationDeliveryConfigTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties({AlimtalkNotificationProperties.class, SmsNotificationProperties.class,
-            NotificationResilienceProperties.class, EmailVerificationProperties.class,
-            NcpMailProperties.class, MailProperties.class})
+    @EnableConfigurationProperties({NotificationDeliveryProperties.class, AlimtalkNotificationProperties.class,
+            SmsNotificationProperties.class, NotificationResilienceProperties.class,
+            EmailVerificationProperties.class, NcpMailProperties.class, MailProperties.class})
     static class PropertiesConfig {}
 }

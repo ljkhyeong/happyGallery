@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Card } from "react-bootstrap";
+import { Button, Card } from "react-bootstrap";
 import { Link } from "react-router";
 import {
   cancelMyVacancyAlert,
@@ -8,8 +8,21 @@ import {
 } from "@/features/vacancy-alert/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
-import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
+import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, ToneBadge, useToast, type CustomerBadgeTone } from "@/shared/ui";
+import { bookingCreateHref, formatSlotEnd } from "@/features/booking-create/upcomingSlots";
+
+interface AlertStatusBadge {
+  label: string;
+  tone: CustomerBadgeTone;
+}
+
+// 빈자리를 기다리는 신청은 먹색, 빈자리가 나 고객이 예약할 차례인 신청은 노랑이다.
+const STATUS_BADGES: Record<VacancyAlertResponse["status"], AlertStatusBadge> = {
+  WAITING: { label: "알림 대기", tone: "progress" },
+  NOTIFIED: { label: "빈자리 발생", tone: "action" },
+  CANCELED: { label: "신청 취소", tone: "done" },
+};
+const UNKNOWN_STATUS_BADGE: AlertStatusBadge = { label: "상태 확인 필요", tone: "done" };
 
 export function MyVacancyAlertsSection() {
   const queryClient = useQueryClient();
@@ -61,18 +74,17 @@ export function MyVacancyAlertsSection() {
       {alerts?.map((alert) => {
         const canceling = cancelMutation.isPending
           && cancelMutation.variables?.alertId === alert.alertId;
+        const status = STATUS_BADGES[alert.status] ?? UNKNOWN_STATUS_BADGE;
         return (
-          <Card key={alert.alertId} className="mb-2 my-list-card border-0">
+          <Card key={alert.alertId} className="mb-2 my-list-card">
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 px-3">
               <div>
                 <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
                   <Link to={`/classes/${alert.classId}`} className="fw-semibold small">{alert.className}</Link>
-                  <Badge bg={alert.status === "WAITING" ? "secondary" : "info"} className="badge-sm">
-                    {alert.status === "WAITING" ? "알림 대기" : "빈자리 발생"}
-                  </Badge>
+                  <ToneBadge tone={status.tone} className="badge-sm">{status.label}</ToneBadge>
                 </div>
                 <small className="text-muted-soft">
-                  {formatDateTime(alert.startAt)} ~ {formatDateTime(alert.endAt)}
+                  {formatDateTime(alert.startAt)} ~ {formatSlotEnd(alert.startAt, alert.endAt)}
                 </small>
               </div>
               <div className="d-flex flex-wrap gap-2">

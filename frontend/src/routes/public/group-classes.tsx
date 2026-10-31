@@ -5,11 +5,12 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadWorkshop } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "충주 단체·기관 공예수업 | 해피갤러리";
+const TITLE = siteTitle("충주 단체·기관 공예수업");
 const DESCRIPTION = "학교·기관·모임을 찾아가는 충주 해피갤러리의 출강·단체 공예 수업 안내와 문의 방법입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -31,10 +32,7 @@ export default function GroupClassesRoute({ loaderData }: Route.ComponentProps) 
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd("/group-classes", TITLE, DESCRIPTION),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "단체·기관 수업", pathname: "/group-classes" },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "단체·기관 수업", pathname: "/group-classes" }]),
       ]} />
       <GroupClassesPage initialWorkshop={loaderData.workshop} />
     </>

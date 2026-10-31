@@ -10,7 +10,9 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatKRW, formatDateTime } from "@/shared/lib";
-import type { AdminRefundStatus, FailedRefundResponse } from "@/shared/types";
+import type { FailedRefundResponse } from "@/generated/api/adminOperations";
+import type { AdminRefundStatus } from "@/shared/types";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -20,7 +22,6 @@ interface Props {
 export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const [retryTarget, setRetryTarget] = useState<FailedRefundResponse | null>(null);
   const {
     cursor,
@@ -30,7 +31,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   } = useCursorHistory();
 
   const { data: page, isLoading, isFetching, error, refetch } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "refunds", "failed", cursor],
+    queryKey: queryKeys.admin.refunds.failedPage(cursor),
     queryFn: () => fetchFailedRefunds(adminKey, cursor),
     refetchInterval: 5_000,
   });
@@ -38,14 +39,13 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (refundId: number) => retryRefund(adminKey, refundId),
-    onMutate: (id) => setPendingId(id),
     onSuccess: (result) => {
       showRetryResult(toast.show, result.status);
       setRetryTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.refunds.failed });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = retry.isPending ? retry.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (isAdminSessionUnauthorized(error)) return null;
@@ -133,9 +133,9 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       <ConfirmModal
         show={retryTarget !== null}
         title="환불 처리 다시 확인"
-        pending={pendingId !== null}
+        pending={retry.isPending}
         onClose={() => setRetryTarget(null)}
-        confirmLabel={pendingId !== null
+        confirmLabel={retry.isPending
           ? "확인 중..."
           : retryTarget?.status === "RECONCILIATION_REQUIRED"
             ? "결제사에서 상태 확인"

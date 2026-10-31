@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.reward;
 
 import static com.personal.happygallery.support.ConcurrentExecution.runSimultaneously;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -436,7 +437,7 @@ class RewardUseCaseIT {
     }
 
     private User createUser(String email, String phone) {
-        return userStorePort.save(new User(email, "password-hash", "적립금 회원", phone));
+        return userStorePort.save(member(email, phone));
     }
 
     private Order saveOrder(Long userId, long amount, LocalDateTime paidAt) {

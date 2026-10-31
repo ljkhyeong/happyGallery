@@ -1,4 +1,5 @@
 import { Button, Card } from "react-bootstrap";
+import { formatPhone } from "@/shared/lib";
 import { LinkButton } from "@/shared/ui";
 import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
@@ -24,7 +25,7 @@ export function MyAccountCard({
         <h2 className="my-account-title">계정 관리</h2>
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <h6 className="mb-1">로그인 비밀번호</h6>
+            <h3 className="h6 mb-1">로그인 비밀번호</h3>
             <p className="text-muted-soft small mb-0">
               {user.localPasswordEnabled
                 ? "변경하면 현재 로그인된 모든 기기에서 로그아웃됩니다."
@@ -51,9 +52,9 @@ export function MyAccountCard({
 
         <div className="d-flex justify-content-between align-items-start gap-3 border-top mt-3 pt-3">
           <div>
-            <h6 className="mb-1">휴대폰 번호</h6>
+            <h3 className="h6 mb-1">휴대폰 번호</h3>
             <p className="text-muted-soft small mb-0">
-              {user.phone ?? "등록된 휴대폰 번호가 없습니다."}
+              {user.phone ? formatPhone(user.phone) : "등록된 휴대폰 번호가 없습니다."}
             </p>
           </div>
           <Button variant="outline-primary" size="sm" onClick={onUpdatePhone}>
@@ -63,7 +64,7 @@ export function MyAccountCard({
 
         <div className="d-flex justify-content-between align-items-start gap-3 border-top mt-3 pt-3">
           <div>
-            <h6 className="mb-1">이메일</h6>
+            <h3 className="h6 mb-1">이메일</h3>
             <p className="text-muted-soft small mb-0">
               {user.email ?? "등록된 로그인 이메일이 없습니다."}
             </p>
@@ -79,12 +80,12 @@ export function MyAccountCard({
 
         <div className="d-flex justify-content-between align-items-start gap-3 border-top mt-3 pt-3">
           <div>
-            <h6 className="mb-1">회원 탈퇴</h6>
+            <h3 className="h6 mb-1">회원 탈퇴</h3>
             <p className="text-muted-soft small mb-0">
               진행 중인 거래가 있으면 탈퇴가 제한됩니다. 신청 시 해당 내역을 안내합니다.
             </p>
           </div>
-          <Button variant="outline-danger" size="sm" onClick={onWithdraw}>
+          <Button variant="outline-dark" size="sm" onClick={onWithdraw}>
             탈퇴
           </Button>
         </div>

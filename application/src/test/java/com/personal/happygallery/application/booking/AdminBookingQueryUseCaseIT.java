@@ -11,7 +11,7 @@ import com.personal.happygallery.application.customer.port.in.CustomerAccountLif
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
 import com.personal.happygallery.application.shared.page.OffsetPage;
@@ -69,12 +69,7 @@ class AdminBookingQueryUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingReminderData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     // ── admin booking list ───────────────────────────────────
@@ -90,12 +85,12 @@ class AdminBookingQueryUseCaseIT {
         saveClaimedBooking(slotStart.plusHours(2), "클레임 클래스", "C1",
                 "클레임대상", "01055556666", "claimer@test.com", "클레이머");
 
-        List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(tomorrow, null);
+        List<AdminBookingView> responses = adminBookingQueryService.listBookings(tomorrow, null);
 
         assertSoftly(softly -> {
             softly.assertThat(responses)
                     .extracting(
-                            AdminBookingResponse::className,
+                            AdminBookingView::className,
                             response -> response.customerSummary().type(),
                             response -> response.customerSummary().name(),
                             response -> response.customerSummary().phone())
@@ -121,7 +116,7 @@ class AdminBookingQueryUseCaseIT {
         canceled.cancel();
         bookingStorePort.save(canceled);
 
-        List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(targetDate, BookingStatus.BOOKED);
+        List<AdminBookingView> responses = adminBookingQueryService.listBookings(targetDate, BookingStatus.BOOKED);
         OffsetPage<AdminBookingSearchRow> searchResult =
                 adminBookingSearchUseCase.search(null, targetDate, targetDate, "게스트", 0, 20);
         OffsetPage<AdminBookingSearchRow> phoneSearchResult =
@@ -153,7 +148,7 @@ class AdminBookingQueryUseCaseIT {
         User member = userStorePort.save(
                 new User("withdrawn-history@test.com", "hash", "탈퇴 전 회원", "01089898989"));
         Booking completed = Booking.forMemberDeposit(
-                member, memberSlot, 10_000L, 20_000L, DepositPaymentMethod.CARD);
+                member, memberSlot, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD);
         completed.markBalancePaid(targetDate.atTime(12, 0));
         completed.complete(LocalDateTime.now(clock));
         completed = bookingStorePort.save(completed);
@@ -161,14 +156,14 @@ class AdminBookingQueryUseCaseIT {
         customerAccountLifecycleUseCase.withdraw(new WithdrawCommand(
                 member.getId(), member.getCredentialVersion(), true));
 
-        List<AdminBookingResponse> responses =
+        List<AdminBookingView> responses =
                 adminBookingQueryService.listBookings(targetDate, BookingStatus.COMPLETED);
 
         Long completedBookingId = completed.getId();
         assertSoftly(softly -> {
             softly.assertThat(responses).singleElement()
                     .extracting(
-                            AdminBookingResponse::bookingId,
+                            AdminBookingView::bookingId,
                             response -> response.customerSummary().type(),
                             response -> response.customerSummary().name(),
                             response -> response.customerSummary().phone())
@@ -285,7 +280,7 @@ class AdminBookingQueryUseCaseIT {
         Slot s = saveSlot(slotStart, className, category);
         User member = userStorePort.save(new User(email, "hash", name, phone));
         bookingStorePort.save(Booking.forMemberDeposit(
-                member, s, 10_000L, 20_000L, DepositPaymentMethod.CARD));
+                member, s, 1, 10_000L, 20_000L, DepositPaymentMethod.CARD));
         return member;
     }
 

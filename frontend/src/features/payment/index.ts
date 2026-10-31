@@ -7,13 +7,16 @@ export { executePaymentFlow } from "./flow";
 export { PaymentMethodFields } from "./PaymentMethodFields";
 export { PaymentErrorAlert } from "./PaymentErrorAlert";
 export { useCheckoutSelection } from "./useCheckoutSelection";
+export { PaymentCompletedCard } from "./PaymentCompletedCard";
 export { PaymentCompletionNext } from "./PaymentCompletionNext";
 export { PaymentResultCard } from "./PaymentResultCard";
 export { PaymentStatusNotice } from "./PaymentStatusNotice";
 export {
   isCompletedPayment,
+  isEndedWithoutPayment,
   isTerminalPaymentStatus,
   PAYMENT_STATUS_POLL_INTERVAL_MS,
+  paymentResultTone,
   paymentStatusPollingInterval,
   shouldPollPaymentStatus,
 } from "./status";

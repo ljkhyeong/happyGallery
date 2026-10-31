@@ -10,7 +10,8 @@ import type {
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, isSettingStateError, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { SmartStoreNoticeApplyModal } from "./SmartStoreNoticeApplyModal";
 import {
   fetchSmartStoreNotice,
@@ -18,6 +19,7 @@ import {
   removeSmartStoreNotice,
   saveSmartStoreNotice,
 } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -40,13 +42,12 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     Pick<SmartStoreNoticeResponse, "sellerNoticeId" | "title"> | null
   >(null);
   const [draft, setDraft] = useState<NoticeForm | null>(null);
-  const noticesKey = ["admin", "smartstore-notices"] as const;
   const notices = useAdminQuery(onAuthError, {
-    queryKey: [...noticesKey, "page", noticePage],
+    queryKey: queryKeys.admin.smartStore.notices.page(noticePage),
     queryFn: () => fetchSmartStoreNotices(adminKey, noticePage),
   });
   const detail = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-notices", editingId],
+    queryKey: queryKeys.admin.smartStore.notices.detail(editingId),
     queryFn: () => fetchSmartStoreNotice(adminKey, editingId!),
     enabled: typeof editingId === "number",
   });
@@ -68,7 +69,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
         ? "스마트스토어 상품 공지를 수정했습니다."
         : "스마트스토어 상품 공지를 등록했습니다.");
       setEditingId(undefined);
-      await queryClient.invalidateQueries({ queryKey: noticesKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.notices.all });
     },
   });
   const remove = useAdminMutation(onAuthError, {
@@ -76,7 +77,7 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     onSuccess: async () => {
       toast.show("스마트스토어 상품 공지를 삭제했습니다.");
       if (notices.data?.notices.length === 1 && noticePage > 1) setNoticePage(noticePage - 1);
-      await queryClient.invalidateQueries({ queryKey: noticesKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.notices.all });
     },
   });
   const canSave = editingId !== undefined
@@ -90,9 +91,12 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     if (!save.isPending) setEditingId(undefined);
   };
 
+  // 연동이 꺼져 있으면 공지를 등록해도 스마트스토어에 반영할 수 없어 등록 버튼을 끈다.
+  const integrationOff = isSettingStateError(notices.error);
+
   return <>
-    <div className="d-flex justify-content-end mb-3">
-      <Button size="sm" onClick={() => openEditor(null)}>공지 등록</Button>
+    <div className="admin-panel-create">
+      <Button size="sm" disabled={integrationOff} onClick={() => openEditor(null)}>공지 등록</Button>
     </div>
     {notices.isLoading && <LoadingSpinner />}
     <ErrorAlert error={notices.error}
@@ -129,22 +133,22 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
         </tr>)}</tbody>
       </Table>)}
     {(noticePage > 1 || (notices.data?.totalPages ?? 0) > 1) && (
-      <nav aria-label="스마트스토어 공지 페이지" className="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <Button size="sm" variant="outline-secondary"
-          disabled={noticePage === 1 || notices.isFetching || remove.isPending}
-          onClick={() => setNoticePage(noticePage - 1)}>이전 페이지</Button>
-        <span className="small text-muted-soft">
-          {noticePage}페이지{notices.data && ` · 총 ${notices.data.totalElements}건`}
-        </span>
-        <Button size="sm" variant="outline-secondary"
-          disabled={!notices.data || notices.isError || notices.isFetching || remove.isPending
-            || noticePage >= notices.data.totalPages}
-          onClick={() => setNoticePage(noticePage + 1)}>다음 페이지</Button>
-      </nav>
+      <OffsetPager
+        as="nav"
+        ariaLabel="스마트스토어 공지 페이지"
+        previousLabel="이전 페이지"
+        nextLabel="다음 페이지"
+        summary={<>{noticePage}페이지{notices.data && ` · 총 ${notices.data.totalElements}건`}</>}
+        previousDisabled={noticePage === 1 || notices.isFetching || remove.isPending}
+        nextDisabled={!notices.data || notices.isError || notices.isFetching || remove.isPending
+          || noticePage >= notices.data.totalPages}
+        onPrevious={() => setNoticePage(noticePage - 1)}
+        onNext={() => setNoticePage(noticePage + 1)}
+      />
     )}
 
     <Modal show={editingId !== undefined} onHide={closeEditor} size="lg" centered>
-      <Modal.Header closeButton={!save.isPending}><Modal.Title className="fs-6">
+      <Modal.Header closeLabel="창 닫기" closeButton={!save.isPending}><Modal.Title className="fs-6">
         {editingId === null ? "스마트스토어 상품 공지 등록" : "스마트스토어 상품 공지 수정"}
       </Modal.Title></Modal.Header>
       <Form onSubmit={(event) => {

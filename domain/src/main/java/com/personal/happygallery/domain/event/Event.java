@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.content.ContentTextPolicy;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -126,6 +127,15 @@ public class Event {
                 relatedProductIds);
     }
 
+    /** 불러온 뒤 다른 관리자가 먼저 수정했으면 충돌로 거절한다. */
+    public void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "다른 관리자가 이벤트를 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");
+        }
+    }
+
     private void apply(
             String title,
             String summary,
@@ -139,7 +149,7 @@ public class Event {
             Set<Long> relatedProductIds
     ) {
         this.title = ContentTextPolicy.requireTitle(title, "이벤트 제목");
-        this.summary = requireSummary(summary);
+        this.summary = DomainText.required(summary, "이벤트 요약은", MAX_SUMMARY_LENGTH);
         this.content = ContentTextPolicy.requireBody(content, "이벤트 내용");
         this.imageUrl = ImageReferencePolicy.optional(imageUrl);
         requirePeriod(startAt, endAt);
@@ -149,19 +159,6 @@ public class Event {
         this.featured = featured;
         this.couponDefinitionId = optionalCouponDefinitionId(couponDefinitionId);
         replaceRelatedProductIds(relatedProductIds);
-    }
-
-    private static String requireSummary(String value) {
-        if (value == null || value.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이벤트 요약은 필수입니다.");
-        }
-        String normalized = value.strip();
-        if (normalized.length() > MAX_SUMMARY_LENGTH) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT,
-                    "이벤트 요약은 " + MAX_SUMMARY_LENGTH + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     private static void requirePeriod(LocalDateTime startAt, LocalDateTime endAt) {

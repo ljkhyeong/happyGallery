@@ -3,13 +3,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
 import {
   CustomerSessionChangedError,
-  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
 import { describeError, ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import {
-  fetchLinkedSocialProviders,
+  linkedSocialProvidersQuery,
   reauthenticateCustomerPassword,
 } from "@/features/customer-auth/socialAccountApi";
 import {
@@ -34,10 +33,7 @@ export function CustomerStepUpPrompt({
   const toast = useToast();
   const [password, setPassword] = useState("");
   const [socialPending, setSocialPending] = useState(false);
-  const linkedProviders = useQuery({
-    queryKey: queryKeys.member.socialAccounts,
-    queryFn: fetchLinkedSocialProviders,
-  });
+  const linkedProviders = useQuery(linkedSocialProvidersQuery());
   const passwordReauthentication = useMutation({
     mutationFn: () =>
       runForCurrentCustomer(

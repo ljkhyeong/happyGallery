@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.review;
 
+import com.personal.happygallery.application.customer.MemberNames;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.OfficialReplyItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.PublicReviewPage;
@@ -22,7 +23,6 @@ import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewImage;
 import com.personal.happygallery.domain.review.ReviewReport;
 import com.personal.happygallery.domain.review.ReviewSort;
-import com.personal.happygallery.domain.user.User;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -81,11 +81,9 @@ class ReviewViewAssembler {
         }
         List<Long> userIds = views.stream().map(ReviewListView::userId).distinct().toList();
         List<Long> reviewIds = views.stream().map(ReviewListView::id).toList();
-        List<User> users = includeWithdrawnUsers
-                ? userReader.findAllByIdForAdminHistory(userIds)
-                : userReader.findAllById(userIds);
-        Map<Long, String> authorNames = users.stream()
-                .collect(Collectors.toMap(User::getId, User::getName));
+        Map<Long, String> authorNames = includeWithdrawnUsers
+                ? MemberNames.ofForAdminHistory(userReader, userIds)
+                : MemberNames.of(userReader, userIds);
         Map<Long, Long> helpfulCounts = helpfulPort.countByReviewIds(reviewIds).stream()
                 .collect(Collectors.toMap(
                         ReviewHelpfulPort.ReviewHelpfulCountView::reviewId,
@@ -97,7 +95,7 @@ class ReviewViewAssembler {
         return views.stream()
                 .map(view -> toItem(
                         view,
-                        authorNames.getOrDefault(view.userId(), "탈퇴회원"),
+                        authorNames.getOrDefault(view.userId(), MemberNames.WITHDRAWN),
                         helpfulCounts.getOrDefault(view.id(), 0L),
                         images.getOrDefault(view.id(), List.of())))
                 .toList();

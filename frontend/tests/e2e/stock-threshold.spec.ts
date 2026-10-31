@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, seedAdminSession } from "./mock-support";
+import { fulfillJson, seedAdminSession, UNAUTHORIZED_ERROR } from "./mock-support";
 
 test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제하면 목록에서 빠진다", async ({ page }) => {
   await seedAdminSession(page);
@@ -8,7 +8,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   const product = { id: 42, name: "재고 기준 작품", type: "READY_STOCK", category: null, price: 10000, status: "ACTIVE", quantity: 2, available: true, variants: [], optionGroups: [] };
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path === "/api/v1/admin/products") return fulfillJson(route, [product]);
     if (path === "/api/v1/admin/products/42/inventory-adjustments") return fulfillJson(route, []);
@@ -31,7 +31,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("3");
   await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect(page.getByText("최소 보유 수량을 저장했습니다.", { exact: true })).toBeVisible();
-  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "창 닫기", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
   const panel = page.locator("section.admin-workspace-panel").filter({ hasText: "품절·재고 부족 상품과 옵션" });
   await expect(panel.getByText("재고 기준 작품", { exact: true })).toBeVisible();
@@ -40,7 +40,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("");
   await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect.poll(() => minimumStock).toBeNull();
-  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "창 닫기", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
   await expect(panel.getByText("재고를 채워야 할 판매 중 상품이 없습니다.", { exact: true })).toBeVisible();
 });

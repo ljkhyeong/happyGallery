@@ -19,7 +19,8 @@ import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import type { SlotResponse } from "@/shared/types";
+import type { SlotResponse } from "@/generated/api/adminCatalog";
+import { slotDates } from "@/features/booking-create/upcomingSlots";
 import {
   HalfHourDaySchedule,
   type HalfHourScheduleItem,
@@ -35,7 +36,6 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [classId, setClassId] = useState("");
-  const [pendingId, setPendingId] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SlotResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
@@ -52,7 +52,6 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: ({ slotId, activate }: { slotId: number; activate: boolean }) =>
       activate ? activateSlot(adminKey, slotId) : deactivateSlot(adminKey, slotId),
-    onMutate: ({ slotId }) => setPendingId(slotId),
     onSuccess: (slot) => {
       toast.show(`수업 일정 #${slot.id}의 예약을 ${slot.adminActive ? "재개" : "중지"}했습니다.`);
       queryClient.invalidateQueries({
@@ -60,8 +59,8 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       });
       void invalidateSlotAvailability(queryClient);
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = mutation.isPending ? mutation.variables.slotId : null;
 
   const cancelMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ slotId, reason }: { slotId: number; reason: string }) =>
@@ -88,9 +87,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const managedSlots = useMemo(() => (slotsQuery.data ?? []).filter((slot) =>
     slot.bookedCount > 0 || !slot.adminActive,
   ), [slotsQuery.data]);
-  const scheduleDates = useMemo(() => Array.from(new Set(
-    managedSlots.map((slot) => slot.startAt.slice(0, 10)),
-  )).sort(), [managedSlots]);
+  const scheduleDates = useMemo(() => slotDates(managedSlots), [managedSlots]);
 
   const activeScheduleDate = scheduleDates.includes(scheduleDate)
     ? scheduleDate
@@ -241,7 +238,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                         <Button
                           size="sm"
                           variant="danger"
-                          disabled={pendingId !== null || cancelMutation.isPending}
+                          disabled={mutation.isPending || cancelMutation.isPending}
                           onClick={() => {
                             cancelMutation.reset();
                             setCancelReason("");

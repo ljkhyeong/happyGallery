@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Outlet, Link, useLocation, useMatches } from "react-router";
 import { Container, Nav } from "react-bootstrap";
 import { CalendarDays, ClipboardList, Heart, House, Palette, UserRound } from "lucide-react";
@@ -11,6 +11,7 @@ import { SHOP_CATEGORIES } from "@/features/product/shopCategories";
 import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 import { ErrorAlert } from "./ErrorAlert";
 import type { WorkshopProfile } from "@/shared/types";
 import { telHref, workshopAddress } from "@/shared/lib";
@@ -73,6 +74,9 @@ export function Layout() {
   } = useCustomerAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
+  // 태블릿·모바일에서 카테고리 줄이 넘치면 현재 메뉴(예: 이벤트)가 보이게 한다.
+  const categoryNavRef = useRef<HTMLDivElement>(null);
+  useCenterActiveItem(categoryNavRef, `${pathname}${search}`);
   const {
     data: workshop,
     error: workshopError,
@@ -209,7 +213,7 @@ export function Layout() {
           </Nav>
         </Container>
         <nav className="app-category-nav" aria-label="카테고리 메뉴">
-          <Container className="app-category-inner">
+          <Container ref={categoryNavRef} className="app-category-inner">
             <Link
               to="/products"
               className={onProducts && !activeCategory && !madeToOrderOnly ? "active" : undefined}

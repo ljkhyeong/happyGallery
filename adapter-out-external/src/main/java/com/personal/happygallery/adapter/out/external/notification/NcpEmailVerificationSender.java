@@ -15,7 +15,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.HtmlUtils;
 
 /** 한국 리전 Cloud Outbound Mailer에 인증 메일 한 건의 발송을 요청한다. */
-final class NcpEmailVerificationSender implements EmailVerificationTransport {
+final class NcpEmailVerificationSender implements VerificationTransport {
 
     private static final String PATH = "/api/v1/mails";
     private static final String ENDPOINT = "https://mail.apigw.ntruss.com" + PATH;

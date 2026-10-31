@@ -12,7 +12,6 @@ import com.personal.happygallery.application.dashboard.dto.TopProductSort;
 import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -24,22 +23,19 @@ import org.springframework.stereotype.Component;
 @Component
 class MyBatisSalesStatsAdapter implements SalesAnalyticsPort {
 
-    private final Clock clock;
     private final SalesStatsMapper salesStatsMapper;
 
-    MyBatisSalesStatsAdapter(Clock clock, SalesStatsMapper salesStatsMapper) {
-        this.clock = clock;
+    MyBatisSalesStatsAdapter(SalesStatsMapper salesStatsMapper) {
         this.salesStatsMapper = salesStatsMapper;
     }
 
     @Override
-    public DashboardOverview findOverview(LocalDate from, LocalDate to) {
-        LocalDate todayInSeoul = LocalDate.now(clock);
+    public DashboardOverview findOverview(LocalDate today, LocalDate from, LocalDate to) {
         return salesStatsMapper.findOverview(
-                SeoulDateTimeRangeConverter.toLocalStart(todayInSeoul),
-                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(todayInSeoul),
-                SeoulDateTimeRangeConverter.toUtcStart(todayInSeoul),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(todayInSeoul),
+                SeoulDateTimeRangeConverter.toLocalStart(today),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(today),
+                SeoulDateTimeRangeConverter.toUtcStart(today),
+                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(today),
                 SeoulDateTimeRangeConverter.toLocalStart(from),
                 SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }

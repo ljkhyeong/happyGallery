@@ -5,16 +5,21 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput } from "@/shared/types";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
-import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { MadeToOrderListNotice, ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { OrderOptionList } from "./OrderOptionList";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { productSelectionView } from "@/features/product/productSelectionView";
-import { productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
+import { productQuantityLimit, productSkuKey, remainingAddableQuantity } from "@/features/product/purchaseStock";
 import type { useOrderItems } from "./useOrderItems";
 
 interface Props {
   state: ReturnType<typeof useOrderItems>;
   onChange: (items: OrderItemInput[]) => void;
+}
+
+/** 같은 작품을 옵션별로 여러 줄 담을 수 있어 수량·삭제 버튼 이름에 옵션까지 넣는다. */
+function orderLineName(productName: string | undefined, productId: number, optionLabel: string | undefined): string {
+  return `${productName ?? `작품 #${productId}`} ${optionLabel ?? ""}`.trim();
 }
 
 export function OrderItemsForm({ state, onChange }: Props) {
@@ -28,8 +33,10 @@ export function OrderItemsForm({ state, onChange }: Props) {
     textInputs: [], qty: Number(qty),
   };
   const remaining = selectedProduct
-    ? Math.max(0, productQuantityLimit(selectedProduct, nextItem.productVariantId)
-      - (quantities.get(productSkuKey(nextItem)) ?? 0))
+    ? remainingAddableQuantity(
+      productQuantityLimit(selectedProduct, nextItem.productVariantId),
+      quantities.get(productSkuKey(nextItem)) ?? 0,
+    )
     : 0;
   const canAdd = Boolean(selectedProduct?.available && selected?.configurationValid)
     && selectedProduct?.optionGroups.length === 0
@@ -105,9 +112,10 @@ export function OrderItemsForm({ state, onChange }: Props) {
                   <div className="d-flex align-items-center gap-2 flex-shrink-0">
                     <Form.Control type="number" inputMode="numeric" size="sm" style={{ width: 80 }}
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
-                      aria-label={`${product?.name ?? "작품"} ${selection?.label ?? ""} 주문 수량`}
+                      aria-label={`${orderLineName(product?.name, item.productId, selection?.label)} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />
-                    <Button size="sm" variant="outline-danger" className="text-nowrap"
+                    <Button size="sm" variant="outline-dark" className="text-nowrap"
+                      aria-label={`${orderLineName(product?.name, item.productId, selection?.label)} 삭제`}
                       onClick={() => onChange(lines.filter((line) => line.key !== key).map((line) => line.item))}>삭제</Button>
                   </div>
                 </div>
@@ -121,12 +129,15 @@ export function OrderItemsForm({ state, onChange }: Props) {
                 {product && (
                   <ProductPurchaseTerms productName={product.name} type={product.type}
                     specification={product.specification} careInstructions={product.careInstructions}
-                    productionLeadDays={product.productionLeadDays} compact />
+                    productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
                 )}
               </ListGroup.Item>
             ))}
           </ListGroup>
           <div className="text-end fw-bold">합계: {formatKRW(itemAmount)}</div>
+          <MadeToOrderListNotice
+            productNames={lines.flatMap(({ product }) => product?.type === "MADE_TO_ORDER" ? [product.name] : [])}
+          />
         </>
       )}
     </div>

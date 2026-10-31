@@ -1,5 +1,7 @@
 import { BOOKING_BALANCE_STATUS_LABEL, formatKRW } from "@/shared/lib";
+import { bookingNumberLabel } from "@/shared/lib/labels";
 import { BookingInfoCard } from "@/features/booking-manage/BookingInfoCard";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { MyBookingDetailResponse } from "@/shared/types";
 
 interface Props {
@@ -20,7 +22,7 @@ export function MyBookingDetailCard({ booking }: Props) {
 
   return (
     <BookingInfoCard
-      label={`예약 #${booking.bookingId}`}
+      label={bookingNumberLabel(booking.bookingId)}
       status={booking.status}
       classId={booking.classId}
       className={booking.className}
@@ -28,6 +30,7 @@ export function MyBookingDetailCard({ booking }: Props) {
       endAt={booking.endAt}
       refund={booking.refund}
       rows={rows}
+      actions={<PaymentReceiptLink receiptUrl={booking.receiptUrl} />}
     />
   );
 }

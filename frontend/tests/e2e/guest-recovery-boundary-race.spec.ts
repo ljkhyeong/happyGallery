@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_CURSOR_PAGE, fulfillJson, fulfillMemberCommon, installCsrfCookie, memberFixture } from "./mock-support";
 
 test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저장한 capability를 되돌린다", async ({
   baseURL,
@@ -8,14 +8,12 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
-  const nextMember = {
+  const nextMember = memberFixture({
     id: 402,
     email: "recovery-race@example.com",
     name: "복구 경계 회원",
     phone: "01040204020",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
+  });
   let currentMember: typeof nextMember | null = null;
   let recoveredPageReads = 0;
 
@@ -53,17 +51,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentMember) {
-        await fulfillJson(route, currentMember);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentMember })) return;
     if (pathname === "/api/v1/bookings/phone-verifications") {
       await fulfillJson(route, {
         phone: "01012345678",
@@ -83,19 +71,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
       || pathname === "/api/v1/guest-records/recovery/bookings"
     ) {
       recoveredPageReads += 1;
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 

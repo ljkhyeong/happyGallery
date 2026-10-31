@@ -9,6 +9,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -35,6 +36,15 @@ const initialForm = {
   instagramUrl: "",
   smartStoreUrl: "",
 };
+
+/** 온라인 결제에 필요한 칸 안내. 값이 있으면 회색, 비었을 때만 빨간 글자로 알린다. */
+function PaymentRequiredHint({ value }: { value: string }) {
+  return (
+    <Form.Text className={value.trim() ? undefined : "text-danger"}>
+      온라인 결제를 받으려면 필수
+    </Form.Text>
+  );
+}
 
 function profileToForm(profile: WorkshopProfile): typeof initialForm {
   return {
@@ -66,7 +76,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   const [actionError, setActionError] = useState<Error | null>(null);
   const initiallyHydrated = useRef(false);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "workshop-profile"],
+    queryKey: queryKeys.admin.workshopProfile,
     queryFn: () => fetchAdminWorkshopProfile(adminKey),
   });
   const edit = useVersionedEdit<WorkshopProfile>({
@@ -75,7 +85,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
     applyToForm: (profile) => setForm(profileToForm(profile)),
     setError: setActionError,
     onConflict: (latest) => {
-      if (latest) queryClient.setQueryData(["admin", "workshop-profile"], latest);
+      if (latest) queryClient.setQueryData(queryKeys.admin.workshopProfile, latest);
     },
   });
 
@@ -114,8 +124,8 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
     onMutate: () => setActionError(null),
     onSuccess: (saved) => {
       edit.applyLatest(saved);
-      queryClient.setQueryData(["admin", "workshop-profile"], saved);
-      queryClient.invalidateQueries({ queryKey: ["workshop-profile"] });
+      queryClient.setQueryData(queryKeys.admin.workshopProfile, saved);
+      queryClient.invalidateQueries({ queryKey: queryKeys.workshop });
       toast.show("공방 정보가 저장되었습니다.");
     },
     onError: (error) => edit.handleSaveError(error, () => fetchAdminWorkshopProfile(adminKey)),
@@ -152,7 +162,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-phone">
             <Form.Label>연락처</Form.Label>
             <Form.Control value={form.phone} maxLength={30} onChange={(e) => update("phone", e.target.value)} />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.phone} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -164,7 +174,41 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={20}
               onChange={(e) => update("businessRegistrationNumber", e.target.value)}
             />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.businessRegistrationNumber} />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="admin-workshop-representative-name">
+            <Form.Label>대표자명</Form.Label>
+            <Form.Control
+              value={form.representativeName}
+              maxLength={100}
+              onChange={(e) => update("representativeName", e.target.value)}
+            />
+            <PaymentRequiredHint value={form.representativeName} />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="admin-workshop-mail-order-number">
+            <Form.Label>통신판매업 신고번호</Form.Label>
+            <Form.Control
+              value={form.mailOrderRegistrationNumber}
+              maxLength={100}
+              onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
+            />
+            <PaymentRequiredHint value={form.mailOrderRegistrationNumber} />
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="admin-workshop-email">
+            <Form.Label>전자우편주소</Form.Label>
+            <Form.Control
+              type="email"
+              value={form.email}
+              maxLength={254}
+              onChange={(e) => update("email", e.target.value)}
+            />
+            <PaymentRequiredHint value={form.email} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -177,44 +221,10 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col md={8}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-naver-talk-url">
             <Form.Label>네이버톡톡 링크 주소</Form.Label>
             <Form.Control type="url" value={form.naverTalkUrl} maxLength={500} onChange={(e) => update("naverTalkUrl", e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col md={4}>
-          <Form.Group controlId="admin-workshop-representative-name">
-            <Form.Label>대표자명</Form.Label>
-            <Form.Control
-              value={form.representativeName}
-              maxLength={100}
-              onChange={(e) => update("representativeName", e.target.value)}
-            />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
-          </Form.Group>
-        </Col>
-        <Col md={4}>
-          <Form.Group controlId="admin-workshop-email">
-            <Form.Label>전자우편주소</Form.Label>
-            <Form.Control
-              type="email"
-              value={form.email}
-              maxLength={254}
-              onChange={(e) => update("email", e.target.value)}
-            />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
-          </Form.Group>
-        </Col>
-        <Col md={4}>
-          <Form.Group controlId="admin-workshop-mail-order-number">
-            <Form.Label>통신판매업 신고번호</Form.Label>
-            <Form.Control
-              value={form.mailOrderRegistrationNumber}
-              maxLength={100}
-              onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
-            />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -238,7 +248,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-address-line1">
             <Form.Label>기본 주소</Form.Label>
             <Form.Control value={form.addressLine1} maxLength={200} onChange={(e) => update("addressLine1", e.target.value)} />
-            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
+            <PaymentRequiredHint value={form.addressLine1} />
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -253,6 +263,12 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             <Form.Control as="textarea" rows={3} value={form.businessHours} maxLength={1000} onChange={(e) => update("businessHours", e.target.value)} />
           </Form.Group>
         </Col>
+        <Col md={6}>
+          <Form.Group controlId="admin-workshop-parking-info">
+            <Form.Label>주차 안내</Form.Label>
+            <Form.Control as="textarea" rows={3} value={form.parkingInfo} maxLength={1000} onChange={(e) => update("parkingInfo", e.target.value)} />
+          </Form.Group>
+        </Col>
         <Col md={12}>
           <Form.Group controlId="admin-workshop-introduction">
             <Form.Label>공방 소개</Form.Label>
@@ -265,28 +281,22 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-naver-blog-url">
             <Form.Label>네이버 블로그 링크 주소</Form.Label>
             <Form.Control type="url" value={form.naverBlogUrl} maxLength={500} onChange={(e) => update("naverBlogUrl", e.target.value)} />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-instagram-url">
             <Form.Label>인스타그램 링크 주소</Form.Label>
             <Form.Control type="url" value={form.instagramUrl} maxLength={500} onChange={(e) => update("instagramUrl", e.target.value)} />
           </Form.Group>
         </Col>
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group controlId="admin-workshop-smart-store-url">
             <Form.Label>스마트스토어 링크 주소</Form.Label>
             <Form.Control type="url" value={form.smartStoreUrl} maxLength={500} onChange={(e) => update("smartStoreUrl", e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col md={6}>
-          <Form.Group controlId="admin-workshop-parking-info">
-            <Form.Label>주차 안내</Form.Label>
-            <Form.Control as="textarea" rows={3} value={form.parkingInfo} maxLength={1000} onChange={(e) => update("parkingInfo", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={9}>

@@ -1,11 +1,11 @@
 // ── 홈·클래스·단체수업 화면 ──────────────────────────────
 // 홈은 첫 화면·새로 올라온 작품·공방 클래스·재료별로 보기 순서이고, 섹션은 흰 면과 옅은 회색 면을 번갈아 쓴다.
 
+// 칸이 좁은 카드·표 안에서 긴 낱말이 칸을 밀어내지 않도록 최소 폭 계산에서도 끊을 수 있게 둔다.
 .gallery-section,
 .class-catalog-page,
 .class-detail-page,
 .group-class-page {
-  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
@@ -116,11 +116,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
-    line-height: 1.2;
-    letter-spacing: -0.03em;
+    @include hg-display-heading(clamp(1.75rem, 3vw, 2.5rem), -0.03em, $line-height: 1.2);
   }
 }
 
@@ -160,27 +156,66 @@
   }
 }
 
-// 상황별 바로가기: 각진 테두리 칩.
+// 상황별 바로가기 칩: 홈과 클래스 목록이 같은 항목(이번 주말·오늘 바로·상황 태그)을 같은 모양으로 보인다.
+// 손가락으로 누르기 쉽게 높이 2.75rem을 두고, 선택된 칩은 쓰는 곳에서 먹색 채움으로 표시한다.
+@mixin hg-situation-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.95rem;
+  color: var(--hg-dark);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--hg-transition), background var(--hg-transition);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--hg-dark);
+  }
+}
+
+// 4회권·단체수업 안내 칸: 홈과 클래스 목록이 같은 두 곳을 같은 모양(먹색 테두리·명조 제목)으로 잇는다.
+@mixin hg-program-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.6rem 1.75rem;
+  color: var(--hg-dark);
+  border: 1px solid var(--hg-dark);
+  text-decoration: none;
+
+  > strong {
+    font-family: var(--hg-font-display);
+    font-size: 1.4rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  > span {
+    color: #3A3A37;
+    font-size: 0.9rem;
+  }
+
+  &:hover > strong,
+  &:focus-visible > strong {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+}
+
 .gallery-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 
   > a {
-    display: inline-flex;
-    align-items: center;
-    height: 2.75rem;
-    padding: 0 0.95rem;
-    color: var(--hg-dark);
-    border: 1px solid #C9C9C4;
-    font-size: 0.88rem;
-    text-decoration: none;
-    white-space: nowrap;
-
-    &:hover,
-    &:focus-visible {
-      border-color: var(--hg-dark);
-    }
+    @include hg-situation-chip;
   }
 }
 
@@ -260,8 +295,9 @@
 }
 
 .gallery-program-price {
+  font-family: var(--hg-font-display);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -284,31 +320,7 @@
   margin-top: 2rem;
 
   > a {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 1.6rem 1.75rem;
-    color: var(--hg-dark);
-    border: 1px solid var(--hg-dark);
-    text-decoration: none;
-
-    > strong {
-      font-family: var(--hg-font-display);
-      font-size: 1.4rem;
-      font-weight: 500;
-      letter-spacing: -0.02em;
-    }
-
-    > span:last-child {
-      color: #3A3A37;
-      font-size: 0.9rem;
-    }
-
-    &:hover strong {
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 4px;
-    }
+    @include hg-program-link;
   }
 }
 
@@ -369,10 +381,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 500;
-    letter-spacing: -0.03em;
+    @include hg-display-heading(clamp(1.75rem, 3vw, 2.5rem), -0.03em);
   }
 
   p {
@@ -424,7 +433,7 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.25rem 0.75rem;
-  font-size: 0.84rem !important;
+  font-size: 0.84rem;
 
   b {
     color: var(--hg-dark);
@@ -444,7 +453,7 @@
 }
 
 .class-catalog-next {
-  margin: 0 0 1rem !important;
+  margin: 0 0 1rem;
   color: var(--hg-ink-soft);
 }
 
@@ -598,19 +607,14 @@
   min-height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #18211C;
+  background: var(--hg-dark);
 
   img {
     width: 100%;
     height: 100%;
     min-height: 20rem;
     object-fit: cover;
-    transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-}
-
-.home-event-panel:hover .home-event-media img {
-  transform: scale(1.03);
 }
 
 .home-event-copy {
@@ -625,6 +629,10 @@
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
     font-weight: 500;
     line-height: 1.3;
+    // 820px 언저리에서 마지막 어절("할인")만 다음 줄에 남지 않게 한다. balance만 쓰면 가운뎃점 뒤("가죽·/레진")에서
+    // 끊기 쉬워, pretty를 지원하는 브라우저는 끝줄만 다듬고 지원하지 않으면 balance로 줄 길이를 고르게 나눈다.
+    text-wrap: balance;
+    text-wrap: pretty;
   }
 }
 
@@ -656,21 +664,38 @@
   gap: 0.75rem;
 }
 
+.home-event-panel.is-empty {
+  color: var(--hg-dark);
+  background: var(--hg-surface-alt);
+}
+
 .home-event-empty {
   align-items: flex-start;
 
   > p {
     max-width: 30rem;
     margin-bottom: 1.75rem;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--hg-ink-soft-on-alt);
+  }
+}
+
+// 이벤트 카드는 카드 전체가 링크(stretched-link)라 마우스를 올리면 테두리와 제목 밑줄로 알린다.
+.event-card {
+  transition: border-color var(--hg-transition);
+
+  &:hover {
+    border-color: var(--hg-dark);
+  }
+
+  &:hover .card-title {
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 }
 
 .event-coupon-panel {
   overflow: hidden;
   background: var(--hg-clay-tint);
-  border-radius: var(--hg-radius-media);
-  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.12);
 
   .card-body {
     padding: clamp(1.5rem, 4vw, 2.25rem);
@@ -678,25 +703,6 @@
 }
 
 // ── 클래스 목록 ─────────────────────────────────────────
-.class-catalog-page {
-  padding-block: clamp(2.5rem, 5vw, 4.5rem);
-}
-
-.class-catalog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 1.5rem 2rem;
-  margin-bottom: 1.75rem;
-
-  h1 {
-    margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(2.1rem, 4vw, 3rem);
-    font-weight: 500;
-  }
-}
-
 .class-situation-chips {
   display: flex;
   flex-wrap: wrap;
@@ -704,18 +710,7 @@
   margin-bottom: 1rem;
 
   button {
-    padding: 0.45rem 0.95rem;
-    color: var(--hg-dark);
-    background: var(--hg-surface);
-    border: 1px solid var(--hg-border);
-    border-radius: var(--hg-radius);
-    font-size: 0.88rem;
-    font-weight: 650;
-    transition: border-color var(--hg-transition), background var(--hg-transition);
-
-    &:hover {
-      border-color: var(--hg-accent);
-    }
+    @include hg-situation-chip;
 
     &[aria-pressed="true"] {
       color: #FFFFFF;
@@ -766,7 +761,9 @@
   transform: scale(1.03);
 }
 
+// 사진은 상세로 가는 링크라 block으로 둬 칸 높이를 채운다.
 .class-catalog-media {
+  display: block;
   height: 100%;
   min-height: 15rem;
 }
@@ -816,11 +813,24 @@
     font-family: var(--hg-font-display);
     font-size: clamp(1.4rem, 2.4vw, 1.75rem);
     font-weight: 500;
+
+    a {
+      color: inherit;
+      text-decoration: none;
+      text-underline-offset: 4px;
+
+      &:hover,
+      &:focus-visible {
+        text-decoration: underline;
+      }
+    }
   }
 
   strong {
     flex: 0 0 auto;
+    font-family: var(--hg-font-display);
     font-size: 1.15rem;
+    font-weight: 500;
   }
 }
 
@@ -832,13 +842,21 @@
   white-space: pre-line;
 }
 
+// 모든 항목을 이름·값 한 줄로 맞춘다. 짧은 항목(시간·정원)은 두 개씩, 추천 대상·준비물은 한 줄 전체를 쓴다.
 .class-catalog-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 1.5rem;
   margin: 1.25rem 0;
   padding-block: 1rem;
   border-block: 1px solid var(--hg-border);
+
+  > div {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: baseline;
+  }
 
   dt {
     color: var(--hg-ink-soft);
@@ -856,9 +874,6 @@
 
 .class-catalog-meta-wide {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: 1rem;
 }
 
 .class-catalog-actions {
@@ -876,30 +891,7 @@
   margin-top: 2.5rem;
 
   > a {
-    display: grid;
-    gap: 0.35rem;
-    padding: 1.75rem 2rem;
-    color: var(--hg-dark);
-    background: var(--hg-leaf-tint);
-    border-radius: var(--hg-radius-media);
-    text-decoration: none;
-    transition: background var(--hg-transition);
-
-    &:hover,
-    &:focus-visible {
-      background: #E6E6E2;
-    }
-  }
-
-  strong {
-    font-family: var(--hg-font-display);
-    font-size: 1.35rem;
-    font-weight: 500;
-  }
-
-  span {
-    color: var(--hg-ink-soft);
-    font-size: 0.88rem;
+    @include hg-program-link;
   }
 }
 
@@ -946,11 +938,7 @@
 
 .class-detail-title {
   margin: 0;
-  font-family: var(--hg-font-display);
-  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.035em;
+  @include hg-display-heading(clamp(1.9rem, 3.4vw, 2.75rem), -0.035em, $line-height: 1.2);
 }
 
 .class-detail-price-row {
@@ -993,7 +981,7 @@
     padding: 0 0.85rem;
     color: var(--hg-dark);
     background: var(--hg-surface-alt);
-    border-radius: 999px;
+    border-radius: var(--hg-radius);
     font-size: 0.82rem;
     text-decoration: none;
 
@@ -1117,10 +1105,7 @@
 
   h2 {
     margin: 0;
-    font-family: var(--hg-font-display);
-    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    @include hg-display-heading(clamp(1.35rem, 2.2vw, 1.75rem), -0.02em);
   }
 
   > span {
@@ -1327,7 +1312,7 @@
 .group-class-inquiry {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2rem 3rem;
   margin-top: clamp(4rem, 8vw, 6rem);
   padding: clamp(2rem, 5vw, 4rem);
@@ -1345,11 +1330,6 @@
   flex-direction: column;
   gap: 0.8rem;
   align-items: flex-start;
-
-  > span {
-    color: var(--hg-leaf);
-    font-size: 0.875rem;
-  }
 }
 
 // ── 반응형 ──────────────────────────────────────────────
@@ -1403,11 +1383,6 @@
 }
 
 @media (max-width: 767.98px) {
-  .class-catalog-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   // 모바일 홈은 작품 6개(세 줄)까지만 보여 주고 나머지는 전체 작품 보기로 이어 간다.
   .home-product-grid > :nth-child(n + 7) {
     display: none;
@@ -1464,6 +1439,11 @@
     }
   }
 
+  // 클래스 목록의 상황 칩 줄은 블록이라 화면 끝까지 넓힌다(홈의 탭·칩은 머리 줄 안의 항목이라 그대로 둔다).
+  .class-situation-chips {
+    @include hg-scroll-row-bleed;
+  }
+
   .home-event-panel {
     grid-template-columns: 1fr;
   }
@@ -1503,11 +1483,8 @@
   }
 
   // 모바일 목록은 비교에 필요한 시간·정원만 남기고 추천 대상·준비물은 상세에서 본다.
-  .class-catalog-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .class-catalog-meta-wide {
+  // 항목 줄 배치(.class-catalog-meta > div)보다 우선하도록 부모 선택자를 붙인다.
+  .class-catalog-meta .class-catalog-meta-wide {
     display: none;
   }
 

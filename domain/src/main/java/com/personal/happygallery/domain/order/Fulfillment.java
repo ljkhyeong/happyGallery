@@ -31,6 +31,8 @@ public class Fulfillment {
 
     public static final int MAX_CARRIER_LENGTH = 50;
     public static final int MAX_TRACKING_NUMBER_LENGTH = 100;
+    private static final int MAX_TRACKING_LAST_ERROR_LENGTH = 500;
+    private static final int MAX_TRACKING_STATUS_TEXT_LENGTH = 100;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -78,14 +80,14 @@ public class Fulfillment {
     @Column(name = "tracking_registration_started_at")
     private LocalDateTime trackingRegistrationStartedAt;
 
-    @Column(name = "tracking_last_error", length = 500)
+    @Column(name = "tracking_last_error", length = MAX_TRACKING_LAST_ERROR_LENGTH)
     private String trackingLastError;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tracking_status", length = 30)
     private ShipmentTrackingStatus trackingStatus;
 
-    @Column(name = "tracking_status_text", length = 100)
+    @Column(name = "tracking_status_text", length = MAX_TRACKING_STATUS_TEXT_LENGTH)
     private String trackingStatusText;
 
     @Column(name = "tracking_updated_at")
@@ -140,7 +142,7 @@ public class Fulfillment {
         if (this.type != FulfillmentType.SHIPPING) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
-                    "배송 이행에서만 출고일을 설정할 수 있습니다.");
+                    "배송 이행 주문에서만 배송 처리를 할 수 있습니다.");
         }
     }
 
@@ -150,18 +152,17 @@ public class Fulfillment {
         this.carrier = Objects.requireNonNull(carrier, "carrier must not be null").displayName();
         this.trackingNumber = DomainText.required(
                 trackingNumber, "운송장 번호는", MAX_TRACKING_NUMBER_LENGTH);
-        setTrackingRegistrationPending(carrier);
-        this.trackingNextAttemptAt = Objects.requireNonNull(now, "now must not be null");
+        setTrackingRegistrationPending(carrier, Objects.requireNonNull(now, "now must not be null"));
     }
 
-    private void setTrackingRegistrationPending(ShippingCarrier carrier) {
+    private void setTrackingRegistrationPending(ShippingCarrier carrier, LocalDateTime nextAttemptAt) {
         this.trackingCheckedAt = null;
         this.carrierCode = carrier;
         this.trackingRegistrationStatus = TrackingRegistrationStatus.PENDING;
         this.trackingRegistrationAttempts = 0;
         this.trackingRequestId = null;
         this.trackingRegistrationStartedAt = null;
-        this.trackingNextAttemptAt = null;
+        this.trackingNextAttemptAt = nextAttemptAt;
         this.trackingLastError = null;
         this.trackingStatus = ShipmentTrackingStatus.PENDING;
         this.trackingStatusText = "배송조회 등록 대기";
@@ -183,13 +184,8 @@ public class Fulfillment {
     }
 
     public void completeTrackingRegistration(String requestId, LocalDateTime now) {
-        trackingRegistrationStatus = trackingStatus == ShipmentTrackingStatus.DELIVERED
-                ? TrackingRegistrationStatus.COMPLETED
-                : TrackingRegistrationStatus.ACTIVE;
+        settleTrackingRegistration();
         trackingRequestId = requestId;
-        trackingRegistrationStartedAt = null;
-        trackingNextAttemptAt = null;
-        trackingLastError = null;
         if (trackingStatus == null || trackingStatus == ShipmentTrackingStatus.PENDING) {
             trackingStatus = ShipmentTrackingStatus.REGISTERED;
             trackingStatusText = "배송조회 등록 완료";
@@ -199,7 +195,7 @@ public class Fulfillment {
 
     public void failTrackingRegistration(String reason, LocalDateTime retryAt, int maxAttempts) {
         trackingRegistrationStartedAt = null;
-        trackingLastError = abbreviate(reason, 500);
+        trackingLastError = DomainText.truncate(reason, MAX_TRACKING_LAST_ERROR_LENGTH);
         if (trackingRegistrationAttempts >= maxAttempts || retryAt == null) {
             trackingRegistrationStatus = TrackingRegistrationStatus.FAILED;
             trackingNextAttemptAt = null;
@@ -213,9 +209,14 @@ public class Fulfillment {
                                     String statusText,
                                     LocalDateTime updatedAt) {
         trackingStatus = Objects.requireNonNull(status, "status must not be null");
-        trackingStatusText = abbreviate(statusText, 100);
+        trackingStatusText = DomainText.truncate(statusText, MAX_TRACKING_STATUS_TEXT_LENGTH);
         trackingUpdatedAt = Objects.requireNonNull(updatedAt, "updatedAt must not be null");
-        trackingRegistrationStatus = status == ShipmentTrackingStatus.DELIVERED
+        settleTrackingRegistration();
+    }
+
+    /** 등록 요청이 끝났거나 조회 결과가 들어오면 등록 lease·재시도 예약·마지막 오류를 비우고, 등록 상태는 현재 조회 상태로 정한다. */
+    private void settleTrackingRegistration() {
+        trackingRegistrationStatus = trackingStatus == ShipmentTrackingStatus.DELIVERED
                 ? TrackingRegistrationStatus.COMPLETED
                 : TrackingRegistrationStatus.ACTIVE;
         trackingRegistrationStartedAt = null;
@@ -238,13 +239,6 @@ public class Fulfillment {
         }
         trackingCheckedAt = Objects.requireNonNull(now);
         return true;
-    }
-
-    private static String abbreviate(String value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     public void setPickupDeadline(LocalDateTime pickupDeadlineAt) {

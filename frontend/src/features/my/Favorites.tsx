@@ -7,7 +7,7 @@ import { getMyFavoriteStatus, saveMyFavorite, removeMyFavorite, listMyFavorites,
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession, cursorPageParams, flattenCursorPages, type CustomerSessionSnapshot } from "@/shared/api";
-import { ErrorAlert, LoadingSpinner, EmptyState, LinkButton, useToast, CursorLoadMore } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, EmptyState, LinkButton, useToast, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import { reviewTargetHref } from "@/features/review/reviewTarget";
 
 type TargetType = FavoriteResponse["targetType"];
@@ -77,10 +77,9 @@ export function MyFavoritesSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedType = searchParams.get("type");
   const type = requestedType === "PRODUCT" || requestedType === "CLASS" ? requestedType : "";
-  const { isAuthenticated } = useCustomerAuth();
   const client = useQueryClient();
   const query = useInfiniteQuery({
-    queryKey: queryKeys.member.favorites.list(type), enabled: isAuthenticated,
+    queryKey: queryKeys.member.favorites.list(type),
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(() => listMyFavorites({ type: type || undefined, cursor: pageParam, size: 20 }, { signal })),
     ...cursorPageParams,
   });
@@ -107,16 +106,15 @@ export function MyFavoritesSection() {
       </Form.Select>
     </div>
     {query.isLoading && <LoadingSpinner />}
-    <ErrorAlert error={query.isFetchNextPageError ? null : query.error}
-      onRetry={() => { void query.refetch(); }}
-      retrying={query.isFetching || mutation.isPending}
-      retryLabel="목록 다시 불러오기" />
+    <CursorQueryErrorAlert query={query} retrying={query.isFetching || mutation.isPending} retryLabel="목록 다시 불러오기" />
     <ErrorAlert error={mutation.error}
       onRetry={() => { if (mutation.variables) mutation.mutate(mutation.variables); }}
       retrying={mutation.isPending} retryLabel="찜 해제 다시 시도" />
     {query.data && items.length === 0 && <EmptyState message="찜한 항목이 없습니다." />}
     {items.map((item) => <div key={item.id} className="d-flex justify-content-between align-items-center gap-2 border-bottom py-2">
-      <div><span className="small text-muted me-2">{item.targetType === "PRODUCT" ? "작품" : "클래스"}</span>
+      {/* 작품·클래스 이름표를 같은 폭에 두어 이름이 같은 선에서 시작한다. */}
+      <div className="d-flex align-items-baseline gap-2" style={{ minWidth: 0 }}>
+        <span className="my-favorite-kind small text-muted">{item.targetType === "PRODUCT" ? "작품" : "클래스"}</span>
         {item.active ? <Link to={reviewTargetHref(item.targetType, item.targetId)}>{item.name}</Link> : <span>{item.name} · 현재 이용할 수 없음</span>}
       </div>
       <Button size="sm" variant="outline-secondary" disabled={mutation.isPending}

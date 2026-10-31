@@ -123,7 +123,6 @@ export function AdminReviewReportDetail({
         title={pendingDecision === "ACCEPTED" ? "위반 신고로 인정할까요?" : "신고를 반려할까요?"}
         pending={mutation.isPending}
         onClose={closeConfirmation}
-        closeLabel="닫기"
         cancelLabel="취소"
         confirmLabel={mutation.isPending
           ? "처리 중..."

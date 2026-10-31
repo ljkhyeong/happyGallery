@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { TERMS_POLICY_VERSION, PRIVACY_POLICY_VERSION } from "../../src/features/policy-consent/policyVersions";
 import { clearSsrUpstreamFixtures, homeSsrFixtures, replaceSsrUpstreamFixtures } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+} from "./mock-support";
 
 test.afterEach(async () => { await clearSsrUpstreamFixtures(); });
 
@@ -14,6 +20,11 @@ for (const provider of ["naver", "kakao", "google"] as const) {
       let signedUp = false;
       let authorizations = 0;
       let completions = 0;
+      // 소셜 신규 회원은 비밀번호가 없고 Google은 번호도 제공하지 않는다.
+      const newMember = memberFixture({
+        id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567",
+        phoneVerified: false, localPasswordEnabled: false,
+      });
       await page.route("**/api/v1/**", async (route) => {
         const { pathname } = new URL(route.request().url());
         if (pathname === `/api/v1/auth/social/authorization/${provider}`) {
@@ -28,16 +39,10 @@ for (const provider of ["naver", "kakao", "google"] as const) {
           });
           expect(route.request().headers()["x-xsrf-token"]).toBe("social-consent");
           signedUp = true;
-          return fulfillJson(route, { id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false });
+          return fulfillJson(route, newMember);
         }
-        if (pathname === "/api/v1/me") return signedUp
-          ? fulfillJson(route, { id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false })
-          : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-        if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-          terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
-          privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
-        });
-        if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+        if (await fulfillMemberCommon(route, { member: signedUp ? newMember : null })) return;
+        if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture({ terms: TERMS_POLICY_VERSION, privacy: PRIVACY_POLICY_VERSION }));
         return fulfillJson(route, []);
       });
       await page.goto(`/login?${new URLSearchParams({ redirect: "/?from=social" })}`);
@@ -70,12 +75,8 @@ for (const errorCode of ["SOCIAL_LOGIN_FAILED", "SOCIAL_PHONE_REQUIRED", "SOCIAL
     await page.route("**/api/v1/**", async (route) => {
       const { pathname } = new URL(route.request().url());
       if (pathname === "/api/v1/auth/social/signup-completion") return fulfillJson(route, { code: errorCode, message: "다시 로그인해 주세요." }, errorCode === "SOCIAL_LOGIN_FAILED" ? 401 : errorCode === "SOCIAL_ACCOUNT_LINK_REQUIRED" ? 409 : 422);
-      if (pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
-        terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
-        privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
-      });
-      if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+      if (await fulfillMemberCommon(route, { member: null })) return;
+      if (pathname === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture({ terms: TERMS_POLICY_VERSION, privacy: PRIVACY_POLICY_VERSION }));
       return fulfillJson(route, []);
     });
     await page.goto("/auth/callback?signupAttempt=expired-attempt");

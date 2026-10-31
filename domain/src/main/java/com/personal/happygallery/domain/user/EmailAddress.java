@@ -1,7 +1,6 @@
 package com.personal.happygallery.domain.user;
 
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import java.util.Locale;
 
 public final class EmailAddress {
@@ -10,17 +9,10 @@ public final class EmailAddress {
 
     private EmailAddress() {}
 
+    /** 소문자로 정규화한 값의 길이를 검사한다. */
     public static String required(String value) {
-        if (value == null || value.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이메일은 필수입니다.");
-        }
-        String normalized = value.strip().toLowerCase(Locale.ROOT);
-        if (normalized.length() > MAX_LENGTH) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT,
-                    "이메일은 254자 이하여야 합니다.");
-        }
-        return normalized;
+        String lowered = value == null ? null : value.toLowerCase(Locale.ROOT);
+        return DomainText.required(lowered, "이메일은", MAX_LENGTH);
     }
 
     public static String optional(String value) {

@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  currentPoliciesFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 const sdk = `
 (() => {
@@ -32,23 +39,17 @@ const sdk = `
 
 async function setup(page: Page, member = false) {
   const configuration = { siteKey: "test-site-key", unavailable: false };
+  const account = member ? memberFixture({ id: 101 }) : null;
   await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: sdk }));
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/workshop") return route.fallback();
     if (path === "/api/v1/bot-protection") return configuration.unavailable
-      ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      ? fulfillJson(route, TEMPORARY_ERROR, 503)
       : fulfillJson(route, { siteKey: configuration.siteKey });
-    if (path === "/api/v1/me") return member
-      ? fulfillJson(route, { id: 101, name: "회원", phone: "01012345678", email: "member@example.com", phoneVerified: true })
-      : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
-    if (path === "/api/v1/policies/current") return fulfillJson(route, {
-      terms: { version: "2026-09-11-v1", documentPath: "/terms/2026-09-11-v1" },
-      privacy: { version: "2026-09-12-v1", documentPath: "/privacy/2026-09-12-v1" },
-    });
+    if (await fulfillMemberCommon(route, { member: account })) return;
+    if (path === "/api/v1/policies/current") return fulfillJson(route, currentPoliciesFixture({ terms: "2026-09-11-v1", privacy: "2026-09-12-v1" }));
     return fulfillJson(route, []);
   });
   return configuration;
@@ -138,7 +139,7 @@ test("인증문자는 확인 후 발송하고 실패·재발송에는 새 토큰
   await page.route("**/api/v1/bookings/phone-verifications", async (route) => {
     tokens.push(route.request().headers()["x-bot-token"]);
     expect(route.request().postDataJSON()).toEqual({ phone: "01012345678", purpose: "SIGNUP" });
-    return tokens.length === 1 ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+    return tokens.length === 1 ? fulfillJson(route, TEMPORARY_ERROR, 503)
       : fulfillJson(route, { phone: "01012345678", expiresAt: "2099-01-01T00:00:00" });
   });
   await page.goto("/signup");

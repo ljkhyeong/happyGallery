@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.review;
 import com.personal.happygallery.domain.content.ContentTextPolicy;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -222,7 +223,8 @@ public class Review {
         }
         LocalDateTime now = Objects.requireNonNull(changedAt, "후기 상태 변경 시각은 필수입니다.");
         if (status == ReviewStatus.HIDDEN) {
-            String normalizedReason = requireHiddenReason(reason);
+            String normalizedReason = DomainText.required(
+                    reason, "후기 숨김 사유는", MAX_HIDDEN_REASON_LENGTH);
             Long hidingAdminId = requirePositiveId(adminUserId, "관리자 ID");
             this.hiddenReason = normalizedReason;
             this.hiddenAt = now;
@@ -340,19 +342,6 @@ public class Review {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "가 올바르지 않습니다.");
         }
         return value;
-    }
-
-    private static String requireHiddenReason(String reason) {
-        if (reason == null || reason.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "후기 숨김 사유는 필수입니다.");
-        }
-        String normalized = reason.strip();
-        if (normalized.length() > MAX_HIDDEN_REASON_LENGTH) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT,
-                    "후기 숨김 사유는 " + MAX_HIDDEN_REASON_LENGTH + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     public Long getId() { return id; }

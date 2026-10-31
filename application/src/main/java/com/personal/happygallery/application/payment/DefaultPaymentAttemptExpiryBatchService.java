@@ -6,6 +6,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpir
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
@@ -30,14 +31,17 @@ public class DefaultPaymentAttemptExpiryBatchService implements PaymentAttemptEx
 
     @Override
     public BatchResult expirePendingAttempts() {
-        // payment_attempt.created_at은 UTC DB 시각으로 생성되므로 같은 시간대의 cutoff와 비교한다.
-        LocalDateTime cutoff = LocalDateTime.ofInstant(
-                clock.instant().minus(PREPARE_TTL), ZoneOffset.UTC);
+        LocalDateTime cutoff = prepareExpiredBefore(clock.instant());
         return BatchExecutor.executeByIdCursor(
                 afterId -> attemptReader.findExpiredPendingIdsAfterId(
                         cutoff, afterId, BATCH_SIZE),
                 attemptId -> attemptId,
                 attemptId -> expiryProcessor.expire(attemptId, cutoff),
                 "결제 준비 만료");
+    }
+
+    /** payment_attempt.created_at은 UTC DB 시각으로 생성되므로 같은 시간대의 만료 경계를 돌려준다. */
+    static LocalDateTime prepareExpiredBefore(Instant now) {
+        return LocalDateTime.ofInstant(now.minus(PREPARE_TTL), ZoneOffset.UTC);
     }
 }

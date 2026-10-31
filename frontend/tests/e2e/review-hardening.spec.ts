@@ -1,11 +1,21 @@
 import { expect, test } from "@playwright/test";
-import type { OrderDetailResponse } from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
+import {
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+  orderDetailFixture,
+  orderItemFixture,
+  orderPolicyFixture,
+  productDetailFixture,
+  seedAdminSession,
+} from "./mock-support";
 
 const ONE_PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -115,14 +125,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: null })) return;
     const evidenceImageMatch = pathname.match(
       /^\/api\/v1\/admin\/review-evidence\/(\d+)\/images\/(\d+)$/,
     );
@@ -156,7 +159,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       return;
     }
     if (pathname === "/api/v1/admin/reviews") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/reviews/11" && request.method() === "GET") {
@@ -490,44 +493,19 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
+  const member = memberFixture({ email: "review-hardening@example.com", name: "후기 검증 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const { pathname } = url;
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 501,
-        email: "review-hardening@example.com",
-        name: "후기 검증 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/products/42") {
       await route.fallback();
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
     if (pathname === "/api/v1/media/images/broken-review-image.png") {
@@ -570,7 +548,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     }
     if (pathname === "/api/v1/products/42/qna/page"
       || pathname === "/api/v1/me/products/42/qna/page") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -620,34 +598,13 @@ test("@smoke 작성 가능한 후기 이용 내역은 커서 다음 페이지까
     completedAt: "2026-08-09T10:00:00",
   });
 
+  const member = memberFixture({ id: 701, email: "review-opportunity@example.com", name: "후기 기회 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const { pathname } = url;
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 701,
-        email: "review-opportunity@example.com",
-        name: "후기 기회 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/reviews/opportunities") {
       const cursor = url.searchParams.get("cursor");
       opportunityCursors.push(cursor);
@@ -665,7 +622,7 @@ test("@smoke 작성 가능한 후기 이용 내역은 커서 다음 페이지까
       return;
     }
     if (pathname === "/api/v1/me/reviews") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
 
@@ -725,35 +682,14 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
     }],
   });
 
+  const member = memberFixture({ id: 701, email: "review-revision@example.com", name: "후기 수정 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 701,
-        email: "review-revision@example.com",
-        name: "후기 수정 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/reviews/opportunities") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/me/reviews/51/images/61" && request.method() === "GET") {
@@ -819,7 +755,7 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
   const imageDeleteDialog = page.getByRole("dialog", { name: "후기 사진 삭제" });
   await expect(imageDeleteDialog).toContainText("삭제한 사진은 복구할 수 없습니다.");
   expect(deleteImageRequests).toBe(0);
-  await imageDeleteDialog.getByRole("button", { name: "취소" }).click();
+  await imageDeleteDialog.getByRole("button", { name: "닫기", exact: true }).click();
   await expect(imageDeleteButton).toBeFocused();
 
   const editButton = card.getByRole("button", { name: "수정", exact: true });
@@ -856,72 +792,19 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
 test("@smoke 후기 작성 폼은 첫 입력으로 이동하고 취소 후 작성 버튼으로 돌아간다", async ({
   page,
 }) => {
+  const member = memberFixture({ id: 801, email: "review-focus@example.com", name: "후기 포커스 회원" });
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 801,
-        email: "review-focus@example.com",
-        name: "후기 포커스 회원",
-        phone: "01012345678",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
     if (pathname === "/api/v1/me/orders/83") {
-      await fulfillJson(route, {
-        approvalDeadlineAt: null,
-        couponDiscountAmount: 0,
-        fulfillment: null,
-        issuedCouponId: null,
-        couponStatus: null,
-        items: [{
-          basePrice: 12000,
-          careInstructions: null,
-          couponDiscountAmount: 0,
-          grossAmount: 12000,
-          netPaidAmount: 12000,
-          options: [],
-          orderItemId: 831,
-          productId: 42,
-          productName: "후기 포커스 검증 작품",
-          productType: "READY_STOCK",
-          productVariantId: null,
-          productionLeadDays: null,
-          qty: 1,
-          rewardUsedAmount: 0,
-          specification: null,
-          textOptionPriceAdjustment: 0,
-          unitPrice: 12000,
-          variantPriceAdjustment: 0,
-        }],
+      await fulfillJson(route, orderDetailFixture({
         orderId: 83,
         orderNumber: "HG-REVIEW-FOCUS-83",
-        receiptUrl: null,
-        paidAt: "2026-08-09T10:00:00",
-        pgPaidAmount: 12000,
-        productAmount: 12000,
-        refund: null,
-        rewardEarnBase: 12000,
-        rewardUsedAmount: 0,
-        shippingFee: 0,
         status: "COMPLETED",
-        totalAmount: 12000,
-      } satisfies OrderDetailResponse);
+        paidAt: "2026-08-09T10:00:00",
+        items: [orderItemFixture({ orderItemId: 831, productId: 42, productName: "후기 포커스 검증 작품" })],
+      }));
       return;
     }
     if (pathname === "/api/v1/me/reviews/orders/83") {

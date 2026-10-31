@@ -1,12 +1,10 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link, useLocation } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { myNavLabel } from "@/features/my/myNavigation";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { getMyOrder } from "@/generated/api/customerStore";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
-import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
@@ -21,13 +19,12 @@ export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
   const validOrderId = isPositiveSafeIntegerString(id);
-  const { isAuthenticated } = useCustomerAuth();
   const queryClient = useQueryClient();
 
   const { data: order, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: queryKeys.member.orders.detail(orderId),
-    queryFn: () => getMyOrder(orderId),
-    enabled: isAuthenticated && validOrderId,
+    queryFn: () => runForCurrentCustomer(() => getMyOrder(orderId)),
+    enabled: validOrderId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
   const cancelMutation = useMutation({
@@ -48,7 +45,7 @@ export function MyOrderDetailPage() {
 
   return (
     <>
-      <Link to={{ pathname: "/my/orders", search }} className="my-back-link">
+      <Link to={{ pathname: "/my/orders", search }} className="page-back-link">
         &larr; {myNavLabel("/my/orders")}
       </Link>
       <PageHeader
@@ -60,17 +57,19 @@ export function MyOrderDetailPage() {
       {order && (
         <>
           <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
-          <OrderDetailCard order={order} />
-          <ShippingAddressEditPanel order={order} onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all })} />
-          {order.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={order.receiptUrl} /></div>}
+          <OrderDetailCard
+            order={order}
+            actions={order.receiptUrl ? <PaymentReceiptLink receiptUrl={order.receiptUrl} /> : undefined}
+          />
           <OrderCustomerActionPanel
-            status={order.status}
+            order={order}
+            shippingAddressEdit={{ onSaved: () => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }) }}
             pending={cancelMutation.isPending || delayMutation.isPending}
             error={cancelMutation.error ?? delayMutation.error}
             onCancel={() => cancelMutation.mutate()}
             onDelayDecision={(decision) => delayMutation.mutate(decision)}
           />
-          <OrderReviewsSection orderId={order.orderId} items={order.items} />
+          <OrderReviewsSection orderId={order.orderId} status={order.status} items={order.items} />
           <OrderClaimSection order={order} access={{ kind: "member" }} />
         </>
       )}

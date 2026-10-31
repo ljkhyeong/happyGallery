@@ -19,7 +19,7 @@ export function MemberReviewProtectedImage({ reviewId, imageId, alt }: Props) {
   if (error) {
     return (
       <Alert
-        variant="warning"
+        variant="danger"
         className="d-flex flex-column align-items-center justify-content-center gap-1 p-2 small mb-0"
         role="alert"
         aria-label={`${alt} 불러오기 실패`}

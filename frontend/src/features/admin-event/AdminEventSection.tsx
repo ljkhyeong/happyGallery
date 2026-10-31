@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
@@ -19,11 +18,10 @@ import { adminProductsQuery } from "@/features/admin-product/api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { eventTimingLabel } from "@/features/event/time";
 import { queryKeys } from "@/shared/api";
-import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
+import { useVersionedCrudForm } from "@/shared/hooks/useVersionedCrudForm";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 import {
   CONTENT_BODY_MAX_LENGTH,
@@ -113,20 +111,6 @@ function updateRequest(form: EventFormState, expectedVersion: number): UpdateEve
 
 export function AdminEventSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
-  const toast = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState<EventFormState>(emptyForm);
-  const [actionError, setActionError] = useState<Error | null>(null);
-  const edit = useVersionedEdit<EventResponse>({
-    onAuthError,
-    isConflict: isVersionConflict,
-    applyToForm: (event) => setForm(formFrom(event)),
-    setError: setActionError,
-    onConflict: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.events });
-    },
-  });
 
   const eventsQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.events,
@@ -142,57 +126,37 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
     ]);
   };
 
-  const resetForm = () => {
-    edit.reset();
-    setShowForm(false);
-    setEditId(null);
-    setForm(emptyForm());
-    setActionError(null);
-  };
-
-  const createMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => createEvent(createRequest(form), adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("이벤트가 등록되었습니다.");
-      resetForm();
-      invalidateEvents();
+  const {
+    edit,
+    form,
+    setForm,
+    showForm,
+    editId,
+    actionError,
+    saving,
+    deleteMutation,
+    startEdit,
+    toggleForm,
+    submit,
+  } = useVersionedCrudForm({
+    onAuthError,
+    emptyForm,
+    draftFrom: formFrom,
+    formFrom,
+    fetchLatest: (id) => fetchAdminEvent(id, adminKey),
+    create: (draft) => createEvent(createRequest(draft), adminKey),
+    update: (id, draft, expectedVersion) => updateEvent(id, updateRequest(draft, expectedVersion), adminKey),
+    remove: (id, version) => deleteEvent(id, version, adminKey),
+    onSaved: invalidateEvents,
+    onConflict: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.events });
     },
-    onError: setActionError,
-  });
-
-  const updateMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateEvent(
-      editId!,
-      updateRequest(form, edit.version!),
-      adminKey,
-    ),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("이벤트가 수정되었습니다.");
-      resetForm();
-      invalidateEvents();
+    messages: {
+      created: "이벤트가 등록되었습니다.",
+      updated: "이벤트가 수정되었습니다.",
+      deleted: "이벤트가 삭제되었습니다.",
     },
-    onError: (error) => edit.handleSaveError(error, () => fetchAdminEvent(editId!, adminKey)),
   });
-
-  const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: ({ id, version }: Pick<EventResponse, "id" | "version">) =>
-      deleteEvent(id, version, adminKey),
-    onMutate: () => setActionError(null),
-    onSuccess: () => {
-      toast.show("이벤트가 삭제되었습니다.");
-      invalidateEvents();
-    },
-    onError: edit.handleDeleteError,
-  });
-
-  const startEdit = (event: EventResponse) => {
-    setEditId(event.id);
-    setForm(formFrom(event));
-    setShowForm(true);
-    void edit.startEdit(() => fetchAdminEvent(event.id, adminKey));
-  };
 
   const valid = form.title.trim().length > 0
     && form.summary.trim().length > 0
@@ -201,27 +165,16 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
     && form.endAt.length > 0
     && form.startAt < form.endAt;
 
-  const submit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!valid) return;
-    if (editId === null) createMutation.mutate();
-    else if (edit.version !== null) updateMutation.mutate();
+    submit();
   };
 
   return (
     <div>
-      <div className="d-flex justify-content-end mb-3">
-        <Button
-          size="sm"
-          variant="outline-primary"
-          onClick={() => {
-            if (showForm) resetForm();
-            else {
-              setForm(emptyForm());
-              setShowForm(true);
-            }
-          }}
-        >
+      <div className="admin-panel-create">
+        <Button size="sm" variant={showForm ? "outline-secondary" : "primary"} onClick={toggleForm}>
           {showForm ? "취소" : "새 이벤트 작성"}
         </Button>
       </div>
@@ -240,7 +193,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
               />
             )}
 
-            <Form onSubmit={submit}>
+            <Form onSubmit={handleSubmit}>
               <Row className="g-3">
                 <Col xs={12}>
                   <Form.Group controlId="admin-event-title">
@@ -407,8 +360,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       || edit.loading
                       || edit.conflict !== null
                       || (editId !== null && edit.version === null)
-                      || createMutation.isPending
-                      || updateMutation.isPending
+                      || saving
                     }
                   >
                     {editId === null ? "등록" : "수정"}

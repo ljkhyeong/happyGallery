@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { NotificationResponse } from "../../src/generated/api/notification";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture } from "./mock-support";
 
 const FAILURE_NOTICE = "알림을 읽음 처리하지 못했습니다. 알림 목록에서 다시 시도해 주세요.";
 // 신청 내역을 찾을 수 없는 재입고 알림은 재입고 알림 목록으로 간다.
@@ -31,15 +31,14 @@ async function mockNotifications(page: Page) {
       rows.filter((row) => id === undefined || row.id === id).forEach((row) => { row.read = true; });
       return route.fulfill({ status: 204 });
     }
+    if (pathname === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: rows.filter((row) => !row.read).length });
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "notification@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=notification-read-test; Path=/" }, json: {},
       });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
-        email: "notification@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: rows.filter((row) => !row.read).length });
       case "/api/v1/me/notifications": return fulfillJson(route, rows.filter((row) => searchParams.get("unreadOnly") !== "true" || !row.read));
       case "/api/v1/me/restock-alerts": return fulfillJson(route, []);
       default: throw new Error(`정의하지 않은 알림 테스트 요청: ${pathname}`);
@@ -51,7 +50,7 @@ async function mockNotifications(page: Page) {
 }
 
 async function openPopover(page: Page) {
-  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await page.getByRole("button", { name: /^알림(, 읽지 않은 알림 \d+개)?$/ }).click();
   const dialog = page.getByRole("dialog", { name: "알림 목록" });
   await expect(dialog).toBeVisible();
   return dialog;
@@ -83,7 +82,7 @@ test("상단 모두 읽음은 처리 중 중복 클릭을 막고 실패한 요�
   state.hold = false;
   state.release();
   await expect(dialog.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("button", { name: "알림", exact: true })).toContainText("2");
+  await expect(page.getByRole("button", { name: "알림, 읽지 않은 알림 2개" })).toContainText("2");
   await page.screenshot({ path: testInfo.outputPath("popover-retry.png"), fullPage: true });
   state.fail = false;
   await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
@@ -115,7 +114,7 @@ for (const surface of ["상단", "전체 목록"]) {
     state.fail = true;
     if (surface === "상단") {
       const dialog = await openPopover(page);
-      await dialog.getByRole("button").filter({ hasText: "가죽 지갑" }).click();
+      await dialog.getByRole("link").filter({ hasText: "가죽 지갑" }).click();
     } else {
       await page.locator(".card").filter({ hasText: "가죽 지갑" }).getByRole("link").click();
     }
@@ -131,7 +130,7 @@ test("계정 전환 뒤 도착한 이전 읽음 실패는 표시하지 않는다
   state.hold = true;
   state.fail = true;
   const dialog = await openPopover(page);
-  await dialog.getByRole("button").filter({ hasText: "가죽 지갑" }).click();
+  await dialog.getByRole("link").filter({ hasText: "가죽 지갑" }).click();
   await expect.poll(() => state.requests.length).toBe(1);
   state.accountId = 502;
   await changeAccount(page);

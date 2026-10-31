@@ -1,13 +1,13 @@
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Table } from "react-bootstrap";
 import { fetchFailedNotifications, retryNotification } from "./api";
 import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
-import type { FailedNotificationResponse } from "@/shared/types";
+import type { FailedNotificationResponse } from "@/generated/api/adminOperations";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -17,8 +17,7 @@ interface Props {
 export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [pendingId, setPendingId] = useState<number | null>(null);
-  const queryKey = ["admin", "notifications", "failed"];
+  const queryKey = queryKeys.admin.notifications.failed;
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchFailedNotifications(adminKey),
@@ -27,13 +26,12 @@ export function FailedNotificationSection({ adminKey, onAuthError }: Props) {
 
   const retry = useAdminMutation(onAuthError, {
     mutationFn: (outboxId: number) => retryNotification(adminKey, outboxId),
-    onMutate: (outboxId) => setPendingId(outboxId),
     onSuccess: () => {
       toast.show("알림을 다시 보내도록 요청했습니다. 기존 발송 건을 이어서 처리해 중복 발송을 막습니다.");
       queryClient.invalidateQueries({ queryKey });
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = retry.isPending ? retry.variables : null;
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {

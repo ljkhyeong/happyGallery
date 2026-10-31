@@ -52,7 +52,7 @@ export function PassPurchasePage() {
       disabled={purchaseMutation.isPending || !policy}
       onClick={() => purchaseMutation.mutate()}
     >
-      {purchaseMutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
+      {purchaseMutation.isPending ? "결제창 여는 중..." : "결제하기"}
     </Button>
   ) : (
     <LinkButton
@@ -64,7 +64,7 @@ export function PassPurchasePage() {
   );
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       <PageHeader
         title="4회권 구매"
         description="정규 공예 수업을 원하는 날짜에 네 번 예약할 수 있는 이용권입니다."
@@ -76,7 +76,6 @@ export function PassPurchasePage() {
             label="결제 요약"
             action={submitButton}
             mobileTotal={policy ? { label: "결제 금액", amount: formatKRW(policy.totalPrice) } : undefined}
-            note="결제 전 금액과 이용 기간을 확인해 주세요."
           >
             <h2 className="checkout-summary-title">정규 공예 4회권</h2>
             {policy && (

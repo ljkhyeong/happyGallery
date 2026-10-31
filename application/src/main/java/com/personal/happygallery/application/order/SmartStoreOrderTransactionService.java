@@ -261,6 +261,6 @@ class SmartStoreOrderTransactionService {
 
     private SmartStoreProductOrder lockedOrder(String productOrderId) {
         return orderPort.findByProductOrderIdWithLock(productOrderId)
-                .orElseThrow(() -> new NotFoundException("스마트스토어 상품 주문"));
+                .orElseThrow(NotFoundException.supplier("스마트스토어 상품 주문"));
     }
 }

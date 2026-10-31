@@ -4,7 +4,7 @@ import {
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, navigateInApp, seedAdminSession } from "./mock-support";
+import { EMPTY_CURSOR_PAGE, fulfillJson, navigateInApp, seedAdminSession, UNAUTHORIZED_ERROR } from "./mock-support";
 
 const workshop = {
   name: "해피갤러리",
@@ -39,10 +39,7 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최�
     const { pathname } = new URL(request.url());
 
     if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        code: "UNAUTHORIZED",
-        message: "로그인이 필요합니다.",
-      }, 401);
+      await fulfillJson(route, UNAUTHORIZED_ERROR, 401);
       return;
     }
     if (pathname === "/api/v1/notices") {
@@ -72,7 +69,7 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최�
     if (pathname === "/api/v1/admin/qna/unanswered"
       || pathname === "/api/v1/admin/inquiries"
       || pathname === "/api/v1/admin/group-inquiries") {
-      await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-inquiries/page") {

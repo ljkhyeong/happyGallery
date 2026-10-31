@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.notification;
 
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notification_log")
 public class NotificationLog {
+
+    private static final int FAIL_REASON_LIMIT = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +40,7 @@ public class NotificationLog {
     @Column(name = "status", nullable = false, length = 10)
     private NotificationLogStatus status;
 
-    @Column(name = "fail_reason", length = 500)
+    @Column(name = "fail_reason", length = FAIL_REASON_LIMIT)
     private String failReason;
 
     @Column(name = "provider_request_id", length = 100)
@@ -51,18 +54,24 @@ public class NotificationLog {
 
     protected NotificationLog() {}
 
+    private NotificationLog(Long guestId, Long userId,
+                            NotificationChannel channel,
+                            NotificationEventType eventType,
+                            NotificationLogStatus status,
+                            LocalDateTime sentAt) {
+        this.guestId = guestId;
+        this.userId = userId;
+        this.channel = channel;
+        this.eventType = eventType;
+        this.status = status;
+        this.sentAt = sentAt;
+    }
+
     public static NotificationLog success(Long guestId, Long userId,
                                           NotificationChannel channel,
                                           NotificationEventType eventType,
                                           LocalDateTime sentAt) {
-        NotificationLog log = new NotificationLog();
-        log.guestId = guestId;
-        log.userId = userId;
-        log.channel = channel;
-        log.eventType = eventType;
-        log.status = NotificationLogStatus.SUCCESS;
-        log.sentAt = sentAt;
-        return log;
+        return new NotificationLog(guestId, userId, channel, eventType, NotificationLogStatus.SUCCESS, sentAt);
     }
 
     public static NotificationLog failed(Long guestId, Long userId,
@@ -70,14 +79,9 @@ public class NotificationLog {
                                          NotificationEventType eventType,
                                          String failReason,
                                          LocalDateTime sentAt) {
-        NotificationLog log = new NotificationLog();
-        log.guestId = guestId;
-        log.userId = userId;
-        log.channel = channel;
-        log.eventType = eventType;
-        log.status = NotificationLogStatus.FAILED;
+        NotificationLog log = new NotificationLog(
+                guestId, userId, channel, eventType, NotificationLogStatus.FAILED, sentAt);
         log.failReason = failReason;
-        log.sentAt = sentAt;
         return log;
     }
 
@@ -89,15 +93,10 @@ public class NotificationLog {
             String providerRequestId,
             Long providerRecipientSeq,
             LocalDateTime requestedAt) {
-        NotificationLog log = new NotificationLog();
-        log.guestId = guestId;
-        log.userId = userId;
-        log.channel = channel;
-        log.eventType = eventType;
-        log.status = NotificationLogStatus.REQUESTED;
+        NotificationLog log = new NotificationLog(
+                guestId, userId, channel, eventType, NotificationLogStatus.REQUESTED, requestedAt);
         log.providerRequestId = providerRequestId;
         log.providerRecipientSeq = providerRecipientSeq;
-        log.sentAt = requestedAt;
         return log;
     }
 
@@ -109,9 +108,7 @@ public class NotificationLog {
 
     public void markFailed(String reason, LocalDateTime failedAt) {
         status = NotificationLogStatus.FAILED;
-        failReason = reason == null || reason.length() <= 500
-                ? reason
-                : reason.substring(0, 500);
+        failReason = DomainText.truncate(reason, FAIL_REASON_LIMIT);
         sentAt = failedAt;
     }
 

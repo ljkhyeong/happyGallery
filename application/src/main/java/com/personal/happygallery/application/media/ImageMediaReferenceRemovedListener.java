@@ -1,9 +1,6 @@
 package com.personal.happygallery.application.media;
 
-import java.util.LinkedHashSet;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -26,10 +23,7 @@ class ImageMediaReferenceRemovedListener {
             phase = TransactionPhase.AFTER_COMMIT,
             fallbackExecution = true)
     public void deleteAfterCommit(ImageMediaReferenceRemovedEvent event) {
-        Set<String> fileNames = event.imageUrls().stream()
-                .map(ImageMediaReferenceGuard::localFileName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> fileNames = ImageMediaReferenceGuard.localFileNames(event.imageUrls());
         if (fileNames.isEmpty()) {
             return;
         }

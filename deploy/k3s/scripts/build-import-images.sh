@@ -86,20 +86,12 @@ app_image_digest=$(containerd_image_digest "$app_image") \
 frontend_image_digest=$(containerd_image_digest "$frontend_image") \
     || die "프런트 이미지 digest를 확인할 수 없습니다: $frontend_image"
 for digest in "$app_image_digest" "$frontend_image_digest"; do
-    printf '%s' "$digest" | grep -Eq '^sha256:[a-f0-9]{64}$' \
+    is_sha256_digest "$digest" \
         || die "containerd가 올바르지 않은 이미지 digest를 반환했습니다: $digest"
 done
 
-for reference in \
-    "$app_image@$app_image_digest" \
-    "$frontend_image@$frontend_image_digest"; do
-    source_image=${reference%@*}
-    # CRI는 tag@digest 조회 시 tag를 제외한다. 백업용 기존 이름도 함께 보존한다.
-    digest_reference="${source_image%:*}@${reference#*@}"
-    for alias_reference in "$reference" "$digest_reference"; do
-        ensure_containerd_image_alias "$source_image" "$alias_reference" "${reference#*@}"
-    done
-done
+register_containerd_digest_aliases "$app_image" "$app_image_digest"
+register_containerd_digest_aliases "$frontend_image" "$frontend_image_digest"
 
 cat <<EOF
 이미지 import 완료

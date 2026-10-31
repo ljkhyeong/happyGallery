@@ -84,7 +84,7 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
             <GroupInquirySection />
             {inquiryHref && (
               <a
-                className="btn btn-dark btn-lg"
+                className="btn btn-outline-dark btn-lg"
                 href={inquiryHref}
                 target="_blank"
                 rel="noreferrer"

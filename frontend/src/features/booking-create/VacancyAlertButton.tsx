@@ -198,9 +198,10 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         show={showGuestForm}
         onHide={() => setShowGuestForm(false)}
         centered
+        aria-labelledby={`vacancy-alert-title-${slotId}`}
       >
-        <Modal.Header closeButton>
-          <Modal.Title>빈자리 알림 신청</Modal.Title>
+        <Modal.Header closeLabel="창 닫기" closeButton>
+          <Modal.Title id={`vacancy-alert-title-${slotId}`} className="fs-6">빈자리 알림 신청</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="small py-2">
@@ -217,9 +218,11 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
             />
           </Form.Group>
           <ErrorAlert error={registerMutation.error} />
+          {/* 창 제목(Modal.Title)은 제목 요소가 아니어서 창 안의 첫 제목으로 h2를 쓴다. */}
           <PhoneVerificationStep
             purpose="GUEST_BOOKING"
             title="휴대폰 인증"
+            titleAs="h2"
             description="빈자리 안내를 받을 휴대폰 번호를 확인합니다."
             confirmLabel="빈자리 알림 신청"
             confirming={registerMutation.isPending}
@@ -231,6 +234,12 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
             })}
           />
         </Modal.Body>
+        {/* 신청 버튼은 인증 단계 안에 있어 바닥에는 다른 창과 같은 먹색 테두리 닫기만 둔다. */}
+        <Modal.Footer>
+          <Button type="button" variant="outline-dark" onClick={() => setShowGuestForm(false)}>
+            닫기
+          </Button>
+        </Modal.Footer>
       </Modal>
     </>
   );

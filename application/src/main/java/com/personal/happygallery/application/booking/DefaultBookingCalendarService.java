@@ -17,7 +17,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,11 +57,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         BookingCalendarSettings settings = settingsPort
                 .findByIdForUpdate(BookingCalendarSettings.SINGLETON_ID)
                 .orElseThrow(NotFoundException.supplier("예약 캘린더 설정"));
-        if (settings.getVersion() != command.expectedVersion()) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT,
-                    "예약 캘린더 설정이 변경되었습니다. 최신 내용을 다시 불러와 주세요.");
-        }
+        settings.requireVersion(command.expectedVersion());
         settings.update(
                 command.openTime(),
                 command.closeTime(),
@@ -79,7 +74,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         requireCalendarRange(dateFrom, dateTo);
         BookingCalendarPolicy.CalendarRules rules = calendarPolicy.rules(dateFrom, dateTo);
         List<CalendarDay> days = dateFrom.datesUntil(dateTo.plusDays(1))
-                .map(date -> toCalendarDay(date, rules, rules.overrides(), rules.blocks()))
+                .map(date -> toCalendarDay(date, rules))
                 .toList();
         return new CalendarView(rules.settings(), days);
     }
@@ -123,12 +118,8 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
         refreshDate(classes, block.getDate());
     }
 
-    private CalendarDay toCalendarDay(
-            LocalDate date,
-            BookingCalendarPolicy.CalendarRules rules,
-            Map<LocalDate, BookingDayOverride> overrides,
-            Map<LocalDate, List<BookingTimeBlock>> blocks) {
-        BookingDayOverride override = overrides.get(date);
+    private CalendarDay toCalendarDay(LocalDate date, BookingCalendarPolicy.CalendarRules rules) {
+        BookingDayOverride override = rules.overrides().get(date);
         DayOverrideMode overrideMode = override == null
                 ? DayOverrideMode.DEFAULT
                 : override.getAvailability() == BookingDayAvailability.OPEN
@@ -140,7 +131,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
                 calendarPolicy.effectiveAvailability(date, rules),
                 overrideMode,
                 override == null ? null : override.getReason(),
-                blocks.getOrDefault(date, List.of()));
+                rules.blocks().getOrDefault(date, List.of()));
     }
 
     private List<BookingClass> lockAllClasses() {
@@ -177,7 +168,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
                 || dateFrom.plusDays(MAX_CALENDAR_DAYS - 1L).isBefore(dateTo)) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
-                    "예약 캘린더는 한 번에 93일까지 조회할 수 있습니다.");
+                    "예약 캘린더는 한 번에 " + MAX_CALENDAR_DAYS + "일까지 조회할 수 있습니다.");
         }
     }
 }

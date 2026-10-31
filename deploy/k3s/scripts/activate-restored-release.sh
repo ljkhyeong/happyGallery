@@ -28,8 +28,8 @@ printf '%s' "$reconciliation_token" \
 [ "${CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION:-}" = "$reconciliation_token" ] \
     || die "개인정보 요청 대사 완료 후 CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION을 복원 대사 토큰으로 지정해야 합니다."
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
-restore_state_root=${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$state_root")/restores}
+state_root=$(release_state_dir)
+restore_state_root=$(restore_state_dir)
 pending_marker="$restore_state_root/$reconciliation_token.pending"
 activation_owner="${BASHPID:-$$}-$RANDOM-$RANDOM"
 activating_marker="$restore_state_root/$reconciliation_token-$activation_owner.activating"
@@ -53,21 +53,7 @@ marker_metadata_sha256=$(require_env_value RECOVERY_METADATA_SHA256 "$pending_ma
 [ "$(require_env_value RELEASE_DIR "$pending_marker")" = "$release_dir" ] \
     || die "복원 대사 토큰의 호환 release 디렉터리가 요청과 다릅니다."
 
-printf '%s' "$APP_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "보존된 app 이미지 digest가 올바르지 않습니다."
-printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "보존된 frontend 이미지 digest가 올바르지 않습니다."
-printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
-    || die "보존된 IMAGE_TAG가 올바르지 않습니다."
-case "$APP_IMAGE" in
-    *:"$IMAGE_TAG") ;;
-    *) die "보존된 APP_IMAGE 태그가 IMAGE_TAG와 다릅니다." ;;
-esac
-case "$FRONTEND_IMAGE" in
-    *:"$IMAGE_TAG") ;;
-    *) die "보존된 FRONTEND_IMAGE 태그가 IMAGE_TAG와 다릅니다." ;;
-esac
-
+# 보존된 digest·IMAGE_TAG·태그 접미사 검사는 import와 Deployment 변경 전에 prepare가 같은 metadata로 수행한다.
 "$SCRIPT_DIR/prepare-restored-release-images.sh" "$release_dir"
 
 app_ref="$APP_IMAGE@$APP_IMAGE_DIGEST"
@@ -146,8 +132,7 @@ kube -n "$NAMESPACE" patch configmap app-config --type merge \
 kube -n "$NAMESPACE" set image deployment/app "app=$app_ref" >/dev/null
 kube -n "$NAMESPACE" set image deployment/frontend "frontend=$frontend_ref" >/dev/null
 
-configured_app_ref=$(kube -n "$NAMESPACE" get deployment app \
-    -o jsonpath='{.spec.template.spec.containers[0].image}')
+configured_app_ref=$(deployment_container_image app)
 [ "$configured_app_ref" = "$app_ref" ] || die "호환 app digest가 Deployment에 반영되지 않았습니다."
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 

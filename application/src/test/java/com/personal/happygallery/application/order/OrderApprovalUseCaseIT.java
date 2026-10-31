@@ -10,7 +10,6 @@ import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchU
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.error.AlreadyRefundedException;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -31,6 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static com.personal.happygallery.support.TestFixtures.orderRefund;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -316,7 +316,7 @@ class OrderApprovalUseCaseIT {
         Order order = orderHelper.createReadyStockPaidOrder("주문환불실패 상품", 90000L).order();
 
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
-        var refund = Refund.forOrder(order.getId(), 90000L, "payment-key");
+        var refund = orderRefund(order.getId(), 90000L, "payment-key");
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = refund.startProcessing(now, now.minusMinutes(1));
         refund.markFailed(processingToken, "PG 점검중");

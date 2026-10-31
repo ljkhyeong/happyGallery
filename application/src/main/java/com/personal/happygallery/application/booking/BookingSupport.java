@@ -42,9 +42,9 @@ class BookingSupport {
                 .orElseThrow(NotFoundException.supplier("예약"));
     }
 
+    /** 회원 소유 예약을 수업·슬롯과 함께 읽는다. 다른 회원의 예약은 없는 예약과 같은 NotFound로 처리한다. */
     Booking findByIdAndUserId(Long bookingId, Long userId) {
-        return bookingReaderPort.findById(bookingId)
-                .filter(b -> Objects.equals(b.getUserId(), userId))
+        return bookingReaderPort.findByIdAndUserIdWithDetails(bookingId, userId)
                 .orElseThrow(NotFoundException.supplier("예약"));
     }
 

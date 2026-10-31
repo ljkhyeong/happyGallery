@@ -136,6 +136,15 @@ public class WorkshopProfile {
         this.updatedAt = updatedAt;
     }
 
+    /** 불러온 뒤 다른 관리자가 먼저 수정했으면 충돌로 거절한다. */
+    public void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "다른 관리자가 공방 정보를 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 수정해주세요.");
+        }
+    }
+
     private static String optionalBusinessRegistrationNumber(String value) {
         String normalized = DomainText.optional(
                 value, "사업자등록번호는", MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH);

@@ -55,13 +55,7 @@ class PassExpiryNotificationUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanup();
-    }
-
-    private void cleanup() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     // -----------------------------------------------------------------------

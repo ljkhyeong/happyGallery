@@ -1,21 +1,17 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Badge } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, ErrorAlert, EmptyState, CursorLoadMore } from "@/shared/ui";
+import { LoadingSpinner, EmptyState, CursorLoadMore, CursorQueryErrorAlert, ToneBadge } from "@/shared/ui";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
-import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 
 export function MyInquiriesPage() {
-  const { isAuthenticated } = useCustomerAuth();
-
   const inquiriesQuery = useInfiniteQuery({
     queryKey: queryKeys.member.inquiryHistory,
-    queryFn: ({ pageParam, signal }) => fetchMyInquiriesPage(pageParam, signal),
+    queryFn: ({ pageParam, signal }) =>
+      runForCurrentCustomer(() => fetchMyInquiriesPage(pageParam, signal)),
     ...cursorPageParams,
-    enabled: isAuthenticated,
   });
   const inquiries = flattenCursorPages(inquiriesQuery.data);
   const hasLoadedInquiries = inquiriesQuery.data !== undefined;
@@ -30,11 +26,7 @@ export function MyInquiriesPage() {
       )}
     >
       {inquiriesQuery.isLoading && <LoadingSpinner />}
-      <ErrorAlert
-        error={inquiriesQuery.isFetchNextPageError ? null : inquiriesQuery.error}
-        onRetry={() => { void inquiriesQuery.refetch(); }}
-        retrying={inquiriesQuery.isFetching && !inquiriesQuery.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={inquiriesQuery} />
 
       {hasLoadedInquiries && inquiries.length === 0 && (
         <EmptyState message="등록된 문의가 없습니다." />
@@ -43,9 +35,9 @@ export function MyInquiriesPage() {
       {inquiries.map((inquiry) => (
         <article key={inquiry.id} className="my-inquiry-card">
           <header>
-            <Badge bg={inquiry.hasReply ? "success" : "secondary"}>
+            <ToneBadge tone={inquiry.hasReply ? "done" : "progress"}>
               {inquiry.hasReply ? "답변 완료" : "답변 대기"}
-            </Badge>
+            </ToneBadge>
             <h2>{inquiry.title}</h2>
             <time dateTime={inquiry.createdAt}>{formatDateTime(inquiry.createdAt)}</time>
           </header>

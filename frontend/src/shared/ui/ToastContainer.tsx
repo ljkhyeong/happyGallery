@@ -13,6 +13,14 @@ interface ToastContextValue {
   show: (message: string, variant?: Variant) => void;
 }
 
+// 색은 먹색 하나로 쓴다: 완료·정보 알림은 먹색, 확인이 필요한 알림만 노랑, 실패만 빨강이다.
+const TOAST_BG: Record<Variant, string> = {
+  success: "dark",
+  info: "dark",
+  warning: "warning",
+  danger: "danger",
+};
+
 const ToastContext = createContext<ToastContextValue>({ show: () => {} });
 
 export function useToast() {
@@ -37,11 +45,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext value={contextValue}>
       {children}
-      <BsToastContainer position="top-end" className="p-3" style={{ zIndex: 1080 }}>
+      {/* 화면 기준으로 띄워 스크롤한 위치에서도 보이게 하고, 담기 직후 오른쪽 위 장바구니 숫자를 가리지 않게 가운데에 둔다. */}
+      <BsToastContainer position="top-center" containerPosition="fixed" className="p-3" style={{ zIndex: 1080 }}>
         {toasts.map((t) => (
           <Toast
             key={t.id}
-            bg={t.variant}
+            bg={TOAST_BG[t.variant]}
             autohide
             delay={3000}
             onClose={() => remove(t.id)}

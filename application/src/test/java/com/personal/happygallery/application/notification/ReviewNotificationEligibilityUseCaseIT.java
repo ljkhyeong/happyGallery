@@ -44,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.member;
 import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,10 +73,8 @@ class ReviewNotificationEligibilityUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
         cleanupSupport.clearAdminUsers();
     }
 
@@ -130,7 +129,7 @@ class ReviewNotificationEligibilityUseCaseIT {
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, now().minusHours(3), now().minusHours(1)));
         Booking booking = Booking.forMemberDeposit(
-                user, slot, 0L, 0L, DepositPaymentMethod.CARD);
+                user, slot, 1, 0L, 0L, DepositPaymentMethod.CARD);
         booking.complete(now());
         booking = bookingRepository.saveAndFlush(booking);
         NotificationReminderRecipient recipient = NotificationReminderRecipient.forUser(user.getId());
@@ -212,7 +211,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     }
 
     private User createUser(String email, String phone) {
-        return userStorePort.save(new User(email, "password-hash", "후기 알림 회원", phone));
+        return userStorePort.save(member(email, phone));
     }
 
     private Order completedOrder(User user, long totalAmount) {

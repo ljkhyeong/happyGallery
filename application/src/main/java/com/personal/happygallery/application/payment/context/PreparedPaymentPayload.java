@@ -19,8 +19,11 @@ import java.util.List;
 /**
  * prepare에서 서버가 확정해 결제 시도에 암호화 저장하는 내부 스냅샷.
  *
- * <p>필수 값 누락은 역직렬화가 아니라 각 fulfiller의 저장 payload 검증에서
- * "결제를 다시 준비해 주세요" 오류로 거절한다.
+ * <p>주문 혜택 금액·상품 유형·이용권 종류 같은 구조적 필수 값과 수령 방식·배송지·배송비의 일관성은
+ * 각 record의 compact 생성자가 검사한다. 저장 JSON을 역직렬화하는 시점에 기본값으로 보정하지 않고
+ * {@link ErrorCode#INVALID_INPUT}으로 거절하므로 confirm뿐 아니라 혜택 해제를 위해 payload를 읽는
+ * 만료·종료·대사 같은 경로도 같은 검사를 거친다. 금액·상품명 같은 나머지 불변식과 결제 시도 금액 대조는
+ * 각 fulfiller의 {@code validateStoredPayload}가 맡는다.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({

@@ -63,7 +63,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
                                    long expectedVersion,
                                    CouponDefinitionCommand command) {
         CouponDefinition definition = findDefinitionForUpdate(definitionId);
-        requireExpectedVersion(definition, expectedVersion);
+        definition.requireVersion(expectedVersion);
         if (issuedCouponReader.existsByDefinitionId(definitionId)
                 && changesIssuedCouponTerms(definition, command)) {
             throw new HappyGalleryException(
@@ -86,7 +86,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     @Transactional
     public void delete(Long definitionId, long expectedVersion) {
         CouponDefinition definition = findDefinitionForUpdate(definitionId);
-        requireExpectedVersion(definition, expectedVersion);
+        definition.requireVersion(expectedVersion);
         definition.deactivate();
         definitionStore.saveAndFlush(definition);
     }
@@ -106,13 +106,5 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
                 || !Objects.equals(definition.getMaxDiscountAmount(), command.maxDiscountAmount())
                 || !Objects.equals(definition.getValidFrom(), command.validFrom())
                 || !Objects.equals(definition.getValidUntil(), command.validUntil());
-    }
-
-    private static void requireExpectedVersion(CouponDefinition definition, long expectedVersion) {
-        if (definition.getVersion() != expectedVersion) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT,
-                    "다른 관리자가 쿠폰을 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");
-        }
     }
 }

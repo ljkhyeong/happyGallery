@@ -41,7 +41,9 @@ public class DefaultShipmentTrackingRegistrationService implements ShipmentTrack
         LocalDateTime now = LocalDateTime.now(clock);
         return BatchExecutor.execute(
                 fulfillmentPort.findTrackingRegistrationCandidateIds(
-                        now, now.minusMinutes(5), BATCH_SIZE),
+                        now,
+                        now.minus(ShipmentTrackingRegistrationTransactionService.PROCESSING_TIMEOUT),
+                        BATCH_SIZE),
                 id -> id,
                 this::register,
                 "배송조회 등록");

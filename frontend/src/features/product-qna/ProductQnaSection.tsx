@@ -7,7 +7,7 @@ import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { productDetailHref } from "@/features/product/navigation";
-import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { queryKeys, cursorPageParams, flattenCursorPages, runForCurrentCustomer } from "@/shared/api";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
 interface Props {
@@ -48,7 +48,7 @@ function ProductQnaContent({ productId }: Props) {
   } = useInfiniteQuery({
     queryKey: queryKeys.member.productQna.history(productId),
     queryFn: ({ pageParam, signal }) =>
-      fetchMyProductQnaPage(productId, pageParam, signal),
+      runForCurrentCustomer(() => fetchMyProductQnaPage(productId, pageParam, signal)),
     ...cursorPageParams,
     enabled: isAuthenticated,
   });

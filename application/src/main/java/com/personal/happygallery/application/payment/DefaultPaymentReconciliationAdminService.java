@@ -22,17 +22,17 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentPort paymentPort;
     private final PaymentReconciliationTransactionService reconciliationTransactionService;
-    private final PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService;
+    private final PaymentFulfillmentCoordinator fulfillmentCoordinator;
 
     public DefaultPaymentReconciliationAdminService(
             PaymentAttemptReaderPort attemptReader,
             PaymentPort paymentPort,
             PaymentReconciliationTransactionService reconciliationTransactionService,
-            PaymentConfirmFulfillmentTransactionService fulfillmentTransactionService) {
+            PaymentFulfillmentCoordinator fulfillmentCoordinator) {
         this.attemptReader = attemptReader;
         this.paymentPort = paymentPort;
         this.reconciliationTransactionService = reconciliationTransactionService;
-        this.fulfillmentTransactionService = fulfillmentTransactionService;
+        this.fulfillmentCoordinator = fulfillmentCoordinator;
     }
 
     @Override
@@ -49,7 +49,7 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
                 paymentPort.lookupByOrderId(orderId),
                 "PaymentPort.lookupByOrderId는 null을 반환할 수 없습니다.");
         return switch (lookup.status()) {
-            case APPROVED -> completeApprovedPayment(attemptId, lookup);
+            case APPROVED -> completeApprovedPayment(attemptId, orderId, lookup);
             case NOT_APPROVED -> completeWithoutApproval(attemptId, lookup);
             case REVIEW_REQUIRED, UNAVAILABLE -> new ReconciliationResult(
                     attemptId,
@@ -61,28 +61,20 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
     }
 
     private ReconciliationResult completeApprovedPayment(Long attemptId,
+                                                         String orderId,
                                                          PaymentLookupResult lookup) {
         String confirmedPaymentKey = reconciliationTransactionService.recordApproved(
                 attemptId, lookup);
-        try {
-            ConfirmResult result = fulfillmentTransactionService.fulfillAndConfirm(attemptId);
-            return new ReconciliationResult(
-                    attemptId,
-                    PaymentAttemptStatus.CONFIRMED,
-                    result.domainId(),
-                    "PG 승인 확인 후 서비스 처리를 완료했습니다.",
-                    false);
-        } catch (RuntimeException fulfillmentFailure) {
-            try {
-                fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
-                        attemptId,
-                        confirmedPaymentKey,
-                        "PG 대사 승인 후 도메인 생성에 실패했습니다.");
-            } catch (RuntimeException compensationFailure) {
-                fulfillmentFailure.addSuppressed(compensationFailure);
-            }
-            throw fulfillmentFailure;
-        }
+        // recordApproved가 저장 금액과 대조한 PG 승인 금액이며, 대사 대상은 PG를 호출한 유료 결제뿐이라 항상 보상 환불 경로를 탄다.
+        ConfirmResult result = fulfillmentCoordinator.fulfillOrCompensate(
+                attemptId, orderId, lookup.totalAmount(), confirmedPaymentKey,
+                "PG 대사 승인 후 도메인 생성에 실패했습니다.");
+        return new ReconciliationResult(
+                attemptId,
+                PaymentAttemptStatus.CONFIRMED,
+                result.domainId(),
+                "PG 승인 확인 후 서비스 처리를 완료했습니다.",
+                false);
     }
 
     private ReconciliationResult completeWithoutApproval(Long attemptId,

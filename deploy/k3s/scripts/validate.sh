@@ -417,8 +417,6 @@ grep -q 'runtime_key_id.*expected_key_id' "$SCRIPT_DIR/restore-recovery-backup.s
     || die "복구 진입점이 runtime 암호화 키 ID를 확인하지 않습니다."
 grep -q 'runtime_rotation_phase.*expected_rotation_phase' "$SCRIPT_DIR/restore-recovery-backup.sh" \
     || die "복구 진입점이 키 회전 단계를 확인하지 않습니다."
-grep -q 'verify_checksum.*images_archive' "$SCRIPT_DIR/restore-recovery-backup.sh" \
-    || die "복구 진입점이 이미지 archive 무결성을 선검증하지 않습니다."
 grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
     || die "백업 실패 systemd 알림 연결이 없습니다."
@@ -491,6 +489,8 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   restore_entry = File.read(File.join(script_dir, "restore-recovery-backup.sh"))
   token_issue = /BACKUP_CREATED_AT.*?sha256_file "\$recovery_metadata".*?reconciliation_token=.*?pending_marker=.*?RECOVERY_METADATA_SHA256=.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
   abort "복원 성공 후 timestamp/checksum 대사 토큰 marker 발급 순서가 없습니다." unless restore_entry.match?(token_issue)
+  abort "복구 진입점이 DB 복원 전에 DB·미디어·release 묶음 파일과 이미지 archive 무결성을 선검증하지 않습니다." unless
+    restore_entry.match?(/verify_recovery_bundle_files "\$recovery_metadata".*?restore-mysql\.sh/m)
   abort "미완료 복원 대사 marker가 있을 때 새 복원을 막지 않습니다." unless restore_entry.match?(/existing_unfinished_marker=.*?name '\*\.pending'.*?name '\*\.activating'.*?die/m)
   restore_lock_flow = /restore_lock_dir=.*?cleanup_restore\(\).*?restore_lock_held.*?rmdir "\$restore_lock_dir".*?trap cleanup_restore EXIT.*?mkdir "\$restore_lock_dir".*?restore_lock_held=true.*?existing_unfinished_marker=.*?restore-mysql\.sh.*?find \/media -mindepth 1 -depth -delete.*?mv "\$pending_marker_tmp" "\$pending_marker"/m
   abort "DB·미디어 교체 전 원자적 복원 실행 락 선점과 종료 시 해제가 없습니다." unless restore_entry.match?(restore_lock_flow)
@@ -573,6 +573,65 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
     abort "배포 전용 정책에 사용하지 않는 systemd 예시가 남아 있습니다: #{name}" if
       File.exist?(File.join(script_dir, "..", "systemd", name))
   end
+RUBY
+
+# CI와 통합 테스트는 운영과 같은 실행 환경을 검증해야 한다. 운영 이미지만 올리는 갱신(Dependabot 등)은
+# 여기서 멈추므로 workflow·Gradle·Testcontainers의 버전을 같은 변경에서 함께 올린다.
+ruby - "$REPO_ROOT" <<'RUBY'
+  root = ARGV.fetch(0)
+  sources = lambda do |pattern|
+    Dir[File.join(root, pattern)].sort.map { |path| [path.delete_prefix("#{root}/"), File.read(path, encoding: "UTF-8")] }
+  end
+  single = lambda do |path, pattern|
+    values = File.read(File.join(root, path), encoding: "UTF-8").scan(pattern).flatten.uniq
+    abort "#{path}에서 버전을 하나로 정할 수 없습니다: #{values.inspect}" unless values.one?
+    values.first
+  end
+  found = lambda do |files, pattern|
+    files.flat_map { |path, text| text.scan(pattern).flatten.map { |value| [path, value] } }
+  end
+  same = lambda do |references, expected, label|
+    abort "비교할 CI·테스트 설정이 없습니다: #{label}" if references.empty?
+    references.each do |path, actual|
+      next if actual == expected
+      abort "운영과 버전이 다릅니다: #{path}의 #{label} #{actual}, 운영 #{expected}. 같은 변경에서 함께 올리세요."
+    end
+  end
+
+  workflows = sources.(".github/workflows/*.yml")
+  same.(found.(workflows, /node-version:\s*['"]?(\d+)/),
+        single.("deploy/k3s/images/Dockerfile.frontend", /^FROM node:(\d+)-alpine\b/), "Node 버전")
+  same.([["build.gradle", single.("build.gradle", /JavaLanguageVersion\.of\((\d+)\)/)]] +
+          found.(workflows, /java-version:\s*['"]?(\d+)/),
+        single.("deploy/k3s/images/Dockerfile.app", /^FROM eclipse-temurin:(\d+)-/), "Java 버전")
+  tests = sources.("*/src/{test,testFixtures}/**/*.java")
+  %w[mysql redis].each do |name|
+    same.(found.(workflows, /^\s*image:\s*(#{name}:\S+)/) + found.(tests, /"(#{name}:[^"]+)"/),
+          single.("deploy/k3s/base/#{name}.yaml", /^\s*image:\s*(#{name}:\S+)\s*$/), "#{name} 이미지")
+  end
+RUBY
+
+# 배치 정체 경보는 min(last_success)로 판정하므로 AppMetrics가 기동 시 같은 job의 게이지를 0으로 미리 등록해야
+# 한 번도 돌지 않은 배치도 잡힌다. 경보·AppMetrics·@BatchJob 세 목록이 어긋나면 여기서 멈춘다.
+ruby - "$REPO_ROOT" <<'RUBY'
+  require "yaml"
+  root = ARGV.fetch(0)
+  read = lambda { |path| File.read(File.join(root, path), encoding: "UTF-8") }
+  alert_jobs = YAML.load(read.("monitoring/alerts.yml")).fetch("groups").flat_map { |group| group.fetch("rules") }
+    .select { |rule| rule["alert"].to_s.end_with?("Stalled") && rule.fetch("expr").include?("happygallery_batch_last_success_seconds") }
+    .flat_map { |rule| rule.fetch("expr").scan(/exported_job=~?"([^"]+)"/).flatten.flat_map { |value| value.split("|") } }
+    .uniq.sort
+  abort "monitoring/alerts.yml에서 배치 정체 경보의 exported_job을 찾지 못했습니다." if alert_jobs.empty?
+  metrics = read.("application/src/main/java/com/personal/happygallery/application/monitoring/AppMetrics.java")
+  monitored_block = metrics[/MONITORED_BATCH_JOBS = List\.of\((.*?)\);/m, 1] or
+    abort "AppMetrics.java에서 MONITORED_BATCH_JOBS를 찾을 수 없습니다."
+  monitored_jobs = monitored_block.scan(/"([^"]+)"/).flatten.sort
+  abort "배치 정체 경보의 exported_job #{alert_jobs}과 AppMetrics.MONITORED_BATCH_JOBS #{monitored_jobs}가 다릅니다. 같은 변경에서 함께 고치세요." unless
+    alert_jobs == monitored_jobs
+  scheduler_jobs = read.("application/src/main/java/com/personal/happygallery/application/batch/BatchScheduler.java")
+    .scan(/@BatchJob\(id = "([^"]+)"/).flatten
+  unknown_jobs = monitored_jobs - scheduler_jobs
+  abort "BatchScheduler에 없는 @BatchJob id를 감시합니다: #{unknown_jobs}" unless unknown_jobs.empty?
 RUBY
 
 ruby "$SCRIPT_DIR/tests/verify-test.rb"

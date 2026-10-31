@@ -1,6 +1,6 @@
 import { FavoriteButton } from "@/features/my/Favorites";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Container, Card, Button, Form } from "react-bootstrap";
@@ -24,17 +24,14 @@ import {
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
-import {
-  FulfillmentForm,
-  fulfillmentPayload,
-  isFulfillmentComplete,
-  useFulfillmentSelection,
-} from "@/features/order/FulfillmentForm";
+import { FulfillmentForm } from "@/features/order/FulfillmentForm";
+import { fulfillmentPayload, isFulfillmentComplete, useFulfillmentSelection } from "@/features/order/fulfillmentSelection";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
+import { ProductDetailTabs } from "@/features/product/ProductDetailTabs";
 import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
 import { ProductPurchaseGuide } from "@/features/product/ProductPurchaseGuide";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
@@ -60,10 +57,6 @@ export function ProductDetailPage({ initialProduct }: { initialProduct: ProductD
 
 function ProductDetailContent({ initialProduct, variantId }: { initialProduct: ProductDetailResponse; variantId: string | null }) {
   const productId = initialProduct.id;
-  const productQueryKey = useMemo(
-    () => queryKeys.catalog.productDetail(productId),
-    [productId],
-  );
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
@@ -86,7 +79,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     data: product,
     error,
   } = useLoaderBackedQuery({
-    queryKey: productQueryKey,
+    queryKey: queryKeys.catalog.productDetail(productId),
     queryFn: () => fetchProduct(productId),
     staleTime: PUBLIC_DATA_STALE_TIME,
   }, initialProduct);
@@ -211,7 +204,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     || Boolean(product.careInstructions) || product.productionLeadDays != null;
 
   return (
-    <Container className="page-container store-product-page">
+    <Container className="page-container">
       <nav className="store-detail-breadcrumb" aria-label="경로">
         <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
         <span aria-hidden="true">/</span>
@@ -242,7 +235,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
           </figure>
         </div>
 
-        <div className="store-product-buy">
+        <div>
           <header className="store-product-intro">
             <div className="store-detail-meta">
               <span className="store-detail-kicker">
@@ -275,210 +268,214 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
 
           <Card ref={purchasePanelRef} className="purchase-panel store-purchase-card store-order-sheet">
             <Card.Body className="p-4 p-xl-5">
-              <h2 className="visually-hidden">구매 옵션</h2>
-              <section className="store-order-sheet-step" aria-labelledby="product-option-title">
-                {/* 옵션이 없으면 수량 칸만 있어 제목은 화면 읽기용으로만 둔다. */}
-                <h3
-                  id="product-option-title"
-                  className={hasConfiguredOptions ? "store-order-sheet-step-heading" : "visually-hidden"}
-                >
-                  {hasConfiguredOptions ? "옵션 선택" : "수량 선택"}
-                </h3>
-                {selectionChanged && (
-                  <Alert variant="info" className="py-2">
-                    작품 가격이나 옵션이 바뀌었습니다. 옵션과 금액을 다시 확인해 주세요.
-                  </Alert>
-                )}
-                {variantId !== null && !linkedVariant && (
-                  <Alert variant="warning" className="py-2">
-                    해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.
-                  </Alert>
-                )}
-                {hasConfiguredOptions ? (
-                  <ProductPurchaseOptions
-                    product={product}
-                    initialVariant={linkedVariant}
-                    lines={purchaseLines}
-                    onChange={setPurchaseLines}
-                  />
-                ) : (
-                  <div className="store-purchase-quantity">
-                    <Form.Label htmlFor="product-qty" className="store-purchase-qty-label">수량</Form.Label>
-                    <div className="d-flex align-items-center gap-2">
-                      <Button
-                        variant="outline-dark"
-                        size="sm"
-                        disabled={qty <= 1}
-                        onClick={() => setQty((q) => Math.max(1, q - 1))}
-                        aria-label="수량 감소"
-                        className="store-purchase-qty-btn"
-                      >
-                        −
-                      </Button>
-                      <Form.Control
-                        id="product-qty"
-                        type="number" inputMode="numeric"
-                        min={1}
-                        max={Math.max(1, defaultQuantityLimit)}
-                        value={qty}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          if (Number.isInteger(v) && v >= 1 && (v < qty || v <= defaultQuantityLimit)) setQty(v);
-                        }}
-                        className="text-center store-purchase-qty-input"
-                      />
-                      <Button
-                        variant="outline-dark"
-                        size="sm"
-                        disabled={qty >= defaultQuantityLimit}
-                        onClick={() => setQty((q) => Math.min(defaultQuantityLimit, q + 1))}
-                        aria-label="수량 증가"
-                        className="store-purchase-qty-btn"
-                      >
-                        +
-                      </Button>
+              {/* 판매할 수 없는 작품은 금액·받는 방법·결제 칸 없이 재입고 알림만 둔다. 옵션 작품은 옵션을 골라 그 조합의 알림을 받는다. */}
+              <h2 className="visually-hidden">{hasConfiguredOptions || product.available ? "구매 옵션" : "재입고 알림"}</h2>
+              {!hasConfiguredOptions && !product.available ? (
+                <RestockAlertButton productId={product.id} productVariantId={product.type === "MADE_TO_ORDER" ? product.variants.find((variant) => variant.active)?.id ?? null : null} />
+              ) : (
+                <section className="store-order-sheet-step" aria-labelledby="product-option-title">
+                  {/* 옵션이 없으면 수량 칸만 있어 제목은 화면 읽기용으로만 둔다. */}
+                  <h3
+                    id="product-option-title"
+                    className={hasConfiguredOptions ? "store-order-sheet-step-heading" : "visually-hidden"}
+                  >
+                    {hasConfiguredOptions ? "옵션 선택" : "수량 선택"}
+                  </h3>
+                  {selectionChanged && (
+                    <Alert variant="warning" className="py-2">
+                      작품 가격이나 옵션이 바뀌었습니다. 옵션과 금액을 다시 확인해 주세요.
+                    </Alert>
+                  )}
+                  {variantId !== null && !linkedVariant && (
+                    <Alert variant="warning" className="py-2">
+                      해당 옵션은 지금 판매하지 않습니다. 판매 중인 옵션과 가격을 확인해 주세요.
+                    </Alert>
+                  )}
+                  {hasConfiguredOptions ? (
+                    <ProductPurchaseOptions
+                      product={product}
+                      initialVariant={linkedVariant}
+                      lines={purchaseLines}
+                      onChange={setPurchaseLines}
+                    />
+                  ) : (
+                    <div className="store-purchase-quantity">
+                      <Form.Label htmlFor="product-qty" className="store-purchase-qty-label">수량</Form.Label>
+                      <div className="d-flex align-items-center gap-2">
+                        <Button
+                          variant="outline-dark"
+                          size="sm"
+                          disabled={qty <= 1}
+                          onClick={() => setQty((q) => Math.max(1, q - 1))}
+                          aria-label="수량 감소"
+                          className="store-purchase-qty-btn"
+                        >
+                          −
+                        </Button>
+                        <Form.Control
+                          id="product-qty"
+                          type="number" inputMode="numeric"
+                          min={1}
+                          max={Math.max(1, defaultQuantityLimit)}
+                          value={qty}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            if (Number.isInteger(v) && v >= 1 && (v < qty || v <= defaultQuantityLimit)) setQty(v);
+                          }}
+                          className="text-center store-purchase-qty-input"
+                        />
+                        <Button
+                          variant="outline-dark"
+                          size="sm"
+                          disabled={qty >= defaultQuantityLimit}
+                          onClick={() => setQty((q) => Math.min(defaultQuantityLimit, q + 1))}
+                          aria-label="수량 증가"
+                          className="store-purchase-qty-btn"
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {qty > defaultQuantityLimit && (
+                        <Form.Text className="text-danger">현재 {defaultQuantityLimit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.</Form.Text>
+                      )}
                     </div>
-                    {qty > defaultQuantityLimit && product.available && (
-                      <Form.Text className="text-danger">현재 {defaultQuantityLimit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.</Form.Text>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <div className="store-purchase-summary">
-                {!hasConfiguredOptions && !product.available && (
-                  <RestockAlertButton productId={product.id} productVariantId={product.type === "MADE_TO_ORDER" ? product.variants.find((variant) => variant.active)?.id ?? null : null} />
-                )}
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="text-muted-soft store-purchase-line">선택 수량</span>
-                  <span className="store-purchase-line">{selectedQuantity}개</span>
-                </div>
-                {!authLoading && isAuthenticated ? (
-                  <MemberOrderBenefits
-                    productAmount={itemAmount}
-                    fulfillmentType={fulfillment.fulfillmentType}
-                    selectedCouponId={issuedCouponId}
-                    rewardPointsToUse={rewardAmount}
-                    disabled={orderMutation.isPending}
-                    onCouponChange={setIssuedCouponId}
-                    onRewardPointsChange={setRewardAmount}
-                  />
-                ) : (
-                  <OrderPriceSummary
-                    itemAmount={itemAmount}
-                    fulfillmentType={fulfillment.fulfillmentType}
-                    className="pt-2"
-                  />
-                )}
-              </div>
-
-              {!authLoading && isAuthenticated && (
-                <section className="store-order-sheet-step" aria-labelledby="product-order-title">
-                  <h3 id="product-order-title" className="store-order-sheet-step-heading">받는 방법</h3>
-                  <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+                  )}
                 </section>
               )}
 
-              <div className="store-order-sheet-actions">
-                <PaymentErrorAlert error={consent.paymentError(orderMutation.error)} />
-                {cartMutation.error instanceof CartQuantityError ? (
-                  <Alert variant="danger">{cartMutation.error.message}</Alert>
-                ) : (
-                  <ErrorAlert error={cartMutation.error} />
-                )}
+              {product.available && (
+                <>
+                  <div className="store-purchase-summary">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted-soft store-purchase-line">선택 수량</span>
+                      <span className="store-purchase-line">{selectedQuantity}개</span>
+                    </div>
+                    {!authLoading && isAuthenticated ? (
+                      <MemberOrderBenefits
+                        productAmount={itemAmount}
+                        fulfillmentType={fulfillment.fulfillmentType}
+                        selectedCouponId={issuedCouponId}
+                        rewardPointsToUse={rewardAmount}
+                        disabled={orderMutation.isPending}
+                        onCouponChange={setIssuedCouponId}
+                        onRewardPointsChange={setRewardAmount}
+                      />
+                    ) : (
+                      <OrderPriceSummary
+                        itemAmount={itemAmount}
+                        fulfillmentType={fulfillment.fulfillmentType}
+                        className="pt-2"
+                      />
+                    )}
+                  </div>
 
-                {!authLoading && isAuthenticated ? (
-                  <>
-                    <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
-                    <MadeToOrderConsent consent={consent} />
-                    <Button
-                      variant="dark"
-                      size="lg"
-                      className="w-100 mb-2 store-purchase-btn-primary"
-                      disabled={!canCheckout || !consent.ready || orderMutation.isPending}
-                      onClick={() => orderMutation.mutate()}
-                    >
-                      {orderMutation.isPending ? "주문 처리 중..." : "바로 구매하기"}
-                    </Button>
-                    <Button
-                      variant="outline-dark"
-                      size="lg"
-                      className="w-100"
-                      disabled={!canBuy || cartMutation.isPending}
-                      onClick={() => cartMutation.mutate()}
-                    >
-                      {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
-                    </Button>
-                  </>
-                ) : !authLoading ? (
-                  <div>
-                    <Button
-                      variant="dark"
-                      size="lg"
-                      className="w-100 mb-2 store-purchase-btn-primary"
-                      disabled={!canBuy}
-                      onClick={() => navigate(loginHref)}
-                    >
-                      로그인 후 구매하기
-                    </Button>
-                    {/* 비회원 주문도 장바구니와 같은 크기로 보여 찾기 쉽게 하고, 회원가입은 혜택과 함께 문장 링크로 둔다. */}
-                    <div className="store-purchase-secondary">
-                      {hasConfiguredOptions ? (
+                  {!authLoading && isAuthenticated && (
+                    <section className="store-order-sheet-step" aria-labelledby="product-order-title">
+                      <h3 id="product-order-title" className="store-order-sheet-step-heading">받는 방법</h3>
+                      <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+                    </section>
+                  )}
+
+                  <div className="store-order-sheet-actions">
+                    <PaymentErrorAlert error={consent.paymentError(orderMutation.error)} />
+                    {/* 수량 한도는 고객이 줄이면 되는 안내라 장바구니 화면과 같은 노랑으로 보인다. */}
+                    {cartMutation.error instanceof CartQuantityError ? (
+                      <Alert variant="warning">{cartMutation.error.message}</Alert>
+                    ) : (
+                      <ErrorAlert error={cartMutation.error} />
+                    )}
+
+                    {!authLoading && isAuthenticated ? (
+                      <>
+                        <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
+                        <MadeToOrderConsent consent={consent} />
+                        <Button
+                          variant="dark"
+                          size="lg"
+                          className="w-100 mb-2 store-purchase-btn-primary"
+                          disabled={!canCheckout || !consent.ready || orderMutation.isPending}
+                          onClick={() => orderMutation.mutate()}
+                        >
+                          {orderMutation.isPending ? "주문 처리 중..." : "바로 구매하기"}
+                        </Button>
                         <Button
                           variant="outline-dark"
-                          disabled={!canBuy}
-                          onClick={() => {
-                            const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
-                              productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
-                            })));
-                            if (!draftId) {
-                              toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
-                              return;
-                            }
-                            navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
-                          }}
+                          size="lg"
+                          className="w-100"
+                          disabled={!canBuy || cartMutation.isPending}
+                          onClick={() => cartMutation.mutate()}
                         >
-                          비회원 주문하기
+                          {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                         </Button>
-                      ) : (
+                      </>
+                    ) : !authLoading ? (
+                      <div>
+                        {/* 로그인 화면으로 가는 이동이라 링크로 두고, 고를 수 없는 상태는 아래 비회원 주문처럼 aria-disabled로 막는다. */}
                         <LinkButton
-                          to={guestFallbackPath}
+                          to={loginHref}
+                          variant="dark"
+                          size="lg"
                           aria-disabled={!canBuy}
                           tabIndex={canBuy ? undefined : -1}
                           onClick={(event) => { if (!canBuy) event.preventDefault(); }}
-                          variant="outline-dark"
-                          className={canBuy ? undefined : "disabled"}
+                          className={`w-100 mb-2 store-purchase-btn-primary${canBuy ? "" : " disabled"}`}
                         >
-                          비회원 주문하기
+                          로그인 후 구매하기
                         </LinkButton>
-                      )}
-                      <Button
-                        variant="outline-dark"
-                        disabled={!canBuy || cartMutation.isPending}
-                        onClick={() => cartMutation.mutate()}
-                      >
-                        {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
-                      </Button>
-                    </div>
-                    <p className="store-purchase-helper mb-0 mt-2">
-                      회원은 쿠폰과 결제 금액 1% 적립을 받을 수 있습니다.{" "}
-                      <Link to={signupHref}>회원가입 후 구매하기</Link>
-                    </p>
+                        {/* 비회원 주문도 장바구니와 같은 크기로 보여 찾기 쉽게 하고, 회원가입은 혜택과 함께 문장 링크로 둔다. */}
+                        <div className="store-purchase-secondary">
+                          {hasConfiguredOptions ? (
+                            <Button
+                              variant="outline-dark"
+                              disabled={!canBuy}
+                              onClick={() => {
+                                const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
+                                  productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+                                })));
+                                if (!draftId) {
+                                  toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
+                                  return;
+                                }
+                                navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
+                              }}
+                            >
+                              비회원 주문하기
+                            </Button>
+                          ) : (
+                            <LinkButton
+                              to={guestFallbackPath}
+                              aria-disabled={!canBuy}
+                              tabIndex={canBuy ? undefined : -1}
+                              onClick={(event) => { if (!canBuy) event.preventDefault(); }}
+                              variant="outline-dark"
+                              className={canBuy ? undefined : "disabled"}
+                            >
+                              비회원 주문하기
+                            </LinkButton>
+                          )}
+                          <Button
+                            variant="outline-dark"
+                            disabled={!canBuy || cartMutation.isPending}
+                            onClick={() => cartMutation.mutate()}
+                          >
+                            {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
+                          </Button>
+                        </div>
+                        <p className="store-purchase-helper mb-0 mt-2">
+                          회원은 쿠폰과 결제 금액 1% 적립을 받을 수 있습니다.{" "}
+                          <Link to={signupHref}>회원가입 후 구매하기</Link>
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
+                </>
+              )}
             </Card.Body>
           </Card>
         </div>
       </div>
 
-      {/* 상세 아래 구역으로 바로 가는 탭. 화면 위에 붙어 따라오며 각 구역은 탭 높이만큼 띄워 멈춘다. */}
-      <nav className="store-detail-tabs" aria-label="작품 상세 구역">
-        {hasProductInfo && <a href="#product-info">작품 정보</a>}
-        <a href="#product-delivery">배송·교환</a>
-        <a href="#product-reviews">후기</a>
-        <a href="#product-qna">문의</a>
-      </nav>
+      <ProductDetailTabs hasProductInfo={hasProductInfo} />
 
       {hasProductInfo && (
         <section id="product-info" className="store-detail-section" aria-labelledby="product-information-title">

@@ -31,7 +31,6 @@ import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -40,7 +39,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -63,7 +61,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     private final RewardBenefitService rewardBenefitService;
     private final OrderStockService orderStockService;
     private final GuestTokenService guestTokenService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderNotificationSupport notificationSupport;
     private final Clock clock;
 
     public DefaultOrderClaimService(OrderReaderPort orderReader,
@@ -77,7 +75,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                                     RewardBenefitService rewardBenefitService,
                                     OrderStockService orderStockService,
                                     GuestTokenService guestTokenService,
-                                    ApplicationEventPublisher eventPublisher,
+                                    OrderNotificationSupport notificationSupport,
                                     Clock clock) {
         this.orderReader = orderReader;
         this.memberAccountGuard = memberAccountGuard;
@@ -90,13 +88,13 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         this.rewardBenefitService = rewardBenefitService;
         this.orderStockService = orderStockService;
         this.guestTokenService = guestTokenService;
-        this.eventPublisher = eventPublisher;
+        this.notificationSupport = notificationSupport;
         this.clock = clock;
     }
 
     @Override
     public OrderClaimView requestMemberClaim(Long orderId, Long userId, RequestCommand command) {
-        Order order = requireOrderForUpdate(orderId);
+        Order order = OrderLookups.requireOrderForUpdate(orderReader, orderId);
         memberAccountGuard.requireActiveForUpdate(userId);
         if (!Objects.equals(order.getUserId(), userId)) {
             throw new NotFoundException("주문");
@@ -146,7 +144,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command) {
         Long expectedOrderId = orderClaimPort.findOrderIdById(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
-        Order order = requireOrderForUpdate(expectedOrderId);
+        Order order = OrderLookups.requireOrderForUpdate(orderReader, expectedOrderId);
         OrderClaim claim = requireClaimForUpdate(claimId);
         if (!Objects.equals(claim.getOrderId(), expectedOrderId)) {
             throw new HappyGalleryException(
@@ -305,8 +303,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                         claimItems.stream().map(OrderClaimItem::getOrderItemId).toList()).stream()
                 .collect(Collectors.toMap(OrderItem::getId, Function.identity()));
         return claimItems.stream()
-                .map(item -> new OrderClaimLine(
-                        item, requireOrderItem(orderItemsById, item.getOrderItemId())))
+                .map(item -> OrderClaimLine.of(item, orderItemsById))
                 .toList();
     }
 
@@ -361,22 +358,9 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         }
     }
 
-    private Order requireOrderForUpdate(Long orderId) {
-        return orderReader.findByIdForUpdate(orderId)
-                .orElseThrow(NotFoundException.supplier("주문"));
-    }
-
     private OrderClaim requireClaimForUpdate(Long claimId) {
         return orderClaimPort.findByIdForUpdate(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
-    }
-
-    private OrderItem requireOrderItem(Map<Long, OrderItem> itemsById, Long orderItemId) {
-        OrderItem item = itemsById.get(orderItemId);
-        if (item == null) {
-            throw new NotFoundException("주문 상품");
-        }
-        return item;
     }
 
     private LocalDateTime now() {
@@ -385,12 +369,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private void notifyCustomer(
             Order order, OrderClaim claim, NotificationEventType eventType) {
-        NotificationRequestedEvent event = order.getUserId() != null
-                ? NotificationRequestedEvent.forUser(
-                        order.getUserId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId())
-                : NotificationRequestedEvent.forGuest(
-                        order.getGuestId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId());
-        eventPublisher.publishEvent(event);
+        notificationSupport.notifyCustomer(
+                order, eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId());
     }
 
     private HappyGalleryException invalid(String message) {

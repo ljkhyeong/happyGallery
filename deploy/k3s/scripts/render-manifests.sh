@@ -24,12 +24,9 @@ printf '%s' "$APP_IMAGE" | grep -Eq '^[A-Za-z0-9./_:@-]+$' \
     || die "APP_IMAGE에 허용되지 않은 문자가 있습니다."
 printf '%s' "$FRONTEND_IMAGE" | grep -Eq '^[A-Za-z0-9./_:@-]+$' \
     || die "FRONTEND_IMAGE에 허용되지 않은 문자가 있습니다."
-printf '%s' "$APP_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
-printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
-    || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
-printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
-    || die "IMAGE_TAG는 12~40자리 Git SHA여야 합니다."
+is_sha256_digest "$APP_IMAGE_DIGEST" || die "APP_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_sha256_digest "$FRONTEND_IMAGE_DIGEST" || die "FRONTEND_IMAGE_DIGEST는 sha256 digest여야 합니다."
+is_image_tag "$IMAGE_TAG" || die "IMAGE_TAG는 12~40자리 Git SHA여야 합니다."
 
 app_image_ref="$APP_IMAGE@$APP_IMAGE_DIGEST"
 frontend_image_ref="$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"

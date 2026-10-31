@@ -96,7 +96,7 @@ public class ProductVariant {
     }
 
     public void requireSufficient(int qty) {
-        requirePositive(qty);
+        StockThresholdPolicy.requirePositiveQuantity(qty);
         if (!active || quantity < qty) {
             throw new InventoryNotEnoughException();
         }
@@ -109,7 +109,7 @@ public class ProductVariant {
 
     /** 이미 외부 채널에서 확정된 판매는 현재 로컬 판매 여부와 관계없이 실재고에서 차감한다. */
     public void deductCommittedSale(int qty) {
-        requirePositive(qty);
+        StockThresholdPolicy.requirePositiveQuantity(qty);
         if (quantity < qty) {
             throw new InventoryNotEnoughException();
         }
@@ -117,7 +117,7 @@ public class ProductVariant {
     }
 
     public void restore(int qty) {
-        requirePositive(qty);
+        StockThresholdPolicy.requirePositiveQuantity(qty);
         quantity = Math.addExact(quantity, qty);
     }
 
@@ -145,12 +145,6 @@ public class ProductVariant {
                 .map(ProductVariantSelection::getOptionGroupId)
                 .toList()).size() != selections.size()) {
             throw new IllegalArgumentException("한 옵션 그룹에서 둘 이상의 값을 선택할 수 없습니다.");
-        }
-    }
-
-    private static void requirePositive(int value) {
-        if (value < 1) {
-            throw new IllegalArgumentException("재고 변경 수량은 1 이상이어야 합니다.");
         }
     }
 

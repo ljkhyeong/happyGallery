@@ -9,8 +9,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.ncp-mail")
 public record NcpMailProperties(
-        String accessKey,
-        String secretKey,
+        @DefaultValue("") String accessKey,
+        @DefaultValue("") String secretKey,
         @Valid @DefaultValue HttpPool http
 ) {
     @Override

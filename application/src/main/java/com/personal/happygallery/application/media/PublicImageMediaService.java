@@ -27,7 +27,7 @@ class PublicImageMediaService implements PublicImageMediaUseCase {
     @Override
     public ImageMediaUseCase.ImageContent get(String fileName) {
         if (!referenceReader.isPubliclyReferenced(
-                "/api/v1/media/images/" + fileName,
+                ImageMediaReferenceGuard.imageUrl(fileName),
                 LocalDateTime.now(clock))) {
             throw new NotFoundException("이미지");
         }

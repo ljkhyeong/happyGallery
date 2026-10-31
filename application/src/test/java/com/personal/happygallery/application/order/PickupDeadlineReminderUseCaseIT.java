@@ -55,10 +55,8 @@ class PickupDeadlineReminderUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("구형 수신자 기반 outbox가 있으면 픽업 마감 알림을 다시 요청하지 않는다")

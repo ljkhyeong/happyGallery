@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import {
+  hashKey,
   useQuery,
   useQueryClient,
   type QueryKey,
@@ -53,6 +54,11 @@ export function useLoaderBackedQuery<
   const queryClient = useQueryClient();
   const synchronizedLoaderData = useRef<TData | undefined>(undefined);
   const { queryKey } = options;
+  // 호출부가 렌더마다 새 key 배열을 만들어도 내용이 같으면 같은 key로 본다.
+  // effect는 해시로 변화를 감지하고, 최신 배열은 ref로 읽어 호출부가 useMemo로 고정할 필요가 없다.
+  const queryKeyHash = hashKey(queryKey);
+  const latestQueryKey = useRef(queryKey);
+  latestQueryKey.current = queryKey;
   const query = useQuery({ ...options, initialData: loaderData });
   const hasNewLoaderData = loaderData !== undefined
     && synchronizedLoaderData.current !== loaderData;
@@ -61,10 +67,11 @@ export function useLoaderBackedQuery<
     if (loaderData === undefined) return;
 
     synchronizedLoaderData.current = loaderData;
-    if (queryClient.getQueryData(queryKey) !== loaderData) {
-      queryClient.setQueryData<TData, TQueryKey, TData>(queryKey, loaderData);
+    const key = latestQueryKey.current;
+    if (queryClient.getQueryData(key) !== loaderData) {
+      queryClient.setQueryData<TData, TQueryKey, TData>(key, loaderData);
     }
-  }, [loaderData, queryClient, queryKey]);
+  }, [loaderData, queryClient, queryKeyHash]);
 
   return {
     data: hasNewLoaderData ? loaderData : query.data,

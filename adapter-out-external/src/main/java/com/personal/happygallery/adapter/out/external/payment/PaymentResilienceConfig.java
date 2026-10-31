@@ -1,7 +1,6 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
@@ -45,10 +44,8 @@ class PaymentResilienceConfig {
     @Bean
     ThreadPoolTaskExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
                                                   BoundedExecutorFactory executorFactory) {
-        ExecutorPoolProperties threadPool = properties.threadPool();
         return executorFactory.create(
-                threadPool.poolSize(),
-                threadPool.queueCapacity(),
+                properties.threadPool(),
                 "payment-timeout-",
                 "happygallery.payment.executor.rejected",
                 "PG timeout executor rejected task count");

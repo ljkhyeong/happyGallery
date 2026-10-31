@@ -3,18 +3,20 @@ import type { SmartStoreNoticePageResponse } from "../../src/generated/api/admin
 import type { SmartStoreAccountingReportResponse } from "../../src/generated/api/adminOperations";
 import type { SmartStoreInquiryPageResponse, SmartStoreInquiryAnswerTemplateResponse } from "../../src/generated/api/productQna";
 import { skipExternalFonts } from "./external-fonts";
-import { ADMIN_TOKEN_KEY, fulfillJson, openMockedAdmin } from "./mock-support";
+import {
+  ADMIN_TOKEN_KEY,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  openMockedAdmin,
+  TEMPORARY_ERROR,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
 const ADMIN_TOKEN = "admin-content-recovery-token";
-const EMPTY_CURSOR_PAGE = {
-  content: [],
-  nextCursor: null,
-  hasMore: false,
-};
 
 test.beforeEach(async ({ page }) => {
   await skipExternalFonts({ page });
-  await page.route("**/api/v1/me", (route) => fulfillJson(route, { code: "UNAUTHORIZED" }, 401));
+  await page.route("**/api/v1/me", (route) => fulfillJson(route, UNAUTHORIZED_ERROR, 401));
   await page.route("**/api/v1/workshop", (route) => fulfillJson(route, { name: "해피갤러리", version: 1 }));
 });
 
@@ -293,7 +295,7 @@ test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 
       await fulfillJson(
         route,
         orderAttempts <= 2
-          ? { code: "SERVICE_UNAVAILABLE", message: "잠시 후 다시 시도해 주세요." }
+          ? TEMPORARY_ERROR
           : EMPTY_CURSOR_PAGE,
         orderAttempts <= 2 ? 503 : 200,
       );

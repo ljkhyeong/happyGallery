@@ -39,16 +39,18 @@ class EmailVerificationTransportConfigTest {
     @DisplayName("네이버 메일은 SMTP 빈과 계정 없이 선택한 전송기 하나만 생성한다")
     void ncpStartsWithoutSmtp() {
         ncpRunner().run(context -> {
-            assertThat(context).hasNotFailed().hasSingleBean(EmailVerificationTransport.class)
+            assertThat(context).hasNotFailed().hasSingleBean(VerificationTransport.class)
                     .doesNotHaveBean(JavaMailSender.class);
-            assertThat(context.getBean(EmailVerificationTransport.class)).isInstanceOf(NcpEmailVerificationSender.class);
+            assertThat(context.getBean(VerificationTransport.class)).isInstanceOf(NcpEmailVerificationSender.class);
         });
     }
 
     @Test
-    @DisplayName("네이버 메일의 누락된 키와 역전된 타임아웃은 시작 시 거부한다")
+    @DisplayName("네이버 메일의 누락된 키·발신 주소와 역전된 타임아웃은 시작 시 거부한다")
     void ncpRejectsInvalidConfiguration() {
         ncpRunner().withPropertyValues("app.external.ncp-mail.secret-key=")
+                .run(context -> assertThat(context).hasFailed());
+        ncpRunner().withPropertyValues("app.external.email-verification.from=")
                 .run(context -> assertThat(context).hasFailed());
         ncpRunner().withPropertyValues("app.external.email-verification.timeout=3500ms")
                 .run(context -> assertThat(context).hasFailed());
@@ -72,7 +74,7 @@ class EmailVerificationTransportConfigTest {
                 "spring.mail.properties[mail.smtp.timeout]=2000",
                 "spring.mail.properties[mail.smtp.writetimeout]=2000"
         ).run(context -> {
-            assertThat(context).hasNotFailed().hasSingleBean(EmailVerificationTransport.class)
+            assertThat(context).hasNotFailed().hasSingleBean(VerificationTransport.class)
                     .doesNotHaveBean("ncpMailHttpClient").hasSingleBean(EmailVerificationSender.class);
             assertThat(context.getBean(EmailVerificationSender.class).send("member@example.com", "123456")).isTrue();
             var message = ArgumentCaptor.forClass(SimpleMailMessage.class);
@@ -88,7 +90,7 @@ class EmailVerificationTransportConfigTest {
         ncpRunner().withUserConfiguration(EmailVerificationTransportConfig.Ncp.class,
                         EmailVerificationTransportConfig.Smtp.class)
                 .withPropertyValues("spring.profiles.active=local")
-                .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(EmailVerificationTransport.class));
+                .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(VerificationTransport.class));
     }
 
     @Test
@@ -133,7 +135,7 @@ class EmailVerificationTransportConfigTest {
     @Configuration(proxyBeanMethods = false)
     static class SenderConfig {
         @Bean
-        EmailVerificationSender sender(EmailVerificationTransport transport, EmailVerificationProperties properties) {
+        EmailVerificationSender sender(VerificationTransport transport, EmailVerificationProperties properties) {
             var config = new NotificationResilienceConfig();
             return config.emailVerificationSender(properties, transport, CircuitBreaker.ofDefaults("test-email"),
                     config.emailVerificationTimeLimiter(properties), Runnable::run);

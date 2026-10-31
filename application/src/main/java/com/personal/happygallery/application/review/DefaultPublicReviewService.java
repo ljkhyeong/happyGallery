@@ -35,8 +35,9 @@ class DefaultPublicReviewService implements PublicReviewUseCase {
     @Override
     public PublicReviewPage listProductReviews(
             Long productId, Integer rating, ReviewSort sort, String cursor, int size) {
-        productReader.findById(productId)
-                .orElseThrow(NotFoundException.supplier("상품"));
+        if (!productReader.existsById(productId)) {
+            throw new NotFoundException("상품");
+        }
         int pageSize = PageParams.requireSize(size);
         ReviewPublicCursor.CursorParam cursorParam = ReviewPublicCursor.decodeOrFirst(cursor, sort, rating);
         List<ReviewListView> fetched = reviewReader.findPublishedByProduct(

@@ -132,9 +132,7 @@ class PassCreditUsageUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     // -----------------------------------------------------------------------

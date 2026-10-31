@@ -5,11 +5,12 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadEvents } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "이벤트 | 해피갤러리";
+const TITLE = siteTitle("이벤트");
 const DESCRIPTION = "해피갤러리에서 진행 중이거나 곧 시작하는 이벤트입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -31,10 +32,7 @@ export default function EventsRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd("/events", TITLE, DESCRIPTION, "CollectionPage"),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "이벤트", pathname: "/events" },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "이벤트", pathname: "/events" }]),
       ]} />
       <EventsPage initialEvents={loaderData.events} />
     </>

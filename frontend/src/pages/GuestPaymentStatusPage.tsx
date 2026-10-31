@@ -8,6 +8,7 @@ import {
   fetchPaymentStatus,
   PaymentCompletionNext,
   PaymentResultCard,
+  paymentResultTone,
   PaymentStatusNotice,
   readPaymentStatusToken,
   isCompletedPayment,
@@ -82,7 +83,7 @@ export function GuestPaymentStatusPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="회원 계정이 변경되었습니다"
@@ -95,10 +96,10 @@ export function GuestPaymentStatusPage() {
 
   if (!statusToken) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
-          title="휴대폰 인증 후 결제 결과를 확인해 주세요"
+          title="휴대폰 인증이 필요합니다"
           lead="결제 때 사용한 휴대폰 번호를 인증하면 결제 상태를 볼 수 있습니다."
           actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증하기</LinkButton>}
         />
@@ -108,7 +109,7 @@ export function GuestPaymentStatusPage() {
 
   if (isLoading) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <LoadingSpinner text="결제 상태를 확인하는 중..." />
       </Container>
     );
@@ -116,13 +117,13 @@ export function GuestPaymentStatusPage() {
 
   if (error && !status) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="danger"
           title="결제 상태를 불러오지 못했습니다"
           actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
         >
-          <ErrorAlert error={error} />
+          <ErrorAlert error={error} className="mb-0" />
         </PaymentResultCard>
       </Container>
     );
@@ -131,33 +132,32 @@ export function GuestPaymentStatusPage() {
   if (!status) return null;
 
   const completedResult = isCompletedPayment(status) ? status : null;
+  const paymentCompleted = status.status === "COMPLETED";
+  const hasCompletionActions = completedResult !== null || Boolean(status.receiptUrl);
 
   return (
-    <Container className="page-container payment-result-page">
+    <Container className="page-container is-narrow">
       <Link to="/guest#payment-help" className="page-back-link">&larr; 조회한 결제 목록</Link>
       <PaymentResultCard
-        tone={completedResult ? "success" : "notice"}
+        tone={paymentResultTone(status)}
         title="결제 상태"
         lead={<span className="text-break">결제번호 {orderId}</span>}
-        actions={(
-          <>
-            {completedResult && <PaymentCompletionNext result={completedResult} />}
-            {status.status === "COMPLETED" && (
+        // 완료된 결제는 새로 확인할 것이 없어 다음 행동과 영수증만 둔다. 조회한 목록은 위 뒤로 가기 링크로 돌아간다.
+        actions={paymentCompleted
+          ? hasCompletionActions && (
+            <>
+              {completedResult && <PaymentCompletionNext result={completedResult} />}
               <PaymentReceiptLink receiptUrl={status.receiptUrl} size="default" />
-            )}
-            <Button
-              variant={completedResult ? "outline-secondary" : "primary"}
-              disabled={isFetching}
-              onClick={() => void refetch()}
-            >
+            </>
+          )
+          : (
+            <Button variant="primary" disabled={isFetching} onClick={() => void refetch()}>
               {isFetching ? "확인 중..." : "상태 새로고침"}
             </Button>
-            <LinkButton to="/guest#payment-help" variant="outline-secondary">목록으로</LinkButton>
-          </>
-        )}
+          )}
       >
         <PaymentStatusNotice status={status} />
-        {error && <ErrorAlert error={error} />}
+        {error && <ErrorAlert error={error} className="mb-0" />}
         {status.status === "COMPLETED" && !completedResult && (
           <Alert variant="warning" className="mb-0">
             결제는 완료됐지만 연결된 주문·예약 또는 이용권 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.

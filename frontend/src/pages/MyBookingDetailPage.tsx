@@ -5,10 +5,8 @@ import { Card } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { myNavLabel } from "@/features/my/myNavigation";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
-import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
   cancelMyBooking,
   fetchMyBooking,
@@ -18,7 +16,7 @@ import {
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
 import { customerRefundRefetchInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { BookingReviewSection } from "@/features/review/BookingReviewSection";
 import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
@@ -27,7 +25,6 @@ export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
   const validBookingId = isPositiveSafeIntegerString(id);
-  const { isAuthenticated } = useCustomerAuth();
   const queryClient = useQueryClient();
 
   const {
@@ -38,8 +35,8 @@ export function MyBookingDetailPage() {
     refetch,
   } = useQuery({
     queryKey: queryKeys.member.bookings.detail(bookingId),
-    queryFn: () => fetchMyBooking(bookingId),
-    enabled: isAuthenticated && validBookingId,
+    queryFn: () => runForCurrentCustomer(() => fetchMyBooking(bookingId)),
+    enabled: validBookingId,
     refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
 
@@ -49,7 +46,7 @@ export function MyBookingDetailPage() {
 
   return (
     <>
-      <Link to={{ pathname: "/my/bookings", search }} className="my-back-link">
+      <Link to={{ pathname: "/my/bookings", search }} className="page-back-link">
         &larr; {myNavLabel("/my/bookings")}
       </Link>
       <PageHeader
@@ -69,11 +66,10 @@ export function MyBookingDetailPage() {
       {booking && (
         <>
           <MyBookingDetailCard booking={booking} />
-          {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
 
           {isBooked && (
             <Card className="mt-4 border-0 my-action-card">
-              <Card.Header>예약 변경</Card.Header>
+              <Card.Header as="h2">예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small">
                   예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
@@ -99,7 +95,7 @@ export function MyBookingDetailPage() {
           {/* 잔금까지 낸 예약은 고객이 인원을 바꿀 수 없어 취소 칸의 공방 문의 안내로 모은다. */}
           {isBooked && booking.participantCount > 1 && booking.cancelPolicy.cancellable && (
             <Card className="mt-3 border-0 my-action-card">
-              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Header as="h2">예약 인원 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small">
                   취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
@@ -135,12 +131,10 @@ export function MyBookingDetailPage() {
           )}
 
           {/* 다가오는 예약은 변경·취소가 먼저 필요하므로 후기는 그 아래에 둔다. */}
-          <div className="mt-4">
-            <BookingReviewSection
-              bookingId={booking.bookingId}
-              className={booking.className}
-            />
-          </div>
+          <BookingReviewSection
+            bookingId={booking.bookingId}
+            className={booking.className}
+          />
         </>
       )}
     </>

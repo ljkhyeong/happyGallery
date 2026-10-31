@@ -5,11 +5,12 @@ import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
   buildWebPageJsonLd,
+  siteTitle,
 } from "@/shared/seo/metadata";
 import { loadNotices } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
-const TITLE = "공지사항 | 해피갤러리";
+const TITLE = siteTitle("공지사항");
 const DESCRIPTION = "해피갤러리 공방의 공지사항입니다.";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -31,10 +32,7 @@ export default function NoticesRoute({ loaderData }: Route.ComponentProps) {
     <>
       <CspJsonLd value={[
         buildWebPageJsonLd("/notices", TITLE, DESCRIPTION, "CollectionPage"),
-        buildBreadcrumbJsonLd([
-          { name: "홈", pathname: "/" },
-          { name: "공지사항", pathname: "/notices" },
-        ]),
+        buildBreadcrumbJsonLd([{ name: "공지사항", pathname: "/notices" }]),
       ]} />
       <NoticesPage initialNotices={loaderData.notices} />
     </>

@@ -5,6 +5,7 @@ import { useToast } from "@/shared/ui";
 import type { RefundStatus } from "@/shared/types";
 import { fetchRefund } from "./api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { queryKeys } from "@/shared/api";
 
 const POLL_ERROR_RETRY_DELAY_MS = 15_000;
 const MAX_POLL_ERRORS = 3;
@@ -21,7 +22,7 @@ export function useAdminRefundPolling(adminKey: string, onAuthError: () => void)
     while (activeRefundIds.current.has(refundId)) {
       try {
         const result = await queryClient.fetchQuery({
-          queryKey: ["admin", "refund", refundId],
+          queryKey: queryKeys.admin.refund(refundId),
           queryFn: () => fetchRefund(adminKey, refundId),
           staleTime: 0,
         });
@@ -30,7 +31,7 @@ export function useAdminRefundPolling(adminKey: string, onAuthError: () => void)
         if (!isRefundActivelyProcessing(result.status)) {
           activeRefundIds.current.delete(refundId);
           showRefundResult(show, label, result.status);
-          void queryClient.invalidateQueries({ queryKey: ["admin", "refunds", "failed"] });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.admin.refunds.failed });
           return;
         }
 

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { useOwnedRecoveryResult } from "@/features/guest-recovery/useOwnedRecoveryResult";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, StatusBadge } from "@/shared/ui";
+import { EmptyState, ErrorAlert, StatusBadge } from "@/shared/ui";
 import { recoverGuestPaymentStatuses } from "./api";
 import {
   clearGuestPaymentStatusRecovery,
@@ -33,6 +33,7 @@ export function GuestPaymentStatusRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_PAYMENT_STATUS_RECOVERY"
           title="결제 결과 다시 확인"
+          titleAs="h2"
           description="결제에 쓴 휴대폰 번호를 인증하면 결제 내역을 볼 수 있습니다."
           confirmLabel="결제 결과 다시 확인"
           confirming={recovery.isPending}
@@ -43,9 +44,7 @@ export function GuestPaymentStatusRecoverySection() {
         <ErrorAlert error={recovery.error} />
 
         {result && result.payments.length === 0 && (
-          <Alert variant="light" className="mt-4 mb-0">
-            인증한 번호로 확인할 수 있는 결제가 없습니다.
-          </Alert>
+          <EmptyState message="인증한 번호로 확인할 수 있는 결제가 없습니다." />
         )}
 
         {result && result.payments.length > 0 && recoveryView && (

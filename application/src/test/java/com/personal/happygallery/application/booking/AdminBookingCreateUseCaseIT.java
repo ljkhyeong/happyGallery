@@ -9,7 +9,7 @@ import com.personal.happygallery.application.booking.port.in.AdminBookingCancelU
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.AdminCancelCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase.CreateAdminBookingCommand;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.booking.port.in.BookingCancellationTaskUseCase;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
@@ -50,8 +50,7 @@ class AdminBookingCreateUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("운영자가 받은 다인 예약금 예약은 정원을 점유하고 취소 시 수동 환불 작업을 남긴다")
@@ -63,7 +62,7 @@ class AdminBookingCreateUseCaseIT {
         Slot slot = slotStorePort.save(
                 slot(bookingClass, startAt, startAt.plusHours(2)));
 
-        AdminBookingResponse created = adminBookingCreateUseCase.create(
+        AdminBookingView created = adminBookingCreateUseCase.create(
                 new CreateAdminBookingCommand(
                         slot.getId(),
                         "전화예약자",

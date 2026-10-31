@@ -29,12 +29,12 @@ interface Props {
 /** 로그인·회원가입 화면 틀: 입력 카드와 안내 카드를 2단으로 놓는다(모바일은 입력 카드가 먼저). */
 export function AuthPageShell({ title, children, social, footer, hero }: Props) {
   return (
-    <Container className="page-container auth-shell" style={{ maxWidth: 980 }}>
+    <Container className="page-container auth-page">
       <Row className="g-4 align-items-stretch">
         <Col lg={{ span: 7, order: 2 }}>
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
-              <h1 className="h3 mb-3">{title}</h1>
+              <h1 className="h3 display-heading mb-3">{title}</h1>
               {children}
               <div className="d-flex align-items-center my-4">
                 <hr className="flex-grow-1" />
@@ -49,7 +49,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
         <Col lg={{ span: 5, order: 1 }}>
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
-              <h2 className="mb-3">{hero.title}</h2>
+              <h2 className="display-heading mb-3">{hero.title}</h2>
               {hero.description && <p className="text-muted-soft mb-4">{hero.description}</p>}
               {hero.benefits && (
                 <ul className="auth-benefit-list mb-4">
@@ -58,7 +58,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
                   ))}
                 </ul>
               )}
-              <div className="d-flex flex-wrap gap-3 mt-auto small">{hero.links}</div>
+              <div className="d-flex flex-wrap gap-3 small">{hero.links}</div>
             </Card.Body>
           </Card>
         </Col>

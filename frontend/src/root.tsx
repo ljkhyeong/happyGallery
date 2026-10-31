@@ -5,33 +5,33 @@ import {
   Meta,
   Scripts,
   ScrollRestoration,
-  isRouteErrorResponse,
   useRouteError,
 } from "react-router";
-import { Button } from "react-bootstrap";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import { CartProvider } from "@/features/cart/CartProvider";
+import { DEFAULT_NOT_FOUND } from "@/pages/NotFoundPage";
 import { createQueryClient } from "@/shared/api";
 import {
   ErrorBoundary as AppErrorBoundary,
   Layout as AppLayout,
+  isNotFoundRouteError,
+  RouteLoadErrorStatus,
   StatusPage,
   ToastProvider,
 } from "@/shared/ui";
 import { CspNonceContext } from "@/shared/seo/CspJsonLd";
-import { DEFAULT_SEO_DESCRIPTION } from "@/shared/seo/metadata";
+import { DEFAULT_SEO_DESCRIPTION, DEFAULT_SEO_TITLE, SITE_NAME } from "@/shared/seo/metadata";
 import "@/styles/global.scss";
 
-const DEFAULT_TITLE = "해피갤러리 | 충주 공예 클래스와 핸드메이드 공방";
 // Styles are host-allowlisted; browsers hide link nonces and would report a hydration mismatch.
 const LINK_NONCE_DISABLED = "";
 
 export function meta() {
   return [
-    { title: DEFAULT_TITLE },
+    { title: DEFAULT_SEO_TITLE },
     { name: "description", content: DEFAULT_SEO_DESCRIPTION },
     { property: "og:locale", content: "ko_KR" },
-    { property: "og:site_name", content: "해피갤러리" },
+    { property: "og:site_name", content: SITE_NAME },
     { name: "twitter:card", content: "summary_large_image" },
   ];
 }
@@ -93,22 +93,17 @@ export default function Root() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  const notFound = isRouteErrorResponse(error) && error.status === 404;
 
   // 루트 오류는 머리글 없이 그려지므로 공방 이름으로 홈 링크를 함께 보여 준다.
-  return notFound ? (
+  // 404의 홈 링크도 남은 오류 상태를 비우도록 전체 페이지 이동(a href)으로 연다.
+  return isNotFoundRouteError(error) ? (
     <StatusPage
       standalone
-      title="페이지를 찾을 수 없습니다"
-      description="주소가 바뀌었거나 없는 페이지입니다. 아래에서 원하는 화면을 찾아 주세요."
+      title={DEFAULT_NOT_FOUND.title}
+      description={DEFAULT_NOT_FOUND.description}
       actions={<a href="/" className="btn btn-primary">홈으로</a>}
     />
   ) : (
-    <StatusPage
-      standalone
-      title="페이지를 불러오지 못했습니다"
-      description="잠시 후 다시 시도해 주세요. 계속 열리지 않으면 공방에 문의해 주세요."
-      actions={<Button onClick={() => window.location.reload()}>다시 시도</Button>}
-    />
+    <RouteLoadErrorStatus standalone />
   );
 }

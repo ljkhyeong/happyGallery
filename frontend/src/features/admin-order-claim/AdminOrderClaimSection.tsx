@@ -28,6 +28,7 @@ import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -59,8 +60,7 @@ export function AdminOrderClaimSection({
     showPreviousPage,
     resetCursor,
   } = useCursorHistory();
-  const [pendingId, setPendingId] = useState<number | null>(null);
-  const queryKey = ["admin", "order-claims", status, cursor] as const;
+  const queryKey = queryKeys.admin.orderClaims.page(status, cursor);
   const { data: page, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchAdminOrderClaims(adminKey, status || undefined, cursor),
@@ -79,13 +79,12 @@ export function AdminOrderClaimSection({
   }
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["admin", "order-claims"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.orderClaims.all });
   }
 
   const resolve = useAdminMutation(onAuthError, {
     mutationFn: ({ claimId, body }: { claimId: number; body: ResolveOrderClaimRequest }) =>
       resolveOrderClaim(adminKey, claimId, body),
-    onMutate: ({ claimId }) => setPendingId(claimId),
     onSuccess: (claim) => {
       toast.show(
         claim.status === "REJECTED"
@@ -94,19 +93,21 @@ export function AdminOrderClaimSection({
       );
       invalidate();
     },
-    onSettled: () => setPendingId(null),
   });
 
   const completeExchange = useAdminMutation(onAuthError, {
     mutationFn: ({ claimId, body }: { claimId: number; body: CompleteOrderExchangeRequest }) =>
       completeOrderClaimExchange(adminKey, claimId, body),
-    onMutate: ({ claimId }) => setPendingId(claimId),
     onSuccess: (claim) => {
       toast.show(`주문 #${claim.orderId} 교환 처리를 완료했습니다.`);
       invalidate();
     },
-    onSettled: () => setPendingId(null),
   });
+  const pendingId = resolve.isPending
+    ? resolve.variables.claimId
+    : completeExchange.isPending
+      ? completeExchange.variables.claimId
+      : null;
 
   return (
     <div>

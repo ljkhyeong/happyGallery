@@ -1,6 +1,6 @@
 import { ListMyBookingsPageStatus } from "@/generated/api/booking";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Card, Col, Row } from "react-bootstrap";
+import { Card } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
@@ -8,8 +8,9 @@ import { bookingDepositLabel, buildStatusFilterOptions } from "@/features/my/lis
 import { useMyHistoryList } from "@/features/my/useMyHistoryList";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { queryKeys } from "@/shared/api";
-import { CursorLoadMore, LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
+import { CursorLoadMore, CursorQueryErrorAlert, LoadingSpinner, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { recordNumberKeyword } from "@/shared/lib/labels";
 
 const DEFAULT_SORT = "SOONEST";
 const BOOKING_SORT_OPTIONS = [
@@ -26,6 +27,7 @@ export function MyBookingsPage() {
     statusValues: Object.values(ListMyBookingsPageStatus),
     sortOptions: BOOKING_SORT_OPTIONS,
     defaultSort: DEFAULT_SORT,
+    normalizeKeyword: (keyword) => recordNumberKeyword(keyword, "bookings"),
   });
   const hasLoadedBookings = query.data !== undefined;
   const statusOptions = [
@@ -34,7 +36,7 @@ export function MyBookingsPage() {
   ];
   const quickTabs = [
     { value: "ALL", label: "전체" },
-    ...buildStatusFilterOptions(["BOOKED", "COMPLETED", "CANCELED"]),
+    ...buildStatusFilterOptions(["BOOKED", "COMPLETED", "CANCELED"], { keepOrder: true }),
   ];
 
   return (
@@ -44,11 +46,7 @@ export function MyBookingsPage() {
         <LinkButton to="/bookings/new" variant="outline-dark" size="sm">새 예약 만들기</LinkButton>
       )}
     >
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => { void query.refetch(); }}
-        retrying={query.isFetching && !query.isFetchingNextPage}
-      />
+      <CursorQueryErrorAlert query={query} />
       <MyListFilterBar
         idPrefix="my-bookings"
         searchLabel="예약 검색"
@@ -61,29 +59,27 @@ export function MyBookingsPage() {
         hasMore={query.hasNextPage}
       />
       {query.isLoading && <LoadingSpinner />}
-      {hasLoadedBookings && bookings.length === 0 && <EmptyState message="검색 조건에 맞는 예약 내역이 없습니다." />}
+      {hasLoadedBookings && bookings.length === 0 && (
+        <EmptyState message={filters.hasFilter ? "검색 조건에 맞는 예약 내역이 없습니다." : "예약 내역이 없습니다."} />
+      )}
       {bookings.length > 0 && bookings.map((booking) => (
         <Card
           key={booking.bookingId}
           as={Link}
           to={{ pathname: `/my/bookings/${booking.bookingId}`, search }}
-          className="mb-2 text-decoration-none my-list-card border-0"
+          className="mb-2 text-decoration-none my-list-card"
         >
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={5}>
-                <div className="fw-semibold small">{booking.className}</div>
-                <small className="text-muted-soft">
-                  {formatDateTime(booking.startAt)} · {booking.participantCount}명
-                </small>
-              </Col>
-              <Col xs={6} md={3}>
-                <StatusBadge status={booking.status} />
-              </Col>
-              <Col xs={6} md={4} className="text-md-end">
-                <small>{bookingDepositLabel(booking.depositAmount)}</small>
-              </Col>
-            </Row>
+          <Card.Body className="my-list-row py-3 px-3">
+            <div className="my-list-main">
+              <div className="fw-semibold small">{booking.className}</div>
+              <small className="text-muted-soft">
+                {formatDateTime(booking.startAt)} · {booking.participantCount}명
+              </small>
+            </div>
+            <div className="my-list-side">
+              <StatusBadge status={booking.status} />
+              <span>{bookingDepositLabel(booking.depositAmount)}</span>
+            </div>
           </Card.Body>
         </Card>
       ))}

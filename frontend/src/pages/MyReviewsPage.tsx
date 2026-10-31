@@ -1,21 +1,18 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { fetchMyReviews } from "@/features/review/api";
 import { MemberReviewCard } from "@/features/review/MemberReviewCard";
 import { ReviewOpportunityList } from "@/features/review/ReviewOpportunityList";
 import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
-import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
+import { EmptyState, LoadingSpinner, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 
 export function MyReviewsPage() {
-  const { isAuthenticated } = useCustomerAuth();
   const reviewsQuery = useInfiniteQuery({
     queryKey: queryKeys.member.reviews.history,
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(
       () => fetchMyReviews(pageParam, signal),
     ),
     ...cursorPageParams,
-    enabled: isAuthenticated,
   });
   const reviews = flattenCursorPages(reviewsQuery.data);
 
@@ -26,11 +23,7 @@ export function MyReviewsPage() {
       <ReviewOpportunityList />
 
       {reviewsQuery.isLoading && <LoadingSpinner text="내 후기를 불러오는 중입니다" />}
-      <ErrorAlert
-        error={reviewsQuery.isFetchNextPageError ? null : reviewsQuery.error}
-        onRetry={() => void reviewsQuery.refetch()}
-        retrying={reviewsQuery.isFetching}
-      />
+      <CursorQueryErrorAlert query={reviewsQuery} />
       {reviewsQuery.data !== undefined && reviews.length === 0 && (
         <EmptyState message="작성한 후기가 없습니다. 후기는 받은 작품·들은 수업의 주문·예약 상세에서 쓸 수 있습니다." />
       )}

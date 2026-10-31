@@ -7,8 +7,9 @@ import type {
 } from "@/generated/api/product";
 import type { OrderTextInput } from "@/generated/api/payment";
 import { formatKRW } from "@/shared/lib";
+import { contentLengthLabel } from "@/shared/validation/contentText";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
-import { productQuantityLimit } from "./purchaseStock";
+import { productQuantityLimit, remainingAddableQuantity, remainingLineQuantity } from "./purchaseStock";
 import { productOptionLineKey } from "./optionLineKey";
 import { productSelectionView } from "./productSelectionView";
 
@@ -60,9 +61,22 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
     (variant) => variant.active && matchesVariant(variant, currentSelectedValues),
   );
   const remainingQuantity = selectedVariant
-    ? Math.max(0, productQuantityLimit(product, selectedVariant.id)
-      - (selectedQuantities.get(selectedVariant.id) ?? 0))
+    ? remainingAddableQuantity(
+      productQuantityLimit(product, selectedVariant.id),
+      selectedQuantities.get(selectedVariant.id) ?? 0,
+    )
     : 0;
+  // 모든 조합이 품절이라 판매할 수 없으면 담을 칸 없이 선택 옵션만 두어 그 조합의 재입고 알림을 받게 한다.
+  const purchasable = product.available;
+  // 다른 칸에서 고른 값과 이어지는 판매 조합이 모두 재고 0이면 목록에 품절을 붙인다. 고를 수는 있어 재입고 알림으로 이어진다.
+  const isSoldOutValue = (groupKey: string, valueKey: string) => {
+    const variants = product.variants.filter((variant) => variant.active
+      && variant.selections.some((selection) => selection.groupKey === groupKey && selection.valueKey === valueKey)
+      && selectGroups.every((other) => other.key === groupKey || !currentSelectedValues[other.key]
+        || variant.selections.some((selection) => selection.groupKey === other.key
+          && selection.valueKey === currentSelectedValues[other.key])));
+    return variants.length > 0 && variants.every((variant) => variant.quantity === 0);
+  };
   const requiredComplete = selectGroups.every(
     (group) => !group.required || Boolean(currentSelectedValues[group.key]),
   ) && textGroups.every(
@@ -107,7 +121,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
       {selectGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>
-            {group.name} {group.required && <span className="text-danger">*</span>}
+            {group.required && "[필수] "}{group.name}
           </Form.Label>
           <Form.Select
             value={currentSelectedValues[group.key] ?? ""}
@@ -118,16 +132,18 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
           >
             <option value="">{group.required ? "선택해 주세요" : "선택 안 함"}</option>
             {group.values.map((value) => (
-              <option key={value.key} value={value.key}>{value.name}</option>
+              <option key={value.key} value={value.key}>
+                {isSoldOutValue(group.key, value.key) ? `${value.name} · 품절` : value.name}
+              </option>
             ))}
           </Form.Select>
         </Form.Group>
       ))}
 
-      {textGroups.map((group) => (
+      {purchasable && textGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>
-            {group.name} {group.required && <span className="text-danger">*</span>}
+            {group.required && "[필수] "}{group.name}
             {(group.inputPriceAdjustment ?? 0) > 0 && (
               <span className="text-muted small ms-2">+{formatKRW(group.inputPriceAdjustment ?? 0)}</span>
             )}
@@ -141,28 +157,33 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
               setMessage(null);
             }}
           />
-          <Form.Text>{(textValues[group.key] ?? "").length}/{group.inputMaxLength ?? 200}자</Form.Text>
+          <Form.Text>{contentLengthLabel(textValues[group.key] ?? "", group.inputMaxLength ?? 200)}</Form.Text>
         </Form.Group>
       ))}
 
-      {selectedVariant && (
+      {purchasable && selectedVariant && (
         <Form.Text className="d-block">
           같은 옵션 조합으로 추가 가능: {remainingQuantity}개
         </Form.Text>
       )}
       {message && <Alert variant="warning" className="py-2 mb-0">{message}</Alert>}
       {selectedVariant && selectedVariant.quantity === 0 && <RestockAlertButton productId={product.id} productVariantId={selectedVariant.id} />}
-      <Button type="button" variant="outline-dark" onClick={addLine}>
-        선택한 옵션 추가
-      </Button>
+      {purchasable && (
+        <Button type="button" variant="outline-dark" onClick={addLine}>
+          선택한 옵션 추가
+        </Button>
+      )}
 
-      {lines.length > 0 && (
+      {purchasable && lines.length > 0 && (
         <Table responsive size="sm" className="align-middle mb-0">
           <tbody>
             {lines.map((line) => {
               const view = productSelectionView(product, line);
-              const maximumLineQuantity = Math.max(0, productQuantityLimit(product, line.productVariantId)
-                - (selectedQuantities.get(line.productVariantId) ?? 0) + line.qty);
+              const maximumLineQuantity = remainingLineQuantity(
+                productQuantityLimit(product, line.productVariantId),
+                selectedQuantities.get(line.productVariantId) ?? 0,
+                line.qty,
+              );
               return (
                 <tr key={line.key}>
                   <td>
@@ -195,8 +216,9 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
                     <Button
                       type="button"
                       size="sm"
-                      variant="link"
-                      className="text-danger"
+                      variant="outline-dark"
+                      className="text-nowrap"
+                      aria-label={`${view.label} 삭제`}
                       onClick={() => {
                         onChange(lines.filter((item) => item.key !== line.key));
                         setMessage(null);

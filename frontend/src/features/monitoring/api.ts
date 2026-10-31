@@ -3,9 +3,7 @@ import {
   type CaptureClientEventRequestEvent,
 } from "@/generated/api/monitoring";
 
-export type ClientMonitoringEvent = CaptureClientEventRequestEvent;
-
-export function trackClientEvent(event: ClientMonitoringEvent) {
+export function trackClientEvent(event: CaptureClientEventRequestEvent) {
   if (typeof window === "undefined") return;
 
   void captureClientEvent({ event }, { keepalive: true }).catch(() => {

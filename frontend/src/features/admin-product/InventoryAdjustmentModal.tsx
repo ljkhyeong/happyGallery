@@ -9,7 +9,8 @@ import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
-import type { InventoryAdjustmentType, ProductResponse } from "@/shared/types";
+import type { ProductResponse } from "@/generated/api/adminCatalog";
+import type { InventoryAdjustmentType } from "@/shared/types";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
@@ -44,7 +45,7 @@ export function InventoryAdjustmentModal({
   ));
 
   const historyQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product.id, "inventory-adjustments"],
+    queryKey: queryKeys.admin.products.inventoryAdjustments(product.id),
     queryFn: () => fetchInventoryAdjustments(adminKey, product.id),
   });
 
@@ -60,10 +61,10 @@ export function InventoryAdjustmentModal({
       setShowImpactConfirm(false);
       setQuantity("1");
       setReason("");
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.products });
       queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product.id, "inventory-adjustments"],
+        queryKey: queryKeys.admin.products.inventoryAdjustments(product.id),
       });
     },
   });
@@ -94,7 +95,7 @@ export function InventoryAdjustmentModal({
       centered
       size="lg"
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="admin-inventory-adjustment-title" className="fs-6">
           {product.name} 재고 조정
         </Modal.Title>

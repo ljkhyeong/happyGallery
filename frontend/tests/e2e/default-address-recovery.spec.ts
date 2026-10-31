@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { DefaultShippingAddressResponse, ShippingAddress } from "../../src/generated/api/customerStore";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, fulfillMemberCommon, memberFixture, TEMPORARY_ERROR } from "./mock-support";
 
 const originalAddress = {
   recipientName: "회원", phone: "01012345678", postalCode: "12345", addressLine1: "서울시 기존 주소 10", addressLine2: "101호",
@@ -17,25 +17,23 @@ async function mockAddress(page: Page) {
   };
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "address@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=address-recovery; Path=/" }, json: {} });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
-        email: "address@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/default-shipping-address": {
         const saved = state.accounts.get(state.accountId)!;
         const method = route.request().method();
         if (method === "GET") {
           state.readCount += 1;
-          return state.failRead ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, saved);
+          return state.failRead ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, saved);
         }
         const change = method === "PUT" ? route.request().postDataJSON() : { version: Number(searchParams.get("version")), shippingAddress: null };
         state.requests.push({ method, ...change });
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.failWrite) return fulfillJson(route, TEMPORARY_ERROR, 503);
         if (change.version !== saved.version) return fulfillJson(route, { code: "CONFLICT" }, 409);
         saved.version += 1;
         saved.shippingAddress = change.shippingAddress;

@@ -4,7 +4,9 @@ import type { SmartStoreNoticeResponse } from "@/generated/api/adminCatalog";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { applyNoticeToSmartStoreProducts, fetchSmartStoreProducts } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -18,7 +20,7 @@ export function SmartStoreNoticeApplyModal({ adminKey, notice, onAuthError, onCl
   const [catalogPage, setCatalogPage] = useState(1);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const catalog = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", "notice", catalogPage],
+    queryKey: queryKeys.admin.smartStore.products.noticeCatalog(catalogPage),
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
   });
   const apply = useAdminMutation(onAuthError, {
@@ -33,7 +35,7 @@ export function SmartStoreNoticeApplyModal({ adminKey, notice, onAuthError, onCl
   const close = () => { if (!apply.isPending) onClose(); };
 
   return <Modal show onHide={close} size="lg" centered>
-    <Modal.Header closeButton={!apply.isPending}>
+    <Modal.Header closeLabel="창 닫기" closeButton={!apply.isPending}>
       <Modal.Title className="fs-6">공지를 적용할 상품 선택</Modal.Title>
     </Modal.Header>
     <Modal.Body>
@@ -64,18 +66,17 @@ export function SmartStoreNoticeApplyModal({ adminKey, notice, onAuthError, onCl
           </Table>
         ) : <EmptyState message="선택할 스마트스토어 상품이 없습니다." />)}
         {(catalogPage > 1 || (catalog.data?.totalPages ?? 0) > 1) && (
-          <nav aria-label="공지 적용 상품 페이지" className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <Button size="sm" variant="outline-secondary"
-              disabled={catalogPage <= 1 || catalog.isFetching}
-              onClick={() => setCatalogPage((page) => page - 1)}>이전</Button>
-            <span className="small text-muted-soft">
-              {catalogPage}페이지{catalog.data && ` · 총 ${catalog.data.totalElements}개`}
-            </span>
-            <Button size="sm" variant="outline-secondary"
-              disabled={!catalog.data || catalog.isError || catalog.isFetching
-                || catalogPage >= catalog.data.totalPages}
-              onClick={() => setCatalogPage((page) => page + 1)}>다음</Button>
-          </nav>
+          <OffsetPager
+            as="nav"
+            ariaLabel="공지 적용 상품 페이지"
+            className="d-flex flex-wrap align-items-center justify-content-between gap-2"
+            summary={<>{catalogPage}페이지{catalog.data && ` · 총 ${catalog.data.totalElements}개`}</>}
+            previousDisabled={catalogPage <= 1 || catalog.isFetching}
+            nextDisabled={!catalog.data || catalog.isError || catalog.isFetching
+              || catalogPage >= catalog.data.totalPages}
+            onPrevious={() => setCatalogPage((page) => page - 1)}
+            onNext={() => setCatalogPage((page) => page + 1)}
+          />
         )}
       </fieldset>
     </Modal.Body>

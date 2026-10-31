@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
@@ -30,7 +29,7 @@ import org.springframework.web.client.RestClient;
  * <p>raw sender는 컨텍스트에 빈으로 노출하지 않고 데코레이터만 노출해야
  * {@code NotificationService}의 채널 fallback 체인에 같은 채널이 두 번 들어가지 않는다.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @Profile("prod")
 class NotificationResilienceConfig {
 
@@ -76,7 +75,6 @@ class NotificationResilienceConfig {
 
     @Bean
     TimeLimiter emailVerificationTimeLimiter(EmailVerificationProperties properties) {
-        Assert.hasText(properties.from(), "이메일 인증 발신 주소는 필수입니다.");
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(properties.timeout())
                 .cancelRunningFuture(true)
@@ -88,9 +86,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.alimtalkThreadPool(),
-                executorFactory,
                 "alimtalk-notification-timeout-",
                 "happygallery.notification.alimtalk.executor.rejected",
                 "Alimtalk notification timeout executor rejected task count");
@@ -101,9 +98,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.smsThreadPool(),
-                executorFactory,
                 "sms-notification-timeout-",
                 "happygallery.notification.sms.executor.rejected",
                 "SMS notification timeout executor rejected task count");
@@ -114,9 +110,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.phoneVerificationThreadPool(),
-                executorFactory,
                 "phone-verification-timeout-",
                 "happygallery.notification.phone_verification.executor.rejected",
                 "Phone verification timeout executor rejected task count");
@@ -127,9 +122,8 @@ class NotificationResilienceConfig {
             NotificationResilienceProperties properties,
             BoundedExecutorFactory executorFactory
     ) {
-        return createExecutor(
+        return executorFactory.create(
                 properties.emailVerificationThreadPool(),
-                executorFactory,
                 "email-verification-timeout-",
                 "happygallery.notification.email_verification.executor.rejected",
                 "Email verification timeout executor rejected task count");
@@ -201,29 +195,32 @@ class NotificationResilienceConfig {
                                                      Executor timeoutExecutor,
                                                      NotificationResilienceProperties resilience) {
         validateTimeoutHierarchy(resilience, props.http());
-        RealPhoneVerificationSender raw = new RealPhoneVerificationSender(props, smsRestClient);
-        return new ResilientPhoneVerificationSender(
-                raw,
+        ResilientVerificationSender resilient = new ResilientVerificationSender(
+                "SMS:PHONE_VERIFICATION",
+                new RealPhoneVerificationSender(props, smsRestClient),
                 circuitBreaker,
                 notificationTimeLimiter,
                 timeoutExecutor,
                 resilience.timeout());
+        return resilient::send;
     }
 
     @Bean
     EmailVerificationSender emailVerificationSender(
             EmailVerificationProperties props,
-            EmailVerificationTransport transport,
+            VerificationTransport transport,
             @Qualifier("emailVerificationCircuitBreaker") CircuitBreaker circuitBreaker,
             @Qualifier("emailVerificationTimeLimiter") TimeLimiter timeLimiter,
             @Qualifier("emailVerificationTimeoutExecutor") Executor timeoutExecutor
     ) {
-        return new ResilientEmailVerificationSender(
+        ResilientVerificationSender resilient = new ResilientVerificationSender(
+                "EMAIL:EMAIL_VERIFICATION",
                 transport,
                 circuitBreaker,
                 timeLimiter,
                 timeoutExecutor,
                 props.timeout());
+        return resilient::send;
     }
 
     private static boolean isFailureResult(Object result) {
@@ -233,21 +230,6 @@ class NotificationResilienceConfig {
         }
         return result == NotificationSendResult.TRANSIENT_FAILURE
                 || result == NotificationSendResult.DELIVERY_UNKNOWN;
-    }
-
-    private static ThreadPoolTaskExecutor createExecutor(
-            ExecutorPoolProperties threadPool,
-            BoundedExecutorFactory executorFactory,
-            String threadNamePrefix,
-            String rejectionMetricName,
-            String rejectionMetricDescription
-    ) {
-        return executorFactory.create(
-                threadPool.poolSize(),
-                threadPool.queueCapacity(),
-                threadNamePrefix,
-                rejectionMetricName,
-                rejectionMetricDescription);
     }
 
     private static void validateTimeoutHierarchy(NotificationResilienceProperties resilience,

@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.inquiry;
 
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
+import com.personal.happygallery.application.customer.MemberNames;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryStorePort;
@@ -13,17 +14,13 @@ import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
-import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import static java.util.stream.Collectors.toMap;
 
 @Service
 public class DefaultInquiryService implements InquiryUseCase {
@@ -78,9 +75,10 @@ public class DefaultInquiryService implements InquiryUseCase {
         int pageSize = PageParams.requireSize(size);
         CursorParam after = CursorUtils.decodeOrFirst(cursor);
         List<Inquiry> inquiries = inquiryReader.findRecent(after.timestamp(), after.id(), pageSize + 1);
-        Map<Long, User> userMap = batchFetchUsers(inquiries);
+        Map<Long, String> userNames = MemberNames.of(
+                userReader, inquiries.stream().map(Inquiry::getUserId).distinct().toList());
         List<InquiryWithUser> items = inquiries.stream()
-                .map(i -> new InquiryWithUser(i, userName(userMap, i.getUserId())))
+                .map(i -> new InquiryWithUser(i, userNames.getOrDefault(i.getUserId(), MemberNames.WITHDRAWN)))
                 .toList();
         return CursorPage.of(items, pageSize, item -> CursorUtils.encode(
                 item.inquiry().getCreatedAt(), item.inquiry().getId()));
@@ -98,20 +96,7 @@ public class DefaultInquiryService implements InquiryUseCase {
                 NotificationEventType.INQUIRY_ANSWERED,
                 NotificationAggregateType.INQUIRY,
                 inquiry.getId()));
-        String name = userReader.findById(inquiry.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new InquiryWithUser(inquiry, name);
-    }
-
-    private Map<Long, User> batchFetchUsers(List<Inquiry> inquiries) {
-        List<Long> userIds = inquiries.stream().map(Inquiry::getUserId).distinct().toList();
-        return userReader.findAllById(userIds).stream()
-                .collect(toMap(User::getId, Function.identity()));
-    }
-
-    private static String userName(Map<Long, User> userMap, Long userId) {
-        User user = userMap.get(userId);
-        return user != null ? user.getName() : "탈퇴회원";
+        return new InquiryWithUser(inquiry, MemberNames.of(userReader, inquiry.getUserId()));
     }
 
 }

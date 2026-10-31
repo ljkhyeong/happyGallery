@@ -150,8 +150,7 @@ class PaymentConfirmUseCaseIT {
     void tearDown() {
         cartItemRepository.deleteAllInBatch();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("장바구니 결제는 prepare 시점 항목으로 주문하고 결제 후 추가한 수량은 남긴다")

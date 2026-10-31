@@ -53,7 +53,7 @@ public class GroupInquiry {
         status.requireTransitionTo(next);
         status = next;
         if (next == GroupInquiryStatus.CLOSED) nextContactOn = null;
-        updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
+        advanceUpdatedAt(now);
     }
 
     public void scheduleContact(long expectedVersion, LocalDate date, LocalDateTime now) {
@@ -68,7 +68,7 @@ public class GroupInquiry {
         requireVersion(expectedVersion);
         status.requireMemberChange();
         detailsEnc = encryptedDetails;
-        updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
+        advanceUpdatedAt(now);
     }
 
     public void cancelByMember(long expectedVersion, LocalDateTime now) {
@@ -76,6 +76,11 @@ public class GroupInquiry {
         status.requireMemberChange();
         status = GroupInquiryStatus.CANCELED;
         nextContactOn = null;
+        advanceUpdatedAt(now);
+    }
+
+    /** 갱신 시각은 항상 증가해야 하므로 now가 기존 값과 같거나 과거면 1µs를 더한다. */
+    private void advanceUpdatedAt(LocalDateTime now) {
         updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
     }
 

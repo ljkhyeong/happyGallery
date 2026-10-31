@@ -123,8 +123,7 @@ class CustomerGuestClaimUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("휴대폰 번호 인증을 마친 회원은 같은 번호의 비회원 주문과 예약을 가져올 수 있다")
@@ -149,7 +148,7 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE,
                 BookingTestHelper.FUTURE.plusHours(2)));
         Booking booking = bookingStorePort.save(Booking.forGuestDeposit(
-                guest, slot, 10_000L, 40_000L,
+                guest, slot, 1, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD,
                 "guest-claim-access-token"));
 
@@ -220,7 +219,7 @@ class CustomerGuestClaimUseCaseIT {
                 LocalDateTime.of(2026, 2, 28, 10, 0),
                 LocalDateTime.of(2026, 2, 28, 12, 0)));
         Booking booking = bookingStorePort.save(Booking.forGuestDeposit(
-                guest, slot, 10_000L, 0L, DepositPaymentMethod.CARD, "completed-claim-token"));
+                guest, slot, 1, 10_000L, 0L, DepositPaymentMethod.CARD, "completed-claim-token"));
         customerHelper.signupAndGetSessionCookie("claim-review@example.com", phone);
         User user = userReaderPort.findByEmail("claim-review@example.com").orElseThrow();
         jdbcTemplate.update("UPDATE orders SET status = 'DELIVERED' WHERE id = ?", order.getId());
@@ -272,7 +271,7 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE.plusHours(2)));
         GuestTokenService.IssuedToken oldBookingToken = guestTokenService.issue();
         Booking booking = bookingStorePort.save(Booking.forGuestDeposit(
-                guest, slot, 10_000L, 40_000L,
+                guest, slot, 1, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD,
                 oldBookingToken.tokenHash()));
         Slot secondSlot = slotStorePort.save(TestFixtures.slot(
@@ -281,7 +280,7 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
         GuestTokenService.IssuedToken secondOldBookingToken = guestTokenService.issue();
         Booking secondBooking = bookingStorePort.save(Booking.forGuestDeposit(
-                guest, secondSlot, 10_000L, 40_000L,
+                guest, secondSlot, 1, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD,
                 secondOldBookingToken.tokenHash()));
 
@@ -395,12 +394,12 @@ class CustomerGuestClaimUseCaseIT {
                 BookingTestHelper.FUTURE.plusHours(2)));
         // 키 회전 전 불일치가 남은 레거시 예약도 claim 시 회원 ID 제약으로 방어한다.
         Booking memberBooking = bookingStorePort.save(Booking.forMemberDeposit(
-                user, slot, 10_000L, 40_000L, DepositPaymentMethod.CARD));
+                user, slot, 1, 10_000L, 40_000L, DepositPaymentMethod.CARD));
         jdbcTemplate.update(
                 "UPDATE bookings SET owner_phone_hmac = ? WHERE id = ?",
                 "f".repeat(64), memberBooking.getId());
         Booking guestBooking = bookingStorePort.save(Booking.forGuestDeposit(
-                guest, slot, 10_000L, 40_000L,
+                guest, slot, 1, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD, "claim-conflict-token"));
 
         mockMvc.perform(post("/api/v1/me/guest-claims")

@@ -14,7 +14,7 @@ public interface PaymentFulfiller {
     /** 처리하는 PaymentContext. */
     PaymentContext context();
 
-    /** PG 호출 전에 저장 payload의 컨텍스트별 불변식을 검증한다. */
+    /** PG 호출 전과 도메인 생성 직전에 저장 payload의 컨텍스트별 불변식을 검증한다. {@link #fulfill}은 검증을 반복하지 않는다. */
     void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload);
 
     /**

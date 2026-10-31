@@ -20,7 +20,7 @@ export function PaymentMethodFields({ value, onChange, disabled, showLegend = tr
   const id = useId();
   return (
     <fieldset className="mb-3" disabled={disabled}>
-      <legend className={showLegend ? "fs-6 fw-semibold" : "visually-hidden"}>결제수단</legend>
+      <legend className={showLegend ? "fs-6 fw-semibold" : "visually-hidden"}>결제 수단</legend>
       <div className="payment-method-choices mb-2">
         {Object.entries(METHOD_LABELS).map(([method, label]) => (
           <Form.Check

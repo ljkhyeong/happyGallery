@@ -18,15 +18,16 @@ import { formatDateTime } from "@/shared/lib";
 import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, isSettingStateError, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import { CONTENT_BODY_MAX_LENGTH, contentLengthLabel } from "@/shared/validation/contentText";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   token: string;
   onAuthError: () => void;
 }
 
-const queryKey = ["admin", "smartstore-inquiries"] as const;
 type InquiryType = "product" | "customer";
 function initialSearch() {
   const to = formatDateInput(Date.now());
@@ -50,23 +51,26 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     unansweredOnly: searches.customer.unansweredOnly, page: searches.customer.page, size: 50,
   };
   const productQuery = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, "product", productParams],
+    queryKey: queryKeys.admin.smartStore.inquiries.product(productParams),
     queryFn: () => fetchSmartStoreInquiries(token, productParams),
     enabled: inquiryType === "product",
     refetchInterval: 60_000,
   });
   const customerQuery = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, "customer", customerParams],
+    queryKey: queryKeys.admin.smartStore.inquiries.customer(customerParams),
     queryFn: () => fetchSmartStoreCustomerInquiries(token, customerParams),
     enabled: inquiryType === "customer",
     refetchInterval: 60_000,
   });
   const templateQuery = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, "template"],
+    queryKey: queryKeys.admin.smartStore.inquiries.template,
     queryFn: () => fetchSmartStoreAnswerTemplate(token),
     enabled: inquiryType === "product",
   });
   const activeQuery = inquiryType === "product" ? productQuery : customerQuery;
+  const templateError = inquiryType === "product" ? templateQuery.error : null;
+  // 연동이 꺼져 있으면 목록과 답변 양식 조회가 같은 안내를 받으므로 패널에 한 번만 보인다.
+  const settingStateError = [activeQuery.error, templateError].find(isSettingStateError);
 
   return <>
     <div className="d-flex gap-2 mb-3">
@@ -105,12 +109,12 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
       checked={search.unansweredOnly}
       onChange={(event) => updateSearch({ unansweredOnly: event.target.checked, page: 0 })}
     />
-    {inquiryType === "product" && templateQuery.error && (
-      <ErrorAlert error={templateQuery.error}
+    {!settingStateError && templateError && (
+      <ErrorAlert error={templateError}
         onRetry={() => { void templateQuery.refetch(); }} retrying={templateQuery.isFetching} />
     )}
     {activeQuery.isLoading && <LoadingSpinner />}
-    <ErrorAlert error={activeQuery.error}
+    <ErrorAlert error={settingStateError ?? activeQuery.error}
       onRetry={() => { void activeQuery.refetch(); }} retrying={activeQuery.isFetching} />
     <p className="small text-muted-soft">조회 기간 {search.from} ~ {search.to} · 50건씩 표시</p>
     {activeQuery.data && (activeQuery.data.content.length === 0 ? (
@@ -127,14 +131,16 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
           token={token} onAuthError={onAuthError} />
       )))}
     {activeQuery.data && (
-      <div className="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <Button size="sm" variant="outline-secondary" disabled={search.page === 0 || activeQuery.isFetching}
-          onClick={() => updateSearch({ page: search.page - 1 })}>이전 페이지</Button>
-        <span className="small">{search.page + 1} / {Math.max(1, activeQuery.data.totalPages)}페이지 · 총 {activeQuery.data.totalCount}건</span>
-        <Button size="sm" variant="outline-secondary"
-          disabled={search.page + 1 >= activeQuery.data.totalPages || activeQuery.isFetching}
-          onClick={() => updateSearch({ page: search.page + 1 })}>다음 페이지</Button>
-      </div>
+      <OffsetPager
+        previousLabel="이전 페이지"
+        nextLabel="다음 페이지"
+        summaryClassName="small"
+        summary={<>{search.page + 1} / {Math.max(1, activeQuery.data.totalPages)}페이지 · 총 {activeQuery.data.totalCount}건</>}
+        previousDisabled={search.page === 0 || activeQuery.isFetching}
+        nextDisabled={search.page + 1 >= activeQuery.data.totalPages || activeQuery.isFetching}
+        onPrevious={() => updateSearch({ page: search.page - 1 })}
+        onNext={() => updateSearch({ page: search.page + 1 })}
+      />
     )}
   </>;
 }
@@ -161,7 +167,7 @@ function SmartStoreCustomerInquiryCard({
       setContent("");
       setEditingAnswerId(null);
       toast.show("스마트스토어 주문·배송 문의 답변을 저장했습니다.");
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.inquiries.all });
     },
   });
 
@@ -267,7 +273,7 @@ function SmartStoreInquiryCard({
       setContent("");
       setEditing(false);
       toast.show("스마트스토어 상품 문의 답변을 저장했습니다.");
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.inquiries.all });
     },
   });
 

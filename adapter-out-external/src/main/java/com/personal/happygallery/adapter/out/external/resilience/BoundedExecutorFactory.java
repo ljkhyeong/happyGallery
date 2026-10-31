@@ -36,6 +36,14 @@ public final class BoundedExecutorFactory {
         this.taskDecorator = taskDecorator;
     }
 
+    public ThreadPoolTaskExecutor create(ExecutorPoolProperties pool,
+                                         String threadNamePrefix,
+                                         String rejectedMetricName,
+                                         String rejectedMetricDescription) {
+        return create(pool.poolSize(), pool.queueCapacity(),
+                threadNamePrefix, rejectedMetricName, rejectedMetricDescription);
+    }
+
     public ThreadPoolTaskExecutor create(int poolSize,
                                          int queueCapacity,
                                          String threadNamePrefix,

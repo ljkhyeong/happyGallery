@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.crypto.EncryptedJsonCodec;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.context.PaymentPreparer.PreparedPayment;
@@ -12,7 +13,6 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
@@ -26,15 +26,13 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 @Service
 class PaymentPrepareTransactionService {
 
     private final Map<PaymentContext, PaymentPreparer> preparers;
     private final PaymentAttemptStorePort attemptStore;
-    private final ObjectMapper objectMapper;
-    private final FieldEncryptor fieldEncryptor;
+    private final EncryptedJsonCodec payloadCodec;
     private final BlindIndexKeyRing blindIndexKeyRing;
     private final GuestTokenService guestTokenService;
     private final MemberAccountGuard memberAccountGuard;
@@ -45,8 +43,7 @@ class PaymentPrepareTransactionService {
     PaymentPrepareTransactionService(
             List<PaymentPreparer> preparers,
             PaymentAttemptStorePort attemptStore,
-            ObjectMapper objectMapper,
-            FieldEncryptor fieldEncryptor,
+            EncryptedJsonCodec payloadCodec,
             BlindIndexKeyRing blindIndexKeyRing,
             GuestTokenService guestTokenService,
             MemberAccountGuard memberAccountGuard,
@@ -62,8 +59,7 @@ class PaymentPrepareTransactionService {
             }
         }
         this.attemptStore = attemptStore;
-        this.objectMapper = objectMapper;
-        this.fieldEncryptor = fieldEncryptor;
+        this.payloadCodec = payloadCodec;
         this.blindIndexKeyRing = blindIndexKeyRing;
         this.guestTokenService = guestTokenService;
         this.memberAccountGuard = memberAccountGuard;
@@ -88,8 +84,7 @@ class PaymentPrepareTransactionService {
         PreparedPayment prepared = preparer.prepare(
                 orderIdExternal, command.payload(), command.auth());
 
-        String payloadJson = objectMapper.writeValueAsString(prepared.payload());
-        String payloadEnc = fieldEncryptor.encrypt(payloadJson);
+        String payloadEnc = payloadCodec.encrypt(prepared.payload());
         GuestTokenService.IssuedToken issuedToken = command.auth().isMember()
                 ? null
                 : guestTokenService.issuePaymentStatusToken();

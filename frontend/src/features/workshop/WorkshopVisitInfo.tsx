@@ -56,12 +56,12 @@ export function WorkshopVisitInfo() {
               </dd>
             </>
           )}
-          {profile.businessHours && <><dt>운영시간</dt><dd>{profile.businessHours}</dd></>}
+          {profile.businessHours && <><dt>운영 시간</dt><dd>{profile.businessHours}</dd></>}
           {profile.parkingInfo && <><dt>주차</dt><dd>{profile.parkingInfo}</dd></>}
         </dl>
         <div className="workshop-visit-links">
           {profile.mapUrl && (
-            <a className="workshop-map-link" href={profile.mapUrl} target="_blank" rel="noreferrer">
+            <a className="btn btn-outline-dark btn-sm" href={profile.mapUrl} target="_blank" rel="noreferrer">
               지도에서 보기
             </a>
           )}

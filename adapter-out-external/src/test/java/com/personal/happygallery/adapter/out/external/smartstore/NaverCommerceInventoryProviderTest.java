@@ -1,0 +1,285 @@
+package com.personal.happygallery.adapter.out.external.smartstore;
+
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.json.JsonCompareMode;
+import org.springframework.test.web.client.MockRestServiceServer;
+
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.PROPERTIES;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.expectToken;
+import static com.personal.happygallery.adapter.out.external.smartstore.SmartStoreTestSupport.mockApi;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+
+class NaverCommerceInventoryProviderTest {
+
+    private MockRestServiceServer server;
+    private NaverCommerceInventoryProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        var api = mockApi();
+        server = api.server();
+        provider = new NaverCommerceInventoryProvider(api.client(), PROPERTIES, api.tokenProvider());
+    }
+
+    @Test
+    @DisplayName("기성품 재고는 인증 토큰을 발급받아 원상품 재고 절대값으로 전송한다")
+    void sync_readyStock_sendsAbsoluteStockQuantity() {
+        expectClientCredentialsToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/multi-update"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andExpect(content().json("""
+                        {
+                          "multiProductUpdateRequestVos": [{
+                            "originProductNo": 123456789,
+                            "multiUpdateTypes": ["STOCK"],
+                            "stockQuantity": 7
+                          }]
+                        }
+                        """))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var result = provider.sync(new StockCommand(123456789L, 7, List.of()));
+
+        server.verify();
+        assertThat(result.success()).isTrue();
+    }
+
+    @Test
+    @DisplayName("자동 옵션 재고 전송은 네이버의 현재 옵션가와 사용 여부를 보존한다")
+    void sync_optionProduct_preservesRemotePriceAndUsability() {
+        expectToken(server);
+        expectOptionProduct(server, """
+                [{"id":11,"stockQuantity":100,"price":1500,"usable":true},
+                 {"id":12,"stockQuantity":50,"price":2500,"usable":false}]
+                """);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/option-stock"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andExpect(content().json("""
+                        {
+                          "optionInfo": {
+                            "optionCombinations": [
+                              {"id": 11, "stockQuantity": 3, "price": 1500, "usable": true},
+                              {"id": 12, "stockQuantity": 0, "price": 2500, "usable": false}
+                            ],
+                            "useStockManagement": true
+                          }
+                        }
+                        """, JsonCompareMode.STRICT))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var result = provider.sync(new StockCommand(
+                123456789L,
+                null,
+                List.of(new OptionStock(11L, 3), new OptionStock(12L, 0))));
+
+        server.verify();
+        assertThat(result.success()).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 옵션 조회에 실패하면 가격을 추측하지 않고 재고 전송을 중단한다")
+    void sync_optionLookupFailure_doesNotSendStock() {
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
+
+        var result = provider.sync(new StockCommand(
+                123456789L, null, List.of(new OptionStock(11L, 3))));
+
+        assertThat(result.success()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("연결한 옵션이 네이버에 없으면 일부 옵션만 전송하지 않고 실패로 남긴다")
+    void sync_missingRemoteOption_doesNotSendStock() {
+        expectToken(server);
+        expectOptionProduct(server,
+                "[{\"id\":11,\"stockQuantity\":100,\"price\":1500,\"usable\":true}]");
+
+        var result = provider.sync(new StockCommand(
+                123456789L, null, List.of(new OptionStock(11L, 3), new OptionStock(12L, 0))));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.reason()).contains("옵션 연결");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("스마트스토어 상품 목록을 공식 페이지 계약으로 조회한다")
+    void listProducts_readsSmartStoreCatalogPage() {
+        expectToken(server);
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/products/search"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"page\":1,\"size\":100}"))
+                .andRespond(withSuccess("""
+                        {
+                          "contents":[{
+                            "originProductNo":123456789,
+                            "channelProducts":[{
+                              "originProductNo":123456789,
+                              "channelProductNo":987654321,
+                              "channelServiceType":"STOREFARM",
+                              "name":"각인 카드지갑",
+                              "statusType":"SALE",
+                              "salePrice":33000,
+                              "stockQuantity":7,
+                              "representativeImage":{"url":"https://images.example.com/wallet.jpg"}
+                            }]
+                          }],
+                          "page":1,
+                          "size":100,
+                          "totalElements":1,
+                          "totalPages":1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var page = provider.listProducts(1, 100);
+
+        server.verify();
+        assertThat(page.products()).singleElement().satisfies(product -> {
+            assertThat(product.originProductNo()).isEqualTo(123456789L);
+            assertThat(product.channelProductNo()).isEqualTo(987654321L);
+            assertThat(product.name()).isEqualTo("각인 카드지갑");
+        });
+    }
+
+    @Test
+    @DisplayName("검수 반려 상품을 조회하고 채널상품 복원을 요청한다")
+    void inspectAndRestoreProduct_usesInspectionContracts() {
+        expectToken(server);
+        server.expect(requestTo(containsString(
+                        "/external/v1/product-inspections/channel-products?page=1&size=100")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "contents":[{
+                            "channelProductNo":987654321,
+                            "reason":"대표 이미지 확인 필요",
+                            "action":"이미지를 수정해 주세요.",
+                            "restorationRequestAvailable":true
+                          }],
+                          "page":1,"size":100,"totalElements":1,"totalPages":1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/product-inspections/channel-product/987654321/restore"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var page = provider.listInspectionProducts(1, 100);
+        provider.restoreInspectionProduct(987654321L);
+
+        server.verify();
+        assertThat(page.products()).singleElement().satisfies(product -> {
+            assertThat(product.reason()).isEqualTo("대표 이미지 확인 필요");
+            assertThat(product.restorationRequestAvailable()).isTrue();
+        });
+    }
+
+    @Test
+    @DisplayName("원상품 차이를 조회하고 판매가·옵션가·판매 상태를 명시적으로 반영한다")
+    void getAndApplyProduct_usesProductContracts() {
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "originProduct":{
+                            "salePrice":33000,
+                            "statusType":"SALE",
+                            "detailAttribute":{"optionInfo":{"optionCombinations":[
+                              {"id":11,"optionName1":"브라운","optionName2":"금박",
+                               "stockQuantity":3,"price":1000,"usable":true}
+                            ]}}
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/option-stock"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("""
+                        {
+                          "productSalePrice":{"salePrice":35000},
+                          "optionInfo":{
+                            "optionCombinations":[
+                              {"id":11,"stockQuantity":3,"price":2000,"usable":true}
+                            ],
+                            "useStockManagement":true
+                          }
+                        }
+                        """))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/change-status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("{\"statusType\":\"SALE\"}"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var product = provider.getProduct(123456789L);
+        var result = provider.applyProduct(new ProductCommand(
+                123456789L, 35000L, "SALE", null,
+                List.of(new ProductOption(11L, 3, 2000L, true))));
+
+        server.verify();
+        assertThat(product.salePrice()).isEqualTo(33000L);
+        assertThat(product.options()).singleElement()
+                .satisfies(option -> {
+                    assertThat(option.name()).isEqualTo("브라운 / 금박");
+                    assertThat(option.price()).isEqualTo(1000L);
+                });
+        assertThat(result.success()).isTrue();
+    }
+
+    private static void expectOptionProduct(MockRestServiceServer server, String options) {
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andRespond(withSuccess("""
+                        {"originProduct":{"salePrice":33000,"statusType":"SALE",
+                        "detailAttribute":{"optionInfo":{"optionCombinations":%s}}}}
+                        """.formatted(options), MediaType.APPLICATION_JSON));
+    }
+
+    /** 토큰 발급 요청 계약(client_credentials form POST·SELF)은 여기서만 검증하고 다른 테스트는 공용 stub을 쓴다. */
+    private static void expectClientCredentialsToken(MockRestServiceServer server) {
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(content().string(containsString("client_id=client-id")))
+                .andExpect(content().string(containsString("grant_type=client_credentials")))
+                .andExpect(content().string(containsString("type=SELF")))
+                .andRespond(withSuccess("""
+                        {
+                          "access_token": "access-token",
+                          "expires_in": 10800,
+                          "token_type": "Bearer"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+    }
+}

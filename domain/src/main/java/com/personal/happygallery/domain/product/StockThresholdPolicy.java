@@ -15,6 +15,13 @@ public final class StockThresholdPolicy {
         }
     }
 
+    /** 재고 차감·복구 수량은 1 이상이어야 한다. */
+    public static void requirePositiveQuantity(int quantity) {
+        if (quantity < 1) {
+            throw new IllegalArgumentException("재고 변경 수량은 1 이상이어야 합니다.");
+        }
+    }
+
     public static boolean isLow(boolean active, int quantity, Integer minimumStock) {
         return active && quantity <= (minimumStock == null ? 0 : minimumStock);
     }

@@ -6,6 +6,8 @@ import com.personal.happygallery.adapter.in.web.config.properties.RateLimitPrope
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitDecision;
 import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode;
 import com.personal.happygallery.adapter.in.web.ratelimit.RedisRateLimiter;
+import com.personal.happygallery.adapter.in.web.security.admin.AdminSecurityRoutes;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.domain.error.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,10 +27,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_CLOSED;
 import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailureMode.FAIL_OPEN;
-import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH;
-import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH;
-import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH;
-import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_COMPLETION_PATH;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.PATCH;
@@ -41,22 +39,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final List<RouteRule> ROUTE_RULES = List.of(
             new RouteRule("GROUP_INQUIRY_IP", new OrRequestMatcher(
-                    pathPattern(POST, "/api/v1/group-inquiries"),
+                    pathPattern(POST, CustomerSecurityRoutes.GROUP_INQUIRY_PATH),
                     pathPattern(POST, "/api/v1/me/group-inquiries")),
                     FAIL_CLOSED, IpRules::groupInquiry),
             new RouteRule(
                     "CUSTOMER_LOGIN_IP",
-                    pathPattern(POST, "/api/v1/auth/login"),
+                    pathPattern(POST, CustomerSecurityRoutes.LOGIN_PATH),
                     FAIL_CLOSED,
                     IpRules::customerLogin),
             new RouteRule(
                     "CUSTOMER_SIGNUP_IP",
-                    pathPattern(POST, "/api/v1/auth/signup"),
+                    pathPattern(POST, CustomerSecurityRoutes.SIGNUP_PATH),
                     FAIL_CLOSED,
                     IpRules::customerSignup),
             new RouteRule(
                     "CUSTOMER_PASSWORD_RESET_IP",
-                    pathPattern(POST, "/api/v1/auth/password/reset"),
+                    pathPattern(POST, CustomerSecurityRoutes.PASSWORD_RESET_PATH),
                     FAIL_CLOSED,
                     IpRules::customerLogin),
             new RouteRule(
@@ -66,33 +64,33 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     IpRules::customerLogin),
             new RouteRule(
                     "SOCIAL_LOGIN_IP",
-                    pathPattern(GET, SOCIAL_CALLBACK_PROVIDER_PATH),
+                    pathPattern(GET, CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH),
                     FAIL_CLOSED,
                     IpRules::socialLogin),
             new RouteRule(
                     "SOCIAL_LOGIN_INIT_IP",
                     new OrRequestMatcher(
-                            pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH),
-                            pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH),
-                            pathPattern(POST, SOCIAL_SIGNUP_COMPLETION_PATH)),
+                            pathPattern(GET, CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH),
+                            pathPattern(POST, CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH),
+                            pathPattern(POST, CustomerSecurityRoutes.SOCIAL_SIGNUP_COMPLETION_PATH)),
                     FAIL_CLOSED,
                     IpRules::socialLogin),
             new RouteRule(
                     "ADMIN_LOGIN_IP",
                     new OrRequestMatcher(
-                            pathPattern(POST, "/api/v1/admin/auth/login"),
-                            pathPattern(POST, "/api/v1/admin/auth/mfa/verify"),
-                            pathPattern(POST, "/api/v1/admin/auth/mfa/recovery")),
+                            pathPattern(POST, AdminSecurityRoutes.LOGIN_PATH),
+                            pathPattern(POST, AdminSecurityRoutes.MFA_VERIFY_PATH),
+                            pathPattern(POST, AdminSecurityRoutes.MFA_RECOVERY_PATH)),
                     FAIL_CLOSED,
                     IpRules::adminLogin),
             new RouteRule(
                     "ADMIN_SETUP_IP",
-                    pathPattern(POST, "/api/v1/admin/setup"),
+                    pathPattern(POST, AdminSecurityRoutes.SETUP_PATH),
                     FAIL_CLOSED,
                     IpRules::adminSetup),
             new RouteRule(
                     "PHONE_VERIFICATION_IP",
-                    pathPattern(POST, "/api/v1/bookings/phone-verifications"),
+                    pathPattern(POST, CustomerSecurityRoutes.PHONE_VERIFICATION_PATH),
                     FAIL_CLOSED,
                     IpRules::phoneVerification),
             new RouteRule(
@@ -104,12 +102,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     IpRules::emailVerification),
             new RouteRule(
                     "PAYMENT_PREPARE_IP",
-                    pathPattern(POST, "/api/v1/payments/prepare"),
+                    pathPattern(POST, CustomerSecurityRoutes.PAYMENT_PREPARE_PATH),
                     FAIL_CLOSED,
                     IpRules::paymentPrepare),
             new RouteRule(
                     "PAYMENT_CONFIRM_IP",
-                    pathPattern(POST, "/api/v1/payments/confirm"),
+                    pathPattern(POST, CustomerSecurityRoutes.PAYMENT_CONFIRM_PATH),
                     FAIL_OPEN,
                     IpRules::paymentConfirm),
             new RouteRule(
@@ -120,13 +118,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new RouteRule(
                     "GUEST_RECORD_RECOVERY_IP",
                     new OrRequestMatcher(
-                            pathPattern(POST, "/api/v1/guest-records/recovery"),
-                            pathPattern(POST, "/api/v1/guest-records/payment-status-recovery")),
+                            pathPattern(POST, CustomerSecurityRoutes.GUEST_RECORD_RECOVERY_PATH),
+                            pathPattern(POST, CustomerSecurityRoutes.GUEST_RECORD_PAYMENT_STATUS_RECOVERY_PATH)),
                     FAIL_CLOSED,
                     IpRules::guestRecordRecovery),
             new RouteRule(
                     "CLIENT_MONITORING_IP",
-                    pathPattern(POST, "/api/v1/monitoring/client-events"),
+                    pathPattern(POST, CustomerSecurityRoutes.CLIENT_MONITORING_API),
                     FAIL_CLOSED,
                     IpRules::clientMonitoring),
             new RouteRule(
@@ -142,17 +140,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new RouteRule(
                     "ORDER_CUSTOMER_ACTION_IP",
                     new OrRequestMatcher(
-                            pathPattern(DELETE, "/api/v1/orders/{id}"),
-                            pathPattern(PUT, "/api/v1/orders/{id}/shipping-address"),
+                            pathPattern(DELETE, CustomerSecurityRoutes.ORDER_PATH),
+                            pathPattern(PUT, CustomerSecurityRoutes.ORDER_SHIPPING_ADDRESS_PATH),
                             pathPattern(PUT, "/api/v1/me/orders/{id}/shipping-address"),
-                            pathPattern(POST, "/api/v1/orders/{id}/delay-response"),
+                            pathPattern(POST, CustomerSecurityRoutes.ORDER_DELAY_RESPONSE_PATH),
                             pathPattern(DELETE, "/api/v1/me/orders/{id}"),
                             pathPattern(POST, "/api/v1/me/orders/{id}/delay-response")),
                     FAIL_CLOSED,
                     IpRules::orderCustomerAction),
             new RouteRule(
                     "ADMIN_API_IP",
-                    pathPattern("/api/v1/admin/**"),
+                    pathPattern(AdminSecurityRoutes.ADMIN_API_PATTERN),
                     FAIL_CLOSED,
                     IpRules::adminApi),
             new RouteRule(

@@ -12,9 +12,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.alimtalk")
 public record AlimtalkNotificationProperties(
-        String appKey,
-        String secretKey,
-        @Size(max = 40) String senderKey,
+        @DefaultValue("") String appKey,
+        @DefaultValue("") String secretKey,
+        @Size(max = 40) @DefaultValue("") String senderKey,
         @NotBlank @DefaultValue("https://kakaotalk-bizmessage.api.nhncloudservice.com") String baseUrl,
         @Valid @DefaultValue HttpPool http
 ) {

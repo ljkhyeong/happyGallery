@@ -43,7 +43,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
   const guestOrderState = await readGuestOrderLookupCredentials(page);
@@ -56,7 +56,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.locator(`[data-booking-date="${slotDate}"]`).click();
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await completeGuestAuthGate(page, guestPhone, guestName);
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 예약 확인하기" }).click();
@@ -74,7 +74,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 주문·예약 가져오기" }).first();
   await expect(claimDialog).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
-  await expect(claimDialog.getByText(`${bookingClass.name} #${bookingId}`)).toBeVisible();
+  await expect(claimDialog.locator(".form-check").filter({ hasText: bookingClass.name })
+    .filter({ hasText: `예약 #${bookingId} ·` })).toBeVisible();
   await claimDialog.getByRole("button", { name: "선택한 주문·예약 가져오기" }).click();
 
   await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
@@ -104,7 +105,7 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await page.getByRole("button", { name: "추가" }).click();
   await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("link", { name: "회원가입하고 주문·예약 가져오기" })).toBeVisible();

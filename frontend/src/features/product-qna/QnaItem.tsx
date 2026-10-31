@@ -3,10 +3,10 @@ import { Card, Badge, Button } from "react-bootstrap";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { fetchMyProductQnaDetail, fetchProductQnaDetail } from "./api";
-import { queryKeys } from "@/shared/api";
-import { ErrorAlert } from "@/shared/ui";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { ErrorAlert, ToneBadge } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
-import type { ProductQnaListItem } from "@/shared/types";
+import type { ProductQnaListItem } from "@/generated/api/productQna";
 
 interface Props {
   item: ProductQnaListItem;
@@ -22,7 +22,7 @@ export function QnaItem({ item, productId, owned }: Props) {
       ? queryKeys.member.productQna.detail(productId, item.id)
       : queryKeys.productQna.detail(productId, item.id),
     queryFn: ({ signal }) => item.secret
-      ? fetchMyProductQnaDetail(productId, item.id, signal)
+      ? runForCurrentCustomer(() => fetchMyProductQnaDetail(productId, item.id, signal))
       : fetchProductQnaDetail(productId, item.id, signal),
     enabled: expanded && (!item.secret || owned === true),
   });
@@ -53,8 +53,10 @@ export function QnaItem({ item, productId, owned }: Props) {
         <div className="d-flex justify-content-between align-items-start">
           <div className="flex-grow-1">
             <div className="d-flex align-items-center gap-2 mb-1">
-              {item.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
-              {item.hasReply && <Badge bg="info" className="badge-sm">답변 완료</Badge>}
+              {item.secret && <Badge bg="light" className="badge-sm">비밀글</Badge>}
+              <ToneBadge tone={item.hasReply ? "done" : "progress"} className="badge-sm">
+                {item.hasReply ? "답변 완료" : "답변 대기"}
+              </ToneBadge>
               <span className="fw-semibold small">{displayTitle}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>

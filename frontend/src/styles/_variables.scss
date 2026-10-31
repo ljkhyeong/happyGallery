@@ -19,17 +19,15 @@ $headings-font-family: $font-family-sans-serif;
 $headings-font-weight: 700;
 $headings-line-height: 1.32;
 
-// 헤더·본문·푸터가 같은 폭(1180px)에서 정렬되도록 xl 이상은 같은 container 폭을 쓴다.
+// 헤더·본문·푸터가 모든 화면 폭에서 같은 기준선에 서도록 container는 단계 폭(540·720·960) 없이
+// 화면 폭을 따라 늘어나고 1180px에서 멈춘다(sm 미만은 Bootstrap 기본값인 100%). 좌우 여백은 `_foundation.scss`가 정한다.
 $container-max-widths: (
-  sm: 540px,
-  md: 720px,
-  lg: 960px,
-  xl: 1180px,
+  sm: 1180px,
 );
 
 $border-radius:    2px;
 $border-radius-sm: 2px;
-$border-radius-lg: 4px;
+$border-radius-lg: 2px;
 $border-color:     #DCDCD8;
 
 $card-bg: transparent;
@@ -50,6 +48,9 @@ $input-border-radius-sm: 2px;
 $input-border-radius-lg: 2px;
 // 입력 칸 테두리는 흰 바탕 위 3:1(컨트롤 경계 기준)을 맞춘다.
 $input-border-color: #949494;
+// 체크박스·라디오·스위치 테두리와 꺼진 스위치 손잡이도 입력 칸과 같은 3:1 대비로 둔다(기본값은 선 색 #DCDCD8이라 1.4:1).
+$form-check-input-border: 1px solid $input-border-color;
+$form-switch-color: rgba(#000000, 0.55);
 // 입력 포커스는 먹색을 쓴다. 체크 상태는 Bootstrap 기본값($primary)으로 먹색이 된다.
 $focus-ring-color: rgba($primary, 0.2);
 $input-focus-border-color: $primary;

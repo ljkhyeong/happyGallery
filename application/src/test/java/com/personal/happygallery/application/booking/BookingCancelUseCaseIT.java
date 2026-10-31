@@ -89,8 +89,7 @@ class BookingCancelUseCaseIT {
 
     @AfterEach
     void tearDown() {
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearNotificationLogs();
+        cleanupSupport.clearBookingDomainData();
     }
 
     // -----------------------------------------------------------------------

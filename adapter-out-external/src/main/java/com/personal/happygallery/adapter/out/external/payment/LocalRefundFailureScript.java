@@ -15,6 +15,7 @@ public class LocalRefundFailureScript implements RefundFailureScriptPort {
 
     private final AtomicReference<String> nextFailureReason = new AtomicReference<>();
 
+    @Override
     public void armNextFailure(String reason) {
         nextFailureReason.set(reason);
     }
@@ -23,6 +24,7 @@ public class LocalRefundFailureScript implements RefundFailureScriptPort {
         return Optional.ofNullable(nextFailureReason.getAndSet(null));
     }
 
+    @Override
     public void clear() {
         nextFailureReason.set(null);
     }

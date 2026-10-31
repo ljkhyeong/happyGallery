@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvent, type EventResponse } from "@/features/event/api";
@@ -7,7 +6,7 @@ import { EventPeriodText } from "@/features/event/EventPeriodText";
 import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
-import type { ProductDetailResponse } from "@/shared/types";
+import type { ProductDetailResponse } from "@/generated/api/product";
 import { ErrorAlert } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
@@ -19,16 +18,12 @@ interface Props {
 
 export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   const eventId = initialEvent.id;
-  const eventQueryKey = useMemo(
-    () => queryKeys.events.detail(eventId),
-    [eventId],
-  );
   const {
     data: event,
     error,
     query: eventQuery,
   } = useLoaderBackedQuery({
-    queryKey: eventQueryKey,
+    queryKey: queryKeys.events.detail(eventId),
     queryFn: ({ signal }) => fetchEvent(eventId, signal),
     retry: (failureCount, error) => !isNotFoundError(error) && failureCount < 3,
     refetchInterval: ({ state }) => state.error
@@ -46,7 +41,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   if (isNotFoundError(error)) return <NotFoundPage />;
 
   return (
-    <Container className="page-container" style={{ maxWidth: 900 }}>
+    <Container className="page-container is-reading">
       <Link to="/events" className="page-back-link">
         &larr; 이벤트 목록
       </Link>
@@ -62,17 +57,17 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
           <img
             src={event.imageUrl}
             alt={`${event.title} 대표 이미지`}
-            className="w-100 rounded-4 mb-4"
+            className="w-100 mb-4"
             style={{ maxHeight: 520, objectFit: "cover" }}
           />
         )}
         <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-          <Badge bg={eventTimingLabel(event) === "진행 중" ? "success" : "secondary"}>
+          <Badge bg={eventTimingLabel(event) === "진행 중" ? "dark" : "light"}>
             {eventTimingLabel(event)}
           </Badge>
-          {event.featured && <Badge bg="dark">추천</Badge>}
+          {event.featured && <Badge bg="light" text="dark">추천</Badge>}
         </div>
-        <h1 className="mb-3">{event.title}</h1>
+        <h1 className="display-heading mb-3">{event.title}</h1>
         <p className="lead text-muted-soft">{event.summary}</p>
         <EventPeriodText event={event} className="small text-muted-soft" />
         <hr className="my-4" />
@@ -87,7 +82,8 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
 
         {visibleRelatedProducts.length > 0 && (
           <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
-            <h2 id="event-related-products" className="h5 mb-4">관련 작품</h2>
+            {/* 위 "이벤트 쿠폰" 제목과 같은 단계(h2)라 같은 크기로 쓴다. */}
+            <h2 id="event-related-products" className="h4 display-heading mb-4">관련 작품</h2>
             <div className="product-grid">
               {visibleRelatedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

@@ -56,7 +56,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   SMARTSTORE_OPERATION_REJECTED: "네이버가 주문 처리 요청을 거절했습니다. 주문 상태와 입력값을 확인해 주세요.",
   SMARTSTORE_OPERATION_RESULT_UNKNOWN:
     "네이버 주문 처리 결과를 확인할 수 없습니다. 같은 요청을 다시 보내지 말고 오늘 할 일의 처리 결과 확인 목록을 확인해 주세요.",
-  SMARTSTORE_DISABLED: "스마트스토어 연동이 꺼져 있어 조회·반영할 수 없습니다. 연동 설정을 켠 뒤 다시 시도해 주세요.",
+  SMARTSTORE_DISABLED: "스마트스토어 연동이 꺼져 있어 조회·반영할 수 없습니다. 연동 설정을 켜면 사용할 수 있습니다.",
   PAYMENT_CONFIRM_RETRYABLE: "결제 처리 결과를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.",
   PAYMENT_ATTEMPT_EXPIRED: "결제 준비 시간이 만료되었습니다. 결제를 다시 시작해 주세요.",
   PAYMENT_RESULT_RETENTION_EXPIRED: "결제 결과 조회 기간이 지났습니다. 주문·예약 또는 이용권 내역을 확인해 주세요.",

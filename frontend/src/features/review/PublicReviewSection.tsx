@@ -4,7 +4,7 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import {
   fetchMyReviewReactions,
   fetchTargetReviews,
@@ -107,11 +107,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
       )}
 
       {query.isLoading && <LoadingSpinner text="후기를 불러오는 중입니다" />}
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
+      <CursorQueryErrorAlert query={query} />
       {reactionErrorQuery && (
         <ErrorAlert
           error={reactionErrorQuery.error}

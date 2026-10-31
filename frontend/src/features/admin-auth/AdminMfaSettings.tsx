@@ -16,8 +16,7 @@ import {
   type AdminMfaEnrollmentResponse,
   type AdminMfaStatusResponse,
 } from "./api";
-
-const MFA_STATUS_QUERY_KEY = ["admin", "auth", "mfa"] as const;
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -39,7 +38,7 @@ export function AdminMfaSettings({
   const [copied, setCopied] = useState(false);
 
   const statusQuery = useAdminQuery(onAuthError, {
-    queryKey: MFA_STATUS_QUERY_KEY,
+    queryKey: queryKeys.admin.auth.mfa,
     queryFn: () => getAdminMfaStatus(adminKey),
   });
 
@@ -59,7 +58,7 @@ export function AdminMfaSettings({
       setRecoveryCodes(result.recoveryCodes);
       setEnrollment(undefined);
       setConfirmationCode("");
-      queryClient.setQueryData<AdminMfaStatusResponse>(MFA_STATUS_QUERY_KEY, {
+      queryClient.setQueryData<AdminMfaStatusResponse>(queryKeys.admin.auth.mfa, {
         enabled: true,
         enrollmentPending: false,
         recoveryCodesRemaining: result.recoveryCodes.length,

@@ -41,6 +41,84 @@ test("관리자 쿠폰 키는 관리자 캐시 경계 안에 있다", () => {
   assert.equal(queryKeys.admin.coupons[0], queryKeys.admin.all[0]);
 });
 
+test("관리자 키 레지스트리의 모든 키는 관리자 캐시 경계 안에 있다", () => {
+  const visit = (value) => {
+    if (typeof value === "function") return visit(value("x", {}, "z", 1));
+    if (Array.isArray(value)) {
+      assert.equal(value[0], queryKeys.admin.all[0]);
+      return;
+    }
+    for (const nested of Object.values(value)) visit(nested);
+  };
+  visit(queryKeys.admin);
+});
+
+test("관리자 예약 목록 키는 예약 접두사 아래에서 날짜·상태로 나뉜다", () => {
+  assert.deepEqual(
+    queryKeys.admin.bookingList("2026-10-25", "BOOKED"),
+    ["admin", "bookings", "2026-10-25", "BOOKED"],
+  );
+  assert.deepEqual(queryKeys.admin.bookingList("2026-10-25", "").slice(0, 2), queryKeys.admin.bookings);
+});
+
+test("관리자 상품 하위 조회 키는 상품 목록 접두사를 공유한다", () => {
+  assert.deepEqual(queryKeys.admin.products.all, ["admin", "products"]);
+  assert.deepEqual(queryKeys.admin.products.stockLevels.slice(0, 2), queryKeys.admin.products.all);
+  assert.deepEqual(queryKeys.admin.products.stockLevelsByProduct(3).slice(0, 2), queryKeys.admin.products.all);
+  assert.deepEqual(queryKeys.admin.products.inventoryAdjustments(3).slice(0, 2), queryKeys.admin.products.all);
+  assert.deepEqual(queryKeys.admin.products.smartStoreInventory(3).slice(0, 2), queryKeys.admin.products.all);
+  assert.deepEqual(queryKeys.admin.products.smartStorePreview(3).slice(0, 2), queryKeys.admin.products.all);
+});
+
+test("관리자 단체 문의 후속 연락 키는 목록 접두사 아래에 있고 상세 키는 밖에 있다", () => {
+  assert.deepEqual(queryKeys.admin.groupInquiries.all, ["admin", "group-inquiries"]);
+  assert.deepEqual(
+    queryKeys.admin.groupInquiries.page("CONSULTING", {}, undefined).slice(0, 2),
+    queryKeys.admin.groupInquiries.all,
+  );
+  assert.deepEqual(
+    queryKeys.admin.groupInquiries.followUps("cursor").slice(0, 2),
+    queryKeys.admin.groupInquiries.all,
+  );
+  assert.deepEqual(queryKeys.admin.groupInquiry.detail(51), ["admin", "group-inquiry", 51]);
+  assert.notDeepEqual(queryKeys.admin.groupInquiry.detail(51).slice(0, 2), queryKeys.admin.groupInquiries.all);
+});
+
+test("관리자 목록 무효화 접두사는 하위 페이지·상세 키를 포함한다", () => {
+  const admin = queryKeys.admin;
+  const under = [
+    [admin.inquiries.page("cursor"), admin.inquiries.all],
+    [admin.orderClaims.page("REQUESTED", "cursor"), admin.orderClaims.all],
+    [admin.orders.page(""), admin.orders.all],
+    [admin.orders.fulfillment(7), admin.orders.all],
+    [admin.orders.history(7), admin.orders.all],
+    [admin.passes.search("keyword", 0), admin.passes.all],
+    [admin.passes.detail(7), admin.passes.all],
+    [admin.refunds.failedPage("cursor"), admin.refunds.failed],
+    [admin.smartStore.orders.detail("order"), admin.smartStore.orders.all],
+    [admin.smartStore.orders.actions("order"), admin.smartStore.orders.all],
+    [admin.smartStore.orders.currentStatus("order"), admin.smartStore.orders.all],
+    [admin.smartStore.orderActions.unresolvedPage(null), admin.smartStore.orderActions.unresolved],
+    [admin.smartStore.notices.page(1), admin.smartStore.notices.all],
+    [admin.smartStore.notices.detail(3), admin.smartStore.notices.all],
+    [admin.smartStore.inspections.page(1), admin.smartStore.inspections.all],
+    [admin.smartStore.inquiries.product({}), admin.smartStore.inquiries.all],
+    [admin.smartStore.inquiries.customer({}), admin.smartStore.inquiries.all],
+    [admin.smartStore.inquiries.template, admin.smartStore.inquiries.all],
+  ];
+  for (const [child, parent] of under) {
+    assert.deepEqual(child.slice(0, parent.length), parent);
+  }
+  // 환불 상태 확인은 실패 목록 재조회에 걸리지 않고, MFA 등록 안내는 설정 화면과 다른 캐시를 쓴다.
+  assert.notDeepEqual(admin.refund(7).slice(0, 2), admin.refunds.failed.slice(0, 2));
+  assert.notDeepEqual(admin.auth.mfaEnrollmentGate, admin.auth.mfa);
+});
+
+test("관리자 공방 정보 키는 공개 공방 키와 캐시 경계가 다르다", () => {
+  assert.deepEqual(queryKeys.admin.workshopProfile, ["admin", "workshop-profile"]);
+  assert.deepEqual(queryKeys.workshop, ["workshop-profile"]);
+});
+
 test("상품 Q&A 목록과 상세 키는 답변 뒤 함께 무효화할 상품 접두사를 공유한다", () => {
   assert.deepEqual(
     queryKeys.productQna.history(42).slice(0, 2),

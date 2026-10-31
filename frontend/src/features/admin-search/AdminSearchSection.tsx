@@ -2,13 +2,13 @@ import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
 import { SearchBookingsStatus } from "@/generated/api/adminBooking";
+import type { AdminPassResponse } from "@/generated/api/adminOperations";
 import { SearchOrdersStatus } from "@/generated/api/adminOrder";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
   AdminBookingSearchRow,
   AdminOrderSearchRow,
-  AdminPassResponse,
   OffsetPage,
 } from "@/shared/types";
 import { AdminSearchPagination } from "./AdminSearchPagination";
@@ -27,6 +27,7 @@ import {
 } from "./api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -212,7 +213,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
   const [submitted, setSubmitted] = useState<AdminSearchCriteria | null>(null);
 
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "search", submitted],
+    queryKey: queryKeys.admin.search(submitted),
     queryFn: () => searchAdminRecords(adminKey, submitted!),
     enabled: submitted != null,
   });

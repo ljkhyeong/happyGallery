@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Container, Badge } from "react-bootstrap";
 import { Link } from "react-router";
@@ -10,16 +9,11 @@ import type { NoticeDetailResponse } from "@/generated/api/notice";
 
 export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetailResponse }) {
   const noticeId = initialNotice.id;
-  const noticeQueryKey = useMemo(
-    () => queryKeys.notices.detail(noticeId),
-    [noticeId],
-  );
-
   const {
     data: notice,
     error,
   } = useLoaderBackedQuery({
-    queryKey: noticeQueryKey,
+    queryKey: queryKeys.notices.detail(noticeId),
     queryFn: () => fetchNotice(noticeId),
   }, initialNotice);
 
@@ -33,7 +27,7 @@ export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetai
         <header>
           <h1>{notice.title}</h1>
           <p className="notice-meta">
-            {notice.pinned && <Badge bg="dark" className="me-2">고정</Badge>}
+            {notice.pinned && <Badge bg="light" text="dark" className="me-2">고정</Badge>}
             <time dateTime={notice.createdAt}>{formatDateTime(notice.createdAt)}</time> · 조회 {notice.viewCount}
           </p>
         </header>

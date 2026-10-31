@@ -36,7 +36,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
         if (canSubmit && !mutation.isPending) mutation.mutate();
       }}
     >
-      <div className="row g-3 align-items-end">
+      <div className="row g-3 align-items-start mb-3">
         <div className="col-md-4">
           <Form.Group controlId="admin-current-password">
             <Form.Label>현재 비밀번호</Form.Label>

@@ -1,30 +1,27 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { MyBookingDetailResponse, OrderDetailResponse } from "../../src/shared/types";
-import { fulfillJson } from "./mock-support";
+import {
+  bookingCancelPolicyFixture,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  myBookingDetailFixture,
+  orderDetailFixture,
+} from "./mock-support";
 
-const order = {
-  orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED",
-  totalAmount: 12000, pgPaidAmount: 12000, productAmount: 12000,
-  shippingFee: 0, couponDiscountAmount: 0, rewardUsedAmount: 0, rewardEarnBase: 12000,
-  paidAt: "2026-08-01T12:00:00", approvalDeadlineAt: null, receiptUrl: null,
-  fulfillment: null, issuedCouponId: null, couponStatus: null, refund: null, items: [],
-} satisfies OrderDetailResponse;
+const order = orderDetailFixture({
+  orderId: 9090, orderNumber: "HG-NAV-9090", status: "DELIVERED", paidAt: "2026-08-01T12:00:00",
+});
 
-const booking = {
+const booking = myBookingDetailFixture({
   bookingId: 9090, classId: 1, slotId: 88, status: "CANCELED", className: "이력 검색 클래스",
-  startAt: "2026-08-01T10:00:00", endAt: "2026-08-01T11:00:00", participantCount: 1,
-  depositAmount: 10000, balanceAmount: 0, balanceStatus: "UNPAID", passBooking: false,
-  receiptUrl: null, refund: null,
-  cancelPolicy: {
-    cancellable: false, refundable: false, deadlineAt: "2026-07-31T00:00:00",
-    passCreditRestorable: false, manualCompensationRequired: false, warningCode: null,
-  },
-} satisfies MyBookingDetailResponse;
+  startAt: "2026-08-01T10:00:00", endAt: "2026-08-01T11:00:00",
+  cancelPolicy: bookingCancelPolicyFixture({ cancellable: false, refundable: false, deadlineAt: "2026-07-31T00:00:00" }),
+});
 
 const scenarios = [
   {
     path: "orders", title: "주문", label: "주문 번호·작품명 검색", sort: "AMOUNT_DESC",
-    link: /주문 #9090/, detailText: order.orderNumber, detail: order,
+    link: /주문 #9090/, detailText: "주문 #9090", detail: order,
     summary: { ...order, createdAt: "2026-08-01T12:00:00" },
   },
   {
@@ -35,14 +32,10 @@ const scenarios = [
 
 async function installMemberApi(page: Page, scenario: typeof scenarios[number]) {
   const state = { detailAvailable: true, detailRequests: 0, listRequests: [] as URL[] };
+  const member = memberFixture({ email: "navigation@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/api/v1/me") {
-      return fulfillJson(route, { id: 501, name: "회원", email: "navigation@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    }
-    if (url.pathname === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (url.pathname === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
-    if (url.pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    if (await fulfillMemberCommon(route, { member })) return;
     if (url.pathname === `/api/v1/me/${scenario.path}/page`) {
       state.listRequests.push(url);
       return fulfillJson(route, { content: [scenario.summary], hasMore: false, nextCursor: null });
@@ -98,10 +91,10 @@ for (const scenario of scenarios) {
     const listUrl = page.url();
 
     await page.getByRole("link", { name: scenario.link }).click();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
-    await page.locator(".my-back-link").click();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await page.locator(".page-back-link").click();
 
     await expect(page).toHaveURL(listUrl);
     await expect(page.getByLabel(scenario.label, { exact: true })).toHaveValue("9090");
@@ -117,13 +110,13 @@ for (const scenario of scenarios) {
     await page.goto(`/my/${scenario.path}/9090`);
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
     await expect(retry).toBeVisible();
-    const backLink = page.locator(".my-back-link");
+    const backLink = page.locator(".page-back-link");
     await expect(backLink).toHaveAttribute("href", `/my/${scenario.path}`);
     const failedRequests = api.detailRequests;
 
     api.detailAvailable = true;
     await retry.click();
-    await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
+    await expect(page.locator(".my-detail-card-head").getByText(scenario.detailText, { exact: true })).toBeVisible();
     await expect(retry).toHaveCount(0);
     expect(api.detailRequests).toBe(failedRequests + 1);
     await backLink.click();

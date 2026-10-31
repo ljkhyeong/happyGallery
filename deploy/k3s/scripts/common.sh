@@ -99,6 +99,47 @@ require_private_file() {
     [ -z "$exposed" ] || die "파일 권한을 600으로 제한한 뒤 다시 실행하세요: $file"
 }
 
+# 상태 경로 기본값은 호출 시점에 계산한다. source만 하는 스크립트는 HOME이 없어도 실패하지 않는다.
+release_state_dir() {
+    printf '%s' "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}"
+}
+
+restore_state_dir() {
+    printf '%s' "${HAPPYGALLERY_RESTORE_STATE_DIR:-$(dirname -- "$(release_state_dir)")/restores}"
+}
+
+cd_backup_env_file() {
+    printf '%s' "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}"
+}
+
+cd_backup_dir() {
+    printf '%s' "${HAPPYGALLERY_CD_BACKUP_DIR:-$(release_state_dir)/../cd/backups}"
+}
+
+newline='
+'
+
+# printf | grep는 줄 단위로 비교하므로 줄바꿈이 섞인 값은 패턴과 무관하게 거절한다.
+matches_pattern() {
+    case "$2" in
+        *"$newline"*) return 1 ;;
+    esac
+    printf '%s' "$2" | grep -Eq "$1"
+}
+
+is_sha256_digest() {
+    matches_pattern '^sha256:[a-f0-9]{64}$' "$1"
+}
+
+# IMAGE_TAG는 12~40자리 Git SHA다.
+is_image_tag() {
+    matches_pattern '^[A-Fa-f0-9]{12,40}$' "$1"
+}
+
+is_recovery_metadata_name() {
+    matches_pattern '^happygallery-[0-9]{8}T[0-9]{6}Z\.recovery\.env$' "$1"
+}
+
 normalize_image_reference() {
     image=$1
     case "$image" in
@@ -172,11 +213,46 @@ ensure_containerd_image_alias() (
     fi
 )
 
+# release 이미지는 tag@digest와 tag 없는 이름@digest 두 이름을 가진다. CRI는 tag@digest 조회 시 tag를 제외하고,
+# 백업용 기존 이름도 두 이름으로 보존한다. 한 줄에 하나씩 출력한다.
+containerd_digest_aliases() {
+    printf '%s@%s\n' "$1" "$2" "${1%:*}" "$2"
+}
+
+# ensure_containerd_image_alias처럼 서브셸로 두어 루프 변수가 호출부에 남지 않는다.
+register_containerd_digest_aliases() (
+    while IFS= read -r alias_reference; do
+        ensure_containerd_image_alias "$1" "$alias_reference" "$2"
+    done <<EOF
+$(containerd_digest_aliases "$1" "$2")
+EOF
+)
+
+# app/frontend Deployment는 Deployment와 같은 이름의 컨테이너 하나만 둔다.
+deployment_container_image() {
+    kube -n "$NAMESPACE" get deployment "$1" \
+        -o "jsonpath={.spec.template.spec.containers[?(@.name==\"$1\")].image}"
+}
+
+# 실행 중인 이미지 참조는 containerd_digest_aliases가 만드는 두 이름 중 하나다.
+image_matches_release() {
+    case "$1" in
+        "$2@$3"|"${2%:*}@$3") ;;
+        *) return 1 ;;
+    esac
+}
+
 mysql_database_query() {
     kube -n "$NAMESPACE" exec -i mysql-0 -- sh -ec '
         exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" \
           --batch --raw --skip-column-names --binary-mode "$MYSQL_DATABASE" "$@"
     ' sh "$@"
+}
+
+# 마지막으로 성공한 Flyway migration version 한 값을 출력한다. 비어 있을 때의 처리는 호출부가 정한다.
+mysql_flyway_schema_version() {
+    mysql_database_query \
+        --execute='SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1'
 }
 
 mysql_preflight() {
@@ -305,7 +381,7 @@ verify_recovery_bundle_files() {
     case "$bundle_media_name" in
         */*|.|..) die "MEDIA_BACKUP은 복구 메타데이터와 같은 디렉터리의 파일명이어야 합니다." ;;
     esac
-    printf '%s' "$bundle_image_tag" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
+    is_image_tag "$bundle_image_tag" \
         || die "복구 메타데이터의 IMAGE_TAG 형식이 올바르지 않습니다."
     [ "$bundle_release_relative" = "releases/$bundle_image_tag" ] \
         || die "RELEASE_DIR은 IMAGE_TAG와 일치하는 releases/<IMAGE_TAG> 형식이어야 합니다."
@@ -350,6 +426,28 @@ decode_base64() {
 
 base64_value() {
     printf '%s' "$1" | base64 | tr -d '\n'
+}
+
+app_secret_encoded() {
+    kube -n "$NAMESPACE" get secret happygallery-app -o "jsonpath={.data.$1}"
+}
+
+# happygallery-app Secret 값을 디코드해 출력한다. 없는 key는 빈 값이고 조회 실패는 그대로 전파한다.
+app_secret_value() {
+    secret_encoded=$(app_secret_encoded "$1") || return
+    printf '%s' "$secret_encoded" | decode_base64
+}
+
+# 디코드한 값을 변수에 담지 않고 그대로 해시해 끝의 줄바꿈·NUL도 fingerprint에 반영한다.
+app_secret_fingerprint() {
+    secret_encoded=$(app_secret_encoded "$1") || return
+    printf '%s' "$secret_encoded" | decode_base64 | sha256_stream
+}
+
+app_key_rotation_phase() {
+    secret_rotation_phase=$(kube -n "$NAMESPACE" get secret happygallery-app \
+        -o 'jsonpath={.metadata.annotations.happygallery\.io/key-rotation-phase}' 2>/dev/null || true)
+    printf '%s' "${secret_rotation_phase:-none}"
 }
 
 media_helper_pod_name() {

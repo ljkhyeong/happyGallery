@@ -130,7 +130,7 @@ class SlotCapacitySupport {
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(LockedSlotScope locked, int participantCount) {
         Slot slot = locked.source();
-        boolean wasFull = slot.getBookedCount() == slot.getCapacity();
+        boolean wasFull = slot.isFull();
         slot.decrementBookedCount(participantCount);
         slotStorePort.save(slot);
         if (!slot.hasBookings()) {

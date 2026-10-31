@@ -1,10 +1,10 @@
-import { useId, useRef, useState } from "react";
-import { Card, Form, Button, Modal } from "react-bootstrap";
+import { useRef, useState } from "react";
+import { Card, Form, Button } from "react-bootstrap";
 import { useNavigate, useBlocker, useBeforeUnload, Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createInquiry } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { ErrorAlert, PageHeader, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, PageHeader, useToast } from "@/shared/ui";
 import { myNavLabel } from "@/features/my/myNavigation";
 import {
   captureCustomerSession,
@@ -28,7 +28,6 @@ export function MyInquiryCreatePage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const submission = useRef({ pending: false, completed: false });
-  const leaveTitleId = useId();
   const shouldConfirmLeave = () => isAuthenticated && !submission.current.completed
     && (title.length > 0 || content.length > 0 || submission.current.pending);
   const blocker = useBlocker(shouldConfirmLeave);
@@ -59,7 +58,7 @@ export function MyInquiryCreatePage() {
 
   return (
     <>
-      <Link to="/my/inquiries" className="my-back-link">&larr; {myNavLabel("/my/inquiries")} 목록</Link>
+      <Link to="/my/inquiries" className="page-back-link">&larr; {myNavLabel("/my/inquiries")} 목록</Link>
       <PageHeader
         title="1:1 문의 작성"
         description="답변은 알림과 1:1 문의 목록에서 확인할 수 있습니다."
@@ -118,25 +117,19 @@ export function MyInquiryCreatePage() {
         </Card.Body>
       </Card>
 
-      <Modal show={blocker.state === "blocked"} onHide={() => blocker.reset?.()}
-        aria-labelledby={leaveTitleId} centered>
-        <Modal.Header closeButton>
-          <Modal.Title id={leaveTitleId} className="fs-6">
-            {mutation.isPending ? "문의 등록 중" : "문의 작성을 그만둘까요?"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {mutation.isPending ? "문의 등록 중입니다. 잠시만 기다려 주세요." : "작성한 내용이 저장되지 않습니다."}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => blocker.reset?.()}>
-            {mutation.isPending ? "돌아가기" : "계속 작성"}
-          </Button>
-          <Button variant="danger" disabled={mutation.isPending} onClick={() => blocker.proceed?.()}>
-            나가기
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmModal
+        show={blocker.state === "blocked"}
+        title={mutation.isPending ? "문의 등록 중" : "문의 작성을 그만둘까요?"}
+        pending={false}
+        onClose={() => blocker.reset?.()}
+        confirmLabel="나가기"
+        confirmVariant="dark"
+        confirmDisabled={mutation.isPending}
+        onConfirm={() => blocker.proceed?.()}
+        cancelLabel={mutation.isPending ? "돌아가기" : "계속 작성"}
+      >
+        {mutation.isPending ? "문의 등록 중입니다. 잠시만 기다려 주세요." : "작성한 내용이 저장되지 않습니다."}
+      </ConfirmModal>
     </>
   );
 }

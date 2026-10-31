@@ -44,7 +44,7 @@ public class DefaultImageMediaService implements ImageMediaUseCase {
         }
         String fileName = UUID.randomUUID() + "." + extension;
         storagePort.store(fileName, bytes);
-        return new StoredImage(fileName, "/api/v1/media/images/" + fileName);
+        return new StoredImage(fileName, ImageMediaReferenceGuard.imageUrl(fileName));
     }
 
     @Override

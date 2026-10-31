@@ -9,7 +9,7 @@ registry_app_digest=$3
 registry_frontend_digest=$4
 [[ $registry_revision =~ ^[a-f0-9]{40}$ ]] || die "commit SHA가 올바르지 않습니다."
 for registry_digest in "$registry_app_digest" "$registry_frontend_digest"; do
-    [[ $registry_digest =~ ^sha256:[a-f0-9]{64}$ ]] || die "registry digest가 올바르지 않습니다."
+    is_sha256_digest "$registry_digest" || die "registry digest가 올바르지 않습니다."
 done
 cd "$REPO_ROOT"
 [[ $(git rev-parse HEAD) == "$registry_revision" ]] || die "배포 소스와 이미지 commit이 다릅니다."
@@ -60,9 +60,7 @@ if [ -n "$current_app" ]; then
     current_app_replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
     if [ "$current_app_replicas" = 1 ] &&
        ! kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 >/dev/null 2>&1; then
-        registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" \
-            "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}" \
-            "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups")
+        registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$(cd_backup_env_file)" "$(cd_backup_dir)")
         export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$registry_bundle"
         export HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP=true
         info "현재 앱이 온라인 백업 표식을 제공하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다."
@@ -73,9 +71,7 @@ docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
 k3s_ctr images import "$registry_tmp/images.tar"
 for local_ref in "${registry_local_images[@]}"; do
     local_digest=$(containerd_image_digest "$local_ref") || die "반입한 이미지 digest가 없습니다."
-    for local_alias in "$local_ref@$local_digest" "${local_ref%:*}@$local_digest"; do
-        ensure_containerd_image_alias "$local_ref" "$local_alias" "$local_digest"
-    done
+    register_containerd_digest_aliases "$local_ref" "$local_digest"
 done
 
 # Docker archive를 containerd로 변환하면 registry manifest와 digest가 달라질 수 있다.

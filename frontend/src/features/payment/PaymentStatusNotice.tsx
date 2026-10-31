@@ -37,15 +37,15 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
     case "RETRYABLE":
       return (
         <Alert variant="warning" className="mb-0">
-          <Alert.Heading className="fs-5">결제 결과를 다시 확인해 주세요</Alert.Heading>
-          <p className="mb-0">{amount} 결제 결과를 확인하지 못했습니다. 새로 결제하지 말고 결과를 다시 확인해 주세요.</p>
+          <Alert.Heading className="fs-5">결제 결과를 아직 받지 못했습니다</Alert.Heading>
+          <p className="mb-0">{amount} 결제가 승인됐을 수 있으니 새로 결제하지 마세요.</p>
         </Alert>
       );
     case "CONFIRMING":
       return (
         <Alert variant="info" className="mb-0">
           <Alert.Heading className="fs-5">결제를 확인하고 있습니다</Alert.Heading>
-          <p className="mb-0">결제 결과를 자동으로 확인 중입니다. 새로 결제하지 마세요.</p>
+          <p className="mb-0">결과가 나오면 이 화면이 바뀝니다. 새로 결제하지 마세요.</p>
         </Alert>
       );
     case "REFUNDING":
@@ -59,14 +59,15 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="success" className="mb-0">
           <Alert.Heading className="fs-5">환불이 완료되었습니다</Alert.Heading>
-          <p className="mb-0">{contextCopy.notCreated} {amount} 전액 환불이 완료됐습니다.</p>
+          <p className="mb-0">{contextCopy.notCreated} {amount}을 전액 환불했습니다.</p>
         </Alert>
       );
     case "REVIEW_REQUIRED":
+      // 공방이 결제사 내역과 대조하는 동안 고객은 기다리면 되는 차례라 확인 중(CONFIRMING)과 같은 진행 중 안내로 둔다.
       return (
-        <Alert variant="warning" className="mb-0">
+        <Alert variant="info" className="mb-0">
           <Alert.Heading className="fs-5">결제사 결과를 확인하고 있습니다</Alert.Heading>
-          <p className="mb-0">중복 결제를 피하기 위해 새로 결제하지 마세요. 공방에 결제 결과를 문의한 뒤 새로고침해 주세요.</p>
+          <p className="mb-0">공방에서 결제 내역을 대조하고 있습니다. 중복 결제를 피하기 위해 새로 결제하지 말고, 궁금한 점은 공방에 문의해 주세요.</p>
           <WorkshopContactLinks />
         </Alert>
       );
@@ -96,7 +97,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="success" className="mb-0">
           <Alert.Heading className="fs-5">{contextCopy.completedHeading}</Alert.Heading>
-          <p className="mb-0">{amount} 결제가 완료되었습니다.</p>
+          <p className="mb-0">결제 금액 {amount}</p>
         </Alert>
       );
   }

@@ -5,9 +5,11 @@ import {
   confirmPayment,
   consumePaymentReturnHint,
   fetchPaymentStatus,
+  isEndedWithoutPayment,
   isTerminalPaymentStatus,
-  PaymentCompletionNext,
+  PaymentCompletedCard,
   PaymentResultCard,
+  paymentResultTone,
   PaymentStatusNotice,
   readPaymentConfirmSession,
   readPaymentReturnHint,
@@ -20,14 +22,13 @@ import {
   type PaymentConfirmRequest,
   type PaymentSessionHandle,
 } from "@/features/payment";
-import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { WorkshopContactLinks } from "@/features/workshop/WorkshopContactLinks";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
-import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
+import { describeError, ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import {
   ApiError,
   captureCustomerSession,
@@ -56,13 +57,6 @@ function requiresPaymentReconciliation(error: unknown): boolean {
   return error instanceof ApiError
     && error.code === "PAYMENT_RECONCILIATION_REQUIRED";
 }
-
-/** 결제 직후 상태만 설명한다. 주문은 공방 승인 전이므로 확정·발송을 약속하지 않는다. */
-const PAYMENT_RESULT_LEAD: Record<ConfirmPaymentResponse["context"], string> = {
-  ORDER: "주문이 접수되어 공방 승인을 기다리고 있습니다. 진행 상황은 주문 상세에서 확인할 수 있습니다.",
-  BOOKING: "예약이 확정되었습니다. 수업 당일 공방에서 뵙겠습니다.",
-  PASS: "4회권이 발급되었습니다. 이제 이용권으로 정규 공예 수업을 예약할 수 있습니다.",
-};
 
 export function PaymentSuccessPage() {
   const [params] = useSearchParams();
@@ -311,12 +305,12 @@ export function PaymentSuccessPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
           tone="notice"
           title="회원 계정이 변경되었습니다"
           lead="이전 계정에서 시작한 결제 결과는 이 화면에 표시하지 않습니다."
-          actions={<Button variant="primary" onClick={() => navigate("/")}>홈으로</Button>}
+          actions={<LinkButton to="/" variant="primary">홈으로</LinkButton>}
         />
       </Container>
     );
@@ -324,7 +318,7 @@ export function PaymentSuccessPage() {
 
   if (confirming) {
     return (
-      <Container className="page-container text-center" style={{ maxWidth: 540 }}>
+      <Container className="page-container is-narrow text-center">
         <LoadingSpinner text={completedOrderId ? "결제 결과를 조회하고 있습니다..." : "결제를 확정하고 있습니다..."} />
       </Container>
     );
@@ -333,9 +327,9 @@ export function PaymentSuccessPage() {
   // 결제창을 거치지 않고 들어왔거나 결제 정보 보관 시간이 지난 경우. 오류가 아니라 확인할 곳을 안내한다.
   if (missingPaymentInfo) {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
-          tone="danger"
+          tone="notice"
           title="확인할 결제 정보가 없습니다"
           lead="결제창을 거치지 않았거나 결과 확인 시간이 지났습니다. 결제 상태는 주문·예약 내역에서 확인할 수 있습니다."
           actions={(
@@ -353,10 +347,10 @@ export function PaymentSuccessPage() {
 
   if (paymentStatus && paymentStatus.status !== "COMPLETED") {
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
-          tone="notice"
-          title="결제 결과 확인"
+          tone={paymentResultTone(paymentStatus)}
+          title="결제 상태"
           actions={(
             <>
               {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (
@@ -377,10 +371,10 @@ export function PaymentSuccessPage() {
                 </Button>
               )}
               {/* 승인되지 않았거나 종료·환불된 결제는 구매 화면에서 다시 시작한다. */}
-              {returnPath !== "/" && ["FAILED", "EXPIRED", "REFUNDED"].includes(paymentStatus.status) && (
+              {returnPath !== "/" && isEndedWithoutPayment(paymentStatus.status) && (
                 <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
               )}
-              <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
+              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
             </>
           )}
         >
@@ -395,30 +389,40 @@ export function PaymentSuccessPage() {
     const retryable = canRetryConfirm(error);
     const reconciliationRequired = requiresPaymentReconciliation(error);
     const statusCheckRequired = retryable || reconciliationRequired;
+    // 승인 결과를 아직 모르는 결제는 실패가 아니라 고객이 다시 확인할 일이라 notice·노랑 안내로 보인다.
+    const statusCheckNotice = statusCheckRequired && !completedOrderId;
+    // 주 버튼은 맨 앞에 하나만 둔다. 다시 확인할 수 있으면 다시 확인, 승인되지 않은 결제는 저장한 구매 화면이다.
+    // 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로, 돌아갈 구매 화면을 모르면 홈으로만 안내한다.
+    const primaryAction = completedOrderId || retryable
+      ? (
+        <Button variant="primary" onClick={() => void resolvePayment()}>
+          {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
+        </Button>
+      )
+      : !reconciliationRequired && returnPath !== "/"
+        ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
+        : null;
     return (
-      <Container className="page-container payment-result-page">
+      <Container className="page-container is-narrow">
         <PaymentResultCard
-          tone="danger"
+          tone={statusCheckNotice ? "notice" : "danger"}
           title={completedOrderId
             ? "결제 결과 조회 실패"
             : statusCheckRequired ? "결제 상태 확인 필요" : "결제 확정 실패"}
           actions={(
             <>
-              {(completedOrderId || retryable) && (
-                <Button variant="primary" onClick={() => void resolvePayment()}>
-                  {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
-                </Button>
-              )}
-              <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
-              {/* 브라우저 뒤로 가기는 결제창 기록으로 돌아가므로 저장한 구매 화면으로 보낸다. */}
-              {!retryable && !reconciliationRequired && (returnPath !== "/"
-                ? <Button variant="primary" onClick={returnToPurchase}>구매 화면으로 돌아가기</Button>
-                : <Button variant="primary" onClick={() => navigate(-1)}>이전으로</Button>)}
+              {primaryAction}
+              <LinkButton to="/" variant={primaryAction ? "outline-secondary" : "primary"}>홈으로</LinkButton>
             </>
           )}
         >
-          <ErrorAlert error={error} />
-          {reconciliationRequired && <WorkshopContactLinks />}
+          {/* 대사가 필요한 결제의 연락 수단은 문의 안내와 같은 상자 안에 둔다(결과 확인 중 안내와 같은 모양). */}
+          {statusCheckNotice ? (
+            <Alert variant="warning" className="mb-0">
+              {describeError(error)}
+              {reconciliationRequired && <WorkshopContactLinks />}
+            </Alert>
+          ) : <ErrorAlert error={error} className="mb-0" />}
         </PaymentResultCard>
       </Container>
     );
@@ -429,18 +433,8 @@ export function PaymentSuccessPage() {
   }
 
   return (
-    <Container className="page-container payment-result-page">
-      <PaymentResultCard
-        tone="success"
-        title="결제 완료"
-        lead={PAYMENT_RESULT_LEAD[result.context]}
-        actions={(
-          <>
-            <PaymentCompletionNext result={result} />
-            <PaymentReceiptLink receiptUrl={result.receiptUrl} size="default" />
-          </>
-        )}
-      />
+    <Container className="page-container is-narrow">
+      <PaymentCompletedCard result={result} />
     </Container>
   );
 }

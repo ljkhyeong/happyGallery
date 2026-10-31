@@ -16,7 +16,7 @@ interface Props {
 
 export function StockThresholdForm(props: Props) {
   const query = useAdminQuery(props.onAuthError, {
-    queryKey: ["admin", "products", props.productId, "stock-levels"],
+    queryKey: queryKeys.admin.products.stockLevelsByProduct(props.productId),
     queryFn: () => listAdminStockLevels({ productId: props.productId }, { headers: adminHeaders(props.adminKey) }),
   });
   if (query.isLoading) return <LoadingSpinner />;
@@ -36,7 +36,7 @@ function StockThresholdEditor({ row, adminKey, onAuthError }: Props & { row: Sto
     }, { headers: adminHeaders(adminKey) }),
     onSuccess: () => {
       toast.show("최소 보유 수량을 저장했습니다.");
-      void client.invalidateQueries({ queryKey: queryKeys.admin.products });
+      void client.invalidateQueries({ queryKey: queryKeys.admin.products.all });
     },
   });
   const valid = minimum.trim() === "" || (Number.isInteger(Number(minimum)) && Number(minimum) >= 0 && Number(minimum) <= 2147483647);
@@ -50,7 +50,7 @@ function StockThresholdEditor({ row, adminKey, onAuthError }: Props & { row: Sto
         </InputGroup>
         <Form.Text>이 수량 이하이면 오늘 할 일에 표시합니다. 비워서 저장하면 품절만 표시합니다.</Form.Text>
       </Form.Group>
-      <ErrorAlert error={mutation.error} onRetry={() => { void client.invalidateQueries({ queryKey: queryKeys.admin.products }); }} />
+      <ErrorAlert error={mutation.error} onRetry={() => { void client.invalidateQueries({ queryKey: queryKeys.admin.products.all }); }} />
     </Form>
   );
 }

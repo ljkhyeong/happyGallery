@@ -1,18 +1,15 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase;
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
-import com.personal.happygallery.application.booking.port.out.BookingStorePort;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositCalculator.BookingAmounts;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -22,31 +19,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCase {
 
-    private final BookingStorePort bookingStore;
     private final GuestStorePort guestStore;
     private final GuestPersonalDataProtector guestProtector;
     private final BookingCreationSupport creationSupport;
-    private final BookingSupport bookingSupport;
     private final Clock clock;
 
     public DefaultAdminBookingCreateService(
-            BookingStorePort bookingStore,
             GuestStorePort guestStore,
             GuestPersonalDataProtector guestProtector,
             BookingCreationSupport creationSupport,
-            BookingSupport bookingSupport,
             Clock clock
     ) {
-        this.bookingStore = bookingStore;
         this.guestStore = guestStore;
         this.guestProtector = guestProtector;
         this.creationSupport = creationSupport;
-        this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
 
     @Override
-    public AdminBookingResponse create(CreateAdminBookingCommand command) {
+    public AdminBookingView create(CreateAdminBookingCommand command) {
         command.source().requireOperatorManaged();
         Guest guest = guestStore.getOrCreateByPhoneHmac(
                 guestProtector.newGuest(command.name(), command.phone()));
@@ -71,19 +62,11 @@ public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCa
                 balanceAmount,
                 command.source(),
                 command.depositPaid() ? LocalDateTime.now(clock) : null);
-        booking = bookingStore.save(booking);
-
-        bookingSupport.recordHistory(
-                booking,
-                BookingHistoryAction.BOOKED,
-                null,
-                slot,
-                BookingHistoryActor.ADMIN,
-                command.adminId(),
+        booking = creationSupport.saveAndComplete(
+                booking, slot, BookingHistoryActor.ADMIN, command.adminId(),
                 "접수 경로: " + command.source().name());
-        bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
 
-        return AdminBookingResponse.fromGuest(
+        return AdminBookingView.fromGuest(
                 booking,
                 guestProtector.decryptName(guest),
                 guestProtector.decryptPhone(guest));

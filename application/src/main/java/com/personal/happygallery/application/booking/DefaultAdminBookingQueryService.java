@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
+import com.personal.happygallery.application.booking.port.in.AdminBookingView;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -40,7 +40,7 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
      * member booking의 User 정보를 batch fetch하여 DTO에 포함한다.
      */
     @Override
-    public List<AdminBookingResponse> listBookings(LocalDate date, BookingStatus status) {
+    public List<AdminBookingView> listBookings(LocalDate date, BookingStatus status) {
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.plusDays(1).atStartOfDay();
         List<Booking> bookings = status == null
@@ -53,9 +53,9 @@ public class DefaultAdminBookingQueryService implements AdminBookingQueryUseCase
                 .map(booking -> {
                     Long userId = booking.getUserId();
                     if (userId != null) {
-                        return AdminBookingResponse.fromMember(booking, userMap.get(userId));
+                        return AdminBookingView.fromMember(booking, userMap.get(userId));
                     }
-                    return AdminBookingResponse.fromGuest(
+                    return AdminBookingView.fromGuest(
                             booking,
                             guestPersonalDataProtector.decryptName(booking.getGuest()),
                             guestPersonalDataProtector.decryptPhone(booking.getGuest()));

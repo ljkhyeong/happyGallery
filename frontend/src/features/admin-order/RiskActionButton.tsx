@@ -12,6 +12,8 @@ interface Props {
   onConfirm: () => void;
   /** 확인 창을 여는 버튼 색. 실행 버튼은 항상 danger다. */
   variant?: ButtonProps["variant"];
+  /** 표 안에서는 작은 버튼, 입력칸과 나란히 둘 때는 입력칸 높이에 맞춘 기본 크기를 쓴다. */
+  size?: "sm" | "default";
 }
 
 /** 환불·재고처럼 되돌리기 어려운 주문 처리를 영향 안내 확인 뒤 실행한다. */
@@ -24,13 +26,15 @@ export function RiskActionButton({
   pending,
   onConfirm,
   variant = "outline-danger",
+  size = "sm",
 }: Props) {
   const [show, setShow] = useState(false);
 
   return (
     <>
       <Button
-        size="sm"
+        size={size === "sm" ? "sm" : undefined}
+        className="text-nowrap"
         variant={variant}
         disabled={disabled}
         onClick={() => setShow(true)}

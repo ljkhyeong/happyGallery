@@ -2,7 +2,7 @@ import { Badge, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
 import type { ProductResponse, ProductVariantResponse } from "@/generated/api/adminCatalog";
 import { listAdminStockLevels } from "@/generated/api/adminCatalog";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, queryKeys } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { adminProductHref } from "@/shared/lib/adminLinks";
@@ -26,7 +26,7 @@ export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
   const query = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
 
   const levels = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", "stock-levels"],
+    queryKey: queryKeys.admin.products.stockLevels,
     queryFn: () => listAdminStockLevels(undefined, { headers: adminHeaders(adminKey) }),
   });
   if (query.isLoading || levels.isLoading) return <LoadingSpinner />;

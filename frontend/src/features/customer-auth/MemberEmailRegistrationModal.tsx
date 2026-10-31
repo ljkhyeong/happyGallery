@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Modal } from "react-bootstrap";
-import { ApiError, runForCurrentCustomer } from "@/shared/api";
+import { runForCurrentCustomer } from "@/shared/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
+import { useReauthenticationGate } from "@/features/customer-auth/useReauthenticationGate";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import {
   registerVerifiedEmail,
@@ -24,19 +25,19 @@ export function MemberEmailRegistrationModal({
   onClose,
 }: Props) {
   const toast = useToast();
-  const [stepUpBusy, setStepUpBusy] = useState(false);
-  const [reauthenticated, setReauthenticated] = useState(initiallyReauthenticated);
+  const {
+    reauthenticated, stepUpBusy, setStepUpBusy, requireStepUpOnError, markVerified,
+  } = useReauthenticationGate({ show, initiallyReauthenticated });
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [sentEmail, setSentEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!show) return;
-    setReauthenticated(initiallyReauthenticated);
     setEmail("");
     setVerificationCode("");
     setSentEmail(null);
-  }, [show, initiallyReauthenticated]);
+  }, [show]);
 
   const sendCode = useMutation({
     mutationFn: (targetEmail: string) =>
@@ -46,7 +47,7 @@ export function MemberEmailRegistrationModal({
       setVerificationCode("");
       toast.show("인증번호를 이메일로 보냈습니다.");
     },
-    onError: handleReauthenticationRequired,
+    onError: requireStepUpOnError,
   });
 
   const register = useMutation({
@@ -58,14 +59,8 @@ export function MemberEmailRegistrationModal({
           window.location.assign(buildAuthPageHref("/login", { redirectTo: "/my" }));
         },
       ),
-    onError: handleReauthenticationRequired,
+    onError: requireStepUpOnError,
   });
-
-  function handleReauthenticationRequired(error: Error) {
-    if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
-      setReauthenticated(false);
-    }
-  }
 
   function close() {
     if (busy) return;
@@ -87,7 +82,7 @@ export function MemberEmailRegistrationModal({
       keyboard={!busy}
       centered
     >
-      <Modal.Header closeButton={!busy}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!busy}>
         <Modal.Title id="member-email-registration-title" className="fs-6">
           로그인 이메일 등록
         </Modal.Title>
@@ -103,7 +98,7 @@ export function MemberEmailRegistrationModal({
           <CustomerStepUpPrompt
             localPasswordEnabled={localPasswordEnabled}
             returnAction="email-registration"
-            onVerified={() => setReauthenticated(true)}
+            onVerified={markVerified}
             onBusyChange={setStepUpBusy}
           />
         ) : (
@@ -184,8 +179,8 @@ export function MemberEmailRegistrationModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={close} disabled={busy}>
-          취소
+        <Button variant="outline-dark" onClick={close} disabled={busy}>
+          닫기
         </Button>
       </Modal.Footer>
     </Modal>

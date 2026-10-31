@@ -1,16 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { ClassResponse } from "../../src/generated/api/booking";
 import type { FavoriteResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
+import {
+  classFixture,
+  EMPTY_REVIEW_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  memberFixture,
+  TEMPORARY_ERROR,
+} from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
-const bookingClass: ClassResponse = {
-  id: 42, name: "가죽 카드지갑 수업", category: "LEATHER", durationMin: 90, price: 50000,
-  bufferMin: 10, capacity: 8, passEligible: false, description: null, imageUrl: null,
-  preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
-};
+const bookingClass = classFixture({ id: 42, name: "가죽 카드지갑 수업", bufferMin: 10 });
 const favorites: FavoriteResponse[] = [
   { id: 2, targetType: "CLASS", targetId: 42, name: bookingClass.name, active: true, createdAt: "2026-09-12T10:00:00" },
   { id: 1, targetType: "PRODUCT", targetId: 11, name: "도자기 화병", active: false, createdAt: "2026-09-11T10:00:00" },
@@ -36,29 +38,27 @@ async function mockFavorites(page: Page) {
       const target = pathname.split("/").slice(-2).join(":");
       const method = request.method();
       if (method === "GET") {
-        return state.failStatus ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, { saved: saved.has(target) });
+        return state.failStatus ? fulfillJson(route, TEMPORARY_ERROR, 503) : fulfillJson(route, { saved: saved.has(target) });
       }
       state.writes.push({ method, target, accountId: state.accountId });
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-      if (state.failWrite) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      if (state.failWrite) return fulfillJson(route, TEMPORARY_ERROR, 503);
       if (method === "PUT") saved.add(target);
       else if (method === "DELETE") saved.delete(target);
       else throw new Error(`지원하지 않는 찜 변경 요청: ${method}`);
       return route.fulfill({ status: 204 });
     }
+    if (await fulfillMemberCommon(route, {
+      member: memberFixture({ id: state.accountId, name: `회원${state.accountId}`, email: "favorite@example.com" }),
+    })) return;
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
         headers: { "Set-Cookie": "XSRF-TOKEN=favorites-recovery; Path=/" }, json: {} });
-      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
-        email: "favorite@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
-      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites": {
         const type = searchParams.get("type");
         const cursor = searchParams.get("cursor");
         state.listReads.push({ type, cursor });
-        if (state.failList || (cursor && state.failNextPage)) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+        if (state.failList || (cursor && state.failNextPage)) return fulfillJson(route, TEMPORARY_ERROR, 503);
         const rows = favorites.filter((item) => saved.has(`${item.targetType}:${item.targetId}`)
           && (!type || item.targetType === type));
         const hasMore = state.paginated && !cursor && rows.length > 1;

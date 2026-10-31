@@ -1,18 +1,28 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
+import type { GroupInquirySummaryResponse } from "../../src/generated/api/customerStore";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  groupInquirySummaryFixture,
+  installCsrfCookie,
+  memberFixture,
+  seedAdminSession,
+  UNAUTHORIZED_ERROR,
+} from "./mock-support";
 
-const initialSummary = { id: 51, source: "WEBSITE", status: "CONSULTING", organization: "일정 변경 기관", headcount: 20,
-  preferredSchedule: "10월 오전", location: "기관 강당", classInterest: "레진아트", createdAt: "2026-09-05T10:00:00" };
+// 시나리오가 상태·인원·일정을 바꾸므로 overrides의 리터럴 타입으로 좁히지 않는다.
+const initialSummary: GroupInquirySummaryResponse = groupInquirySummaryFixture({
+  status: "CONSULTING", organization: "일정 변경 기관", headcount: 20, preferredSchedule: "10월 오전",
+});
 
 test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변경 이력을 확인한 뒤 취소한다 @identity", async ({ page, context, baseURL }) => {
   await installCsrfCookie(context, baseURL);
   const detail = { summary: { ...initialSummary }, version: 1, changes: [] as { id: number; note: string; createdAt: string }[] };
   let stale = true;
+  const member = memberFixture({ email: "inquiry@example.com" });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "inquiry@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (await fulfillMemberCommon(route, { member })) return;
     if (path === "/api/v1/me/group-inquiries") return fulfillJson(route, { content: [detail.summary], nextCursor: null, hasMore: false });
     if (path === "/api/v1/me/group-inquiries/51") {
       if (route.request().method() === "PUT") {
@@ -31,7 +41,6 @@ test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변�
       detail.changes.unshift({ id: detail.version, note: "회원이 문의를 취소했습니다.", createdAt: "2026-09-05T12:00:00" });
       return fulfillJson(route, detail);
     }
-    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     return fulfillJson(route, []);
   });
   await page.goto("/my/group-inquiries");
@@ -62,7 +71,7 @@ test("관리자 문의 검색은 접수 번호와 날짜 및 경로를 다음 �
   const queries: URLSearchParams[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (url.pathname === "/api/v1/me") return fulfillJson(route, UNAUTHORIZED_ERROR, 401);
     if (url.pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (url.pathname === "/api/v1/admin/group-inquiries") {
       queries.push(url.searchParams);

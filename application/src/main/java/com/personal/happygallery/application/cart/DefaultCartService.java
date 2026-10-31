@@ -108,9 +108,7 @@ public class DefaultCartService implements CartUseCase {
                         item.getId(),
                         item.getProductId(),
                         item.getProductVariantId(),
-                        item.getTextInputs().stream()
-                                .map(input -> new TextInput(input.getOptionKey(), input.getValue()))
-                                .toList(),
+                        toTextInputs(item),
                         item.getQty()))
                 .toList();
         return new PurchasableCart(items, snapshot.version());
@@ -303,12 +301,13 @@ public class DefaultCartService implements CartUseCase {
 
     private static PurchaseRequest toPurchaseRequest(int index, CartItem item) {
         return new PurchaseRequest(
-                index,
-                item.getProductId(),
-                item.getProductVariantId(),
-                item.getTextInputs().stream()
-                        .map(input -> new TextInput(input.getOptionKey(), input.getValue()))
-                        .toList());
+                index, item.getProductId(), item.getProductVariantId(), toTextInputs(item));
+    }
+
+    private static List<TextInput> toTextInputs(CartItem item) {
+        return item.getTextInputs().stream()
+                .map(input -> new TextInput(input.getOptionKey(), input.getValue()))
+                .toList();
     }
 
     private static List<PurchaseRequest> toMergePurchaseRequests(List<MergeItem> items) {

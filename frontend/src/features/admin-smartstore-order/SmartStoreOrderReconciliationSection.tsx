@@ -20,6 +20,7 @@ import {
   reconcileSmartStoreOrderActionHistory,
 } from "./api";
 import { ACTION_LABELS, ACTION_STATUS_LABELS } from "./labels";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -30,7 +31,7 @@ export function SmartStoreOrderReconciliationSection({ adminKey, onAuthError }: 
   const { cursor, hasPreviousPage, showNextPage, showPreviousPage } = useCursorHistory();
   const [selected, setSelected] = useState<SmartStoreOrderActionHistoryResponse | null>(null);
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-order-actions", "unresolved", cursor ?? null],
+    queryKey: queryKeys.admin.smartStore.orderActions.unresolvedPage(cursor ?? null),
     queryFn: () => fetchUnresolvedSmartStoreOrderActions(adminKey, cursor),
     refetchInterval: 30_000,
   });
@@ -120,7 +121,7 @@ function ReconciliationModal({
   const [outcome, setOutcome] = useState<ReconcileSmartStoreOrderActionRequestOutcome>("APPLIED");
   const [note, setNote] = useState("");
   const currentStatus = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-orders", action?.productOrderId, "current-status"],
+    queryKey: queryKeys.admin.smartStore.orders.currentStatus(action?.productOrderId),
     queryFn: () => fetchCurrentSmartStoreOrderStatus(adminKey, action!.productOrderId),
     enabled: action !== null,
     retry: false,
@@ -137,7 +138,7 @@ function ReconciliationModal({
     ),
     onSuccess: (_, request) => {
       queryClient.invalidateQueries({
-        queryKey: ["admin", "smartstore-order-actions", "unresolved"],
+        queryKey: queryKeys.admin.smartStore.orderActions.unresolved,
       });
       toast.show(request.outcome === "APPLIED"
         ? "네이버에 반영된 요청으로 확인했습니다."
@@ -161,7 +162,7 @@ function ReconciliationModal({
           openOrderAfterSave: false,
         });
       }}>
-        <Modal.Header closeButton={!reconcile.isPending}>
+        <Modal.Header closeLabel="창 닫기" closeButton={!reconcile.isPending}>
           <Modal.Title className="fs-6">스마트스토어 주문 처리 결과 확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>

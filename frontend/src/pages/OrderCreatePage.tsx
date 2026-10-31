@@ -24,12 +24,8 @@ import {
   PageHeader,
 } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
-import {
-  FulfillmentForm,
-  fulfillmentPayload,
-  isFulfillmentComplete,
-  useFulfillmentSelection,
-} from "@/features/order/FulfillmentForm";
+import { FulfillmentForm } from "@/features/order/FulfillmentForm";
+import { fulfillmentPayload, isFulfillmentComplete, useFulfillmentSelection } from "@/features/order/fulfillmentSelection";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
@@ -38,6 +34,7 @@ import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFiel
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
+import { useOrderPaymentTotal } from "@/features/order-benefit/useOrderPaymentTotal";
 import { ApiError } from "@/shared/api";
 import { parsePositiveId } from "@/shared/lib";
 
@@ -77,7 +74,7 @@ function NewOrderDraft({ productId, searchParams }: { productId: number | null; 
     void navigate(`/orders/new?${nextParams}`, { replace: true });
   }, [navigate, productId, searchParams]);
 
-  return <Container className="page-container" style={{ maxWidth: 640 }}>
+  return <Container className="page-container is-form">
     {saveFailed ? <Alert variant="warning">
       주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.
       <Button variant="link" onClick={() => void navigate(0)}>다시 시도</Button>
@@ -126,6 +123,13 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
   const guestPolicyConsent = usePolicyAcceptance();
   const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
+  // 비회원은 쿠폰·적립금을 고르지 않으므로 null·0 그대로 넘긴다.
+  const paymentTotal = useOrderPaymentTotal({
+    productAmount: itemAmount,
+    fulfillmentType: fulfillment.fulfillmentType,
+    couponId: issuedCouponId,
+    rewardAmount,
+  });
 
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
   const orderQuery = searchParams.toString();
@@ -190,7 +194,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   }, [moveToNameAfterVerify, step]);
 
   if (draftMissing) {
-    return <Container className="page-container" style={{ maxWidth: 640 }}>
+    return <Container className="page-container is-form">
       <Alert variant="warning">{searchParams.get("draft") === "options"
         ? "선택한 옵션 정보를 불러올 수 없습니다. 작품 상세에서 옵션과 수량을 다시 선택해 주세요."
         : "주문 정보를 불러올 수 없습니다. 작품을 다시 선택해 주세요."}</Alert>
@@ -209,11 +213,14 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           : "로그인 없이 여러 작품을 한 번에 주문할 수 있습니다."}
         actions={(
           <>
-            <LinkButton to="/products" variant="dark" size="sm">
-              작품 보러가기
-            </LinkButton>
+            {/* 먹색 채움은 결제(또는 빈 주문서의 "작품 먼저 고르기") 하나만 둔다. 빈 주문서는 본문이 같은 곳으로 안내한다. */}
+            {!shouldShowManualEntryGate && (
+              <LinkButton to="/products" variant="outline-dark" size="sm">
+                작품 보러가기
+              </LinkButton>
+            )}
             {!user && (
-              <LinkButton to={loginHref} variant="outline-secondary" size="sm">
+              <LinkButton to={loginHref} variant="outline-dark" size="sm">
                 로그인 후 주문하기
               </LinkButton>
             )}
@@ -231,11 +238,11 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
   if (shouldShowManualEntryGate) {
     return (
-      <Container className="page-container checkout-page">
+      <Container className="page-container">
         {header}
-        <Card className="mb-4 border-0 my-claim-card checkout-gate">
-          <Card.Body className="p-4">
-            <h2 className="h5 mb-2">주문할 작품을 먼저 골라 주세요</h2>
+        <Card className="mb-4 border-0 my-claim-card">
+          <Card.Body className="py-4">
+            <h2 className="h5 display-heading mb-2">주문할 작품을 먼저 골라 주세요</h2>
             <p className="text-muted-soft mb-3">
               작품 목록에서 작품과 수량을 고르면 주문서에 자동으로 들어갑니다.
               여러 작품을 여기서 직접 고를 수도 있습니다.
@@ -281,7 +288,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const showConsentPanel = requiresMadeToOrderConsent || !user;
 
   return (
-    <Container className="page-container checkout-page">
+    <Container className="page-container">
       {header}
 
       <CheckoutLayout
@@ -289,6 +296,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           <CheckoutSummary
             label="결제 요약"
             hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
+            mobileTotal={paymentTotal}
             action={(
               <Button
                 variant="primary" size="lg" className="w-100"
@@ -296,7 +304,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                   || !isFulfillmentComplete(fulfillment) || !consent.ready
                   || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
                 onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
-                {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
+                {mutation.isPending ? "결제창 여는 중..." : "결제하기"}
               </Button>
             )}
           >
@@ -323,7 +331,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       >
         {!user && (
           <CheckoutPanel title="휴대폰 인증">
-            {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
+            {!code && verificationReset.message && <Alert variant="warning">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
               key={verificationReset.version}
               initialPhone={phone}

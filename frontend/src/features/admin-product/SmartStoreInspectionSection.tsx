@@ -4,10 +4,12 @@ import { Badge, Button, Table } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { OffsetPager } from "@/shared/ui/OffsetPager";
 import {
   fetchSmartStoreInspections,
   requestSmartStoreInspectionRestore,
 } from "./api";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -18,9 +20,8 @@ export function SmartStoreInspectionSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [page, setPage] = useState(1);
-  const queryKey = ["admin", "smartstore-inspections"] as const;
   const query = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, page],
+    queryKey: queryKeys.admin.smartStore.inspections.page(page),
     queryFn: () => fetchSmartStoreInspections(adminKey, page),
   });
   const restore = useAdminMutation(onAuthError, {
@@ -29,7 +30,7 @@ export function SmartStoreInspectionSection({ adminKey, onAuthError }: Props) {
     onSuccess: async () => {
       toast.show("스마트스토어에 상품 복원 요청을 보냈습니다.");
       if (query.data?.products.length === 1 && page > 1) setPage(page - 1);
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.smartStore.inspections.all });
     },
   });
 
@@ -58,18 +59,18 @@ export function SmartStoreInspectionSection({ adminKey, onAuthError }: Props) {
       </tr>)}</tbody>
     </Table>)}
     {(page > 1 || (query.data?.totalPages ?? 0) > 1) && (
-      <nav aria-label="스마트스토어 검수 페이지" className="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <Button size="sm" variant="outline-secondary"
-          disabled={page === 1 || query.isFetching || restore.isPending}
-          onClick={() => setPage(page - 1)}>이전 페이지</Button>
-        <span className="small text-muted-soft">
-          {page}페이지{query.data && ` · 총 ${query.data.totalElements}건`}
-        </span>
-        <Button size="sm" variant="outline-secondary"
-          disabled={!query.data || query.isError || query.isFetching || restore.isPending
-            || page >= query.data.totalPages}
-          onClick={() => setPage(page + 1)}>다음 페이지</Button>
-      </nav>
+      <OffsetPager
+        as="nav"
+        ariaLabel="스마트스토어 검수 페이지"
+        previousLabel="이전 페이지"
+        nextLabel="다음 페이지"
+        summary={<>{page}페이지{query.data && ` · 총 ${query.data.totalElements}건`}</>}
+        previousDisabled={page === 1 || query.isFetching || restore.isPending}
+        nextDisabled={!query.data || query.isError || query.isFetching || restore.isPending
+          || page >= query.data.totalPages}
+        onPrevious={() => setPage(page - 1)}
+        onNext={() => setPage(page + 1)}
+      />
     )}
   </>;
 }

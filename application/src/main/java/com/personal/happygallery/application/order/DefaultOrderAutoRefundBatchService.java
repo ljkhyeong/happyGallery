@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchUseCase {
 
+    private static final int PAGE_SIZE = 100;
+
     private final OrderReaderPort orderReader;
     private final OrderAutoRefundProcessor orderAutoRefundProcessor;
     private final Clock clock;
@@ -43,8 +45,6 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
      *
      * @return 처리된 건수
      */
-    private static final int PAGE_SIZE = 100;
-
     @Override
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);

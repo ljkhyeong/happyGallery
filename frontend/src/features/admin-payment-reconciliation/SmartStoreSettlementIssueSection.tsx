@@ -9,6 +9,7 @@ import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthori
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   adminKey: string;
@@ -20,7 +21,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
   const [from, setFrom] = useState(() => shiftDate(-6));
   const [to, setTo] = useState(() => shiftDate(0));
   const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-settlements", "issues"],
+    queryKey: queryKeys.admin.smartStore.settlements.issues,
     queryFn: () => fetchSmartStoreSettlementIssues(adminKey),
     refetchInterval: 60_000,
   });
@@ -28,7 +29,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
     mutationFn: () => synchronizeSmartStoreSettlementRange(adminKey, from, to),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "smartstore-settlements", "issues"],
+        queryKey: queryKeys.admin.smartStore.settlements.issues,
       });
     },
   });

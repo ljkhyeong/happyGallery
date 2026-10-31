@@ -11,7 +11,6 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.application.payment.RefundExecutionService;
-import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
@@ -70,7 +69,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
      *
      * <ol>
      *   <li>access_token으로 예약 조회 및 검증</li>
-     *   <li>상태 확인 → 슬롯 반납 → 이력 → 환불 → 취소 → 알림</li>
+     *   <li>이용권·슬롯 잠금 → 취소 전이 → 슬롯 반납 → 이력 → 예약금 환불 또는 이용권 복원 → 저장 → 후속 작업 → 알림</li>
      * </ol>
      *
      * @return 취소된 예약, 보상 가능 여부, 생성된 예약금 환불 요청
@@ -195,8 +194,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
         CancellationCompensation compensation = applyRefundableCompensation(booking, lockedPass);
         bookingStorePort.save(booking);
-        boolean balanceSettlementRequired = booking.getBalanceAmount() > 0
-                && booking.getBalanceStatus() == BalanceStatus.PAID;
+        boolean balanceSettlementRequired = booking.hasPaidBalance();
         boolean passCreditRestored = lockedPass != null && compensation.refundable();
         boolean manualCompensationRequired = compensation.manualCompensationRequired()
                 || (lockedPass != null && !passCreditRestored);

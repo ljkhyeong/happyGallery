@@ -19,7 +19,7 @@ interface GuestRecordLocationState extends CustomerSessionOwnedState {
   token?: string;
 }
 
-export interface GuestRecordCredentials {
+interface GuestRecordCredentials {
   id: number;
   token: string;
 }

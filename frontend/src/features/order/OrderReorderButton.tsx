@@ -1,13 +1,13 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
 import { getProduct } from "@/generated/api/product";
-import type { OrderDetailResponse } from "@/generated/api/customerStore";
+import type { OrderDetailResponse } from "@/generated/api/order";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
 import { productSelectionView } from "@/features/product/productSelectionView";
 import { productDetailHref } from "@/features/product/navigation";
-import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { productQuantityLimit, remainingAddableQuantity } from "@/features/product/purchaseStock";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
@@ -37,6 +37,7 @@ function selectOptionsKey(options: OrderItem["options"]) {
 }
 
 function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void }) {
+  const titleId = useId();
   const [qty, setQty] = useState(String(item.qty));
   const requestRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const cart = useCart();
@@ -60,7 +61,9 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
     && selection.configurationValid && selectOptionsKey(item.options) === selectOptionsKey(selection.options));
   const existingQty = cart.items.filter((row) => row.productId === item.productId
     && row.productVariantId === selection?.productVariantId).reduce((sum, row) => sum + row.qty, 0);
-  const limit = product && selection ? Math.max(0, productQuantityLimit(product, selection.productVariantId) - existingQty) : 0;
+  const limit = product && selection
+    ? remainingAddableQuantity(productQuantityLimit(product, selection.productVariantId), existingQty)
+    : 0;
   const quantity = Number(qty);
   const validQty = Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= limit;
   const mutation = useMutation({
@@ -80,8 +83,8 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
     ),
   });
   return (
-    <Modal show onHide={() => { if (!mutation.isPending) onClose(); }} centered>
-      <Modal.Header closeButton={!mutation.isPending}><Modal.Title>구매한 작품 다시 담기</Modal.Title></Modal.Header>
+    <Modal show onHide={() => { if (!mutation.isPending) onClose(); }} centered aria-labelledby={titleId}>
+      <Modal.Header closeLabel="창 닫기" closeButton={!mutation.isPending}><Modal.Title id={titleId}>구매한 작품 다시 담기</Modal.Title></Modal.Header>
       <Modal.Body>
         <p className="fw-semibold">{item.productName}</p>
         <p className="small text-muted">이전 주문: {item.qty}개 · 당시 개당 {formatKRW(item.unitPrice)}</p>
@@ -92,7 +95,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
           <p>현재 개당 가격: <strong>{formatKRW(selection.unitPrice)}</strong></p>
           <ProductPurchaseTerms productName={product.name} type={product.type} specification={product.specification}
             careInstructions={product.careInstructions} productionLeadDays={product.productionLeadDays} compact showCustomizationInquiry={false} />
-          {requiresSelection ? <Alert variant="info" className="mt-3">
+          {requiresSelection ? <Alert variant="warning" className="mt-3">
             작품 옵션이 바뀌었거나 직접 입력한 문구가 있습니다. 작품 상세에서 옵션과 문구를 다시 선택해 주세요.
             <div className="mt-2"><LinkButton to={productDetailHref(product.id, onlyTextChanged ? item.productVariantId : null)} size="sm" variant="outline-primary">옵션 다시 선택</LinkButton></div>
           </Alert> : <>

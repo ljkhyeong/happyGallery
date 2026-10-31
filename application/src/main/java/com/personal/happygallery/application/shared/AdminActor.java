@@ -8,8 +8,4 @@ public record AdminActor(Long adminUserId, String name) {
     public AdminActor {
         name = name == null || name.isBlank() ? "시스템" : name.strip();
     }
-
-    public static AdminActor system() {
-        return new AdminActor(null, "시스템");
-    }
 }

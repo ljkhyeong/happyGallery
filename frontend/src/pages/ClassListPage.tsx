@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
@@ -21,10 +22,11 @@ import {
   getClassCategoryLabel,
   getClassSituationTagLabel,
 } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import { useLoaderBackedQuery } from "@/shared/api";
+import { useCenterActiveItem } from "@/shared/hooks/useCenterActiveItem";
 
 const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
 
@@ -33,6 +35,8 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const filters = readClassListFilters(searchParams);
   const { passEligibleOnly, tag, when } = filters;
   const heading = classListHeading(filters);
+  const situationChipsRef = useRef<HTMLDivElement>(null);
+  useCenterActiveItem(situationChipsRef, tag ?? when);
   const {
     data: classes,
     error: classesError,
@@ -95,12 +99,14 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
           <span className="store-detail-breadcrumb-current" aria-current="page">{heading.title}</span>
         </nav>
       )}
-      <header className="class-catalog-header">
-        <h1>{heading.title}</h1>
-        <LinkButton to="/group-classes#group-inquiry" variant="outline-dark">단체수업 문의</LinkButton>
-      </header>
+      {/* 바로 아래 상황 칩 줄이 이어지므로 머리 아래 선은 뺀다. */}
+      <PageHeader
+        title={heading.title}
+        actions={<LinkButton to="/group-classes#group-inquiry" variant="outline-dark" size="sm">단체수업 문의</LinkButton>}
+        divider={false}
+      />
 
-      <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
+      <div ref={situationChipsRef} className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
         <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>
         {(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((option) => (
           <button key={option} type="button" aria-pressed={when === option} onClick={() => selectSituation({ when: option })}>
@@ -127,24 +133,23 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
       {whenPending && <LoadingSpinner text={`${SLOT_WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (
-        <div className="text-center pb-4">
-          <EmptyState message={emptyMessage} />
-          {hasFilter && (
-            <Button variant="outline-dark" onClick={clearFilters}>전체 수업 보기</Button>
-          )}
-        </div>
+        <EmptyState
+          message={emptyMessage}
+          action={hasFilter ? <Button variant="outline-dark" onClick={clearFilters}>전체 수업 보기</Button> : undefined}
+        />
       )}
 
       <div className="class-catalog-list">
         {visibleClasses?.map((bookingClass) => (
           <article className="class-catalog-item" key={bookingClass.id}>
-            <figure className="class-catalog-media">
+            {/* 사진도 제목과 같은 상세로 잇는다. 같은 곳을 두 번 지나지 않도록 사진 링크는 키보드·화면 낭독기에서 뺀다. */}
+            <Link to={`/classes/${bookingClass.id}`} className="class-catalog-media" tabIndex={-1} aria-hidden="true">
               <img
                 src={classImageSrc(bookingClass)}
-                alt={bookingClass.imageUrl ? `${bookingClass.name} 수업` : ""}
+                alt=""
                 loading="lazy"
               />
-            </figure>
+            </Link>
             <div className="class-catalog-content">
               {/* 4회권·상황 표시는 같은 조건의 목록으로 이어진다. */}
               <div className="class-catalog-labels">
@@ -159,14 +164,14 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 ))}
               </div>
               <div className="class-catalog-title-row">
-                <h2>{bookingClass.name}</h2>
+                <h2><Link to={`/classes/${bookingClass.id}`}>{bookingClass.name}</Link></h2>
                 <strong>{formatKRW(bookingClass.price)}</strong>
               </div>
               {bookingClass.description && (
                 <p className="class-catalog-description">{bookingClass.description}</p>
               )}
               <dl className="class-catalog-meta">
-                <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
+                <div><dt>소요 시간</dt><dd>{bookingClass.durationMin}분</dd></div>
                 <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
                 {bookingClass.targetAudience && (
                   <div className="class-catalog-meta-wide"><dt>추천 대상</dt><dd>{bookingClass.targetAudience}</dd></div>
@@ -180,7 +185,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 <LinkButton
                   to={bookingCreateHref(bookingClass.id)}
                   variant="dark"
-                  aria-label={`${bookingClass.name} 예약하기`}
+                  aria-label={`${bookingClass.name} 날짜 선택하기`}
                 >
                   날짜 선택하기
                 </LinkButton>

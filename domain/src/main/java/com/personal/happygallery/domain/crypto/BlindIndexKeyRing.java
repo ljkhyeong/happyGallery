@@ -29,8 +29,13 @@ public final class BlindIndexKeyRing {
         this.indexers = Collections.unmodifiableMap(configured);
     }
 
+    /** 일반 저장과 단일 키 조회가 쓰는 현재 키 인덱서. */
+    public BlindIndexer active() {
+        return indexers.get(activeKeyId);
+    }
+
     public String index(String plaintext) {
-        return indexers.get(activeKeyId).index(plaintext);
+        return active().index(plaintext);
     }
 
     public List<String> indexCandidates(String plaintext) {

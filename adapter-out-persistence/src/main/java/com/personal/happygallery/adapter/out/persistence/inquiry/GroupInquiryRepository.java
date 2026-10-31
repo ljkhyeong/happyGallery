@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
@@ -20,7 +21,7 @@ public interface GroupInquiryRepository extends JpaRepository<GroupInquiry, Long
     @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("SELECT i FROM GroupInquiry i WHERE i.id = :id")
-    Optional<GroupInquiry> findByIdForUpdate(Long id);
+    Optional<GroupInquiry> findByIdForUpdate(@Param("id") Long id);
 
     @Query("""
             SELECT i FROM GroupInquiry i
@@ -33,8 +34,16 @@ public interface GroupInquiryRepository extends JpaRepository<GroupInquiry, Long
               AND (:before IS NULL OR i.createdAt < :before OR (i.createdAt = :before AND i.id < :beforeId))
             ORDER BY i.createdAt DESC, i.id DESC
             """)
-    List<GroupInquiry> searchPage(Long userId, GroupInquiryStatus status, GroupInquiry.Source source, Long inquiryId,
-            LocalDateTime from, LocalDateTime until, LocalDateTime before, Long beforeId, Pageable pageable);
+    List<GroupInquiry> searchPage(
+            @Param("userId") Long userId,
+            @Param("status") GroupInquiryStatus status,
+            @Param("source") GroupInquiry.Source source,
+            @Param("inquiryId") Long inquiryId,
+            @Param("from") LocalDateTime from,
+            @Param("until") LocalDateTime until,
+            @Param("before") LocalDateTime before,
+            @Param("beforeId") Long beforeId,
+            Pageable pageable);
 
     @Override
     default List<GroupInquiry> search(Long userId, GroupInquiryStatus status, GroupInquiry.Source source, Long inquiryId,
@@ -50,7 +59,11 @@ public interface GroupInquiryRepository extends JpaRepository<GroupInquiry, Long
               AND (:after IS NULL OR i.nextContactOn > :after OR (i.nextContactOn = :after AND i.id > :afterId))
             ORDER BY i.nextContactOn, i.id
             """)
-    List<GroupInquiry> followUpPage(LocalDate today, LocalDate after, Long afterId, Pageable pageable);
+    List<GroupInquiry> followUpPage(
+            @Param("today") LocalDate today,
+            @Param("after") LocalDate after,
+            @Param("afterId") Long afterId,
+            Pageable pageable);
 
     @Override
     default List<GroupInquiry> findFollowUps(LocalDate today, LocalDate after, Long afterId, int limit) {
@@ -60,5 +73,5 @@ public interface GroupInquiryRepository extends JpaRepository<GroupInquiry, Long
     @Override
     @Modifying
     @Query("DELETE FROM GroupInquiry i WHERE i.userId = :userId")
-    void deleteByUserId(Long userId);
+    void deleteByUserId(@Param("userId") Long userId);
 }

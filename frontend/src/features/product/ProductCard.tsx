@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { formatKRW } from "@/shared/lib";
-import type { ProductDetailResponse } from "@/shared/types";
+import type { ProductDetailResponse } from "@/generated/api/product";
 import { ProductMediaPlaceholder } from "./ProductMediaPlaceholder";
 
 interface Props {

@@ -79,7 +79,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
         onHide={onClose}
         centered
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeLabel="창 닫기" closeButton>
           <Modal.Title id="auth-member-confirm-title">확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -88,7 +88,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>취소</Button>
+          <Button variant="outline-dark" onClick={onClose}>닫기</Button>
           <Button variant="primary" onClick={() => onMemberAuthenticated(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
@@ -128,11 +128,11 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
       centered
       size="sm"
     >
-      <Modal.Header closeButton>
+      <Modal.Header closeLabel="창 닫기" closeButton>
         <Modal.Title id="auth-gate-title" className="fs-6">진행 방식 선택</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Nav variant="tabs" className="mb-3">
+        <Nav variant="underline" className="mb-3">
           <Nav.Item>
             <Nav.Link active={tab === "login"} onClick={() => setTab("login")}>로그인</Nav.Link>
           </Nav.Item>
@@ -204,6 +204,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <PhoneVerificationStep
                 purpose="SIGNUP"
                 title="휴대폰 번호 인증"
+                titleAs="h2"
                 initialPhone={signupPhone}
                 confirmLabel="입력 완료"
                 onVerified={(phone, code) => {
@@ -239,6 +240,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <PhoneVerificationStep
                 key={guestVerificationReset.version}
                 title="휴대폰 인증"
+                titleAs="h2"
                 initialPhone={guestPhone}
                 purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {

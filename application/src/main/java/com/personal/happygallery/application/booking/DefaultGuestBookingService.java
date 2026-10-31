@@ -2,74 +2,29 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.VerifiedGuestResolver;
-import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
-import com.personal.happygallery.domain.booking.PhoneVerification;
-import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
-import java.security.SecureRandom;
-import java.time.Clock;
-import java.time.LocalDateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
 public class DefaultGuestBookingService implements GuestBookingUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultGuestBookingService.class);
-
-    /** 인증 코드 유효 시간 (5분) */
-    private static final int VERIFICATION_EXPIRE_MINUTES = 5;
-
     private final VerifiedGuestResolver verifiedGuestResolver;
-    private final PhoneVerificationIssueTransactionService phoneVerificationIssueTransaction;
-    private final PhoneVerificationSender phoneVerificationSender;
     private final BookingCreationSupport creationSupport;
     private final GuestTokenService guestTokenService;
-    private final Clock clock;
-    private final SecureRandom random = new SecureRandom();
 
     public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
-                                      PhoneVerificationIssueTransactionService phoneVerificationIssueTransaction,
-                                      PhoneVerificationSender phoneVerificationSender,
                                       BookingCreationSupport creationSupport,
-                                      GuestTokenService guestTokenService,
-                                      Clock clock) {
+                                      GuestTokenService guestTokenService) {
         this.verifiedGuestResolver = verifiedGuestResolver;
-        this.phoneVerificationIssueTransaction = phoneVerificationIssueTransaction;
-        this.phoneVerificationSender = phoneVerificationSender;
         this.creationSupport = creationSupport;
         this.guestTokenService = guestTokenService;
-        this.clock = clock;
-    }
-
-    /** 휴대폰 인증 코드를 생성·저장하고 SMS로 발송한다. */
-    @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public PhoneVerification sendVerificationCode(String phone, PhoneVerificationPurpose purpose) {
-        String code = "%06d".formatted(random.nextInt(1_000_000));
-        LocalDateTime expiresAt = LocalDateTime.now(clock)
-                .plusMinutes(VERIFICATION_EXPIRE_MINUTES);
-        PhoneVerification pv = new PhoneVerification(phone, code, purpose, expiresAt);
-        pv = phoneVerificationIssueTransaction.save(pv);
-        if (!phoneVerificationSender.send(pv.getPhone(), code)) {
-            throw new HappyGalleryException(
-                    ErrorCode.SERVICE_UNAVAILABLE,
-                    "인증 코드를 발송하지 못했습니다. 잠시 후 다시 시도해주세요.");
-        }
-        pv = phoneVerificationIssueTransaction.completeDelivery(pv.getId(), pv.getPhone(), purpose);
-        log.info("[phone-verification] created [verificationId={}]", pv.getId());
-        return pv;
     }
 
     /** 결제 확정 후 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */

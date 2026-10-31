@@ -23,7 +23,6 @@ import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -89,7 +88,7 @@ public class BookingPreparer implements PaymentPreparer {
                 slotAvailabilityChecker.requireFullyAvailable(bp.slotId(), bp.participantCount());
         if (passBooking) {
             PassPurchase pass = passPurchaseReader.findById(bp.passId())
-                    .filter(candidate -> Objects.equals(candidate.getUserId(), auth.userId()))
+                    .filter(candidate -> candidate.isOwnedBy(auth.userId()))
                     .orElseThrow(NotFoundException.supplier("이용권"));
             pass.requireApplicableToClass(slot.classCategory(), slot.classPassEligible());
             pass.requireUsableAt(LocalDateTime.now(clock));

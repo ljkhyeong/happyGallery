@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button } from "react-bootstrap";
 import type { MemberReviewResponse } from "@/generated/api/review";
 import {
   captureCustomerSession,
@@ -10,13 +10,12 @@ import {
   runForCurrentCustomer,
   runForCustomerSession,
 } from "@/shared/api";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal, ErrorAlert, useToast } from "@/shared/ui";
 import { removeReviewImage, uploadReviewImage } from "./api";
 import { MemberReviewProtectedImage } from "./MemberReviewProtectedImage";
 import { MAX_REVIEW_IMAGES, reviewImageSelectionError } from "./reviewUiPolicy";
 
 export function ReviewImageUploader({ review }: { review: MemberReviewResponse }) {
-  const deleteConfirmationTitleId = useId();
   const [files, setFiles] = useState<File[]>([]);
   const [pendingDeleteImage, setPendingDeleteImage] = useState<{
     imageId: number;
@@ -85,11 +84,14 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
   });
 
   const remainingCount = MAX_REVIEW_IMAGES - review.images.length;
+  // 비공개 후기는 사진을 더해도 공개되지 않아 추가 버튼을 두지 않는다(등록한 사진 확인·삭제는 그대로).
+  const canAdd = remainingCount > 0 && review.status !== "HIDDEN";
+  if (review.images.length === 0 && !canAdd) return null;
 
   return (
     <section className="review-image-manager" aria-label="후기 사진 관리">
       {review.images.length > 0 && (
-        <div className="review-image-gallery review-image-gallery-editable">
+        <div className="review-image-gallery">
           {review.images.map((image, index) => (
             <div key={image.id} className="review-image-edit-item">
               {review.status === "HIDDEN" ? (
@@ -104,7 +106,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               <Button
                 type="button"
                 size="sm"
-                variant="danger"
+                variant="dark"
                 aria-label={`등록한 후기 사진 ${index + 1} 삭제`}
                 aria-haspopup="dialog"
                 disabled={deleteMutation.isPending || uploadMutation.isPending}
@@ -121,21 +123,21 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
         </div>
       )}
 
-      {remainingCount > 0 && (
+      {canAdd && (
         <div className="review-image-upload mt-3">
-          <Form.Label htmlFor={`review-images-${review.id}`} className="review-image-upload-label">
-            <ImagePlus size={17} aria-hidden="true" /> 사진 추가
-            <span>JPEG·PNG, 장당 5MB 이하 · 최대 {MAX_REVIEW_IMAGES}장</span>
-          </Form.Label>
-          <Form.Control
+          {/* 브라우저 기본 파일 선택 칸 대신 btn-check로 입력을 숨기고 바로 뒤 label을 버튼으로 쓴다(포커스 표시 포함). */}
+          <input
             ref={inputRef}
             id={`review-images-${review.id}`}
+            className="btn-check"
             type="file"
             accept="image/jpeg,image/png"
             multiple
             disabled={uploadMutation.isPending || deleteMutation.isPending}
             aria-invalid={validationMessage !== null}
-            aria-describedby={validationMessage ? `review-image-error-${review.id}` : undefined}
+            aria-describedby={validationMessage
+              ? `review-image-hint-${review.id} review-image-error-${review.id}`
+              : `review-image-hint-${review.id}`}
             onChange={(event) => {
               uploadMutation.reset();
               deleteMutation.reset();
@@ -153,6 +155,12 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               setFiles(selected);
             }}
           />
+          <label htmlFor={`review-images-${review.id}`} className="btn btn-sm btn-outline-dark">
+            <ImagePlus size={15} aria-hidden="true" className="me-1" />사진 추가
+          </label>
+          <span id={`review-image-hint-${review.id}`} className="review-image-upload-hint">
+            JPEG·PNG, 장당 5MB 이하 · 최대 {MAX_REVIEW_IMAGES}장
+          </span>
           {validationMessage && (
             <div id={`review-image-error-${review.id}`} className="invalid-feedback d-block">
               {validationMessage}
@@ -169,7 +177,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
               <Button
                 type="button"
                 size="sm"
-                variant="secondary"
+                variant="dark"
                 aria-label={`등록 전 사진 ${index + 1} 선택에서 제거`}
                 disabled={uploadMutation.isPending}
                 onClick={() => {
@@ -225,52 +233,27 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
       <div className="mt-2">
         <ErrorAlert error={uploadMutation.error} />
       </div>
-      <Modal
+      <ConfirmModal
         show={pendingDeleteImage !== null}
-        onHide={() => {
-          if (deleteMutation.isPending) return;
+        title="후기 사진 삭제"
+        pending={deleteMutation.isPending}
+        onClose={() => {
           deleteMutation.reset();
           setPendingDeleteImage(null);
         }}
-        centered
-        aria-labelledby={deleteConfirmationTitleId}
+        confirmLabel={deleteMutation.isPending ? "삭제 중..." : "사진 삭제"}
+        confirmVariant="dark"
+        confirmDisabled={pendingDeleteImage === null}
+        onConfirm={() => {
+          if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
+        }}
       >
-        <Modal.Header closeButton={!deleteMutation.isPending} closeLabel="닫기">
-          <Modal.Title id={deleteConfirmationTitleId} className="fs-6">
-            후기 사진 삭제
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="mb-0">
-            등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?
-            삭제한 사진은 복구할 수 없습니다.
-          </p>
-          <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            type="button"
-            variant="outline-secondary"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              deleteMutation.reset();
-              setPendingDeleteImage(null);
-            }}
-          >
-            취소
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            disabled={deleteMutation.isPending || pendingDeleteImage === null}
-            onClick={() => {
-              if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
-            }}
-          >
-            {deleteMutation.isPending ? "삭제 중..." : "사진 삭제"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <p className="mb-0">
+          등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?
+          삭제한 사진은 복구할 수 없습니다.
+        </p>
+        <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
+      </ConfirmModal>
     </section>
   );
 }

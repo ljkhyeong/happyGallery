@@ -215,10 +215,9 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
                 .orElseThrow(NotFoundException.supplier("후기 신고"));
         LocalDateTime now = LocalDateTime.now(clock);
         report.decide(decision, decisionNote, adminUserId, now);
-        evidenceService.startResolvedReportRetention(report.getEvidenceSnapshotId(), now);
+        ReviewEvidenceSnapshot evidence = evidenceService.startResolvedReportRetention(
+                report.getEvidenceSnapshotId(), now);
         ReviewReport saved = reportPort.save(report);
-        ReviewEvidenceSnapshot evidence = evidencePort.findById(saved.getEvidenceSnapshotId())
-                .orElseThrow(NotFoundException.supplier("후기 증거"));
         return ReviewViewAssembler.toReportItem(saved, evidence);
     }
 

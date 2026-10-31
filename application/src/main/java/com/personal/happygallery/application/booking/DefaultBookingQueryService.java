@@ -1,14 +1,12 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.PageParams;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -19,18 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultBookingQueryService implements BookingQueryUseCase {
 
     private final BookingSupport bookingSupport;
-    private final BookingReaderPort bookingReaderPort;
     private final RefundPort refundPort;
     private final PaymentReceiptQuery receiptQuery;
     private final MemberHistoryReaderPort memberHistoryReader;
 
     public DefaultBookingQueryService(BookingSupport bookingSupport,
-                                      BookingReaderPort bookingReaderPort,
                                       RefundPort refundPort,
                                       PaymentReceiptQuery receiptQuery,
                                       MemberHistoryReaderPort memberHistoryReader) {
         this.bookingSupport = bookingSupport;
-        this.bookingReaderPort = bookingReaderPort;
         this.refundPort = refundPort;
         this.receiptQuery = receiptQuery;
         this.memberHistoryReader = memberHistoryReader;
@@ -62,9 +57,7 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     /** 회원 — 자기 예약 상세 조회 */
     @Override
     public BookingDetail findMyBooking(Long id, Long userId) {
-        Booking booking = bookingReaderPort.findByIdAndUserIdWithDetails(id, userId)
-                .orElseThrow(NotFoundException.supplier("예약"));
-        return detail(booking);
+        return detail(bookingSupport.findByIdAndUserId(id, userId));
     }
 
     private BookingDetail detail(Booking booking) {

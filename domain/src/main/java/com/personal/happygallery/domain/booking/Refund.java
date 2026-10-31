@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentFailureReason;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -160,12 +161,10 @@ public class Refund {
                 bookingId, null, null, null, null, amount, booking.getPaymentKey());
     }
 
-    /** 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null. */
-    public static Refund forOrder(Long orderId, long amount, String paymentKey) {
-        return forOrder(orderId, amount, amount, 0L, 0L, false, paymentKey);
-    }
-
-    /** 주문의 PG 취소액과 고객 반환 혜택을 환불 요청 시점 값으로 고정한다. */
+    /**
+     * 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null이며
+     * PG 취소액과 고객 반환 혜택을 환불 요청 시점 값으로 고정한다.
+     */
     public static Refund forOrder(
             Long orderId,
             long pgRefundAmount,
@@ -295,7 +294,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.FAILED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         clearProcessing();
         return true;
     }
@@ -306,7 +305,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.RETRYABLE;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.nextAttemptAt = nextAttemptAt;
         clearProcessingToken();
         return true;
@@ -318,7 +317,7 @@ public class Refund {
             return false;
         }
         this.status = RefundStatus.RECONCILIATION_REQUIRED;
-        this.failReason = reason;
+        this.failReason = PaymentFailureReason.truncate(reason);
         this.nextAttemptAt = nextAttemptAt;
         clearProcessingToken();
         return true;
@@ -329,7 +328,8 @@ public class Refund {
         if (status != RefundStatus.FAILED
                 && status != RefundStatus.RETRYABLE
                 && status != RefundStatus.RECONCILIATION_REQUIRED) {
-            throw new IllegalStateException("재시도할 수 없는 환불 상태입니다. (현재: " + status + ")");
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + status + ")");
         }
         if (status != RefundStatus.RECONCILIATION_REQUIRED) {
             this.status = RefundStatus.RETRYABLE;

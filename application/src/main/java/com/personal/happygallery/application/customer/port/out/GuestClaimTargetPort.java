@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * guest claim 유스케이스의 귀속 대상 조회 포트.
  *
- * <p>claim preview와 claim 실행에 필요한 주문/예약/이용권 조회를 제공한다.
+ * <p>claim preview와 claim 실행에 필요한 주문/예약 조회를 제공한다.
  */
 public interface GuestClaimTargetPort {
 

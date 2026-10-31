@@ -110,8 +110,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     void tearDown() {
         webhookReceiptRepository.deleteAllInBatch();
         cleanupSupport.clearOrderData();
-        cleanupSupport.clearBookingWithPassAndRefundData();
-        cleanupSupport.clearUsers();
+        cleanupSupport.clearBookingDomainData();
     }
 
     @DisplayName("오래된 PROCESSING 결제는 저장된 요청과 같은 멱등키로 자동 확정한다")

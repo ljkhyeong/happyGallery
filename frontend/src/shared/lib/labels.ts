@@ -97,6 +97,32 @@ export const NOTIFICATION_EVENT_LABEL: Record<string, string> = {
   PICKUP_DEADLINE_REMINDER: "매장 수령 마감 알림",
 };
 
+/**
+ * 고객 화면의 주문·예약 번호 표기. 알림 제목(서버 contextTitle "주문 #123 · 작품")과 같은 형식을
+ * 목록·상세·비회원 조회·가져오기 창에서 함께 쓴다. 관리자 화면은 서버의 ORD-·BK- 번호를 그대로 쓴다.
+ */
+export function orderNumberLabel(orderId: number): string {
+  return `주문 #${orderId}`;
+}
+
+export function bookingNumberLabel(bookingId: number): string {
+  return `예약 #${bookingId}`;
+}
+
+const RECORD_NUMBER_KEYWORD: Record<"orders" | "bookings", RegExp> = {
+  orders: /^(?:주문\s*)?#\s*0*(\d+)$|^ORD-0*(\d+)$/i,
+  bookings: /^(?:예약\s*)?#\s*0*(\d+)$|^BK-0*(\d+)$/i,
+};
+
+/**
+ * 내 주문·예약 검색어가 화면 표기("주문 #123")나 예전 상세 머리 표기("ORD-00000123")와 같으면 번호(123)로 바꾼다.
+ * 작품명·수업명처럼 번호 표기가 아닌 검색어는 그대로 둔다.
+ */
+export function recordNumberKeyword(keyword: string, kind: "orders" | "bookings"): string {
+  const match = RECORD_NUMBER_KEYWORD[kind].exec(keyword.trim());
+  return match?.[1] ?? match?.[2] ?? keyword;
+}
+
 export type StatusAudience = "customer" | "admin";
 
 const STATUS_LABEL: Record<string, string> = {

@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
 import {
-  ApiError,
   CustomerSessionChangedError,
-  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -16,7 +14,7 @@ import {
   type SocialProvider,
 } from "@/features/customer-auth/socialAuth";
 import {
-  fetchLinkedSocialProviders,
+  linkedSocialProvidersQuery,
   reauthenticateCustomerPassword,
   startSocialAccountLink,
   unlinkSocialAccount,
@@ -24,6 +22,7 @@ import {
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import {
   CONTINUATION_STORAGE_ERROR_MESSAGE,
+  isReauthenticationRequired,
   redirectToSocialStepUp,
   storeContinuationAndRedirect,
 } from "@/features/customer-auth/customerStepUp";
@@ -54,10 +53,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     isLoading,
     isFetching: linkedProvidersFetching,
     refetch: refetchLinkedProviders,
-  } = useQuery({
-    queryKey: queryKeys.member.socialAccounts,
-    queryFn: fetchLinkedSocialProviders,
-  });
+  } = useQuery(linkedSocialProvidersQuery());
   const unlinkMutation = useMutation({
     mutationFn: (provider: SocialProvider) =>
       runForCurrentCustomer(
@@ -117,7 +113,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     try {
       await beginSensitiveAction(action);
     } catch (error) {
-      if (error instanceof ApiError && error.code === "REAUTHENTICATION_REQUIRED") {
+      if (isReauthenticationRequired(error)) {
         if (localPasswordEnabled) {
           setPendingAction(action);
           return;
@@ -167,7 +163,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     <div className="border-top mt-3 pt-3">
       <div className="d-flex justify-content-between align-items-center gap-3 mb-2">
         <div>
-          <h6 className="mb-1">소셜 로그인</h6>
+          <h3 className="h6 mb-1">소셜 로그인</h3>
         </div>
         {isLoading && (
           <span role="status" aria-live="polite">
@@ -192,12 +188,12 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
               <div key={provider} className="d-flex justify-content-between align-items-center gap-3">
                 <div className="d-flex align-items-center gap-2">
                   <span>{details.label}</span>
-                  {linked && <Badge bg="success">연결됨</Badge>}
+                  {linked && <Badge bg="dark">연결됨</Badge>}
                 </div>
                 {linked ? (
                   <Button
                     type="button"
-                    variant="outline-danger"
+                    variant="outline-dark"
                     size="sm"
                     disabled={
                       !canUnlink
@@ -234,7 +230,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
         centered
       >
         <Form onSubmit={(event) => void handlePasswordReauthentication(event)}>
-          <Modal.Header closeButton={!sensitiveActionPending}>
+          <Modal.Header closeLabel="창 닫기" closeButton={!sensitiveActionPending}>
             <Modal.Title id="social-account-password-confirm-title" className="fs-6">
               비밀번호로 본인 확인
             </Modal.Title>
@@ -255,11 +251,11 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
             )}
             <Button
               type="button"
-              variant="secondary"
+              variant="outline-dark"
               onClick={closePasswordReauthentication}
               disabled={sensitiveActionPending}
             >
-              취소
+              닫기
             </Button>
             <Button
               type="submit"

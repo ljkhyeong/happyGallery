@@ -3,7 +3,7 @@ import { CalendarCheck, PackageCheck } from "lucide-react";
 import { Card } from "react-bootstrap";
 import { Link } from "react-router";
 import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
-import { ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
+import { LoadingSpinner, CursorLoadMore, CursorQueryErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { fetchMyReviewOpportunities } from "./api";
 import { reviewTargetHref } from "./reviewTarget";
@@ -24,35 +24,19 @@ export function ReviewOpportunityList() {
   }
 
   if (query.data === undefined && query.error) {
-    return (
-      <ErrorAlert
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
-    );
+    return <CursorQueryErrorAlert query={query} />;
   }
 
   if (query.data !== undefined && opportunities.length === 0) {
-    return query.error ? (
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
-    ) : null;
+    return query.error ? <CursorQueryErrorAlert query={query} /> : null;
   }
 
   return (
     <>
-      <ErrorAlert
-        error={query.isFetchNextPageError ? null : query.error}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
+      <CursorQueryErrorAlert query={query} />
       <section className="review-opportunity-section" aria-labelledby="review-opportunity-heading">
         <div className="review-opportunity-heading">
-          <h3 id="review-opportunity-heading" className="h5 mb-0">후기를 쓸 수 있는 내역</h3>
+          <h2 id="review-opportunity-heading" className="h5 display-heading mb-0">후기를 쓸 수 있는 내역</h2>
           <strong>불러온 {opportunities.length.toLocaleString("ko-KR")}건</strong>
         </div>
         <div className="review-opportunity-list">

@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
+import {
+  classFixture,
+  currentPoliciesFixture,
+  EMPTY_CURSOR_PAGE,
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  memberFixture,
+} from "./mock-support";
 
 test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 않고 새 세션에서 선택을 확인한다", async ({
   baseURL,
@@ -8,14 +16,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
-  const member = {
-    id: 202,
-    email: "booking-resume@example.com",
-    name: "예약 재개 회원",
-    phone: "01022222222",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
+  const member = memberFixture({ id: 202, email: "booking-resume@example.com", name: "예약 재개 회원", phone: "01022222222" });
   let currentMember: typeof member | null = null;
   let slotReads = 0;
   const preparePayloads: Array<Record<string, unknown>> = [];
@@ -38,38 +39,14 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentMember) {
-        await fulfillJson(route, currentMember);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentMember })) return;
     if (pathname === "/api/v1/auth/login") {
       currentMember = member;
       await fulfillJson(route, member);
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "로그인 재개 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        price: 50000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 42, name: "로그인 재개 클래스", bufferMin: 10 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -98,35 +75,12 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
       });
       return;
     }
-    if (pathname === "/api/v1/me/passes/page"
-      || pathname === "/api/v1/me/cart"
-      || pathname === "/api/v1/me/notifications/unread-count") {
-      if (pathname.endsWith("/cart")) {
-        await fulfillJson(route, {
-          cartVersion: EMPTY_CART_VERSION,
-          items: [],
-          totalAmount: 0,
-        });
-      } else if (pathname.endsWith("/unread-count")) {
-        await fulfillJson(route, { count: 0 });
-      } else {
-        await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-      }
+    if (pathname === "/api/v1/me/passes/page") {
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-07", documentPath: "/terms/2026-07" },
-        privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-07-28T12:00:00",
-        version: 1,
-      });
+      await fulfillJson(route, currentPoliciesFixture());
       return;
     }
 
@@ -136,7 +90,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption("42");
   await page.locator('[data-slot-id="77"]').click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
 
   await page.getByLabel("이메일").fill(member.email);
   await page.getByLabel("비밀번호").fill("password123!");
@@ -147,7 +101,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
   await expect(page.locator('[data-slot-id="77"]')).toContainText("2명 예약 가능");
   expect(preparePayloads).toHaveLength(0);
 
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await expect.poll(() => preparePayloads.length).toBe(1);
   expect(preparePayloads[0]).toMatchObject({
     userId: member.id,
@@ -164,23 +118,9 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
-  const memberA = {
-    id: 301,
-    email: "booking-owner-a@example.com",
-    name: "예약 초안 회원 A",
-    phone: "01030103010",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
-  const memberB = {
-    id: 302,
-    email: "booking-owner-b@example.com",
-    name: "예약 초안 회원 B",
-    phone: "01030203020",
-    phoneVerified: true,
-    localPasswordEnabled: true,
-  };
-  let currentMember: typeof memberA | typeof memberB | null = null;
+  const memberA = memberFixture({ id: 301, email: "booking-owner-a@example.com", name: "예약 초안 회원 A", phone: "01030103010" });
+  const memberB = memberFixture({ id: 302, email: "booking-owner-b@example.com", name: "예약 초안 회원 B", phone: "01030203020" });
+  let currentMember: typeof memberA | null = null;
   const preparePayloads: Array<Record<string, unknown>> = [];
 
   await installCsrfCookie(context, baseURL);
@@ -188,38 +128,14 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me" && request.method() === "GET") {
-      if (currentMember) {
-        await fulfillJson(route, currentMember);
-      } else {
-        await fulfillJson(route, {
-          code: "UNAUTHORIZED",
-          message: "로그인이 필요합니다.",
-        }, 401);
-      }
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member: currentMember })) return;
     if (pathname === "/api/v1/auth/login") {
       currentMember = memberA;
       await fulfillJson(route, memberA);
       return;
     }
     if (pathname === "/api/v1/classes") {
-      await fulfillJson(route, [{
-        id: 51,
-        name: "계정 경계 클래스",
-        category: "LEATHER",
-        description: null,
-        durationMin: 90,
-        bufferMin: 10,
-        price: 60000,
-        imageUrl: null,
-        passEligible: false,
-        preparationInfo: null,
-        status: "ACTIVE",
-        targetAudience: null,
-        situationTags: [],
-      }]);
+      await fulfillJson(route, [classFixture({ id: 51, name: "계정 경계 클래스", bufferMin: 10, price: 60000 })]);
       return;
     }
     if (pathname === "/api/v1/slots/upcoming") {
@@ -246,26 +162,11 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
       return;
     }
     if (pathname === "/api/v1/me/passes/page") {
-      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-      return;
-    }
-    if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/policies/current") {
-      await fulfillJson(route, {
-        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
-        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
-      });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, { name: "해피갤러리" });
+      await fulfillJson(route, currentPoliciesFixture("2026-08"));
       return;
     }
 
@@ -275,7 +176,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption("51");
   await page.locator('[data-slot-id="88"]').click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await page.getByRole("button", { name: "결제하기" }).click();
   await page.getByLabel("이메일").fill(memberA.email);
   await page.getByLabel("비밀번호").fill("password123!");
   await page.getByRole("button", { name: "로그인 후 내용 확인" }).click();
@@ -308,7 +209,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.getByLabel("클래스")).toHaveValue("");
   await expect(page.locator('[data-slot-id="88"].active')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "결제 진행하기" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "결제하기" })).toBeDisabled();
   expect(preparePayloads).toHaveLength(0);
 
   await page.evaluate(() => new Promise<void>((resolve) => {

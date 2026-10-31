@@ -14,9 +14,9 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.external.notification")
 public record NotificationResilienceProperties(
         @NotNull @DurationMin(millis = 1) @DefaultValue("5s") Duration timeout,
-        @Valid ExecutorPoolProperties alimtalkThreadPool,
-        @Valid ExecutorPoolProperties smsThreadPool,
-        @Valid ExecutorPoolProperties phoneVerificationThreadPool,
-        @Valid ExecutorPoolProperties emailVerificationThreadPool,
-        @Valid ExternalCircuitBreakerProperties circuitBreaker
+        @Valid @NotNull ExecutorPoolProperties alimtalkThreadPool,
+        @Valid @NotNull ExecutorPoolProperties smsThreadPool,
+        @Valid @NotNull ExecutorPoolProperties phoneVerificationThreadPool,
+        @Valid @NotNull ExecutorPoolProperties emailVerificationThreadPool,
+        @Valid @DefaultValue ExternalCircuitBreakerProperties circuitBreaker
 ) {}

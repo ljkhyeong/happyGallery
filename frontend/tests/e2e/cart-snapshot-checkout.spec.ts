@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests } from "./mock-support";
+import {
+  fulfillJson,
+  fulfillMemberCommon,
+  installCsrfCookie,
+  installTossRequestRecorder,
+  memberFixture,
+  orderPolicyFixture,
+  readTossRequests,
+} from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -18,22 +26,12 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
 
   await installCsrfCookie(context, baseURL);
   await installTossRequestRecorder(page);
+  const member = memberFixture({ id: 301, email: "cart-snapshot@example.com", name: "장바구니 스냅샷 회원", phone: "01033333333" });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 301,
-        email: "cart-snapshot@example.com",
-        name: "장바구니 스냅샷 회원",
-        phone: "01033333333",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/me/cart" && request.method() === "GET") {
       cartReads += 1;
       const refreshed = cartReads > 2;
@@ -91,25 +89,10 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-08T10:00:00",
-        version: 1,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
 
     await fulfillJson(route, []);
   });
@@ -175,22 +158,12 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
   let cartReads = 0;
 
   await installCsrfCookie(context, baseURL);
+  const member = memberFixture({ id: 302, email: "cart-conflict@example.com", name: "장바구니 충돌 회원", phone: "01044444444" });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
 
-    if (pathname === "/api/v1/me") {
-      await fulfillJson(route, {
-        id: 302,
-        email: "cart-conflict@example.com",
-        name: "장바구니 충돌 회원",
-        phone: "01044444444",
-        phoneVerified: true,
-        localPasswordEnabled: true,
-      });
-      return;
-    }
     if (pathname === "/api/v1/me/cart" && request.method() === "GET") {
       cartReads += 1;
       await fulfillJson(route, {
@@ -225,25 +198,10 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
-      await fulfillJson(route, {
-        shippingFee: 3000,
-        madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      });
+      await fulfillJson(route, orderPolicyFixture());
       return;
     }
-    if (pathname === "/api/v1/me/notifications/unread-count") {
-      await fulfillJson(route, { count: 0 });
-      return;
-    }
-    if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-08T10:00:00",
-        version: 1,
-      });
-      return;
-    }
+    if (await fulfillMemberCommon(route, { member })) return;
 
     await fulfillJson(route, []);
   });
@@ -275,6 +233,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
   const cartWrites: string[] = [];
   await installCsrfCookie(context, baseURL);
   await installTossRequestRecorder(page);
+  const member = memberFixture({ id: 303, email: "selected-stock@example.com", name: "선택 구매 회원", phone: "01033335556" });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -304,24 +263,11 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
       });
       return;
     }
-    const responses: Record<string, unknown> = {
-      "/api/v1/me": {
-        id: 303, email: "selected-stock@example.com", name: "선택 구매 회원",
-        phone: "01033335556", phoneVerified: true, localPasswordEnabled: true,
-      },
-      "/api/v1/orders/policy": {
-        shippingFee: 3000, madeToOrderConsentVersion: "2026-08",
-        madeToOrderConsentText: "주문제작 동의",
-      },
-      "/api/v1/me/notifications/unread-count": { count: 0 },
-      "/api/v1/workshop": { name: "해피갤러리", updatedAt: "2026-08-08T10:00:00", version: 1 },
-      "/api/v1/me/coupons": [],
-      "/api/v1/me/rewards": { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] },
-    };
-    if (Object.hasOwn(responses, pathname)) {
-      await fulfillJson(route, responses[pathname]);
+    if (pathname === "/api/v1/orders/policy") {
+      await fulfillJson(route, orderPolicyFixture({ madeToOrderConsentText: "주문제작 동의" }));
       return;
     }
+    if (await fulfillMemberCommon(route, { member })) return;
     await fulfillJson(route, { code: "NOT_FOUND", message: "테스트에 정의되지 않은 요청입니다." }, 404);
   });
 

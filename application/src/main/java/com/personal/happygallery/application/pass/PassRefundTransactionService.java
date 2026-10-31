@@ -4,14 +4,11 @@ import com.personal.happygallery.application.booking.BookingCancellationService;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase.PassRefundResult;
 import com.personal.happygallery.application.pass.port.out.PassLedgerStorePort;
-import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,20 +21,20 @@ class PassRefundTransactionService {
 
     private static final Logger log = LoggerFactory.getLogger(PassRefundTransactionService.class);
 
-    private final PassPurchaseReaderPort passPurchaseReader;
+    private final PassCreditService passCreditService;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
     private final PassExpirationSupport expirationSupport;
     private final BookingCancellationService bookingCancellationService;
     private final RefundExecutionService refundExecutionService;
 
-    PassRefundTransactionService(PassPurchaseReaderPort passPurchaseReader,
+    PassRefundTransactionService(PassCreditService passCreditService,
                                  PassPurchaseStorePort passPurchaseStore,
                                  PassLedgerStorePort passLedgerStore,
                                  PassExpirationSupport expirationSupport,
                                  BookingCancellationService bookingCancellationService,
                                  RefundExecutionService refundExecutionService) {
-        this.passPurchaseReader = passPurchaseReader;
+        this.passCreditService = passCreditService;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
         this.expirationSupport = expirationSupport;
@@ -48,17 +45,12 @@ class PassRefundTransactionService {
     /** 만료 정규화가 필요한 경우 이를 커밋하고 빈 결과를 반환한다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Optional<PassRefundResult> refundIfActive(Long passId) {
-        PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
-                .orElseThrow(NotFoundException.supplier("이용권"));
-        return refundLockedPass(pass);
+        return refundLockedPass(passCreditService.requireForUpdate(passId));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Optional<PassRefundResult> refundOwnedIfActive(Long passId, Long userId) {
-        PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
-                .filter(lockedPass -> Objects.equals(lockedPass.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("이용권"));
-        return refundLockedPass(pass);
+        return refundLockedPass(passCreditService.requireOwnedForUpdate(passId, userId));
     }
 
     private Optional<PassRefundResult> refundLockedPass(PassPurchase pass) {

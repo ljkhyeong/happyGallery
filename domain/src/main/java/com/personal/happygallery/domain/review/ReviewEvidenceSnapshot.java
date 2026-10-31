@@ -75,9 +75,7 @@ public class ReviewEvidenceSnapshot {
             List<String> imageUrls,
             LocalDateTime capturedAt,
             LocalDateTime retentionUntil) {
-        if (reviewId == null || reviewId < 1L) {
-            throw new IllegalArgumentException("후기 ID가 올바르지 않습니다.");
-        }
+        ReviewIds.requirePositive(reviewId, "후기 ID");
         if (contentRevision < 1L) {
             throw new IllegalArgumentException("후기 콘텐츠 revision이 올바르지 않습니다.");
         }
