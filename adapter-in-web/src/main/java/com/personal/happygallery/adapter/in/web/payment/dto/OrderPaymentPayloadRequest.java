@@ -1,14 +1,16 @@
 package com.personal.happygallery.adapter.in.web.payment.dto;
 
-import com.personal.happygallery.adapter.in.web.customer.dto.ProductSelectionRequest;
 import com.personal.happygallery.adapter.in.web.policy.dto.PolicyAcceptanceRequest;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.product.ProductOptionPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -26,7 +28,7 @@ public record OrderPaymentPayloadRequest(
         @Schema(nullable = true) String phone,
         @Schema(nullable = true) String verificationCode,
         @Schema(nullable = true) String name,
-        @NotNull @Size(max = 100) List<@NotNull @Valid ProductSelectionRequest> items,
+        @NotNull @Size(max = 100) List<@NotNull @Valid OrderItemRefRequest> items,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean cartCheckout,
         @NotNull FulfillmentType fulfillmentType,
         @Valid @Schema(nullable = true) ShippingAddressRequest shippingAddress,
@@ -59,7 +61,7 @@ public record OrderPaymentPayloadRequest(
                 phone,
                 verificationCode,
                 name,
-                items.stream().map(ProductSelectionRequest::toOrderItemRef).toList(),
+                items.stream().map(OrderItemRefRequest::toCommand).toList(),
                 cartCheckout,
                 fulfillmentType,
                 shippingAddress == null ? null : shippingAddress.toCommand(),
@@ -70,6 +72,39 @@ public record OrderPaymentPayloadRequest(
                 issuedCouponId,
                 Objects.requireNonNullElse(rewardAmount, 0L),
                 selectedCartItemIds);
+    }
+
+    @Schema(name = "OrderItemRef")
+    public record OrderItemRefRequest(
+            @NotNull @Positive Long productId,
+            @Positive @Schema(nullable = true) Long productVariantId,
+            @Size(max = 5) List<@NotNull @Valid OrderTextInputRequest> textInputs,
+            @Min(1)
+            @Max(OrderAmountCalculator.MAX_ITEM_QUANTITY)
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            int qty
+    ) {
+        public OrderItemRefRequest {
+            textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
+        }
+
+        private PaymentPayload.OrderItemRef toCommand() {
+            return new PaymentPayload.OrderItemRef(
+                    productId,
+                    productVariantId,
+                    textInputs.stream().map(OrderTextInputRequest::toCommand).toList(),
+                    qty);
+        }
+    }
+
+    @Schema(name = "OrderTextInput")
+    public record OrderTextInputRequest(
+            @NotBlank @Pattern(regexp = "^[A-Za-z0-9_-]{1,64}$") String groupKey,
+            @Size(max = ProductOptionPolicy.MAX_INPUT_LENGTH) String value
+    ) {
+        private PaymentPayload.OrderTextInput toCommand() {
+            return new PaymentPayload.OrderTextInput(groupKey, value);
+        }
     }
 
     @Schema(name = "ShippingAddress")

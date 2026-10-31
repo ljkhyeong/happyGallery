@@ -68,6 +68,9 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     @Override
     @Transactional(readOnly = true)
     public CursorPage<View> listForAdmin(AdminFilter filter, String cursor, int size) {
+        if (filter.inquiryId() != null && filter.inquiryId() <= 0) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "접수 번호는 1 이상이어야 합니다.");
+        }
         if (filter.from() != null && filter.to() != null && filter.from().isAfter(filter.to())) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "조회 시작일은 종료일보다 늦을 수 없습니다.");
         }

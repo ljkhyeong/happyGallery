@@ -2,9 +2,10 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartView;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.MergeItem;
 import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
-import com.personal.happygallery.adapter.in.web.customer.dto.ProductSelectionRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.ProductTextInputRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -53,7 +54,14 @@ public class MeCartController {
         cartUseCase.mergeItems(
                 customer.userId(),
                 request.idempotencyKey(),
-                request.items().stream().map(ProductSelectionRequest::toMergeItem).toList());
+                request.items().stream()
+                        .map(item -> new MergeItem(
+                                item.productId(), item.productVariantId(),
+                                item.textInputs().stream()
+                                        .map(ProductTextInputRequest::toCommand)
+                                        .toList(),
+                                item.qty()))
+                        .toList());
     }
 
     @PutMapping("/items/{cartItemId}")

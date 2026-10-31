@@ -20,6 +20,7 @@ import com.personal.happygallery.application.product.ProductOptions.OptionSnapsh
 import com.personal.happygallery.application.product.ProductOptions.PurchaseRequest;
 import com.personal.happygallery.application.product.ProductOptions.ResolvedLine;
 import com.personal.happygallery.application.product.ProductOptions.ResolvedPurchase;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -277,8 +278,11 @@ public class OrderPreparer implements PaymentPreparer {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
             }
             OrderAmountCalculator.requireQuantity(item.qty());
+            List<TextInput> textInputs = item.textInputs().stream()
+                    .map(input -> new TextInput(input.groupKey(), input.value()))
+                    .toList();
             items.add(new CartPurchaseItem(
-                    null, item.productId(), item.productVariantId(), item.textInputs(), item.qty()));
+                    null, item.productId(), item.productVariantId(), textInputs, item.qty()));
         }
         return List.copyOf(items);
     }

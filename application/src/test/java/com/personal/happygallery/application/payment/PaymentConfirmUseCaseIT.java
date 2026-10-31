@@ -16,6 +16,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderTextInput;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
@@ -351,7 +352,7 @@ class PaymentConfirmUseCaseIT {
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
-                                List.of(new TextInput("engraving", "HAPPY")), 1))),
+                                List.of(new OrderTextInput("engraving", "HAPPY")), 1))),
                 auth)))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("청약철회 제한 안내");
@@ -362,7 +363,7 @@ class PaymentConfirmUseCaseIT {
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
-                                List.of(new TextInput("engraving", "HAPPY")), 1)), false,
+                                List.of(new OrderTextInput("engraving", "HAPPY")), 1)), false,
                         FulfillmentType.PICKUP, null,
                         MadeToOrderConsent.CURRENT_VERSION, true),
                 auth));

@@ -4,10 +4,10 @@ import {
   removeMyCartItem,
   updateMyCartItemQuantity,
   type CartResponse,
-  type ProductSelectionRequest,
+  type MergeCartItemRequest,
 } from "@/generated/api/customerStore";
 
-type CartMergeItem = ProductSelectionRequest;
+type CartMergeItem = MergeCartItemRequest;
 
 export function fetchCart(): Promise<CartResponse> {
   return getMyCart();

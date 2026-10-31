@@ -1,9 +1,9 @@
 package com.personal.happygallery.support;
 
-import com.personal.happygallery.adapter.in.web.customer.dto.ProductSelectionRequest;
-import com.personal.happygallery.adapter.in.web.customer.dto.ProductTextInputRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.BookingPaymentPayloadRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.OrderItemRefRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.OrderTextInputRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.ShippingAddressRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PassPaymentPayloadRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PaymentPayloadRequest;
@@ -64,18 +64,18 @@ public final class PaymentRequestFixtures {
         };
     }
 
-    private static List<ProductSelectionRequest> orderItems(
+    private static List<OrderItemRefRequest> orderItems(
             List<PaymentPayload.OrderItemRef> items
     ) {
         if (items == null) {
             return null;
         }
         return items.stream()
-                .map(item -> new ProductSelectionRequest(
+                .map(item -> new OrderItemRefRequest(
                         item.productId(),
                         item.productVariantId(),
                         item.textInputs().stream()
-                                .map(input -> new ProductTextInputRequest(input.groupKey(), input.value()))
+                                .map(input -> new OrderTextInputRequest(input.groupKey(), input.value()))
                                 .toList(),
                         item.qty()))
                 .toList();
