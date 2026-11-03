@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 일일 Security Scan의 npm 고위험 취약점 수정 (2026-11-03)
+
+- 브랜치 `codex/work-20261103-security-scan`, 시작 SHA `4aaba8ee22769ea04fd010c6464c6c21c4b4286f`(원격 main과 일치). 작업 폴더 `/tmp/hg-security-20261103`. 생성 직후 `gradlew.bat`의 줄바꿈 차이만 있었고 변경·커밋 대상에서 제외했다. 기존 디자인·리팩토링 브랜치는 보존했다.
+- Gmail 알림의 실행 `41557768435`와 GitHub 실패 기록이 일치한다. 최근 예약 실행 10회는 같은 main에서 실패했다. 원인은 `npm audit --audit-level=high`의 고위험 4건이며 컨테이너 검사와 자동 수정 PR 단계는 생략됐다.
+- 기존 디자인 브랜치의 패치 `97559c4f`에서 잠금 파일 변경만 분리했다. body-parser 2.4.0, fast-uri 3.1.9, markdown-it 14.3.3, qs 6.17.1, vite 7.3.7, zod 4.6.7을 사용한다. package.json·검사 기준·API 계약·DB는 그대로다.
+- 검증: 위 main 기준과 잠금 패치, Node 22.23.4·npm 10.9.9에서 `npm ci`, `npm run audit:dependencies`(고위험 0건, 개발 도구 minimatch 경로의 중간 위험 27건은 남음), `npm run test:unit`(81건), `npm run lint`, `npm run api:check`, `npm run build` 통과. 로그 `/tmp/hg-security-20261103-{install,audit,test-unit,lint,api-check,build}.log`. 원본 브랜치의 최신 audit도 고위험 0건이다.
+- 첫 설치는 npm exec의 offline 설정이 하위 npm ci에 전달돼 캐시 누락으로 중단됐다. 온라인 설치로 조건을 바꾼 뒤 성공했다. 위 최종 검증은 온라인 설치 결과를 사용한다. 최종 구조 검사는 `/tmp/hg-security-20261103-final.log`로 인계한다.
+- 사용자는 보안 수정만 원격 푸시·PR 생성·CI 통과 후 main 병합하는 것을 승인했다. 원격 main은 시작 SHA와 같고 진행 중 Production 실행은 없다. CD_ENABLED는 true이므로 병합은 운영 배포를 실행한다. 남은 행동은 PR 필수 검사·현재 운영 제한 확인, 병합 후 Security Scan 재실행과 운영 배포 결과 확인이다. 현재 로컬 프론트 검사 통과를 원격 전체 검사·배포 성공으로 보고하지 않는다.
+
 ## GHCR 이미지를 토큰 없이 받기 (2026-10-13)
 
 - 시작 SHA `76dc6990`, 브랜치 `codex/work-20261013-ghcr-anonymous-pull`. 아래 절의 운영 배포가 서버의 만료된 GHCR 로그인으로 `denied` 실패해, 사용자가 "배포마다 토큰을 다시 받아야 하냐"고 물었다. 공개 패키지를 인증 없이 받는 권장안으로 진행하기로 했다.
