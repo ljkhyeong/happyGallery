@@ -69,10 +69,25 @@ if [ -n "$current_app" ]; then
     fi
 fi
 
-docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
-k3s_ctr images import "$registry_tmp/images.tar"
+if [[ ${HAPPYGALLERY_GITOPS_PHASE:-} == prepare ]]; then
+    # Git의 manifest와 같은 registry digest를 유지한다. Docker archive 변환은 digest가 바뀔 수 있다.
+    for registry_component in app frontend; do
+        if [[ $registry_component == app ]]; then registry_digest=$registry_app_digest; else registry_digest=$registry_frontend_digest; fi
+        registry_ref="ghcr.io/ljkhyeong/happygallery-$registry_component@$registry_digest"
+        local_ref="localhost/happygallery-$registry_component:$registry_revision"
+        k3s_ctr images pull --platform linux/amd64 "$registry_ref"
+        k3s_ctr images tag --force "$registry_ref" "$local_ref"
+    done
+else
+    docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
+    k3s_ctr images import "$registry_tmp/images.tar"
+fi
 for local_ref in "${registry_local_images[@]}"; do
     local_digest=$(containerd_image_digest "$local_ref") || die "반입한 이미지 digest가 없습니다."
+    if [[ ${HAPPYGALLERY_GITOPS_PHASE:-} == prepare ]]; then
+        if [[ $local_ref == *happygallery-app:* ]]; then expected_digest=$registry_app_digest; else expected_digest=$registry_frontend_digest; fi
+        [[ $local_digest == "$expected_digest" ]] || die "GitOps registry digest와 실제 반입 digest가 다릅니다."
+    fi
     for local_alias in "$local_ref@$local_digest" "${local_ref%:*}@$local_digest"; do
         ensure_containerd_image_alias "$local_ref" "$local_alias" "$local_digest"
     done

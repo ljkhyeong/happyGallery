@@ -150,9 +150,31 @@ rolling_wait_old_pods() {
 
 rolling_resume_schedulers() {
     kube -n "$NAMESPACE" exec "$MEDIA_HELPER_POD" -- sh -ec \
-        '[ "$(cat /media/.deployment-in-progress/owner)" = "$1" ]; rm /media/.deployment-in-progress/owner; rmdir /media/.deployment-in-progress' \
+        '[ -e /media/.deployment-in-progress ] || exit 0; [ "$(cat /media/.deployment-in-progress/owner)" = "$1" ]; rm /media/.deployment-in-progress/owner; rmdir /media/.deployment-in-progress' \
         sh "$rolling_guard_owner" || return 1
     rolling_guard_created=false
+}
+
+rolling_finish() {
+    for rolling_pair in "app|$APP_IMAGE@$APP_IMAGE_DIGEST" "frontend|$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"; do
+        rolling_name=${rolling_pair%%|*}
+        [ "$(deployment_container_image "$rolling_name")" = "${rolling_pair#*|}" ] \
+            || die "$rolling_name 실행 이미지가 준비한 release와 다릅니다."
+    done
+    kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m
+    kube -n "$NAMESPACE" rollout status deployment/redis --timeout=3m
+    kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
+    rolling_wait_old_pods
+    kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 \
+        || die "새 app 이미지가 온라인 백업 지원 표식을 제공하지 않습니다."
+    for rolling_name in frontend frontend-assets prometheus alertmanager grafana; do
+        kube -n "$NAMESPACE" rollout status "deployment/$rolling_name" --timeout=3m
+    done
+    kube -n "$NAMESPACE" wait --for=condition=Ready certificate/happygallery-tls --timeout=5m
+    ln -sfn "$release_dir" "$state_root/current"
+    "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
+    rolling_resume_schedulers
+    info "rollout 완료: $release_dir"
 }
 
 rolling_cleanup() {

@@ -4,6 +4,14 @@ require 'minitest/autorun'
 require_relative '../ci-compatibility'
 
 class CiCompatibilityTest < Minitest::Test
+  def test_gitops_uses_last_promoted_source_and_leaves_live_check_to_presync
+    assert_equal 'd' * 40, CiCompatibility.baseline({}, production: true, repository: 'owner/repo',
+      published_source: 'd' * 40, api: ->(_) { flunk 'GitOps에서는 SSH 배포 성공 이력을 조회하지 않는다.' })
+    assert_raises(RuntimeError) do
+      CiCompatibility.baseline({}, production: true, repository: 'owner/repo', published_source: 'invalid')
+    end
+  end
+
   def test_pr_uses_base_without_querying_production
     base = CiCompatibility.baseline({ 'pull_request' => { 'base' => { 'sha' => 'a' * 40 } } },
                                    production: false, repository: 'owner/repo',

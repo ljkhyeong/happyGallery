@@ -1,12 +1,42 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 . "$SCRIPT_DIR/rolling-support.sh"
 
-[ "$#" -eq 1 ] || die "사용법: $0 <release.env>"
+[ "$#" -ge 1 ] && [ "$#" -le 2 ] || die "사용법: $0 <release.env> [apply|prepare|resume|complete|failed]"
 release_env=$1
+phase=${2:-apply}
+case "$phase" in apply|prepare|resume|complete|failed) ;; *) die "알 수 없는 배포 단계입니다: $phase" ;; esac
 validate_env_file "$release_env"
+
+state_root=$(release_state_dir)
+if [ "$phase" = complete ] || [ "$phase" = failed ] || [ "$phase" = resume ]; then
+    [ -f "$state_root/gitops-active" ] || die "진행 중인 GitOps release가 없습니다."
+    release_dir=$(cat "$state_root/gitops-active")
+    # 호스트 실행기가 생성한 600 권한의 상태만 읽는다. Git이나 요청 본문을 source하지 않는다.
+    . "$release_dir/gitops-state.sh"
+    [ "$IMAGE_TAG" = "$(require_env_value IMAGE_TAG "$release_env")" ] || die "진행 중인 release와 요청이 다릅니다."
+    if [ "$phase" = resume ]; then
+        [ -n "$(find "$release_dir" -prune -mtime -2 -print)" ] || die "준비한 release가 48시간보다 오래됐습니다. 운영자 확인이 필요합니다."
+        start_media_helper "$APP_IMAGE@$APP_IMAGE_DIGEST"
+        kube -n "$NAMESPACE" exec "$MEDIA_HELPER_POD" -- sh -ec \
+            'mkdir -p /media/.deployment-in-progress; printf "%s\n" "$1" > /media/.deployment-in-progress/owner' sh "$rolling_guard_owner"
+        exit 0
+    fi
+    rolling_apply_started=true
+    if [ "$phase" = failed ]; then
+        rolling_cleanup
+        info "동기화 실패 상태를 보존했습니다. 같은 release를 complete로 재시도하세요: $release_dir"
+        exit 0
+    fi
+    trap rolling_cleanup EXIT
+    start_media_helper "$APP_IMAGE@$APP_IMAGE_DIGEST"
+    rolling_finish
+    rm "$state_root/gitops-active"
+    exit 0
+fi
+[ ! -f "$state_root/gitops-active" ] || die "이전 GitOps release를 먼저 완료하세요."
 
 PUBLIC_HOST=$(require_env_value PUBLIC_HOST "$release_env")
 ACME_EMAIL=$(require_env_value ACME_EMAIL "$release_env")
@@ -88,6 +118,10 @@ chmod 700 "$state_root" "$release_dir"
 manifest="$release_dir/manifests.yaml"
 
 "$SCRIPT_DIR/render-manifests.sh" "$manifest"
+if [ "$phase" = prepare ]; then
+    [ "$(ruby -r "$SCRIPT_DIR/gitops-release.rb" -e 'puts GitopsRelease.manifest_digest(ARGV.fetch(0))' "$manifest")" = "${GITOPS_MANIFEST_SHA256:-}" ] \
+        || die "GitOps manifest와 서버 렌더링 결과가 다릅니다."
+fi
 cat > "$release_dir/metadata.env" <<EOF
 PUBLIC_HOST=$PUBLIC_HOST
 ACME_EMAIL=$ACME_EMAIL
@@ -110,29 +144,30 @@ trap rolling_cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 
+if [ "$phase" = prepare ]; then
+    # 준비 실패는 workload 적용 전이므로 표식과 helper를 회수한다.
+    trap 'rolling_cleanup; rm -f "$state_root/gitops-active"' EXIT
+fi
+
 info "이전·새 정적 파일을 보존하고 공개 경로를 먼저 확인합니다."
 rolling_prepare_assets
 info "HTTP 요청은 유지하고 교체 구간의 정기 배치 시작을 일시정지합니다."
 rolling_pause_schedulers
 
+if [ "$phase" = prepare ]; then
+    declare -p PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST \
+        IMAGE_TAG state_root timestamp release_dir manifest rolling_existing rolling_asset_helper \
+        MEDIA_HELPER_POD rolling_guard_owner rolling_guard_created > "$release_dir/gitops-state.sh.tmp"
+    chmod 600 "$release_dir/gitops-state.sh.tmp"
+    mv "$release_dir/gitops-state.sh.tmp" "$release_dir/gitops-state.sh"
+    printf '%s\n' "$release_dir" > "$state_root/gitops-active.tmp"
+    mv "$state_root/gitops-active.tmp" "$state_root/gitops-active"
+    trap - EXIT
+    info "Argo CD 적용 준비 완료: $release_dir"
+    exit 0
+fi
+
 info "release manifest를 적용합니다: $release_dir"
 rolling_apply_started=true
 kube apply -f "$manifest"
-kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m
-kube -n "$NAMESPACE" rollout status deployment/redis --timeout=3m
-kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
-rolling_wait_old_pods
-kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 \
-    || die "새 app 이미지가 온라인 백업 지원 표식을 제공하지 않습니다. 롤아웃을 성공 처리하지 않습니다."
-kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
-kube -n "$NAMESPACE" rollout status deployment/prometheus --timeout=3m
-kube -n "$NAMESPACE" rollout status deployment/alertmanager --timeout=3m
-kube -n "$NAMESPACE" rollout status deployment/grafana --timeout=3m
-kube -n "$NAMESPACE" wait --for=condition=Ready certificate/happygallery-tls --timeout=5m
-
-# 새 release가 이미 실행 중이므로 공개 점검 전에 current로 기록한다. 점검 실패 뒤에도
-# 다음 배포의 백업이 실행 이미지와 current 기록 불일치로 막히지 않게 한다.
-ln -sfn "$release_dir" "$state_root/current"
-"$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
-rolling_resume_schedulers
-info "rollout 완료: $release_dir"
+rolling_finish

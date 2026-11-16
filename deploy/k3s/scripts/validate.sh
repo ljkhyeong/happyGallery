@@ -547,11 +547,11 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
     deploy_script.match?(/prepare-cd-backup\.sh.*?VERIFIED_RECOVERY_BUNDLE_OVERRIDE/m)
   abort "온라인 백업 최초 전환이 검증된 R2 복구 묶음 없이 진행될 수 있습니다." unless
     deploy_script.match?(/HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP.*?verify_recovery_bundle_files.*?48시간/m)
-  rollout_script = File.read(File.join(script_dir, "rollout.sh"))
+  rollout_script = File.read(File.join(script_dir, "rolling-support.sh"))
   abort "롤아웃 후 app의 온라인 백업 지원 표식을 확인하지 않습니다." unless
     rollout_script.include?('exec deployment/app -- test -f /app/media-backup-guard-v1')
   abort "공개 점검이 실패하면 실행 중인 release가 current로 기록되지 않아 다음 배포의 백업이 막힙니다." unless
-    rollout_script.match?(%r{ln -sfn "\$release_dir" "\$state_root/current"\n"\$SCRIPT_DIR/verify\.sh"})
+    rollout_script.match?(%r{ln -sfn "\$release_dir" "\$state_root/current"\n\s*"\$SCRIPT_DIR/verify\.sh"})
   abort "배포 전 백업 전에 current와 실행 이미지를 맞추지 않습니다." unless
     deploy_script.match?(/align_current_release\n\s+if ! systemctl_write start --wait happygallery-backup\.service/)
   backup_journal = "journalctl -u happygallery-backup.service --since -40min --no-pager -o cat"
@@ -584,6 +584,8 @@ ruby "$SCRIPT_DIR/tests/deploy-test.rb"
 ruby "$SCRIPT_DIR/tests/cd-test.rb"
 ruby "$SCRIPT_DIR/tests/rolling-release-test.rb"
 ruby "$SCRIPT_DIR/tests/ci-compatibility-test.rb"
+ruby "$SCRIPT_DIR/tests/gitops-test.rb"
+ruby "$SCRIPT_DIR/tests/gitops-rollout-test.rb"
 ruby "$SCRIPT_DIR/tests/security-update-test.rb"
 ruby "$SCRIPT_DIR/tests/openapi-compatibility-test.rb"
 ruby "$SCRIPT_DIR/tests/rolling-lifecycle-test.rb"

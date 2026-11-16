@@ -63,26 +63,29 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash deploy/k3s/scripts/ci-images.sh publish
 
-  deploy:
-    name: Roll out production
+  promote:
+    name: Publish GitOps desired state
     needs: publish
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 5
     environment: production
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
-      - name: Deploy exact image digests over SSH
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
+        with:
+          ruby-version: '3.3'
+      - name: Render exact image digests for Argo CD
         env:
-          CD_SSH_PRIVATE_KEY: ${{ secrets.CD_SSH_PRIVATE_KEY }}
-          CD_SSH_KNOWN_HOSTS: ${{ secrets.CD_SSH_KNOWN_HOSTS }}
-          CD_HOST: ${{ vars.CD_HOST }}
-          CD_PORT: ${{ vars.CD_PORT }}
-          CD_USER: ${{ vars.CD_USER }}
+          ACME_EMAIL: ${{ vars.PRODUCTION_ACME_EMAIL }}
           APP_REGISTRY_DIGEST: ${{ needs.publish.outputs.app_digest }}
           FRONTEND_REGISTRY_DIGEST: ${{ needs.publish.outputs.frontend_digest }}
-        run: bash deploy/k3s/scripts/ci-deploy-ssh.sh
+        run: ruby deploy/k3s/scripts/gitops-release.rb /tmp/gitops-production
+      - name: Promote verified release in Git
+        run: ruby deploy/k3s/scripts/publish-gitops.rb /tmp/gitops-production
 
   security-update:
     name: Prepare security update PR
