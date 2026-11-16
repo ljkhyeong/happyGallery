@@ -4,7 +4,7 @@ metadata:
   name: happygallery
   namespace: argocd
 spec:
-  sourceRepos: [https://github.com/ljkhyeong/happyGallery.git]
+  sourceRepos: ["https://github.com/ljkhyeong/happyGallery.git"]
   destinations:
     - server: https://kubernetes.default.svc
       namespace: happygallery

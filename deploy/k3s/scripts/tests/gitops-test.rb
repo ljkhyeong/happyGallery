@@ -18,6 +18,13 @@ class GitopsTest < Minitest::Test
     FileUtils.remove_entry(@directory)
   end
 
+  def test_application_and_project_manifest_parse
+    path = File.expand_path('../../argocd/application.yaml', __dir__)
+    documents = YAML.load_stream(File.read(path))
+    assert_equal %w[AppProject Application], documents.map { |document| document.fetch('kind') }
+    assert_equal documents.first.dig('metadata', 'name'), documents.last.dig('spec', 'project')
+  end
+
   def test_control_rejects_shell_input_unknown_fields_and_unknown_phases
     %w[source_sha app_digest frontend_digest manifest_sha256 acme_email].each do |key|
       assert_raises(RuntimeError) do
