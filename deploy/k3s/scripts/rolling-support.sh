@@ -158,7 +158,7 @@ rolling_resume_schedulers() {
 rolling_finish() {
     for rolling_pair in "app|$APP_IMAGE@$APP_IMAGE_DIGEST" "frontend|$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"; do
         rolling_name=${rolling_pair%%|*}
-        [ "$(deployment_container_image "$rolling_name")" = "${rolling_pair#*|}" ] \
+        [ "$(kube -n "$NAMESPACE" get deployment "$rolling_name" -o 'jsonpath={.spec.template.spec.containers[0].image}')" = "${rolling_pair#*|}" ] \
             || die "$rolling_name 실행 이미지가 준비한 release와 다릅니다."
     done
     kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m

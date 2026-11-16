@@ -51,6 +51,8 @@ class GitopsRolloutTest < Minitest::Test
       kube() {
         printf '%s\n' "$*" >> "$TEST_CALLS"
         case "$*" in
+          *'get deployment app'*containers*) deployment_container_image app ;;
+          *'get deployment frontend'*containers*) deployment_container_image frontend ;;
           *'get deployment app'*) echo new ;;
           *'wait --for=delete'*) return "$TEST_DELETE_EXIT" ;;
         esac
