@@ -229,7 +229,8 @@ jobs:
 
   e2e-smoke:
     name: Browser Smoke E2E
-    runs-on: ubuntu-latest
+    # Playwright 1.58.2는 Ubuntu 26.04의 Chromium 설치를 지원하지 않는다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: backend-package
     services:
