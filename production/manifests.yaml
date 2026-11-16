@@ -1,0 +1,2607 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/part-of: happygallery
+  name: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+---
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-retain
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+data:
+  ACTUATOR_HEALTH_SHOW_DETAILS: never
+  DB_URL: jdbc:mysql://mysql:3306/happygallery?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+  FORWARD_HEADERS_STRATEGY: native
+  GOOGLE_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/google
+  GUEST_TOKEN_EXPIRY_HOURS: '720'
+  GUEST_TOKEN_RECOVERY_EXPIRY_HOURS: '24'
+  KAKAO_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/kakao
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: 'true'
+  MANAGEMENT_PORT: '8081'
+  MEDIA_STORAGE_PATH: "/var/lib/happygallery/media"
+  NAVER_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/naver
+  ORDER_SHIPPING_FEE: '0'
+  PASS_TOTAL_PRICE: '300000'
+  RATE_LIMIT_ENABLED: 'true'
+  RATE_LIMIT_KEY_PREFIX: happygallery:rate:prod
+  REDIS_HOST: redis
+  REDIS_PORT: '6379'
+  SENTRY_ENVIRONMENT: production
+  SENTRY_RELEASE: happygallery@fcabed2fb5f28bc86f679b988c70496aac827898
+  SPRING_PROFILES_ACTIVE: prod
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: happygallery
+  name: app-config
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: v1
+data:
+  dashboards.yml: |-
+    apiVersion: 1
+    providers:
+      - name: happygallery
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: true
+        allowUiUpdates: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: false
+  prometheus.yml: |-
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: happygallery
+  name: grafana-config
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: v1
+data:
+  funnel.json: |
+    {
+      "uid": "happygallery-funnel",
+      "title": "happyGallery — Product Funnel",
+      "tags": ["happygallery", "funnel"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Client Funnel Events (5m rate)",
+          "type": "timeseries",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(happygallery_funnel_client_event_total{application=\"happygallery\"}[5m])",
+              "legendFormat": "{{event_type}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Client Event Totals",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+          "targets": [
+            {
+              "expr": "happygallery_funnel_client_event_total{application=\"happygallery\"}",
+              "legendFormat": "{{event_type}}"
+            }
+          ],
+          "options": { "graphMode": "none", "textMode": "value_and_name" }
+        },
+        {
+          "id": 3,
+          "title": "Guest Claim Completed (5m rate)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "rate(happygallery_funnel_guest_claim_completed_total{application=\"happygallery\"}[5m])",
+              "legendFormat": "claims/sec"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Guest Claim Completed (cumulative)",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "happygallery_funnel_guest_claim_completed_total{application=\"happygallery\"}",
+              "legendFormat": "total claims"
+            }
+          ],
+          "options": { "graphMode": "area" }
+        },
+        {
+          "id": 5,
+          "title": "Conversion: Guest Hub View -> Claim",
+          "description": "guest_lookup_hub_viewed 대비 guest_claim_completed 비율",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "expr": "happygallery_funnel_guest_claim_completed_total / (happygallery_funnel_client_event_total{event_type=\"guest_lookup_hub_viewed\"} > 0)",
+              "legendFormat": "conversion"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
+          "id": 6,
+          "title": "Member CTA Click Rate (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            {
+              "expr": "rate(happygallery_funnel_client_event_total{event_type=~\".*member_cta.*|.*signup.*|.*claim.*\"}[5m])",
+              "legendFormat": "{{event_type}}"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39
+    }
+  system.json: |
+    {
+      "uid": "happygallery-system",
+      "title": "happyGallery — System",
+      "tags": ["happygallery", "system"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "HTTP Request Rate (5m avg)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{application=\"happygallery\"}[5m])",
+              "legendFormat": "{{method}} {{uri}} {{status}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "HTTP Response Time p95 (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=\"happygallery\"}[5m]))",
+              "legendFormat": "{{method}} {{uri}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "HTTP 5xx Ratio (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{application=\"happygallery\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application=\"happygallery\"}[5m])), 0.001)",
+              "legendFormat": "5xx ratio"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit" } }
+        },
+        {
+          "id": 4,
+          "title": "JVM Heap Used",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{application=\"happygallery\",area=\"heap\"}",
+              "legendFormat": "{{id}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 5,
+          "title": "JVM GC Pause (5m rate)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "rate(jvm_gc_pause_seconds_sum{application=\"happygallery\"}[5m])",
+              "legendFormat": "{{action}} {{cause}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 6,
+          "title": "HikariCP Active Connections",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "hikaricp_connections_active{application=\"happygallery\"}",
+              "legendFormat": "active"
+            },
+            {
+              "expr": "hikaricp_connections_idle{application=\"happygallery\"}",
+              "legendFormat": "idle"
+            },
+            {
+              "expr": "hikaricp_connections_max{application=\"happygallery\"}",
+              "legendFormat": "max"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Tomcat Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "expr": "tomcat_threads_current_threads{application=\"happygallery\"}",
+              "legendFormat": "current"
+            },
+            {
+              "expr": "tomcat_threads_busy_threads{application=\"happygallery\"}",
+              "legendFormat": "busy"
+            },
+            {
+              "expr": "tomcat_threads_config_max_threads{application=\"happygallery\"}",
+              "legendFormat": "max"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Notification Executor Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            {
+              "expr": "executor_active_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+              "legendFormat": "active"
+            },
+            {
+              "expr": "executor_pool_size_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+              "legendFormat": "pool size"
+            },
+            {
+              "expr": "executor_pool_max_threads{application=\"happygallery\",name=\"notificationExecutor\"}",
+              "legendFormat": "max"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "Payment Executor Threads & Queue",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+          "targets": [
+            {
+              "expr": "executor_active_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+              "legendFormat": "active"
+            },
+            {
+              "expr": "executor_pool_size_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+              "legendFormat": "pool size"
+            },
+            {
+              "expr": "executor_pool_max_threads{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+              "legendFormat": "max"
+            },
+            {
+              "expr": "executor_queued_tasks{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+              "legendFormat": "queued"
+            },
+            {
+              "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=\"paymentTimeoutExecutor\"}",
+              "legendFormat": "queue remaining"
+            },
+            {
+              "expr": "increase(happygallery_payment_executor_rejected_total{application=\"happygallery\"}[5m])",
+              "legendFormat": "rejected (5m)"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "JVM Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+          "targets": [
+            {
+              "expr": "jvm_threads_live_threads{application=\"happygallery\"}",
+              "legendFormat": "live"
+            },
+            {
+              "expr": "jvm_threads_peak_threads{application=\"happygallery\"}",
+              "legendFormat": "peak"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "title": "Process CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+          "targets": [
+            {
+              "expr": "process_cpu_usage{application=\"happygallery\"}",
+              "legendFormat": "app"
+            },
+            {
+              "expr": "system_cpu_usage{application=\"happygallery\"}",
+              "legendFormat": "system"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit" } }
+        },
+        {
+          "id": 12,
+          "title": "Notification Channel Executor Threads & Queue",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+          "targets": [
+            {
+              "expr": "executor_active_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
+              "legendFormat": "{{name}} active"
+            },
+            {
+              "expr": "executor_pool_size_threads{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
+              "legendFormat": "{{name}} pool size"
+            },
+            {
+              "expr": "executor_queued_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
+              "legendFormat": "{{name}} queued"
+            },
+            {
+              "expr": "executor_queue_remaining_tasks{application=\"happygallery\",name=~\"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor\"}",
+              "legendFormat": "{{name}} queue remaining"
+            },
+            {
+              "expr": "increase({application=\"happygallery\",__name__=~\"happygallery_notification_(alimtalk|sms|phone_verification|email_verification)_executor_rejected_total\"}[5m])",
+              "legendFormat": "{{__name__}} (5m)"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "title": "Refund Backlog by Status",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+          "targets": [
+            {
+              "expr": "max by (status) (happygallery_refund_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "{{status}}"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "Refund Backlog Oldest Action Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+          "targets": [
+            {
+              "expr": "max by (status) (happygallery_refund_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "{{status}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 15,
+          "title": "Notification Outbox Backlog by Status",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 64 },
+          "targets": [
+            {
+              "expr": "max by (status) (happygallery_notification_outbox_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "{{status}}"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "title": "Notification Outbox Oldest Action Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 64 },
+          "targets": [
+            {
+              "expr": "max by (status) (happygallery_notification_outbox_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "{{status}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 17,
+          "title": "Operational Backlog Snapshot Freshness",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 72 },
+          "targets": [
+            {
+              "expr": "max by (source) (happygallery_operational_backlog_refresh_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "{{source}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 18,
+          "title": "External Circuit Breaker State",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 80 },
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_state{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"} == 1",
+              "legendFormat": "{{name}} {{state}}"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "title": "External Circuit Breaker Failure Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 80 },
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_failure_rate{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 20,
+          "title": "External Circuit Breaker Calls (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 88 },
+          "targets": [
+            {
+              "expr": "sum by (name, kind) (increase(resilience4j_circuitbreaker_calls_seconds_count{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}[5m]))",
+              "legendFormat": "{{name}} {{kind}}"
+            },
+            {
+              "expr": "sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application=\"happygallery\",name=~\"paymentProvider|alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification\"}[5m]))",
+              "legendFormat": "{{name}} not_permitted"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "title": "Payment Reconciliation Backlog",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 96 },
+          "targets": [
+            {
+              "expr": "max(happygallery_payment_confirm_reconciliation_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "reconciliation required"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "title": "Payment Reconciliation Oldest Action Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 96 },
+          "targets": [
+            {
+              "expr": "max(happygallery_payment_confirm_reconciliation_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "oldest action"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 23,
+          "title": "Order Approval Backlog",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 104 },
+          "targets": [
+            {
+              "expr": "max(happygallery_order_approval_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "pending approval"
+            }
+          ]
+        },
+        {
+          "id": 24,
+          "title": "Order Approval Oldest Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 104 },
+          "targets": [
+            {
+              "expr": "max(happygallery_order_approval_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "oldest paid order"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 25,
+          "title": "Booking Cancellation Task Backlog",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 112 },
+          "targets": [
+            {
+              "expr": "max(happygallery_booking_cancellation_task_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "pending task"
+            }
+          ]
+        },
+        {
+          "id": 26,
+          "title": "Booking Cancellation Task Oldest Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 112 },
+          "targets": [
+            {
+              "expr": "max(happygallery_booking_cancellation_task_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "oldest task"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 27,
+          "title": "Customer Session Revocation Failures",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 120 },
+          "targets": [
+            {
+              "expr": "increase(happygallery_customer_session_revocation_failed_total{application=\"happygallery\"}[5m])",
+              "legendFormat": "failed revocations"
+            }
+          ]
+        },
+        {
+          "id": 28,
+          "title": "SmartStore Order Action Reconciliation Backlog",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 128 },
+          "targets": [
+            {
+              "expr": "max(happygallery_smartstore_order_action_reconciliation_backlog_count{application=\"happygallery\"})",
+              "legendFormat": "unresolved actions"
+            }
+          ]
+        },
+        {
+          "id": 29,
+          "title": "SmartStore Order Action Reconciliation Oldest Age",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 128 },
+          "targets": [
+            {
+              "expr": "max(happygallery_smartstore_order_action_reconciliation_backlog_oldest_age_seconds{application=\"happygallery\"})",
+              "legendFormat": "oldest unresolved action"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 30,
+          "title": "개인정보 정리 실패 항목",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 136
+          },
+          "targets": [
+            {
+              "expr": "max by (application, exported_job, reason) (max_over_time(happygallery_batch_last_failure_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\"}[7d])) > bool on (application, exported_job) group_left max by (application, exported_job) (max_over_time(happygallery_batch_last_success_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\"}[7d]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            }
+          },
+          "description": "최근 7일의 항목별 실패 시각이 마지막 전체 정상 완료보다 늦으면 1. Pod 교체 후에도 Prometheus 이력을 비교한다."
+        }
+      ],
+      "schemaVersion": 39
+    }
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: v1
+data:
+  alerts.yml: |
+    groups:
+      - name: happygallery-system
+        rules:
+          - alert: HighErrorRate
+            expr: |
+              (
+                sum(rate(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[5m]))
+                /
+                clamp_min(sum(rate(http_server_requests_seconds_count{application="happygallery"}[5m])), 0.001)
+              ) > 0.1
+              and
+              sum(increase(http_server_requests_seconds_count{application="happygallery"}[5m])) >= 20
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "최근 5분 HTTP 요청 20건 이상에서 5xx 비율이 10%를 초과했습니다"
+
+          - alert: LowTrafficHttpErrors
+            expr: |
+              sum(increase(http_server_requests_seconds_count{application="happygallery",status=~"5.."}[15m])) >= 3
+              and
+              sum(increase(http_server_requests_seconds_count{application="happygallery"}[5m])) < 20
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "저트래픽 구간에서 최근 15분 5xx가 3건 이상 발생했습니다"
+
+          - alert: HighResponseLatency
+            expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application="happygallery"}[5m])) > 2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "HTTP p95 응답 시간이 2초를 초과합니다 ({{ $value | printf \"%.2f\" }}s)"
+
+          - alert: HikariPoolExhaustion
+            expr: hikaricp_connections_active{application="happygallery"} / hikaricp_connections_max{application="happygallery"} > 0.8
+            for: 3m
+            labels:
+              severity: warning
+            annotations:
+              summary: "HikariCP 커넥션 풀 사용률이 80%를 초과합니다"
+
+          - alert: JvmHeapHigh
+            expr: jvm_memory_used_bytes{application="happygallery",area="heap"} / jvm_memory_max_bytes{application="happygallery",area="heap"} > 0.85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "JVM 힙 사용률이 85%를 초과합니다"
+
+          - alert: PaymentExecutorQueueHigh
+            expr: |
+              executor_queued_tasks{application="happygallery",name="paymentTimeoutExecutor"}
+              /
+              clamp_min(
+                executor_queued_tasks{application="happygallery",name="paymentTimeoutExecutor"}
+                + executor_queue_remaining_tasks{application="happygallery",name="paymentTimeoutExecutor"},
+                1
+              ) > 0.8
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "PG 호출 대기열 사용률이 80%를 초과합니다"
+
+          - alert: PaymentExecutorRejected
+            expr: increase(happygallery_payment_executor_rejected_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "최근 5분 동안 PG 호출 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: DurableSignalExecutorRejected
+            expr: |
+              sum by (executor) (
+                increase(happygallery_async_executor_rejected_total{application="happygallery"}[5m])
+              ) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.executor }} 커밋 후 실행 신호가 거절되어 DB 복구 경로로 이관됐습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: DurableSignalExecutorQueueHigh
+            expr: |
+              max by (name) (
+                executor_queued_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"}
+                /
+                clamp_min(
+                  executor_queued_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"}
+                  + executor_queue_remaining_tasks{application="happygallery",name=~"notificationExecutor|refundExecutor"},
+                  1
+                )
+              ) > 0.8
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.name }} 커밋 후 실행 신호 대기열 사용률이 80%를 초과했습니다"
+
+          - alert: PaymentCircuitBreakerOpen
+            expr: |
+              max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name="paymentProvider",state="open"}) == 1
+              or
+              sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name="paymentProvider"}[2m])) > 0
+            labels:
+              severity: critical
+            annotations:
+              summary: "PG 서킷 브레이커가 열렸거나 최근 호출을 차단했습니다"
+
+          - alert: PaymentConfirmReconciliationRequired
+            expr: increase(happygallery_payment_confirm_reconciliation_required_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "PG 멱등 안전 기간을 지나 수동 대사가 필요한 결제가 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: PaymentReconciliationRequiredBacklog
+            expr: max(happygallery_payment_confirm_reconciliation_backlog_count{application="happygallery"}) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "운영자 대사가 필요한 결제가 DB backlog에 남아 있습니다"
+
+          - alert: RefundActionRequiredBacklog
+            expr: max(happygallery_refund_backlog_count{application="happygallery",status=~"failed|reconciliation_required"}) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "운영자 확인이 필요한 환불이 DB backlog에 남아 있습니다"
+
+          - alert: RefundRecoveryBacklogStalled
+            expr: max(happygallery_refund_backlog_oldest_age_seconds{application="happygallery",status=~"requested|processing|retryable"}) > 300
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "자동 복구 대상 환불이 상태별 처리 기준 시각을 5분 넘겼습니다"
+
+          - alert: NotificationTimeoutExecutorQueueHigh
+            expr: |
+              max by (name) (
+                executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"}
+                /
+                clamp_min(
+                  executor_queued_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"}
+                  + executor_queue_remaining_tasks{application="happygallery",name=~"alimtalkNotificationTimeoutExecutor|smsNotificationTimeoutExecutor|phoneVerificationTimeoutExecutor|emailVerificationTimeoutExecutor"},
+                  1
+                )
+              ) > 0.8
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.name }} 대기열 사용률이 80%를 초과합니다"
+
+          - alert: NotificationTimeoutExecutorRejected
+            expr: |
+              sum by (__name__) (
+                increase({application="happygallery",__name__=~"happygallery_notification_(alimtalk|sms|phone_verification|email_verification)_executor_rejected_total"}[5m])
+              ) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.__name__ }} 대기열 거절이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: NotificationCircuitBreakerOpen
+            expr: |
+              max by (name) (resilience4j_circuitbreaker_state{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification",state="open"}) == 1
+              or
+              sum by (name) (increase(resilience4j_circuitbreaker_not_permitted_calls_total{application="happygallery",name=~"alimtalkNotification|smsNotification|phoneVerificationSms|emailVerification"}[2m])) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.name }} 서킷 브레이커가 열렸거나 최근 호출을 차단했습니다"
+
+          - alert: NotificationOutboxFailed
+            expr: increase(happygallery_notification_outbox_failed_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "자동 재시도를 모두 소진한 알림이 발생했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: NotificationOutboxFailedBacklog
+            expr: max(happygallery_notification_outbox_backlog_count{application="happygallery",status="failed"}) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "운영자 재처리를 기다리는 실패 알림이 남아 있습니다"
+
+          - alert: NotificationOutboxProcessingStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="processing"}) > 120
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "알림 outbox 선점이 2분 넘게 완료되지 않았습니다"
+
+          - alert: NotificationOutboxPendingStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="pending"}) > 60
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "알림 outbox가 재시도 예정 시각을 1분 넘겼습니다"
+
+          - alert: NotificationDeliveryResultCheckStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="delivery_checking"}) > 120
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "알림 최종 수신 결과 조회가 2분 넘게 완료되지 않았습니다"
+
+          - alert: NotificationDeliveryResultPendingStalled
+            expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="delivery_pending"}) > 60
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "알림 최종 수신 결과 조회 예정 시각을 1분 넘겼습니다"
+
+          - alert: NotificationLogPersistenceFailed
+            expr: increase(happygallery_notification_log_persistence_failed_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "외부 알림 결과의 감사 이력 저장이 실패했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: AdminSessionValidationFailed
+            expr: increase(happygallery_admin_session_validation_failures_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "저장된 관리자 세션 복호화 또는 역직렬화가 실패했습니다"
+
+          - alert: CustomerSessionRevocationFailed
+            expr: increase(happygallery_customer_session_revocation_failed_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "회원 자격 증명 변경 후 이전 Redis 세션 폐기가 실패했습니다 ({{ $value | printf \"%.0f\" }}건)"
+
+          - alert: OrderApprovalPending
+            expr: max(happygallery_order_approval_backlog_count{application="happygallery"}) > 0
+            for: 1m
+            labels:
+              severity: warning
+              category: business
+            annotations:
+              summary: "승인 대기 주문이 DB에 남아 있습니다. 관리자 오늘 할 일에서 확인하세요"
+
+          - alert: BookingCancellationTaskPending
+            expr: max(happygallery_booking_cancellation_task_backlog_count{application="happygallery"}) > 0
+            for: 1m
+            labels:
+              severity: warning
+              category: business
+            annotations:
+              summary: "운영자가 마무리해야 하는 예약 취소 후속 작업이 DB에 남아 있습니다"
+
+          - alert: OrderApprovalDeadlineApproaching
+            expr: max(happygallery_order_approval_backlog_oldest_age_seconds{application="happygallery"}) > 64800
+            for: 5m
+            labels:
+              severity: critical
+              category: business
+            annotations:
+              summary: "승인 마감까지 6시간 이하로 남은 결제 주문이 있습니다"
+
+          - alert: BatchExecutionFailed
+            expr: >-
+              (increase(happygallery_batch_duration_seconds_count{application="happygallery",status=~"partial|failed"}[10m]) > 0)
+              unless on (application, exported_job)
+              happygallery_batch_last_failure_seconds{application="happygallery",exported_job="personal_data_retention"}
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "최근 10분 동안 배치 실패 또는 부분 실패가 발생했습니다 ({{ $value | printf \"%.0f\" }}회)"
+
+          - alert: PersonalDataRetentionFailed
+            expr: >-
+              max by (application, exported_job, reason) (
+                max_over_time(happygallery_batch_last_failure_seconds{application="happygallery",exported_job="personal_data_retention"}[7d])
+              )
+              > on (application, exported_job) group_left
+              max by (application, exported_job) (
+                max_over_time(happygallery_batch_last_success_seconds{application="happygallery",exported_job="personal_data_retention"}[7d])
+              )
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "개인정보 보존 정리 실패: {{ $labels.reason }}"
+              description: "최근 7일의 마지막 실패가 마지막 정상 완료보다 늦습니다. Pod 교체 후에도 보존된 지표로 비교하며 전체 배치 정상 완료 시 해제합니다. 실패 시각(UTC): {{ $value | humanizeTimestamp }}. 7일간 지표가 없으면 감지가 종료될 수 있으므로 수집 상태도 확인하세요."
+
+          - alert: BatchRecoveryStalled
+            expr: time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"refund_recovery|payment_confirm_recovery|payment_attempt_expiry"}) > 300
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "결제·환불 복구 배치가 5분 넘게 정상 완료되지 않았습니다"
+
+          - alert: SmartStoreRealtimeBatchStalled
+            expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"smartstore_order_sync|smartstore_stock_sync"}) > 300) and (time() - min(process_start_time_seconds{application="happygallery"}) > 300)
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "스마트스토어 주문·재고 동기화가 5분 넘게 정상 완료되지 않았습니다"
+
+          - alert: SmartStoreOrderActionReconciliationRequired
+            expr: max(happygallery_smartstore_order_action_reconciliation_backlog_count{application="happygallery"}) > 0
+            for: 2m
+            labels:
+              severity: warning
+              category: business
+            annotations:
+              summary: "처리 결과를 확인해야 하는 스마트스토어 주문 요청이 있습니다"
+
+          - alert: SmartStoreSettlementBatchStalled
+            expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job="smartstore_settlement_sync"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "스마트스토어 정산 대사가 2시간 넘게 정상 완료되지 않았습니다"
+
+          - alert: HourlyBusinessBatchStalled
+            expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "시간 단위 주문·픽업 배치가 2시간 넘게 정상 완료되지 않았습니다"
+
+          - alert: DailyBusinessBatchStalled
+            expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"pass_expiry|personal_data_retention"}) > 108000) and (time() - min(process_start_time_seconds{application="happygallery"}) > 108000)
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "일 단위 만료·리마인드·보존 배치가 30시간 넘게 정상 완료되지 않았습니다"
+
+          - alert: MediaStorageCapacityHigh
+            expr: max(happygallery_media_storage_bytes{application="happygallery"}) > 4294967296
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "이미지 저장소 사용량이 5Gi PVC의 80%를 넘었습니다"
+
+          - alert: MediaStorageRefreshFailed
+            expr: increase(happygallery_media_storage_refresh_failed_total{application="happygallery"}[10m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "최근 10분 동안 이미지 저장소 사용량 갱신이 실패했습니다"
+
+          - alert: MediaStorageRefreshStalled
+            expr: (time() - max(happygallery_media_storage_last_success_seconds{application="happygallery"}) > 900) and (time() - min(process_start_time_seconds{application="happygallery"}) > 900)
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "이미지 저장소 사용량이 15분 넘게 갱신되지 않았습니다"
+
+          - alert: OperationalBacklogRefreshFailed
+            expr: increase(happygallery_operational_backlog_refresh_failures_total{application="happygallery"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "최근 5분 동안 운영 backlog DB 스냅샷 갱신이 실패했습니다"
+
+          - alert: OperationalBacklogRefreshStalled
+            expr: max by (source) (happygallery_operational_backlog_refresh_age_seconds{application="happygallery"}) > 60
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "{{ $labels.source }} backlog 스냅샷이 1분 넘게 갱신되지 않았습니다"
+
+          - alert: AppDown
+            expr: up{job="happygallery"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "happyGallery 앱 또는 필수 DB·Redis 의존성이 준비되지 않았습니다"
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: v1
+data:
+  prometheus.yml: |-
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    rule_files:
+      - /etc/prometheus/rules/alerts.yml
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
+    scrape_configs:
+      - job_name: happygallery
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets:
+              - app-management:8081
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: happygallery
+  name: prometheus-config
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: happygallery
+  name: alertmanager
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: http
+    port: 9093
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: alertmanager
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/service.serverstransport: happygallery-app-upstream@kubernetescrd
+    argocd.argoproj.io/sync-wave: '0'
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: happygallery
+  name: app
+  namespace: happygallery
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: app
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: happygallery
+  name: app-management
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: management
+    port: 8081
+    targetPort: management
+  selector:
+    app.kubernetes.io/name: app
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: happygallery
+  name: frontend
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: '5'
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: frontend
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-assets
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: frontend-assets
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: happygallery
+  name: grafana
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: grafana
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: happygallery
+  name: mysql
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  clusterIP: None
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+  selector:
+    app.kubernetes.io/name: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: happygallery
+  name: prometheus
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: http
+    port: 9090
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: prometheus
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: happygallery
+  name: redis
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: happygallery
+  name: alertmanager-data
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path-retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/name: app-media
+    app.kubernetes.io/part-of: happygallery
+  name: app-media
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path-retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frontend-assets
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path-retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: happygallery
+  name: grafana-data
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-path-retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: happygallery
+  name: prometheus-data
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path-retain
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: happygallery
+  name: alertmanager
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - "--config.file=/etc/alertmanager/secrets/alertmanager.yml"
+        - "--storage.path=/alertmanager"
+        - "--cluster.listen-address="
+        image: prom/alertmanager:v0.32.1
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/-/healthy"
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 2
+        name: alertmanager
+        ports:
+        - containerPort: 9093
+          name: http
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/-/ready"
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: "/-/ready"
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+        volumeMounts:
+        - mountPath: "/etc/alertmanager/secrets"
+          name: notification-config
+          readOnly: true
+        - mountPath: "/alertmanager"
+          name: data
+      securityContext:
+        fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: notification-config
+        secret:
+          defaultMode: 288
+          secretName: happygallery-alertmanager
+      - name: data
+        persistentVolumeClaim:
+          claimName: alertmanager-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/part-of: happygallery
+  name: app
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: '0'
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: HAPPYGALLERY_RUNTIME_MODE
+          value: production
+        - name: APP_DEPLOYMENT_GUARD_ENABLED
+          value: 'true'
+        - name: SPRING_PROFILES_ACTIVE
+          value: prod
+        - name: RATE_LIMIT_ENABLED
+          value: 'true'
+        - name: SESSION_SECURE_COOKIE
+          value: 'true'
+        - name: MANAGEMENT_PORT
+          value: '8081'
+        - name: FORWARD_HEADERS_STRATEGY
+          value: native
+        - name: ACTUATOR_HEALTH_SHOW_DETAILS
+          value: never
+        - name: SPRING_DATA_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: REDIS_PASSWORD
+              name: happygallery-redis
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:MaxRAMPercentage=75 -Djava.io.tmpdir=/tmp"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: happygallery-app
+        image: localhost/happygallery-app:fcabed2fb5f28bc86f679b988c70496aac827898@sha256:ffd8c74d000fc6693dead80410234d74e6685f3a54819cc3fec23b34225d4662
+        imagePullPolicy: Never
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - "-ec"
+              - sleep 10
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/actuator/health/liveness"
+            port: management
+          periodSeconds: 15
+          timeoutSeconds: 3
+        name: app
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: management
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/actuator/health/readiness"
+            port: management
+          periodSeconds: 10
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: '1'
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: "/actuator/health"
+            port: management
+          periodSeconds: 10
+          timeoutSeconds: 3
+        volumeMounts:
+        - mountPath: "/tmp"
+          name: tmp
+        - mountPath: "/var/lib/happygallery/media"
+          name: media
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 45
+      volumes:
+      - emptyDir:
+          sizeLimit: 256Mi
+        name: tmp
+      - name: media
+        persistentVolumeClaim:
+          claimName: app-media
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: happygallery
+  name: frontend
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: '5'
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: INTERNAL_API_ORIGIN
+          value: http://app:8080
+        - name: INDEXNOW_KEY
+          valueFrom:
+            secretKeyRef:
+              key: INDEXNOW_KEY
+              name: happygallery-app
+              optional: true
+        image: localhost/happygallery-frontend:fcabed2fb5f28bc86f679b988c70496aac827898@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: Never
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - "-ec"
+              - sleep 10
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/healthz"
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 2
+        name: frontend
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/healthz"
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 12
+          httpGet:
+            path: "/healthz"
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+        volumeMounts:
+        - mountPath: "/tmp"
+          name: tmp
+      securityContext:
+        fsGroup: 101
+        runAsGroup: 101
+        runAsNonRoot: true
+        runAsUser: 101
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 45
+      volumes:
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-assets
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-assets
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend-assets
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - node
+        - "/app/assets-server.mjs"
+        image: localhost/happygallery-frontend:fcabed2fb5f28bc86f679b988c70496aac827898@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: Never
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - "-ec"
+              - sleep 10
+        livenessProbe:
+          httpGet:
+            path: "/healthz"
+            port: http
+          periodSeconds: 20
+        name: frontend-assets
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: "/healthz"
+            port: http
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 250m
+            memory: 128Mi
+          requests:
+            cpu: 25m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: "/assets"
+          name: assets
+          readOnly: true
+      initContainers:
+      - command:
+        - node
+        - "/app/publish-assets.mjs"
+        - "/app/build/client/assets"
+        - "/assets"
+        image: localhost/happygallery-frontend:fcabed2fb5f28bc86f679b988c70496aac827898@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: Never
+        name: publish-assets
+        resources:
+          limits:
+            cpu: 250m
+            memory: 128Mi
+          requests:
+            cpu: 25m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: "/assets"
+          name: assets
+      securityContext:
+        fsGroup: 101
+        runAsGroup: 101
+        runAsNonRoot: true
+        runAsUser: 101
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 45
+      volumes:
+      - name: assets
+        persistentVolumeClaim:
+          claimName: frontend-assets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: happygallery
+  name: grafana
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: GF_SERVER_HTTP_PORT
+          value: '3000'
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: 'true'
+        - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+          value: Viewer
+        - name: GF_AUTH_DISABLE_LOGIN_FORM
+          value: 'true'
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: 'false'
+        - name: GF_ANALYTICS_REPORTING_ENABLED
+          value: 'false'
+        - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+          value: 'false'
+        - name: GF_SECURITY_DISABLE_GRAVATAR
+          value: 'true'
+        - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+          value: "/var/lib/grafana/dashboards/system.json"
+        image: grafana/grafana:13.1.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/api/health"
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 2
+        name: grafana
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/api/health"
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: "/api/health"
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+        volumeMounts:
+        - mountPath: "/etc/grafana/provisioning/datasources/prometheus.yml"
+          name: config
+          readOnly: true
+          subPath: prometheus.yml
+        - mountPath: "/etc/grafana/provisioning/dashboards/dashboards.yml"
+          name: config
+          readOnly: true
+          subPath: dashboards.yml
+        - mountPath: "/var/lib/grafana/dashboards"
+          name: dashboards
+          readOnly: true
+        - mountPath: "/var/lib/grafana"
+          name: data
+        - mountPath: "/tmp"
+          name: tmp
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsNonRoot: true
+        runAsUser: 472
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          name: grafana-config
+        name: config
+      - configMap:
+          name: grafana-dashboards
+        name: dashboards
+      - name: data
+        persistentVolumeClaim:
+          claimName: grafana-data
+      - emptyDir:
+          sizeLimit: 64Mi
+        name: tmp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: happygallery
+  name: prometheus
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.path=/prometheus"
+        - "--storage.tsdb.retention.time=7d"
+        image: prom/prometheus:v3.12.0-distroless
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/-/healthy"
+            port: http
+          periodSeconds: 20
+          timeoutSeconds: 2
+        name: prometheus
+        ports:
+        - containerPort: 9090
+          name: http
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: "/-/ready"
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: "/-/ready"
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+        volumeMounts:
+        - mountPath: "/etc/prometheus/prometheus.yml"
+          name: config
+          readOnly: true
+          subPath: prometheus.yml
+        - mountPath: "/etc/prometheus/rules/alerts.yml"
+          name: rules
+          readOnly: true
+          subPath: alerts.yml
+        - mountPath: "/prometheus"
+          name: data
+      securityContext:
+        fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          name: prometheus-config
+        name: config
+      - configMap:
+          name: prometheus-alerts
+        name: rules
+      - name: data
+        persistentVolumeClaim:
+          claimName: prometheus-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: happygallery
+  name: redis
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - sh
+        - "-ec"
+        - exec redis-server --save "" --appendonly no --notify-keyspace-events Egx
+          --maxmemory 192mb --maxmemory-policy noeviction --requirepass "$REDIS_PASSWORD"
+        envFrom:
+        - secretRef:
+            name: happygallery-redis
+        image: redis:7.4.9-alpine
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep -qx PONG
+          failureThreshold: 3
+          periodSeconds: 20
+          timeoutSeconds: 3
+        name: redis
+        ports:
+        - containerPort: 6379
+          name: redis
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep -qx PONG
+          failureThreshold: 3
+          periodSeconds: 10
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep -qx PONG
+          failureThreshold: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - mountPath: "/data"
+          name: data
+      securityContext:
+        fsGroup: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir:
+          sizeLimit: 512Mi
+        name: data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: happygallery
+  name: mysql
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  serviceName: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/part-of: happygallery
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - "--character-set-server=utf8mb4"
+        - "--collation-server=utf8mb4_unicode_ci"
+        - "--default-time-zone=+00:00"
+        - "--wait_timeout=600"
+        - "--interactive_timeout=600"
+        envFrom:
+        - secretRef:
+            name: happygallery-mysql
+        image: mysql:8.4.10
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent
+          failureThreshold: 3
+          periodSeconds: 20
+          timeoutSeconds: 5
+        name: mysql
+        ports:
+        - containerPort: 3306
+          name: mysql
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent
+          failureThreshold: 3
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - CHOWN
+            - DAC_OVERRIDE
+            - FOWNER
+            - SETGID
+            - SETUID
+            drop:
+            - ALL
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - "-ec"
+            - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent
+          failureThreshold: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: "/var/lib/mysql"
+          name: data
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 60
+  volumeClaimTemplates:
+  - metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/part-of: happygallery
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+      storageClassName: local-path-retain
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/part-of: happygallery
+  name: happygallery-tls
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  dnsNames:
+  - happy-gallery.com
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-production
+  secretName: happygallery-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: happygallery-security-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.priority: '100'
+    argocd.argoproj.io/sync-wave: "-10"
+  name: happygallery-assets
+  namespace: happygallery
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: happy-gallery.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: frontend-assets
+            port:
+              name: http
+        path: "/assets"
+        pathType: Prefix
+  tls:
+  - hosts:
+    - happy-gallery.com
+    secretName: happygallery-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: happygallery-redirect-https@kubernetescrd
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: happygallery
+  name: happygallery-http
+  namespace: happygallery
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: happy-gallery.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: frontend
+            port:
+              name: http
+        path: "/"
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: happygallery-security-headers@kubernetescrd
+    argocd.argoproj.io/sync-wave: "-10"
+  labels:
+    app.kubernetes.io/part-of: happygallery
+  name: happygallery-https
+  namespace: happygallery
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: happy-gallery.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: app
+            port:
+              name: http
+        path: "/api"
+        pathType: Prefix
+      - backend:
+          service:
+            name: frontend
+            port:
+              name: http
+        path: "/"
+        pathType: Prefix
+  tls:
+  - hosts:
+    - happy-gallery.com
+    secretName: happygallery-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-solver
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+    ports:
+    - port: 8089
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: 'true'
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-to-mysql
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: app
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: key-rotation
+    ports:
+    - port: 3306
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-to-redis
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: app
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: key-rotation
+    ports:
+    - port: 6379
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-to-prometheus
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: grafana
+    ports:
+    - port: 9090
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-app
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+    ports:
+    - port: 8080
+      protocol: TCP
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: frontend
+    ports:
+    - port: 8080
+      protocol: TCP
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - port: 8081
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: app
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-assets
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+    ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-assets
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+    ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-to-alertmanager
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - port: 9093
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  redirectScheme:
+    permanent: true
+    scheme: https
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  headers:
+    contentTypeNosniff: true
+    customResponseHeaders:
+      Permissions-Policy: camera=(), microphone=(), geolocation=()
+    frameDeny: true
+    referrerPolicy: strict-origin-when-cross-origin
+    stsIncludeSubdomains: true
+    stsSeconds: 31536000
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: app-upstream
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  forwardingTimeouts:
+    dialTimeout: 3s
+    idleConnTimeout: 15s
+    responseHeaderTimeout: 30s
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  acme:
+    email: jolri24@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-production-account
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: traefik

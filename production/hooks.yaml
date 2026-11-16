@@ -1,0 +1,210 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: happygallery-gitops-prepare
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: control
+        image: ghcr.io/ljkhyeong/happygallery-frontend@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: IfNotPresent
+        command:
+        - node
+        - "-e"
+        - |
+          const net = require('node:net');
+          const request = JSON.parse(process.env.GITOPS_REQUEST);
+          const client = net.createConnection('/control/control.sock');
+          let response = '';
+          client.setTimeout(3200000, () => client.destroy(new Error('호스트 응답 시간이 초과됐습니다.')));
+          client.on('connect', () => client.write(JSON.stringify(request) + '\n'));
+          client.on('data', chunk => { response += chunk; });
+          client.on('end', () => {
+            try {
+              const result = JSON.parse(response);
+              console.log(result.message);
+              process.exitCode = result.ok ? 0 : 1;
+            } catch (error) { console.error(error.message); process.exitCode = 1; }
+          });
+          client.on('error', error => { console.error(error.message); process.exitCode = 1; });
+        env:
+        - name: GITOPS_REQUEST
+          value: '{"source_sha":"fcabed2fb5f28bc86f679b988c70496aac827898","app_digest":"sha256:ffd8c74d000fc6693dead80410234d74e6685f3a54819cc3fec23b34225d4662","frontend_digest":"sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262","acme_email":"jolri24@gmail.com","manifest_sha256":"deeaedb61d911e1d1eecef4288dc345c00411fafa79e5fd8a372320a93ba286d","phase":"prepare"}'
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: control
+          mountPath: "/control"
+          readOnly: true
+      volumes:
+      - name: control
+        hostPath:
+          path: "/run/happygallery-gitops"
+          type: Directory
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: happygallery-gitops-complete
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: control
+        image: ghcr.io/ljkhyeong/happygallery-frontend@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: IfNotPresent
+        command:
+        - node
+        - "-e"
+        - |
+          const net = require('node:net');
+          const request = JSON.parse(process.env.GITOPS_REQUEST);
+          const client = net.createConnection('/control/control.sock');
+          let response = '';
+          client.setTimeout(3200000, () => client.destroy(new Error('호스트 응답 시간이 초과됐습니다.')));
+          client.on('connect', () => client.write(JSON.stringify(request) + '\n'));
+          client.on('data', chunk => { response += chunk; });
+          client.on('end', () => {
+            try {
+              const result = JSON.parse(response);
+              console.log(result.message);
+              process.exitCode = result.ok ? 0 : 1;
+            } catch (error) { console.error(error.message); process.exitCode = 1; }
+          });
+          client.on('error', error => { console.error(error.message); process.exitCode = 1; });
+        env:
+        - name: GITOPS_REQUEST
+          value: '{"source_sha":"fcabed2fb5f28bc86f679b988c70496aac827898","app_digest":"sha256:ffd8c74d000fc6693dead80410234d74e6685f3a54819cc3fec23b34225d4662","frontend_digest":"sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262","acme_email":"jolri24@gmail.com","manifest_sha256":"deeaedb61d911e1d1eecef4288dc345c00411fafa79e5fd8a372320a93ba286d","phase":"complete"}'
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: control
+          mountPath: "/control"
+          readOnly: true
+      volumes:
+      - name: control
+        hostPath:
+          path: "/run/happygallery-gitops"
+          type: Directory
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: happygallery-gitops-failed
+  namespace: happygallery
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: control
+        image: ghcr.io/ljkhyeong/happygallery-frontend@sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262
+        imagePullPolicy: IfNotPresent
+        command:
+        - node
+        - "-e"
+        - |
+          const net = require('node:net');
+          const request = JSON.parse(process.env.GITOPS_REQUEST);
+          const client = net.createConnection('/control/control.sock');
+          let response = '';
+          client.setTimeout(3200000, () => client.destroy(new Error('호스트 응답 시간이 초과됐습니다.')));
+          client.on('connect', () => client.write(JSON.stringify(request) + '\n'));
+          client.on('data', chunk => { response += chunk; });
+          client.on('end', () => {
+            try {
+              const result = JSON.parse(response);
+              console.log(result.message);
+              process.exitCode = result.ok ? 0 : 1;
+            } catch (error) { console.error(error.message); process.exitCode = 1; }
+          });
+          client.on('error', error => { console.error(error.message); process.exitCode = 1; });
+        env:
+        - name: GITOPS_REQUEST
+          value: '{"source_sha":"fcabed2fb5f28bc86f679b988c70496aac827898","app_digest":"sha256:ffd8c74d000fc6693dead80410234d74e6685f3a54819cc3fec23b34225d4662","frontend_digest":"sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262","acme_email":"jolri24@gmail.com","manifest_sha256":"deeaedb61d911e1d1eecef4288dc345c00411fafa79e5fd8a372320a93ba286d","phase":"failed"}'
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: control
+          mountPath: "/control"
+          readOnly: true
+      volumes:
+      - name: control
+        hostPath:
+          path: "/run/happygallery-gitops"
+          type: Directory

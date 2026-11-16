@@ -1,2 +1,0 @@
-export const PUBLIC_DATA_STALE_TIME = 60_000;
-export const REFERENCE_DATA_STALE_TIME = 300_000;
