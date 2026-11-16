@@ -118,9 +118,7 @@
 - Prometheus, Alertmanager, Grafana는 각각 Retain PVC와 `Recreate` 단일 인스턴스를 사용한다. Grafana는 외부 Ingress 없이 cluster 내부 Viewer로만 두고 운영자가 port-forward로 접근한다.
 - 유동 공인 IPv4 갱신은 Cloudflare DNS API와 `favonia/cloudflare-ddns`를 사용한다. `happygallery-ops`의 독립 addon으로 배포하고 도메인 한 개의 DNS 토큰만 주입한다. 기존 DNS only·Traefik TLS 경로를 유지한다.
 - 배포 백업 성공은 service의 성공 기록과 R2 복구 묶음 검증으로 확인하고, 성공 후 단계의 HTTPS heartbeat로 외부에 알린다. 정기 systemd watchdog은 사용하지 않는다. 같은 노트북의 전원·호스트 장애는 HetrixTools 무료 외부 웹·API 감시로 확인한다. 운영 애플리케이션에는 감시 SDK를 넣지 않는다. 활성화와 복구는 [무료 외부 연동](../../../deploy/k3s/free-integrations.md)을 따른다.
-- 기존 AWS 자동 배포 workflow는 제거한다. k3s에는 운영자가 실행하는 commit SHA 이미지
-  build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback 스크립트가
-  구현돼 있다. 원격 CI/CD가 운영 노트북에 자동 배포하는 workflow는 두지 않는다.
+- GitHub Actions가 CI·이미지 게시·GitOps 희망 상태 승격을 담당하고 Argo CD가 k3s를 동기화한다. 배포 전후 호스트 작업은 로컬 socket으로 연결한다. 결정은 [ADR-0050](../0050_Argo_CD_배포와_호스트_작업_연결/adr.md)을 따른다.
 
 ### 7. probe와 종료 유예를 배포 계약에 포함한다
 

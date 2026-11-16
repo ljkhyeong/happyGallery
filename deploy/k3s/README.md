@@ -31,7 +31,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 
 선택 연동인 [무료 IndexNow](indexnow.md)는 상품·수업·이벤트·공지 변경을 검색엔진에 알린다. 기본 비활성 상태이며 운영자가 키와 timer를 설정한다.
 
-`main` 병합 후 테스트·이미지 게시·롤링 배포를 자동 실행하려면 [GitHub Actions CI/CD 설정](cicd.md)을 따른다. 이미지는 GitHub에서 빌드하고 서버는 검증·반입·실행을 맡는다.
+`main` 병합 후 테스트·이미지 게시·롤링 배포를 자동 실행하려면 [GitHub Actions CI·Argo CD 설정](cicd.md)을 따른다. GitHub에서 빌드·검증한 이미지 digest를 Argo CD가 동기화하고 호스트 실행기가 백업·반입·배포 전후 검증을 맡는다.
 
 ## 1. 배포 전 준비
 
