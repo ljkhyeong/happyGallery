@@ -256,19 +256,44 @@ class CdTest < Minitest::Test
     @env['K3S_BIN'] = File.join(@bin, 'k3s')
     executable(@bin, 'k3s', <<~RUBY)
       record(ARGV)
+      exit 1 if ARGV[1..2] == %w[images pull] && ENV['HG_CD_CTR_PULL_FAIL']
       if ARGV[1..2] == %w[images list]
+        digest = ENV.fetch('HG_CD_LOCAL_DIGEST', '#{LOCAL_DIGEST}')
         refs = %w[app frontend].flat_map do |name|
           ref = "localhost/happygallery-\#{name}:#{SHA}"
-          [ref, "\#{ref}@#{LOCAL_DIGEST}", "localhost/happygallery-\#{name}@#{LOCAL_DIGEST}"]
+          [ref, "\#{ref}@\#{digest}", "localhost/happygallery-\#{name}@\#{digest}"]
         end
         if ARGV.include?('-q')
           puts refs
         else
           puts 'REF TYPE DIGEST SIZE'
-          refs.each { |ref| puts "\#{ref} manifest #{LOCAL_DIGEST} 1MiB" }
+          refs.each { |ref| puts "\#{ref} manifest \#{digest} 1MiB" }
         end
       end
     RUBY
+  end
+
+  def test_gitops_import_preserves_registry_digest_without_archive_conversion
+    prepare_registry
+    @env.merge!('HAPPYGALLERY_GITOPS_PHASE' => 'prepare', 'HG_CD_LOCAL_DIGEST' => DIGEST)
+    _output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    assert status.success?, error
+    assert_equal 2, calls.count { |call| call.first(3) == %w[k3s images pull] || call.first(4) == %w[k3s ctr images pull] }
+    refute calls.any? { |call| call.first(2) == %w[docker save] || call.include?('import') }
+    assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
+  end
+
+  def test_gitops_import_stops_on_containerd_pull_failure_or_digest_mismatch
+    prepare_registry
+    @env['HAPPYGALLERY_GITOPS_PHASE'] = 'prepare'
+    _output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    refute status.success?
+    assert_includes error, '실제 반입 digest가 다릅니다'
+    refute calls.any? { |call| call.first == 'deploy.sh' }
+    @env['HG_CD_CTR_PULL_FAIL'] = '1'
+    _output, _error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    refute status.success?
+    refute calls.any? { |call| call.first == 'deploy.sh' }
   end
 
   def test_registry_import_uses_local_digest_and_existing_deploy_without_rebuilding

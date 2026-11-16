@@ -1,0 +1,17 @@
+[Unit]
+Description=happyGallery Argo CD deployment phase
+After=k3s.service network-online.target
+Requires=k3s.service
+
+[Service]
+User=ronaldo
+Environment=HOME=/home/ronaldo
+Environment=GIT_TERMINAL_PROMPT=0
+WorkingDirectory=/opt/happygallery
+ExecStart=/usr/bin/ruby /usr/local/lib/happygallery/gitops-control.rb
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+RuntimeMaxSec=54min
+TimeoutStopSec=1min
+KillMode=control-group

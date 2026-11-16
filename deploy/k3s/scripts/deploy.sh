@@ -23,6 +23,9 @@ umask 077
 mkdir -p "$state_root"
 exec 8> "$state_root/.deploy.lock"
 flock -n 8 || die "다른 자동 배포가 진행 중입니다."
+if [ -f "$state_root/gitops-active" ] && [ "${HAPPYGALLERY_GITOPS_PHASE:-}" != prepare ]; then
+    die "Argo CD 동기화가 진행 중입니다. 먼저 해당 동기화를 완료하세요."
+fi
 
 if [ "$imported" = false ]; then
     "$SCRIPT_DIR/build-import-images.sh" "$image_tag"
@@ -151,5 +154,5 @@ else
 fi
 
 ruby "$SCRIPT_DIR/update-release-images.rb" "$release_env" "$image_tag" "$app_digest" "$frontend_digest"
-"$SCRIPT_DIR/rollout.sh" "$release_env"
+"$SCRIPT_DIR/rollout.sh" "$release_env" "${HAPPYGALLERY_GITOPS_PHASE:-apply}"
 info "자동 배포 완료: $image_tag"

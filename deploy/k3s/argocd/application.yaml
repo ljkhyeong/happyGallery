@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: happygallery
+  namespace: argocd
+spec:
+  sourceRepos: ["https://github.com/ljkhyeong/happyGallery.git"]
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: happygallery
+  clusterResourceWhitelist:
+    - {group: "", kind: Namespace}
+    - {group: storage.k8s.io, kind: StorageClass}
+    - {group: cert-manager.io, kind: ClusterIssuer}
+  namespaceResourceWhitelist:
+    - {group: "", kind: Service}
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: batch, kind: Job}
+    - {group: networking.k8s.io, kind: Ingress}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: traefik.io, kind: Middleware}
+    - {group: traefik.io, kind: ServersTransport}
+    - {group: cert-manager.io, kind: Certificate}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: happygallery
+  namespace: argocd
+spec:
+  project: happygallery
+  source:
+    repoURL: https://github.com/ljkhyeong/happyGallery.git
+    targetRevision: gitops-production
+    path: production
+    directory:
+      include: '*.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: happygallery
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - FailOnSharedResource=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 20s
+        factor: 2
+        maxDuration: 2m
