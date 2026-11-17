@@ -1,7 +1,7 @@
 {
-  "source_sha": "fcabed2fb5f28bc86f679b988c70496aac827898",
-  "app_digest": "sha256:ffd8c74d000fc6693dead80410234d74e6685f3a54819cc3fec23b34225d4662",
-  "frontend_digest": "sha256:e80b0268f4218aea083bf664ce9a60919e98d4e84edc2daad9930d7cfbd44262",
+  "source_sha": "c9d5049b2eda8cc86d618c18790e019a9a5033f0",
+  "app_digest": "sha256:78b83c5c7f5adcc856e1e01fc8d522ab4be4628a1685d89ccee24fec1bc2f572",
+  "frontend_digest": "sha256:944d182d71474ad0714444bcdd7d92af3fdfc42ac94be91197d26b23395baf5a",
   "acme_email": "jolri24@gmail.com",
-  "manifest_sha256": "deeaedb61d911e1d1eecef4288dc345c00411fafa79e5fd8a372320a93ba286d"
+  "manifest_sha256": "4c613cbef830d3c44fbff1579f913719dbd0d43b93a176349d57e7dd2dc0fbee"
 }
