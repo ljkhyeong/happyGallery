@@ -96,8 +96,8 @@ module GitopsRelease
     validate(release)
     render_env = {
       'PUBLIC_HOST' => 'happy-gallery.com', 'ACME_EMAIL' => release['acme_email'],
-      'APP_IMAGE' => "localhost/happygallery-app:#{release['source_sha']}",
-      'FRONTEND_IMAGE' => "localhost/happygallery-frontend:#{release['source_sha']}",
+      'APP_IMAGE' => "ghcr.io/ljkhyeong/happygallery-app:#{release['source_sha']}",
+      'FRONTEND_IMAGE' => "ghcr.io/ljkhyeong/happygallery-frontend:#{release['source_sha']}",
       'APP_IMAGE_DIGEST' => release['app_digest'], 'FRONTEND_IMAGE_DIGEST' => release['frontend_digest'],
       'IMAGE_TAG' => release['source_sha']
     }

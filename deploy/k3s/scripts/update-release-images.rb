@@ -45,9 +45,10 @@ begin
     tag, app_digest, frontend_digest = ARGV.drop(1)
     abort 'IMAGE_TAG는 40자리 Git SHA여야 합니다.' unless tag.match?(/\A[a-f0-9]{40}\z/)
     abort '이미지 digest 형식이 올바르지 않습니다.' unless [app_digest, frontend_digest].all? { |digest| digest.match?(/\Asha256:[a-f0-9]{64}\z/) }
+    registry = ENV['HAPPYGALLERY_GITOPS_PHASE'] == 'prepare' ? 'ghcr.io/ljkhyeong' : 'localhost'
     values = { 'IMAGE_TAG' => tag,
-               'APP_IMAGE' => "localhost/happygallery-app:#{tag}",
-               'FRONTEND_IMAGE' => "localhost/happygallery-frontend:#{tag}",
+               'APP_IMAGE' => "#{registry}/happygallery-app:#{tag}",
+               'FRONTEND_IMAGE' => "#{registry}/happygallery-frontend:#{tag}",
                'APP_IMAGE_DIGEST' => app_digest, 'FRONTEND_IMAGE_DIGEST' => frontend_digest }
     updated = original.lines.map do |line|
       key = line.split('=', 2).first

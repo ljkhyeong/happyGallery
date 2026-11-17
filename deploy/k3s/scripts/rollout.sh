@@ -48,7 +48,11 @@ IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_env")
 GOOGLE_OAUTH_REDIRECT_URI=$(require_env_value GOOGLE_OAUTH_REDIRECT_URI "$release_env")
 NAVER_OAUTH_REDIRECT_URI=$(require_env_value NAVER_OAUTH_REDIRECT_URI "$release_env")
 KAKAO_OAUTH_REDIRECT_URI=$(require_env_value KAKAO_OAUTH_REDIRECT_URI "$release_env")
-export PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST IMAGE_TAG
+IMAGE_PULL_POLICY=Never
+case "$APP_IMAGE" in
+    ghcr.io/ljkhyeong/happygallery-app:*) IMAGE_PULL_POLICY=IfNotPresent ;;
+esac
+export PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST IMAGE_TAG IMAGE_PULL_POLICY
 
 [ "$GOOGLE_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/google" ] \
     || die "GOOGLE_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
@@ -155,7 +159,7 @@ rolling_pause_schedulers
 
 if [ "$phase" = prepare ]; then
     declare -p PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST \
-        IMAGE_TAG state_root timestamp release_dir manifest rolling_existing rolling_asset_helper \
+        IMAGE_TAG IMAGE_PULL_POLICY state_root timestamp release_dir manifest rolling_existing rolling_asset_helper \
         MEDIA_HELPER_POD rolling_guard_owner rolling_guard_created > "$release_dir/gitops-state.sh.tmp"
     chmod 600 "$release_dir/gitops-state.sh.tmp"
     mv "$release_dir/gitops-state.sh.tmp" "$release_dir/gitops-state.sh"

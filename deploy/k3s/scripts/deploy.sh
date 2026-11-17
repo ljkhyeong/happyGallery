@@ -31,8 +31,12 @@ if [ "$imported" = false ]; then
     "$SCRIPT_DIR/build-import-images.sh" "$image_tag"
 fi
 
-app_image="localhost/happygallery-app:$image_tag"
-frontend_image="localhost/happygallery-frontend:$image_tag"
+image_registry=localhost
+if [ "${HAPPYGALLERY_GITOPS_PHASE:-}" = prepare ]; then
+    image_registry=ghcr.io/ljkhyeong
+fi
+app_image="$image_registry/happygallery-app:$image_tag"
+frontend_image="$image_registry/happygallery-frontend:$image_tag"
 app_digest=$(containerd_image_digest "$app_image") || die "반입된 앱 이미지를 찾을 수 없습니다."
 frontend_digest=$(containerd_image_digest "$frontend_image") || die "반입된 프런트 이미지를 찾을 수 없습니다."
 for pair in "$app_image|$app_digest" "$frontend_image|$frontend_digest"; do
