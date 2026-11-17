@@ -41,7 +41,7 @@ data:
   REDIS_HOST: redis
   REDIS_PORT: '6379'
   SENTRY_ENVIRONMENT: production
-  SENTRY_RELEASE: happygallery@c9d5049b2eda8cc86d618c18790e019a9a5033f0
+  SENTRY_RELEASE: happygallery@14209421d726cbc6a81daab5c12096197803ca7b
   SPRING_PROFILES_ACTIVE: prod
 kind: ConfigMap
 metadata:
@@ -1510,8 +1510,8 @@ spec:
             name: app-config
         - secretRef:
             name: happygallery-app
-        image: localhost/happygallery-app:c9d5049b2eda8cc86d618c18790e019a9a5033f0@sha256:78b83c5c7f5adcc856e1e01fc8d522ab4be4628a1685d89ccee24fec1bc2f572
-        imagePullPolicy: Never
+        image: ghcr.io/ljkhyeong/happygallery-app:14209421d726cbc6a81daab5c12096197803ca7b@sha256:c5835946d1578dcb60f66bc2b7ae8844f50a4720f7cb399d99b80e1921ba4e60
+        imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
             exec:
@@ -1619,8 +1619,8 @@ spec:
               key: INDEXNOW_KEY
               name: happygallery-app
               optional: true
-        image: localhost/happygallery-frontend:c9d5049b2eda8cc86d618c18790e019a9a5033f0@sha256:944d182d71474ad0714444bcdd7d92af3fdfc42ac94be91197d26b23395baf5a
-        imagePullPolicy: Never
+        image: ghcr.io/ljkhyeong/happygallery-frontend:14209421d726cbc6a81daab5c12096197803ca7b@sha256:16699c7c5129f5c0f66ff4b316be1ea1fc7eedd5d90a5586f0e6e86157343ddb
+        imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
             exec:
@@ -1712,8 +1712,8 @@ spec:
       - command:
         - node
         - "/app/assets-server.mjs"
-        image: localhost/happygallery-frontend:c9d5049b2eda8cc86d618c18790e019a9a5033f0@sha256:944d182d71474ad0714444bcdd7d92af3fdfc42ac94be91197d26b23395baf5a
-        imagePullPolicy: Never
+        image: ghcr.io/ljkhyeong/happygallery-frontend:14209421d726cbc6a81daab5c12096197803ca7b@sha256:16699c7c5129f5c0f66ff4b316be1ea1fc7eedd5d90a5586f0e6e86157343ddb
+        imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
             exec:
@@ -1758,8 +1758,8 @@ spec:
         - "/app/publish-assets.mjs"
         - "/app/build/client/assets"
         - "/assets"
-        image: localhost/happygallery-frontend:c9d5049b2eda8cc86d618c18790e019a9a5033f0@sha256:944d182d71474ad0714444bcdd7d92af3fdfc42ac94be91197d26b23395baf5a
-        imagePullPolicy: Never
+        image: ghcr.io/ljkhyeong/happygallery-frontend:14209421d726cbc6a81daab5c12096197803ca7b@sha256:16699c7c5129f5c0f66ff4b316be1ea1fc7eedd5d90a5586f0e6e86157343ddb
+        imagePullPolicy: IfNotPresent
         name: publish-assets
         resources:
           limits:
