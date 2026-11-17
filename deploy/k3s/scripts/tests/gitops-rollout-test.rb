@@ -40,7 +40,6 @@ class GitopsRolloutTest < Minitest::Test
       die() { echo "$*" >&2; exit 1; }
       info() { echo "$*"; }
       validate_env_file() { test -f "$1"; }
-      release_state_dir() { echo "$TEST_ROOT"; }
       require_env_value() { sed -n "s/^$1=//p" "$2"; }
       deployment_container_image() {
         if [ "$TEST_WRONG_IMAGE" = true ]; then echo wrong; return; fi
@@ -72,7 +71,7 @@ class GitopsRolloutTest < Minitest::Test
   end
 
   def run_phase(phase, wrong_image: false, delete_exit: '0', verify_exit: '0')
-    Open3.capture3({ 'TEST_ROOT' => @directory, 'TEST_CALLS' => @calls, 'TEST_WRONG_IMAGE' => wrong_image.to_s,
+    Open3.capture3({ 'TEST_ROOT' => @directory, 'HAPPYGALLERY_RELEASE_DIR' => @directory, 'TEST_CALLS' => @calls, 'TEST_WRONG_IMAGE' => wrong_image.to_s,
                      'TEST_DELETE_EXIT' => delete_exit, 'TEST_VERIFY_EXIT' => verify_exit },
                   'bash', File.join(@directory, 'rollout.sh'), File.join(@directory, 'release.env'), phase)
   end

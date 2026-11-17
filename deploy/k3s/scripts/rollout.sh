@@ -10,7 +10,7 @@ phase=${2:-apply}
 case "$phase" in apply|prepare|resume|complete|failed) ;; *) die "알 수 없는 배포 단계입니다: $phase" ;; esac
 validate_env_file "$release_env"
 
-state_root=$(release_state_dir)
+state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
 if [ "$phase" = complete ] || [ "$phase" = failed ] || [ "$phase" = resume ]; then
     [ -f "$state_root/gitops-active" ] || die "진행 중인 GitOps release가 없습니다."
     release_dir=$(cat "$state_root/gitops-active")
@@ -110,7 +110,6 @@ if [ -n "$existing_mysql" ]; then
     info "배포 전 DB·미디어·호환 release 복구 묶음과 생성 시각을 확인했습니다."
 fi
 
-state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 release_dir="$state_root/$timestamp-$IMAGE_TAG"
 mkdir -p "$release_dir"
