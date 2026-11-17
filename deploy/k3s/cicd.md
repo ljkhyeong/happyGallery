@@ -72,7 +72,7 @@ sudo systemctl status happygallery-gitops.socket
 
 socket mode는 UID 101인 훅 Job이 접속하도록 `0666`, 부모 디렉터리는 `0755`다. 훅은 해당 디렉터리만 read-only hostPath로 마운트하고 API token·Secret·호스트 root 권한을 받지 않는다. 이 socket에 접근할 수 있는 호스트 사용자와 Pod는 게시된 release의 배포를 요청할 수 있으므로, 이 hostPath 사용 권한은 배포 운영 권한으로 관리한다. 노드 공용 `/run`이나 container runtime socket을 마운트하지 않는다.
 
-GitOps 이미지 반입은 `k3s ctr images pull`로 registry digest를 유지한다. Docker에서는 image label·OS·CPU·원격 digest·JAR를 검사하고, containerd에는 manifest의 localhost 별칭을 같은 digest로 등록한다. 기존 수동 Docker archive 반입 경로는 원래 동작을 유지한다.
+GitOps manifest와 release 메타데이터는 `ghcr.io/ljkhyeong/happygallery-<구성요소>:<소스 SHA>@<digest>`를 사용한다. app·frontend·정적 파일·미디어 helper는 `IfNotPresent`로 kubelet이 registry 이미지와 CRI 캐시를 처리하게 한다. Docker의 image label·OS·CPU·원격 digest·JAR 검사와 containerd 사전 반입·복구 archive 보존은 함께 수행한다. localhost 별칭이 containerd에 있어도 OCI index의 CRI 조회에서 누락될 수 있어 GitOps workload는 GHCR 주소를 직접 참조한다.
 
 ## 4. 배포 상태와 재시도
 

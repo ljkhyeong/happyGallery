@@ -14,7 +14,7 @@
 1. Actions가 기존 CI·이미지 검사·GHCR 게시 후 검증한 source SHA와 app/frontend digest를 `gitops-production`의 단일 commit으로 승격한다. main 최신 소스만 승격하며 브랜치의 fast-forward push로 게시 경합을 감지한다. 배포 소스 commit을 부모로 보존해 해당 소스 이력을 함께 가져올 수 있다.
 2. Argo CD가 `production/*.yaml`을 읽어 공통 리소스 → app → frontend 순서로 적용한다. 전용 AppProject로 저장소·namespace·리소스 종류를 제한한다. 자동 동기화와 self-heal을 사용하고 자동 prune은 끈다. 영속 데이터 관련 리소스에는 삭제 방지 annotation을 둔다.
 3. PreSync·PostSync·SyncFail Job이 검증한 frontend 이미지의 Node를 사용해 로컬 Unix socket으로 호스트 실행기에 요청한다. 호스트 실행기는 제한된 필드만 받아 Git의 게시 기록과 대조한다. 외부 배포용 SSH 연결과 Actions의 배포 키는 이 경로에서 필요하지 않다.
-4. 호스트는 기존 운영 계정의 k3s·백업 권한과 release 상태 경로를 사용한다. 기존 스크립트를 재사용해 준비와 완료를 수행하고, Argo CD가 본 manifest와 서버가 렌더링한 manifest의 의미상 해시를 비교한다. registry pull로 containerd에서도 게시한 digest를 유지한다.
+4. 호스트는 기존 운영 계정의 k3s·백업 권한과 release 상태 경로를 사용한다. 기존 스크립트를 재사용해 준비와 완료를 수행하고, Argo CD가 본 manifest와 서버가 렌더링한 manifest의 의미상 해시를 비교한다. workload와 helper가 GHCR digest를 직접 참조하고 IfNotPresent로 kubelet의 CRI 이미지 처리를 거친다. containerd의 registry digest 유지와 복구 archive 보존도 함께 검사한다.
 5. 준비 상태와 요청을 호스트에 저장한다. 재시도는 같은 release를 이어받으며 혼합 상태에서는 배치 일시정지를 유지한다. 완료 응답 유실도 공개 경로 검사를 재수행해 확인한다. 다른 release는 진행 중인 상태를 덮지 않는다.
 6. CI 사전 검사는 마지막 승격 소스와 비교한다. 실제 운영 기준의 전체 누적 호환성 검사는 PreSync에서 current manifest·실행 이미지로 수행한다. 첫 GitOps 승격 전에는 기존 SSH 배포 성공 이력을 CI 기준으로 사용한다.
 
