@@ -31,6 +31,10 @@ printf '%s' "$FRONTEND_IMAGE_DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$' \
 printf '%s' "$IMAGE_TAG" | grep -Eq '^[A-Fa-f0-9]{12,40}$' \
     || die "IMAGE_TAG는 12~40자리 Git SHA여야 합니다."
 
+image_pull_policy=Never
+case "$APP_IMAGE" in
+    ghcr.io/ljkhyeong/happygallery-app:*) image_pull_policy=IfNotPresent ;;
+esac
 app_image_ref="$APP_IMAGE@$APP_IMAGE_DIGEST"
 frontend_image_ref="$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"
 
@@ -50,13 +54,15 @@ awk \
     -v email="$ACME_EMAIL" \
     -v app_image="$app_image_ref" \
     -v frontend_image="$frontend_image_ref" \
-    -v image_tag="$IMAGE_TAG" '
+    -v image_tag="$IMAGE_TAG" \
+    -v image_pull_policy="$image_pull_policy" '
     {
         gsub(/__PUBLIC_HOST__/, host)
         gsub(/__ACME_EMAIL__/, email)
         gsub(/__APP_IMAGE__/, app_image)
         gsub(/__FRONTEND_IMAGE__/, frontend_image)
         gsub(/__IMAGE_TAG__/, image_tag)
+        sub(/imagePullPolicy: Never/, "imagePullPolicy: " image_pull_policy)
         print
     }
 ' "$tmp" > "$tmp.rendered"

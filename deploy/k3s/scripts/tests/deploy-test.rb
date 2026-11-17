@@ -125,6 +125,16 @@ class DeployTest < Minitest::Test
     File.exist?(@calls) ? File.readlines(@calls).map { |line| JSON.parse(line) } : []
   end
 
+  def test_gitops_metadata_uses_registry_reference_with_verified_digest
+    environment = { 'HAPPYGALLERY_GITOPS_PHASE' => 'prepare' }
+    _output, error, status = Open3.capture3(environment, 'ruby', File.join(@scripts, 'update-release-images.rb'),
+                                           @release, TAG, APP_DIGEST, FRONTEND_DIGEST)
+    assert status.success?, error
+    values = File.read(@release)
+    assert_includes values, "APP_IMAGE=ghcr.io/ljkhyeong/happygallery-app:#{TAG}"
+    assert_includes values, "FRONTEND_IMAGE=ghcr.io/ljkhyeong/happygallery-frontend:#{TAG}"
+  end
+
   def test_build_import_updates_only_image_values_and_deploys_after_backup_finishes
     @env['DEPLOY_TEST_STATE'] = 'activating,inactive'
     output, error, status = deploy

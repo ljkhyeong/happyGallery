@@ -89,7 +89,7 @@ module GitopsControl
           %w[app frontend].each do |component|
             image, status = Open3.capture2e(environment, environment.fetch('KUBECTL_BIN'), '-n', 'happygallery',
                                            'get', 'deployment', component, '-o', 'jsonpath={.spec.template.spec.containers[0].image}')
-            expected_image = "localhost/happygallery-#{component}:#{release.fetch('source_sha')}@#{release.fetch("#{component}_digest")}"
+            expected_image = "ghcr.io/ljkhyeong/happygallery-#{component}:#{release.fetch('source_sha')}@#{release.fetch("#{component}_digest")}"
             raise "#{component} 실제 이미지가 완료한 release와 다릅니다." unless status.success? && image == expected_image
           end
           run(File.join(scripts, 'verify.sh'), 'happy-gallery.com', environment: environment, log: log)

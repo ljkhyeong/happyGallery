@@ -390,7 +390,7 @@ spec:
   containers:
     - name: media-maintenance
       image: $image
-      imagePullPolicy: Never
+      imagePullPolicy: ${IMAGE_PULL_POLICY:-Never}
       command: ["sh", "-ec", "trap : TERM INT; sleep 3600 & wait"]
       resources:
         requests:

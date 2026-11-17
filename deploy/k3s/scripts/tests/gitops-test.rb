@@ -132,6 +132,13 @@ class GitopsTest < Minitest::Test
     path = File.join(@directory, 'manifests.yaml')
     documents = YAML.load_stream(File.read(path)).compact
     refute documents.any? { |document| document['kind'] == 'Secret' }
+    documents.select { |document| document['kind'] == 'Deployment' && %w[app frontend frontend-assets].include?(document.dig('metadata', 'name')) }.each do |document|
+      specification = document.dig('spec', 'template', 'spec')
+      (specification.fetch('containers') + specification.fetch('initContainers', [])).each do |container|
+        assert_equal 'IfNotPresent', container.fetch('imagePullPolicy')
+        assert_match(%r{\Aghcr.io/ljkhyeong/happygallery-(app|frontend):[a-f0-9]{40}@sha256:[a-f0-9]{64}\z}, container.fetch('image'))
+      end
+    end
     documents.each do |document|
       annotations = document.fetch('metadata').fetch('annotations')
       if %w[Namespace PersistentVolumeClaim StorageClass ClusterIssuer StatefulSet].include?(document['kind'])

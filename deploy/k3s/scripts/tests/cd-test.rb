@@ -259,9 +259,11 @@ class CdTest < Minitest::Test
       exit 1 if ARGV[1..2] == %w[images pull] && ENV['HG_CD_CTR_PULL_FAIL']
       if ARGV[1..2] == %w[images list]
         digest = ENV.fetch('HG_CD_LOCAL_DIGEST', '#{LOCAL_DIGEST}')
-        refs = %w[app frontend].flat_map do |name|
-          ref = "localhost/happygallery-\#{name}:#{SHA}"
-          [ref, "\#{ref}@\#{digest}", "localhost/happygallery-\#{name}@\#{digest}"]
+        refs = %w[localhost ghcr.io/ljkhyeong].flat_map do |registry|
+          %w[app frontend].flat_map do |name|
+            ref = "\#{registry}/happygallery-\#{name}:#{SHA}"
+            [ref, "\#{ref}@\#{digest}", "\#{registry}/happygallery-\#{name}@\#{digest}"]
+          end
         end
         if ARGV.include?('-q')
           puts refs
@@ -288,7 +290,7 @@ class CdTest < Minitest::Test
     @env['HAPPYGALLERY_GITOPS_PHASE'] = 'prepare'
     _output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
     refute status.success?
-    assert_includes error, '실제 반입 digest가 다릅니다'
+    assert_includes error, 'digest가 다릅니다'
     refute calls.any? { |call| call.first == 'deploy.sh' }
     @env['HG_CD_CTR_PULL_FAIL'] = '1'
     _output, _error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)

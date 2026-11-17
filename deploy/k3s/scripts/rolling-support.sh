@@ -73,7 +73,7 @@ spec:
   containers:
     - name: publisher
       image: $FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST
-      imagePullPolicy: Never
+      imagePullPolicy: ${IMAGE_PULL_POLICY:-Never}
       command: [sh, -ec, "sleep 3600"]
       resources:
         requests: {cpu: 25m, memory: 32Mi}

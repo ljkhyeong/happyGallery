@@ -77,6 +77,9 @@ if [[ ${HAPPYGALLERY_GITOPS_PHASE:-} == prepare ]]; then
         local_ref="localhost/happygallery-$registry_component:$registry_revision"
         k3s_ctr images pull --platform linux/amd64 "$registry_ref"
         k3s_ctr images tag --force "$registry_ref" "$local_ref"
+        release_ref="ghcr.io/ljkhyeong/happygallery-$registry_component:$registry_revision"
+        k3s_ctr images tag --force "$registry_ref" "$release_ref"
+        ensure_containerd_image_alias "$release_ref" "$release_ref@$registry_digest" "$registry_digest"
     done
 else
     docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
